@@ -3,7 +3,7 @@ import { settlePlans, totalOf, type PlanOutcomes } from "./actions.ts";
 import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { followChangeCounts, setFollows, type FollowChangeCounts } from "./scopes.ts";
-import { DEFAULT_TAG_OPTIONS, FORMAT_VERSION, type Account, type ExportEntry, type Master } from "./types.ts";
+import { FORMAT_VERSION, type Account, type ExportEntry, type Master } from "./types.ts";
 import { createDict, usernameKey } from "./util.ts";
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
@@ -97,7 +97,6 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
 
   const master: Master = {
     version: FORMAT_VERSION,
-    tagOptions: base ? base.tagOptions : [...DEFAULT_TAG_OPTIONS],
     accounts,
     // Re-importing the same export doesn't make the data any newer.
     lastImportAt: summary.exportChanged || !base ? now : base.lastImportAt,

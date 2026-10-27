@@ -1,10 +1,11 @@
-import { memo } from "react";
+import { memo, useState, type KeyboardEvent } from "react";
 import { Badge, Box, Button, Checkbox, HStack, Input, Link, Stack, Text } from "@chakra-ui/react";
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
   PLAN_FIELDS,
   PLAN_STATES,
+  findTag,
   followChangeMatches,
   planOf,
   profileUrl,
@@ -16,7 +17,7 @@ import {
 } from "../core/index.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../store/masterSlice.ts";
-import { selectAccount, selectChangesSince, selectTagOptions } from "../store/selectors.ts";
+import { selectAccount, selectChangesSince, selectTags } from "../store/selectors.ts";
 import { formatSince } from "./dates.ts";
 import { openProfilePopup } from "./instagramLink.ts";
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from "./labels.ts";
@@ -35,6 +36,41 @@ function CheckboxField({ name, label, checked, onChange }: { name: string; label
 function sinceText(prefix: string, follow: Follow | null): string | null {
   if (!follow) return null;
   return `${prefix} ${follow.since === null ? "(date unknown)" : formatSince(follow.since)}`;
+}
+
+/**
+ * "+ tag": a new tag is created by adding it to an account (a tag nobody has doesn't exist).
+ * A name matching an existing tag in any letter case reuses that tag.
+ */
+function NewTag({ username, tags, has }: { username: string; tags: readonly string[]; has: readonly string[] }) {
+  const dispatch = useAppDispatch();
+  const [draft, setDraft] = useState<string | null>(null); // null = closed
+  if (draft === null) {
+    return <Button size="xs" variant="ghost" onClick={() => { setDraft(""); }}>+ tag</Button>;
+  }
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") setDraft(null);
+    if (event.key !== "Enter" || draft === null) return;
+    const name = draft.trim();
+    const tag = findTag(tags, name) ?? name;
+    if (tag && !has.includes(tag)) dispatch(toggleTag({ username, tag }));
+    setDraft(null);
+  }
+  return (
+    <Input
+      size="xs"
+      width="32"
+      autoFocus
+      name={`newTag-${username}`}
+      autoComplete="off"
+      placeholder="new tag…"
+      aria-label={`New tag for @${username}`}
+      value={draft}
+      onChange={e => { setDraft(e.currentTarget.value); }}
+      onKeyDown={onKeyDown}
+      onBlur={() => { setDraft(null); }}
+    />
+  );
 }
 
 /** "To unfollow" (+ "Done" once marked). Offered only while the follow exists, or when already marked. */
@@ -58,7 +94,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
   const dispatch = useAppDispatch();
   const account = useAppSelector(s => selectAccount(s, accountKey));
   const since = useAppSelector(selectChangesSince);
-  const tagOptions = useAppSelector(selectTagOptions);
+  const tags = useAppSelector(selectTags);
   if (!account) return null;
 
   const { username, review } = account;
@@ -97,7 +133,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
             {Object.values(ACTION_TYPES).map(type => <PlanControls key={type} account={account} type={type} />)}
           </HStack>
           <HStack gap="1" wrap="wrap" aria-label={`Tags for @${username}`}>
-            {tagOptions.map(tag => {
+            {tags.map(tag => {
               const on = review.tags.includes(tag);
               return (
                 <Button
@@ -112,6 +148,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
                 </Button>
               );
             })}
+            <NewTag username={username} tags={tags} has={review.tags} />
           </HStack>
           <Input
             size="sm"

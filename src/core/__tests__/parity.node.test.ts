@@ -21,6 +21,8 @@ import {
   profileUrl,
   relationshipOf,
   stringifyMasterFile,
+  tagCounts,
+  tagsInUse,
   toMasterFile,
   type Account,
   type ActionType,
@@ -160,7 +162,7 @@ function toLegacyMaster(master: Master): unknown {
   }
   return {
     schema_version: 6,
-    tag_options: master.tagOptions,
+    tag_options: tagsInUse(tagCounts(master)),
     accounts,
     actions,
     snapshots: [{
@@ -191,7 +193,7 @@ function projectNew(master: Master): Projection {
   const accounts = Object.entries(master.accounts);
   const names = (keep: (a: Account) => boolean) => sortedKeys(accounts.filter(([, a]) => keep(a)).map(([, a]) => a.username));
   return {
-    tag_options: master.tagOptions,
+    tag_options: tagsInUse(tagCounts(master)), // tags come from the accounts
     accounts: Object.fromEntries(accounts.map(([key, a]) => [key, {
       username: a.username, url: profileUrl(a.username), review: legacyReview(a.review), current: legacyCurrent(a),
       pending: sorted(Object.values(ACTION_TYPES).filter(t => planOf(a, t) !== undefined).map(t => LEGACY_ACTION[t])),

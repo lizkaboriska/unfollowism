@@ -5,14 +5,12 @@ import {
   REVIEW_STATUSES,
   TAG_FILTER_KINDS,
   type FollowChange,
-  type Master,
   type ReviewScope,
   type ReviewStatusFilter,
   type TagFilter,
   type ValueOf,
 } from "../core/index.ts";
-import { resetScope } from "./masterSlice.ts";
-import { importPrepared, restoreTab } from "./thunks.ts";
+import { renameTag, resetScope } from "./masterSlice.ts";
 
 /** Which list the main view shows: the review queue, a change since the last save, or a list of planned actions. */
 export const LIST_VIEWS = {
@@ -54,10 +52,6 @@ const initialState: FiltersState = {
   view: LIST_VIEWS.REVIEW,
 };
 
-function dropUnknownTag(state: FiltersState, master: Master): void {
-  if (state.tag.kind === TAG_FILTER_KINDS.TAG && !master.tagOptions.includes(state.tag.tag)) state.tag = { kind: TAG_FILTER_KINDS.ALL };
-}
-
 export const filtersSlice = createSlice({
   name: "filters",
   initialState,
@@ -84,11 +78,9 @@ export const filtersSlice = createSlice({
       .addCase(resetScope, state => {
         state.reviewStatus = REVIEW_STATUSES.NEEDS_REVIEW;
       })
-      .addCase(importPrepared.fulfilled, (state, { payload }) => {
-        dropUnknownTag(state, payload.master);
-      })
-      .addCase(restoreTab.fulfilled, (state, { payload }) => {
-        if (payload) dropUnknownTag(state, payload.base);
+      // The filter follows a renamed tag. A tag that no longer exists is handled by tagFilterCleanup.ts.
+      .addCase(renameTag, (state, { payload }) => {
+        if (state.tag.kind === TAG_FILTER_KINDS.TAG && state.tag.tag === payload.from) state.tag = { kind: TAG_FILTER_KINDS.TAG, tag: payload.to };
       });
   },
 });

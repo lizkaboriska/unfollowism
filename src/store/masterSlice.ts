@@ -6,6 +6,8 @@ import {
   copyAccount,
   createDict,
   planOf,
+  removeTagFrom,
+  renameTagOn,
   reviewStatusMatches,
   scopeMatches,
   setPlan as applyPlan,
@@ -92,6 +94,16 @@ function applyEdit(state: MasterState, key: string, edit: (account: Account) => 
   state.changed[key] = copy;
 }
 
+/** Edits every account that has `tag` (as one change). */
+function editTagged(state: MasterState, tag: string, edit: (account: Account) => void): void {
+  const before = original(state);
+  const base = before.base;
+  if (!base) return;
+  const targets = Object.keys(base.accounts).filter(key => accountOf<ReadonlyAccount>(base.accounts, before.changed, key)?.review.tags.includes(tag));
+  for (const key of targets) applyEdit(state, key, edit);
+  if (targets.length) state.revision += 1;
+}
+
 /** Edits one account (callers have already checked that the edit changes something). */
 function editAccount(state: MasterState, username: string, edit: (account: Account) => void): void {
   if (!accountBefore(state, username)) return;
@@ -154,6 +166,15 @@ export const masterSlice = createSlice({
       });
       for (const key of targets) applyEdit(state, key, account => { account.review.reviewed = false; });
       if (targets.length) state.revision += 1;
+    },
+    /** Renames a tag on every account that has it. Renaming onto an existing tag merges the two. */
+    renameTag(state, { payload }: PayloadAction<{ from: string; to: string }>) {
+      if (payload.from === payload.to) return;
+      editTagged(state, payload.from, account => { renameTagOn(account, payload.from, payload.to); });
+    },
+    /** Removes a tag from every account; with no account left, the tag no longer exists. */
+    deleteTag(state, { payload }: PayloadAction<{ tag: string }>) {
+      editTagged(state, payload.tag, account => { removeTagFrom(account, payload.tag); });
     },
     /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
     resetChanges(state) {
@@ -220,4 +241,5 @@ export const masterSlice = createSlice({
   },
 });
 
-export const { setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, resetChanges, persistenceFailed } = masterSlice.actions;
+export const { setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, renameTag, deleteTag, resetChanges, persistenceFailed } =
+  masterSlice.actions;

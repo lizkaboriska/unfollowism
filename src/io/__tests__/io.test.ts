@@ -127,7 +127,6 @@ const edited = (changed: TabWrites["changed"]) => ({ changed, removed: [], saved
 const BASE: MasterFile = {
   version: 1,
   lastImportAt: "2026-10-27T12:00:00Z",
-  tagOptions: ["artist"],
   accounts: JSON.parse('{"bob":{"username":"bob"},"constructor":{"username":"constructor"}}') as MasterFile["accounts"],
 };
 

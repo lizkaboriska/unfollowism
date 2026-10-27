@@ -4,9 +4,6 @@ export type ValueOf<T> = T[keyof T];
 /** Version of the saved master file format. Bump it (and handle the old value) when the format changes. */
 export const FORMAT_VERSION = 1;
 
-/** Tag choices for a brand-new master (the UI has no tag management yet). */
-export const DEFAULT_TAG_OPTIONS: readonly string[] = ["artist", "fashion", "lifestyle", "aesthetics", "acquaintance", "home", "dog"];
-
 /** Instagram actions you do by hand and mark in the app. */
 export const ACTION_TYPES = { UNFOLLOW: "unfollow", REMOVE_FOLLOWER: "removeFollower" } as const;
 export type ActionType = ValueOf<typeof ACTION_TYPES>;
@@ -95,7 +92,6 @@ export type ReadonlyAccounts = DeepReadonly<Record<string, Account>>;
 /** The working master in memory. See masterFile.ts for the compact saved form. */
 export interface Master {
   version: typeof FORMAT_VERSION;
-  tagOptions: string[];
   /** Keyed by lower-cased username (see usernameKey). */
   accounts: Record<string, Account>;
   /** When the latest Instagram export was imported. */

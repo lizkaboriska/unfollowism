@@ -4,6 +4,7 @@ import { filtersSlice } from "./filtersSlice.ts";
 import { listSlice, startListRefresh } from "./listSlice.ts";
 import { masterSlice } from "./masterSlice.ts";
 import { startPersistence } from "./persistence.ts";
+import { startTagFilterCleanup } from "./tagFilterCleanup.ts";
 
 export const rootReducer = combineReducers({
   master: masterSlice.reducer,
@@ -36,6 +37,7 @@ export function makeStore(deps: StoreDeps, { preloadedState }: StoreOptions = {}
       }).prepend(listener.middleware),
   });
   startPersistence(listener);
+  startTagFilterCleanup(listener);
   startListRefresh(listener);
   return store;
 }

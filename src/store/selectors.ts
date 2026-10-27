@@ -5,11 +5,14 @@ import {
   accountOf,
   buildSessionDiff,
   countPlans,
+  countTags,
   followChangeCounts,
   followChangeMatches,
   planOf,
   planStats,
   summarizeSession,
+  tagCounts,
+  tagsInUse,
   createDict,
   queryMatches,
   relationshipStats,
@@ -27,6 +30,7 @@ import {
   type ReadonlyAccounts,
   type Master,
   type ScopeStats,
+  type TagCounts,
 } from "../core/index.ts";
 import { LIST_VIEWS, isFollowChangeView, isPlanView, type FiltersState } from "./filtersSlice.ts";
 import type { RootState } from "./index.ts";
@@ -40,7 +44,6 @@ type RAccounts = ReadonlyAccounts;
 
 const EMPTY_ACCOUNTS: RAccounts = Object.freeze(createDict<Account>());
 const EMPTY_KEYS: readonly string[] = Object.freeze([]);
-const EMPTY_TAGS: readonly string[] = Object.freeze([]);
 
 export const selectBase = (s: RootState): DeepReadonly<Master> | null => s.master.base;
 export const selectChanged = (s: RootState): RAccounts => s.master.changed;
@@ -49,7 +52,6 @@ export const selectHasProject = (s: RootState): boolean => s.master.base !== nul
 export const selectIsDirty = (s: RootState): boolean => s.master.base !== null && s.master.revision !== s.master.savedRevision;
 export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
   s.master.base ? accountOf<RAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
-export const selectTagOptions = (s: RootState): readonly string[] => s.master.base?.tagOptions ?? EMPTY_TAGS;
 export const selectFilters = (s: RootState) => s.filters;
 const selectBaseAccounts = (s: RootState): RAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
@@ -190,4 +192,22 @@ export const selectUnsavedAccountCount = createSelector([selectBaseAccounts, sel
     if (!sameAsSaved(accountOf(base, changed, key), accountOf(base, saved, key))) count += 1;
   }
   return count;
+});
+
+const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tagCounts({ accounts }));
+
+/** How many accounts have each tag: imported counts, adjusted by the edited accounts. */
+export const selectTagCounts = createSelector([selectBaseTagCounts, selectBaseAccounts, selectChanged], (baseCounts, base, changed): Readonly<TagCounts> => {
+  const counts: TagCounts = { ...baseCounts };
+  for (const [key, account] of Object.entries(changed)) {
+    const before = base[key];
+    if (before) countTags(counts, before, -1);
+    countTags(counts, account, 1);
+  }
+  return counts;
+});
+
+/** Every tag some account has, alphabetical. The previous array is kept while the names don't change. */
+export const selectTags = createSelector([selectTagCounts], (counts): readonly string[] => tagsInUse(counts), {
+  memoizeOptions: { resultEqualityCheck: sameKeys },
 });

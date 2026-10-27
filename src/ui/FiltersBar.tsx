@@ -1,49 +1,58 @@
-import type { ReactNode } from "react";
-import { Button, Input, NativeSelect, Stack } from "@chakra-ui/react";
+import { useMemo, useState } from "react";
+import { Button, Input, Stack } from "@chakra-ui/react";
 import { REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
 import { LIST_VIEWS, isPlanView, setQuery, setReviewStatus, setScope, setTagFilter } from "../store/filtersSlice.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { resetScope } from "../store/masterSlice.ts";
-import { selectScopeStats, selectTagOptions } from "../store/selectors.ts";
+import { selectScopeStats, selectTagCounts, selectTags } from "../store/selectors.ts";
 import { useConfirm } from "./dialogs.tsx";
+import { FilterSelect, type FilterOption } from "./FilterSelect.tsx";
+import { ManageTagsDialog } from "./ManageTagsDialog.tsx";
 import { SCOPE_LABELS, STATUS_LABELS, scopeDescription } from "./labels.ts";
 import { plural } from "./statusText.ts";
 
 // A tag can be any text (even "untagged"), so the tag select uses positions as option values.
 const ALL_TAGS_VALUE = "all";
 const UNTAGGED_VALUE = "untagged";
+/** The last line of the tag list opens Manage tags instead of filtering. */
+const MANAGE_TAGS_VALUE = "manage";
 const tagValue = (index: number) => `tag-${index}`;
 
-function tagFilterValue(tag: TagFilter, tagOptions: readonly string[]): string {
+function tagFilterValue(tag: TagFilter, tags: readonly string[]): string {
   if (tag.kind === TAG_FILTER_KINDS.ALL) return ALL_TAGS_VALUE;
   if (tag.kind === TAG_FILTER_KINDS.UNTAGGED) return UNTAGGED_VALUE;
-  return tagValue(tagOptions.indexOf(tag.tag));
+  return tagValue(tags.indexOf(tag.tag));
 }
 
-function tagFilterOf(value: string, tagOptions: readonly string[]): TagFilter {
+function tagFilterOf(value: string, tags: readonly string[]): TagFilter {
   if (value === UNTAGGED_VALUE) return { kind: TAG_FILTER_KINDS.UNTAGGED };
-  const tag = tagOptions.find((_, i) => tagValue(i) === value);
+  const tag = tags.find((_, i) => tagValue(i) === value);
   return tag === undefined ? { kind: TAG_FILTER_KINDS.ALL } : { kind: TAG_FILTER_KINDS.TAG, tag };
-}
-
-function Select({ name, label, value, onChange, children }: { name: string; label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
-  return (
-    <NativeSelect.Root size="sm" width={{ base: "full", md: "auto" }}>
-      <NativeSelect.Field name={name} aria-label={label} value={value} onChange={e => { onChange(e.currentTarget.value); }}>
-        {children}
-      </NativeSelect.Field>
-      <NativeSelect.Indicator />
-    </NativeSelect.Root>
-  );
 }
 
 export function FiltersBar() {
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
   const filters = useAppSelector(s => s.filters);
-  const tagOptions = useAppSelector(selectTagOptions);
+  const tags = useAppSelector(selectTags);
+  const tagCounts = useAppSelector(selectTagCounts);
   const reviewedInScope = useAppSelector(selectScopeStats).reviewed;
   const inReview = filters.view === LIST_VIEWS.REVIEW;
+  const [tagsOpen, setTagsOpen] = useState(false);
+
+  const scopeOptions = useMemo(() => Object.values(REVIEW_SCOPES).map(scope => ({ value: scope, label: SCOPE_LABELS[scope] })), []);
+  const statusOptions = useMemo(() => Object.values(REVIEW_STATUSES).map(status => ({ value: status, label: STATUS_LABELS[status] })), []);
+  const tagOptions = useMemo((): FilterOption[] => [
+    { value: ALL_TAGS_VALUE, label: "All tags" },
+    { value: UNTAGGED_VALUE, label: "Untagged" },
+    ...tags.map((tag, i) => ({ value: tagValue(i), label: tag, count: tagCounts[tag] ?? 0, separatorBefore: i === 0 })),
+    { value: MANAGE_TAGS_VALUE, label: "Manage tags…", separatorBefore: true },
+  ], [tags, tagCounts]);
+
+  function onTagChange(value: string) {
+    if (value === MANAGE_TAGS_VALUE) setTagsOpen(true);
+    else dispatch(setTagFilter(tagFilterOf(value, tags)));
+  }
 
   async function onResetScope() {
     const confirmed = await confirm({
@@ -69,20 +78,13 @@ export function FiltersBar() {
         onChange={e => dispatch(setQuery(e.currentTarget.value))}
       />
       {inReview && (
-        <Select name="scope" label="Scope" value={filters.scope} onChange={value => dispatch(setScope(value as ReviewScope))}>
-          {Object.values(REVIEW_SCOPES).map(scope => <option key={scope} value={scope}>{SCOPE_LABELS[scope]}</option>)}
-        </Select>
+        <FilterSelect name="scope" label="Scope" options={scopeOptions} value={filters.scope} onChange={value => dispatch(setScope(value as ReviewScope))} />
       )}
       {!isPlanView(filters.view) && (
-        <Select name="status" label="Status" value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value as ReviewStatusFilter))}>
-          {Object.values(REVIEW_STATUSES).map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
-        </Select>
+        <FilterSelect name="status" label="Status" options={statusOptions} value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value as ReviewStatusFilter))} />
       )}
-      <Select name="tag" label="Tag" value={tagFilterValue(filters.tag, tagOptions)} onChange={value => dispatch(setTagFilter(tagFilterOf(value, tagOptions)))}>
-        <option value={ALL_TAGS_VALUE}>All tags</option>
-        <option value={UNTAGGED_VALUE}>Untagged</option>
-        {tagOptions.map((tag, i) => <option key={tag} value={tagValue(i)}>{tag}</option>)}
-      </Select>
+      <FilterSelect name="tag" label="Tag" options={tagOptions} value={tagFilterValue(filters.tag, tags)} onChange={onTagChange} />
+      <ManageTagsDialog open={tagsOpen} onClose={() => { setTagsOpen(false); }} />
       {inReview && (
         <Button size="sm" variant="outline" colorPalette="yellow" disabled={reviewedInScope === 0} onClick={() => void onResetScope()}>
           Reset scope

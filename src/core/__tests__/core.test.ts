@@ -1,6 +1,5 @@
 import {
   ACTION_TYPES,
-  DEFAULT_TAG_OPTIONS,
   FOLLOW_CHANGES,
   ImportError,
   MasterFormatError,
@@ -168,7 +167,7 @@ describe("master file", () => {
 
   test("drops fields the app does not use", () => {
     const parsed = parseMaster({ ...saved(), notesFromElsewhere: "x" });
-    expect(Object.keys(toMasterFile(parsed))).toEqual(["version", "lastSavedAt", "lastImportAt", "tagOptions", "accounts"]);
+    expect(Object.keys(toMasterFile(parsed))).toEqual(["version", "lastSavedAt", "lastImportAt", "accounts"]);
   });
 
   test("does not mutate its input", () => {
@@ -210,7 +209,6 @@ describe("importExport", () => {
     const result = importExport(null, bundle(followingFile(["Alice", 100], ["bob", 200]), followersFile(["alice", 300]), followersFile(["carol", 400])), T1);
     expect(result.isNewMaster).toBe(true);
     expect(result.dirty).toBe(true);
-    expect(result.master.tagOptions).toEqual(DEFAULT_TAG_OPTIONS);
     expect(result.master.lastImportAt).toBe(T1);
     expect(must(result.master.accounts.alice).following).toEqual({ since: 100 });
     expect(must(result.master.accounts.alice).followedBy).toEqual({ since: 300 });

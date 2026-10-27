@@ -52,6 +52,19 @@ async function importFiles(user: UserEvent, files: File[]) {
   await user.click(importButton());
 }
 
+/** Opens a filter dropdown and picks an option by its label (a tag's count after the label is ignored). */
+async function chooseFilter(user: UserEvent, name: string, option: string) {
+  await user.click(screen.getByRole("combobox", { name }));
+  const escaped = option.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  await user.click(await screen.findByRole("option", { name: new RegExp(`^${escaped}\\s*\\d*$`) }));
+}
+
+/** Creates a tag on a card with "+ tag" (new masters start without tags). */
+async function newTag(user: UserEvent, username: string, tag: string) {
+  await user.click(within(row(username)).getByRole("button", { name: "+ tag" }));
+  await user.type(within(row(username)).getByRole("textbox", { name: `New tag for @${username}` }), `${tag}{Enter}`);
+}
+
 const row = (username: string) => screen.getByRole("article", { name: `@${username}` });
 const findRow = (username: string) => screen.findByRole("article", { name: `@${username}` });
 const queryRow = (username: string) => screen.queryByRole("article", { name: `@${username}` });
@@ -105,7 +118,7 @@ test("a missing Followers file is shown and Import stays disabled", async () => 
 });
 
 const masterJson = (savedAt: string, name = "instagram_master_tracker.json") =>
-  new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, tagOptions: [], accounts: {} })], name, { type: "application/json" });
+  new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts: {} })], name, { type: "application/json" });
 
 test("files chosen one after another add up, e.g. a master from another folder", async () => {
   const { user } = await renderApp();
@@ -292,6 +305,7 @@ describe("main view", () => {
   }
   const tab = (name: RegExp) => screen.getByRole("button", { name });
   const select = (name: string) => screen.getByRole("combobox", { name });
+  const choose = (user: UserEvent, name: string, option: string) => chooseFilter(user, name, option);
   const shown = () => screen.queryAllByRole("article").map(card => card.getAttribute("aria-label"));
 
   test("tabs switch lists; empty tabs are disabled", async () => {
@@ -314,33 +328,33 @@ describe("main view", () => {
     expect(shown()).toEqual(["@bob"]);
     await user.clear(screen.getByRole("textbox", { name: "Search username" }));
 
-    await user.click(within(row("alice")).getByRole("button", { name: "artist" }));
-    await user.selectOptions(select("Tag"), "artist");
+    await newTag(user, "alice", "artist");
+    await choose(user, "Tag", "artist");
     expect(shown()).toEqual(["@alice"]);
-    await user.selectOptions(select("Tag"), "Untagged");
+    await choose(user, "Tag", "Untagged");
     expect(shown()).toEqual(["@bob"]);
   });
 
   test("a ticked card stays until the list refreshes", async () => {
     const { user } = await imported();
-    await user.selectOptions(select("Status"), "Needs review");
+    await choose(user, "Status", "Needs review");
     await user.click(reviewedBox("bob"));
     expect(shown()).toEqual(["@alice", "@bob"]); // still there while you work
-    await user.selectOptions(select("Status"), "All");
-    await user.selectOptions(select("Status"), "Needs review");
+    await choose(user, "Status", "All");
+    await choose(user, "Status", "Needs review");
     expect(shown()).toEqual(["@alice"]);
   });
 
   test("plans: offered only when the follow exists; To do → Done leaves the list on refresh", async () => {
     const { user } = await imported();
-    await user.selectOptions(select("Scope"), "All current accounts");
+    await choose(user, "Scope", "All current accounts");
     expect(within(row("bob")).queryByRole("checkbox", { name: "To remove" })).not.toBeInTheDocument(); // bob doesn't follow me
     expect(within(row("carol")).queryByRole("checkbox", { name: "To unfollow" })).not.toBeInTheDocument(); // I don't follow carol
     expect(within(row("alice")).getByRole("checkbox", { name: "To remove" })).toBeInTheDocument();
 
     await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" }));
     expect(reviewedBox("bob")).toBeChecked(); // planning counts as reviewing
-    await user.selectOptions(select("Status"), "Needs review");
+    await choose(user, "Status", "Needs review");
     await user.click(tab(/^To do \(1\)$/));
     expect(shown()).toEqual(["@bob"]); // Status doesn't apply in To do…
     expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument(); // …so it's hidden there
@@ -355,7 +369,7 @@ describe("main view", () => {
 
   test("tags and notes end up in the saved master", async () => {
     const { user, downloads } = await imported();
-    await user.click(within(row("bob")).getByRole("button", { name: "dog" }));
+    await newTag(user, "bob", "dog");
     await user.type(within(row("bob")).getByRole("textbox", { name: "Note for @bob" }), "met at a show");
     await user.click(screen.getByRole("button", { name: "Save master" }));
     await waitFor(() => { expect(downloads).toHaveLength(1); });
@@ -374,7 +388,7 @@ describe("main view", () => {
     expect(within(dialog).getByText(/Reset reviewed for 2 accounts matching I follow\?/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Reset" }));
     await waitFor(() => { expect(reviewedBox("bob")).not.toBeChecked(); });
-    expect(select("Status")).toHaveValue("needsReview");
+    expect(select("Status")).toHaveTextContent("Needs review");
   });
 
   test("the Instagram link opens a side popup; modifier clicks are left to the browser", async () => {
@@ -406,9 +420,9 @@ describe("unsaved changes drawer", () => {
   test("lists net changes per account, by category, and only what isn't saved", async () => {
     const { user, downloads } = await imported();
     await user.click(reviewedBox("alice"));
-    await user.click(within(row("bob")).getByRole("button", { name: "dog" }));
+    await newTag(user, "bob", "dog");
     await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" }));
-    await user.click(within(row("alice")).getByRole("button", { name: "home" }));
+    await newTag(user, "alice", "home");
     await user.click(within(row("alice")).getByRole("button", { name: "home" })); // back again: no net change
 
     await user.click(screen.getByRole("button", { name: "Unsaved changes (2)" }));
@@ -452,4 +466,71 @@ test("every form field has a name (browsers flag unnamed fields)", async () => {
   await findRow("bob");
   await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" })); // shows Done too
   expect(unnamed()).toEqual([]); // main view
+});
+
+describe("tags", () => {
+  async function imported() {
+    const t = await renderApp();
+    await importFiles(t.user, exportFiles());
+    await findRow("bob");
+    return t;
+  }
+  /** The tag buttons on a card (its only buttons besides "+ tag"). */
+  const tagButtons = (username: string) => within(row(username)).queryAllByRole("button").map(b => b.textContent).filter(text => text !== "+ tag");
+
+  test("+ tag creates a tag on that card; it then appears on every card and reuses its case", async () => {
+    const { user } = await imported();
+    expect(tagButtons("alice")).toEqual([]);
+    await newTag(user, "alice", "Artist");
+    expect(within(row("alice")).getByRole("button", { name: "Artist" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(row("bob")).getByRole("button", { name: "Artist" })).toHaveAttribute("aria-pressed", "false");
+
+    await newTag(user, "bob", "  artist ");
+    expect(within(row("bob")).getByRole("button", { name: "Artist" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(row("bob")).queryByRole("button", { name: "artist" })).not.toBeInTheDocument();
+  });
+
+  test("Manage tags: rename, merge and delete, with counts", async () => {
+    const { user } = await imported();
+    await chooseFilter(user, "Tag", "Manage tags…");
+    expect(await screen.findByText(/No tags yet/)).toBeInTheDocument();
+    await user.click(within(screen.getByRole("dialog", { name: "Manage tags" })).getByRole("button", { name: /close/i }));
+    await waitFor(() => { expect(screen.queryByRole("dialog", { name: "Manage tags" })).not.toBeInTheDocument(); });
+
+    await newTag(user, "alice", "dog");
+    await newTag(user, "bob", "dog");
+    await newTag(user, "bob", "illustration");
+    await chooseFilter(user, "Tag", "Manage tags…");
+    const dialog = await screen.findByRole("dialog", { name: "Manage tags" });
+    expect(within(dialog).getByText("2 accounts")).toBeInTheDocument();
+
+    // Rename: an empty name is refused, a new name applies to every account with the tag.
+    const lineOf = (tag: string) => must(within(dialog).getByText(tag).parentElement);
+    await user.click(within(lineOf("dog")).getByRole("button", { name: "Rename" }));
+    const field = within(dialog).getByRole("textbox", { name: "New name for dog" });
+    await user.clear(field);
+    await user.keyboard("{Enter}");
+    expect(within(dialog).getByText("A tag needs a name.")).toBeInTheDocument();
+    await user.type(field, "dogs{Enter}");
+    expect(within(lineOf("dogs")).getByText("2 accounts")).toBeInTheDocument();
+
+    // Rename onto an existing tag asks, then merges.
+    await user.click(within(lineOf("illustration")).getByRole("button", { name: "Rename" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "New name for illustration" }), "{Control>}a{/Control}Dogs{Enter}");
+    const merge = await screen.findByRole("alertdialog", { name: "Merge tags?" });
+    await waitFor(() => user.click(within(merge).getByRole("button", { name: "Merge" })));
+    await waitFor(() => { expect(within(dialog).queryByText("illustration")).not.toBeInTheDocument(); });
+
+    // Delete asks with the count.
+    await user.click(within(lineOf("dogs")).getByRole("button", { name: "Delete" }));
+    const confirmDelete = await screen.findByRole("alertdialog");
+    expect(within(confirmDelete).getByText("It will be removed from 2 accounts.")).toBeInTheDocument();
+    await waitFor(() => user.click(within(confirmDelete).getByRole("button", { name: "Delete" })));
+    expect(await within(dialog).findByText(/No tags yet/)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: /close/i }));
+    await waitFor(() => { expect(screen.queryByRole("dialog", { name: "Manage tags" })).not.toBeInTheDocument(); });
+    expect(tagButtons("alice")).toEqual([]);
+    expect(tagButtons("bob")).toEqual([]);
+  });
 });

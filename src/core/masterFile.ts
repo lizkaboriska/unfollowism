@@ -20,7 +20,6 @@ export interface MasterFile {
   version: typeof FORMAT_VERSION;
   lastSavedAt?: string;
   lastImportAt: string;
-  tagOptions: string[];
   /** Keyed by lower-cased username. */
   accounts: Record<string, AccountRecord>;
 }
@@ -77,7 +76,6 @@ export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
     version: FORMAT_VERSION,
     ...(master.lastSavedAt === undefined ? {} : { lastSavedAt: master.lastSavedAt }),
     lastImportAt: master.lastImportAt,
-    tagOptions: [...master.tagOptions],
     accounts,
   };
 }
@@ -206,7 +204,6 @@ export function parseMaster(raw: unknown): Master {
 
   const master: Master = {
     version: FORMAT_VERSION,
-    tagOptions: strings(raw.tagOptions, "tagOptions"),
     accounts,
     lastImportAt: nonEmptyStr(raw.lastImportAt, "lastImportAt"),
   };

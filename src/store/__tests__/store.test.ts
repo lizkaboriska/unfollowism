@@ -4,12 +4,14 @@ const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
 import type { TabStore } from "../../io/tabStore.ts";
 import { LIST_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setView } from "../filtersSlice.ts";
-import { resetChanges, resetScope, setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
+import { deleteTag, renameTag, resetChanges, resetScope, setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
   selectAccount,
   selectIsDirty,
   selectFollowChangeCounts,
   selectPlanStats,
+  selectTagCounts,
+  selectTags,
   selectScopeStats,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
@@ -304,6 +306,46 @@ describe("reset changes", () => {
   });
 });
 
+describe("tags", () => {
+  test("rename and delete edit only the accounts with the tag; the filter follows; Reset changes undoes them", async () => {
+    const t = await importedStore();
+    t.store.dispatch(toggleTag({ username: "alice", tag: "dog" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "artist" }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    expect(selectTags(t.store.getState())).toEqual(["artist", "dog"]);
+
+    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: "dog" }));
+    const r = t.store.getState().master.revision;
+    t.store.dispatch(renameTag({ from: "dog", to: "artist" })); // merge
+    expect(account(t, "alice").review.tags).toEqual(["artist"]);
+    expect(account(t, "bob").review.tags).toEqual(["artist"]);
+    expect(selectTagCounts(t.store.getState()).artist).toBe(2);
+    expect(selectTagCounts(t.store.getState()).dog ?? 0).toBe(0);
+    expect(selectTags(t.store.getState())).toEqual(["artist"]);
+    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.TAG, tag: "artist" });
+    expect(t.store.getState().master.revision).toBe(r + 1); // one change, however many accounts
+    expect(t.store.getState().master.changed.carol).toBeUndefined(); // carol has no tags: not edited
+
+    t.store.dispatch(deleteTag({ tag: "artist" }));
+    expect(selectTags(t.store.getState())).toEqual([]);
+    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL }); // its tag is gone
+
+    t.store.dispatch(resetChanges());
+    expect(selectTags(t.store.getState())).toEqual(["artist", "dog"]);
+    expect(account(t, "bob").review.tags).toEqual(["dog", "artist"]);
+  });
+
+  test("removing a tag from its last account makes it disappear, and the filter resets", async () => {
+    const t = await importedStore();
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: "dog" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    expect(selectTags(t.store.getState())).toEqual([]);
+    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL });
+  });
+});
+
 describe("list refresh", () => {
   test("the shown list changes on filter change, import, restore and resets, never on an edit", async () => {
     const t = await importedStore();
@@ -422,7 +464,7 @@ describe("reload safety net", () => {
 
   test("unusable stored data is ignored", async () => {
     const t = makeTestStore();
-    await t.tab.replace({ version: 1, lastImportAt: "x", tagOptions: [], accounts: { bob: { username: "" } } }, {
+    await t.tab.replace({ version: 1, lastImportAt: "x", accounts: { bob: { username: "" } } }, {
       revision: 1, savedRevision: 0, storedAt: "x",
     }, { changed: {}, saved: {} });
     expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
