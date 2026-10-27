@@ -1,0 +1,165 @@
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import {
+  actionIneligibility,
+  addPendingAction,
+  cancelPendingAction,
+  markReviewed,
+  resetReviewedForScope,
+  usernameKey,
+  type Account,
+  type ActionType,
+  type Master,
+  type ReviewScope,
+  type TagFilter,
+} from "../core/index.ts";
+import { importPrepared, saveMaster, type RestoredSession } from "./thunks.ts";
+
+export interface MasterState {
+  master: Master | null;
+  /** State right after import/restore; the Session changes drawer diffs against it. Saving does not move it. */
+  baseline: Master | null;
+  /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
+  revision: number;
+  savedRevision: number;
+  /** The last import created a snapshot that hasn't been saved yet. */
+  pendingSnapshot: boolean;
+  importStatus: "idle" | "importing";
+  saveStatus: "idle" | "saving";
+  message: string;
+  /** Browser storage failed: unsaved work won't survive closing the tab. */
+  persistenceFailed: boolean;
+}
+
+const initialState: MasterState = {
+  master: null,
+  baseline: null,
+  revision: 0,
+  savedRevision: 0,
+  pendingSnapshot: false,
+  importStatus: "idle",
+  saveStatus: "idle",
+  message: "",
+  persistenceFailed: false,
+};
+
+/** Edit payloads carry the timestamp so reducers stay pure. */
+function stamped<P>(payload: P) {
+  return { payload: { ...payload, at: new Date().toISOString() } };
+}
+
+type Stamped<P> = PayloadAction<P & { at: string }>;
+
+/** Runs an edit against one account; bumps the revision unless the account is missing or the edit returns false. */
+function editAccount(state: MasterState, username: string, edit: (account: Account, master: Master) => boolean | undefined): void {
+  const master = state.master;
+  const account = master?.accounts[usernameKey(username)];
+  if (!master || !account) return;
+  if (edit(account, master) === false) return;
+  state.revision += 1;
+}
+
+export const masterSlice = createSlice({
+  name: "master",
+  initialState,
+  reducers: {
+    setReviewed: {
+      reducer(state, { payload }: Stamped<{ username: string; reviewed: boolean }>) {
+        editAccount(state, payload.username, account => { markReviewed(account, payload.reviewed, payload.at); });
+      },
+      prepare: (p: { username: string; reviewed: boolean }) => stamped(p),
+    },
+    /** Marking unavailable also marks the account reviewed; clearing it does not un-review. */
+    setUnavailable: {
+      reducer(state, { payload }: Stamped<{ username: string; unavailable: boolean }>) {
+        editAccount(state, payload.username, account => {
+          account.review.deleted_or_unavailable = payload.unavailable;
+          if (payload.unavailable) markReviewed(account, true, payload.at);
+        });
+      },
+      prepare: (p: { username: string; unavailable: boolean }) => stamped(p),
+    },
+    toggleTag(state, { payload }: PayloadAction<{ username: string; tag: string }>) {
+      editAccount(state, payload.username, account => {
+        const tags = account.review.tags;
+        const index = tags.indexOf(payload.tag);
+        if (index === -1) tags.push(payload.tag);
+        else tags.splice(index, 1);
+      });
+    },
+    setNote(state, { payload }: PayloadAction<{ username: string; note: string }>) {
+      editAccount(state, payload.username, account => {
+        if (account.review.notes === payload.note) return false;
+        account.review.notes = payload.note;
+      });
+    },
+    /** Checking records a pending Instagram action and marks the account reviewed; unchecking cancels it. */
+    setAction: {
+      reducer(state, { payload }: Stamped<{ username: string; type: ActionType; checked: boolean }>) {
+        editAccount(state, payload.username, (account, master) => {
+          if (!payload.checked) return cancelPendingAction(master, account.username, payload.type, payload.at);
+          if (actionIneligibility(account, payload.type)) return false; // the UI explains why before dispatching
+          addPendingAction(master, account, payload.type, payload.at);
+          markReviewed(account, true, payload.at);
+        });
+      },
+      prepare: (p: { username: string; type: ActionType; checked: boolean }) => stamped(p),
+    },
+    /** Only `reviewed` is reset; search and review-status filters are deliberately ignored. */
+    resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {
+      if (!state.master) return;
+      if (resetReviewedForScope(state.master, payload) > 0) state.revision += 1;
+    },
+    restoreSession(state, { payload }: PayloadAction<RestoredSession>) {
+      state.master = payload.master;
+      state.baseline = payload.baseline;
+      state.revision = payload.revision;
+      state.savedRevision = payload.savedRevision;
+      state.pendingSnapshot = payload.pendingSnapshot;
+      state.message = payload.message;
+    },
+    persistenceFailed(state) {
+      state.persistenceFailed = true;
+    },
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(importPrepared.pending, state => {
+        state.importStatus = "importing";
+      })
+      .addCase(importPrepared.fulfilled, (state, { payload }) => {
+        state.importStatus = "idle";
+        state.master = payload.result.master;
+        state.baseline = payload.result.master; // immutable state: sharing is safe
+        state.revision = 0;
+        state.savedRevision = payload.result.dirty ? -1 : 0;
+        state.pendingSnapshot = payload.result.snapshotCreated;
+        state.message = payload.message;
+      })
+      .addCase(importPrepared.rejected, state => {
+        state.importStatus = "idle";
+      })
+      .addCase(saveMaster.pending, state => {
+        state.saveStatus = "saving";
+      })
+      .addCase(saveMaster.fulfilled, (state, { payload }) => {
+        state.saveStatus = "idle";
+        state.savedRevision = payload.revision;
+        state.pendingSnapshot = false;
+        if (state.master) {
+          state.master.last_saved_at = payload.savedAt;
+          state.master.last_updated_at = payload.savedAt;
+          state.master.exported_at = payload.savedAt;
+        }
+        state.message = state.revision === payload.revision
+          ? `Master saved as ${payload.filename}. Keep this file: import it next time.`
+          : `Master saved as ${payload.filename}. Changes made while saving are not in that file yet.`;
+      })
+      .addCase(saveMaster.rejected, (state, { payload, meta }) => {
+        if (meta.condition) return; // a save was already running
+        state.saveStatus = "idle";
+        state.message = `Could not save master: ${payload ?? "unexpected error"}`;
+      });
+  },
+});
+
+export const { setReviewed, setUnavailable, toggleTag, setNote, setAction, resetScope, restoreSession, persistenceFailed } = masterSlice.actions;
