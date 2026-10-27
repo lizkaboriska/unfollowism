@@ -20,8 +20,8 @@ export function missingText({ hasFollowing, followerFileCount }: RecognizedFiles
   if (!hasFollowing && !followerFileCount) {
     return "No followers/following files found. Choose the .zip from Instagram (JSON format), or the following.json and followers_*.json files from it.";
   }
-  if (!hasFollowing) return "following.json is missing. Choose it together with the other files.";
-  if (!followerFileCount) return "followers_1.json (and any followers_2.json, …) is missing. Choose them together with the other files.";
+  if (!hasFollowing) return "following.json is missing. Add it with Choose files or drop it here.";
+  if (!followerFileCount) return "followers_1.json (and any followers_2.json, …) is missing. Add them with Choose files or drop them here.";
   return null;
 }
 

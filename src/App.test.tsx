@@ -96,10 +96,51 @@ test("a missing Followers file is shown and Import stays disabled", async () => 
   expect(await screen.findByText(/^Following ✓ · Followers ✗/)).toBeInTheDocument();
   expect(screen.getByText(/followers_1\.json .* is missing/)).toBeInTheDocument();
   expect(importButton()).toBeDisabled();
+});
 
-  await user.upload(screen.getByTestId("file-input"), [followersJson()]); // a new selection replaces the old one
-  expect(await screen.findByText(/^Following ✗ · Followers ✓/)).toBeInTheDocument();
+const masterJson = (savedAt: string, name = "instagram_master_tracker.json") =>
+  new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, tagOptions: [], accounts: {} })], name, { type: "application/json" });
+
+test("files chosen one after another add up, e.g. a master from another folder", async () => {
+  const { user } = renderApp();
+  await user.upload(screen.getByTestId("file-input"), exportFiles());
+  expect(await screen.findByText(/Master: none/)).toBeInTheDocument();
+
+  await user.upload(screen.getByTestId("file-input"), [masterJson("2026-10-01T00:00:00.000Z")]);
+  expect(await screen.findByText(/^Following ✓ · Followers ✓ \(1 file\) · Master: instagram_master_tracker\.json \(saved/)).toBeInTheDocument();
+  expect(screen.getByText("following.json")).toBeInTheDocument();
+  expect(screen.getByText("followers_1.json")).toBeInTheDocument();
+  expect(importButton()).toBeEnabled();
+});
+
+test("choosing the same file twice keeps one entry; × removes a file", async () => {
+  const { user } = renderApp();
+  const files = exportFiles();
+  await user.upload(screen.getByTestId("file-input"), files);
+  await user.upload(screen.getByTestId("file-input"), [must(files[0])]);
+  await waitFor(() => { expect(importButton()).toBeEnabled(); });
+  expect(screen.getAllByText("following.json")).toHaveLength(1);
+
+  await user.click(screen.getByRole("button", { name: "Remove followers_1.json" }));
+  expect(await screen.findByText(/^Following ✓ · Followers ✗/)).toBeInTheDocument();
   expect(importButton()).toBeDisabled();
+
+  await user.click(screen.getByRole("button", { name: "Clear all" }));
+  expect(screen.queryByText("following.json")).not.toBeInTheDocument();
+  expect(screen.queryByText(/^Following/)).not.toBeInTheDocument();
+});
+
+test("a conflict keeps the list so the extra file can be removed", async () => {
+  const { user } = renderApp();
+  await user.upload(screen.getByTestId("file-input"), [...exportFiles(), masterJson("2026-10-01T00:00:00.000Z", "old.json")]);
+  await user.upload(screen.getByTestId("file-input"), [masterJson("2026-10-20T00:00:00.000Z", "new.json")]);
+  expect(await screen.findByText(/Found 2 master files/)).toBeInTheDocument();
+  expect(importButton()).toBeDisabled();
+
+  await user.click(screen.getByRole("button", { name: "Remove old.json" }));
+  expect(await screen.findByText(/Master: new\.json/)).toBeInTheDocument();
+  expect(screen.queryByText(/Found 2 master files/)).not.toBeInTheDocument();
+  expect(importButton()).toBeEnabled();
 });
 
 test("a selection that can't be imported shows a readable error", async () => {

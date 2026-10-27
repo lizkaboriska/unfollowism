@@ -1,7 +1,8 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Alert, Box, Button, HStack, IconButton, List, Stack, Text } from "@chakra-ui/react";
 import { analyzeImport, type ImportSelection } from "../io/analyzeImport.ts";
-import { readInputs } from "../io/readInputs.ts";
+import type { LastSavedStore } from "../io/lastSaved.ts";
+import { readInputs, type InputText } from "../io/readInputs.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { selectIsDirty } from "../store/selectors.ts";
 import { IMPORT_STATUSES } from "../store/statuses.ts";
@@ -23,19 +24,38 @@ const HELP = (
       <List.Item>When Instagram emails you, download the .zip.</List.Item>
     </List.Root>
     <Text>
-      Then choose that .zip (or the following.json and followers_*.json files from it) <b>together with</b> the master
-      file you saved last time, if you have one. Nothing leaves your browser.
+      Then add that .zip (or the following.json and followers_*.json files from it) and the master file you saved
+      last time, if you have one. They can be in different folders: add them one after another. Nothing leaves your browser.
     </Text>
   </Stack>
 );
 
+/** One file the user chose (a .zip counts as one), with the text files read from it. */
+interface ChosenFile {
+  /** Name + size + modified time: choosing the same file again is ignored. */
+  id: string;
+  name: string;
+  inputs: InputText[];
+  /** Why the file couldn't be read (e.g. a broken zip); it then contributes nothing. */
+  readError: string | null;
+}
+
+async function readChosen(file: File): Promise<ChosenFile> {
+  const base = { id: `${file.name}:${file.size}:${file.lastModified}`, name: file.name };
+  try {
+    return { ...base, inputs: await readInputs([file]), readError: null };
+  } catch (e) {
+    return { ...base, inputs: [], readError: errorMessage(e) };
+  }
+}
+
 /**
- * Choose or drop the export (+ saved master), see what was recognized, then Import.
- * Each new selection replaces the previous one.
+ * Choose or drop the export and the saved master, from any folders and in any order,
+ * see what was recognized, then Import. Selections add up; each file can be removed.
  */
-export function ImportScreen({ lastSavedAt, onImported, onCancel }: {
+export function ImportScreen({ lastSaved, onImported, onCancel }: {
   /** When a master was last saved from this browser, for the older-master warnings. */
-  lastSavedAt: () => string | null;
+  lastSaved: LastSavedStore;
   onImported: () => void;
   /** Shown as a Cancel button when there is already something loaded to go back to. */
   onCancel?: () => void;
@@ -47,19 +67,40 @@ export function ImportScreen({ lastSavedAt, onImported, onCancel }: {
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
 
   const fileInput = useRef<HTMLInputElement>(null);
-  const [selection, setSelection] = useState<ImportSelection | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<readonly ChosenFile[]>([]);
+  const [reading, setReading] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+
+  // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be removed.
+  const { selection, selectionError } = useMemo((): { selection: ImportSelection | null; selectionError: string | null } => {
+    if (!chosen.length) return { selection: null, selectionError: null };
+    try {
+      return { selection: analyzeImport(chosen.flatMap(c => c.inputs), lastSaved.get()), selectionError: null };
+    } catch (e) {
+      return { selection: null, selectionError: errorMessage(e) };
+    }
+  }, [chosen, lastSaved]);
 
   async function choose(files: File[]) {
     if (!files.length) return;
-    setSelection(null);
-    setError(null);
+    setImportError(null);
+    setReading(n => n + 1);
     try {
-      setSelection(analyzeImport(await readInputs(files), lastSavedAt()));
-    } catch (e) {
-      setError(errorMessage(e));
+      const read = await Promise.all(files.map(readChosen));
+      setChosen(current => {
+        const next = [...current];
+        for (const file of read) if (!next.some(c => c.id === file.id)) next.push(file);
+        return next;
+      });
+    } finally {
+      setReading(n => n - 1);
     }
+  }
+
+  function remove(id: string) {
+    setImportError(null);
+    setChosen(current => current.filter(c => c.id !== id));
   }
 
   function onInput(event: ChangeEvent<HTMLInputElement>) {
@@ -86,12 +127,12 @@ export function ImportScreen({ lastSavedAt, onImported, onCancel }: {
       });
       if (!discard) return;
     }
-    setError(null);
+    setImportError(null);
     try {
       await dispatch(importPrepared(prepared)).unwrap();
       onImported();
     } catch (e) {
-      setError(errorMessage(e));
+      setImportError(errorMessage(e));
     }
   }
 
@@ -117,13 +158,28 @@ export function ImportScreen({ lastSavedAt, onImported, onCancel }: {
           <Text fontSize="sm" color="fg.muted">The .zip (or its following.json + followers_*.json), plus your saved master if you have one</Text>
           <HStack>
             <input ref={fileInput} type="file" multiple accept=".zip,.json,.html" hidden onChange={onInput} data-testid="file-input" />
-            <Button variant="outline" onClick={() => fileInput.current?.click()}>Choose files</Button>
+            <Button variant="outline" loading={reading > 0} onClick={() => fileInput.current?.click()}>Choose files</Button>
             <IconButton variant="ghost" aria-label="How to get your Instagram export" onClick={() => void alert({ title: "Getting your Instagram export", body: HELP })}>
               ?
             </IconButton>
           </HStack>
         </Stack>
       </Box>
+
+      {chosen.length > 0 && (
+        <Stack gap="1">
+          {chosen.map(c => (
+            <HStack key={c.id} gap="2">
+              <IconButton size="xs" variant="ghost" aria-label={`Remove ${c.name}`} onClick={() => { remove(c.id); }}>×</IconButton>
+              <Text truncate>{c.name}</Text>
+              {c.readError && <Text color="red.600" fontSize="sm">{c.readError}</Text>}
+            </HStack>
+          ))}
+          <Box>
+            <Button size="xs" variant="ghost" onClick={() => { setChosen([]); setImportError(null); }}>Clear all</Button>
+          </Box>
+        </Stack>
+      )}
 
       {selection && <Text>{recognizedText(selection.recognized)}</Text>}
       {missing && <Text color="fg.muted">{missing}</Text>}
@@ -135,15 +191,15 @@ export function ImportScreen({ lastSavedAt, onImported, onCancel }: {
         </Alert.Root>
       ))}
 
-      {error && (
-        <Alert.Root status="error">
+      {[selectionError, importError].map(message => message && (
+        <Alert.Root key={message} status="error">
           <Alert.Indicator />
-          <Alert.Title>{error}</Alert.Title>
+          <Alert.Title>{message}</Alert.Title>
         </Alert.Root>
-      )}
+      ))}
 
       <HStack>
-        <Button colorPalette="pink" disabled={!selection?.prepared} loading={importing} onClick={() => void onImport()}>
+        <Button colorPalette="pink" disabled={!selection?.prepared || reading > 0} loading={importing} onClick={() => void onImport()}>
           Import
         </Button>
         {onCancel && <Button variant="ghost" onClick={onCancel}>Cancel</Button>}

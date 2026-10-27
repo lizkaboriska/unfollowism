@@ -65,7 +65,7 @@ export function App({ deps }: { deps: StoreDeps }) {
 
         {showImport ? (
           <ImportScreen
-            lastSavedAt={() => deps.lastSaved.get()}
+            lastSaved={deps.lastSaved}
             onImported={() => { setImportOpen(false); }}
             {...(hasProject ? { onCancel: () => { setImportOpen(false); } } : {})}
           />
