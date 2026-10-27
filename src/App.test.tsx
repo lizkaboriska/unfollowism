@@ -86,6 +86,7 @@ test("the ? button explains how to get the export", async () => {
   await user.click(screen.getByRole("button", { name: "How to get your Instagram export" }));
   const dialog = await screen.findByRole("dialog");
   expect(within(dialog).getByText("JSON")).toBeInTheDocument();
+  expect(within(dialog).getByText("All time")).toBeInTheDocument();
 });
 
 test("import → review → save works end to end", async () => {

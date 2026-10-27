@@ -11,8 +11,10 @@ Everything runs in your browser. Your files are never uploaded anywhere.
 You work in rounds. Each round:
 
 1. **Get your export.** In Instagram, open **Accounts Center → Your information and permissions →
-   Download your information**, choose **Followers and following** and the **JSON** format.
-   Instagram emails you when the `.zip` is ready.
+   Export your information** (called *Download your information* in some versions) → **Create export**,
+   choose your profile, and select only **Followers and following**, date range **All time**
+   (a shorter range leaves people out, and they would look unfollowed) and format **JSON**.
+   It's usually ready within minutes to a few hours; then download the `.zip`.
 2. **Import.** Open the app, then add the `.zip` (or `following.json` and every `followers_*.json`
    from it) **and the master file you saved last time**. Files can come from different folders:
    add them one after another. They are recognized by their content, so renaming them is fine.

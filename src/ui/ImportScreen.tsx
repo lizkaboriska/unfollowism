@@ -18,10 +18,14 @@ const HELP = (
   <Stack gap="3">
     <Text>To get your export from Instagram:</Text>
     <List.Root as="ol" ps="5">
-      <List.Item>Open Accounts Center → Your information and permissions → Download your information.</List.Item>
-      <List.Item>Choose your Instagram account and only <b>Followers and following</b>.</List.Item>
-      <List.Item>Pick the <b>JSON</b> format (not HTML), then request the download.</List.Item>
-      <List.Item>When Instagram emails you, download the .zip.</List.Item>
+      <List.Item>
+        Open Accounts Center → Your information and permissions → <b>Export your information</b> (called Download your
+        information in some versions) → Create export, and choose your Instagram profile.
+      </List.Item>
+      <List.Item>Select only <b>Followers and following</b>.</List.Item>
+      <List.Item>Set the date range to <b>All time</b>: a shorter range leaves people out, and they would look unfollowed.</List.Item>
+      <List.Item>Pick the <b>JSON</b> format (not HTML), then start the export.</List.Item>
+      <List.Item>It's usually ready within minutes to a few hours. Then download the .zip.</List.Item>
     </List.Root>
     <Text>
       Then add that .zip (or the following.json and followers_*.json files from it) and the master file you saved
