@@ -191,6 +191,7 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
         </Stack>
       )}
 
+      {reading > 0 && <Text color="fg.muted">Reading files…</Text>}
       {selection && <Text>{recognizedText(selection.recognized, lastSaved.get())}</Text>}
       {missing && <Text color="fg.muted">{missing}</Text>}
 
@@ -214,6 +215,7 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
         </Button>
         {onCancel && <Button variant="ghost" onClick={onCancel}>Cancel</Button>}
       </HStack>
+      {importing && <Text color="fg.muted">Importing… large accounts can take a few seconds.</Text>}
     </Stack>
   );
 }

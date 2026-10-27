@@ -75,7 +75,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
     >
       <Stack direction={{ base: "column", md: "row" }} gap="4">
         <Stack gap="1" flex="1" minW="0">
-          <Link href={profileUrl(username)} target="_blank" rel="noopener noreferrer" fontWeight="semibold" onClick={openProfilePopup} truncate>
+          <Link href={profileUrl(username)} target="_blank" rel="noopener noreferrer" fontWeight="semibold" onClick={openProfilePopup} wordBreak="break-all">
             @{username} ↗
           </Link>
           <HStack gap="1" wrap="wrap">

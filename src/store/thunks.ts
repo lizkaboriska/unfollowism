@@ -15,6 +15,7 @@ import {
 } from "../core/index.ts";
 import type { PreparedImport } from "../io/analyzeImport.ts";
 import { masterFileName } from "../io/download.ts";
+import { nextPaint } from "../io/nextPaint.ts";
 import type { StoredTab } from "../io/tabStore.ts";
 import type { StoreDeps } from "./deps.ts";
 import { SAVE_STATUSES } from "./statuses.ts";
@@ -23,7 +24,8 @@ import type { AppDispatch, RootState } from "./index.ts";
 const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps; rejectValue: string }>();
 
 /** Applies an analyzed import (see io/analyzeImport) to the store. */
-export const importPrepared = createAppThunk<ImportResult, PreparedImport>("master/import", (prepared, { extra, rejectWithValue }) => {
+export const importPrepared = createAppThunk<ImportResult, PreparedImport>("master/import", async (prepared, { extra, rejectWithValue }) => {
+  await nextPaint(); // let "Importing…" show before the merge, which can take seconds for large accounts
   try {
     return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
   } catch (error) {

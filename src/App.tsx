@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Stack } from "@chakra-ui/react";
+import { Box, Stack, Text } from "@chakra-ui/react";
 import type { StoreDeps } from "./store/deps.ts";
 import { useAppDispatch, useAppSelector } from "./store/hooks.ts";
 import { selectHasProject } from "./store/selectors.ts";
@@ -18,11 +18,20 @@ export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
   const [importOpen, setImportOpen] = useState(false);
+  const [restoring, setRestoring] = useState(true);
 
   // After a reload, silently continue where this tab left off.
   useEffect(() => {
-    void dispatch(restoreTab());
+    void dispatch(restoreTab()).finally(() => { setRestoring(false); });
   }, [dispatch]);
+
+  if (restoring && !hasProject) {
+    return (
+      <Box maxW="5xl" mx="auto" px="4" py="8">
+        <Text color="fg.muted">Loading your work…</Text>
+      </Box>
+    );
+  }
 
   const showImport = !hasProject || importOpen;
 

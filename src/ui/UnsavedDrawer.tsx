@@ -98,7 +98,7 @@ function UnsavedChanges() {
       <Stack gap="3">
         {visible.slice(0, MAX_ACCOUNTS).map(entry => (
           <Box key={entry.username}>
-            <Link href={profileUrl(entry.username)} target="_blank" rel="noopener noreferrer" fontWeight="semibold" onClick={openProfilePopup}>
+            <Link href={profileUrl(entry.username)} target="_blank" rel="noopener noreferrer" fontWeight="semibold" onClick={openProfilePopup} wordBreak="break-all">
               @{entry.username} ↗
             </Link>
             {entry.changes.map((change, i) => {

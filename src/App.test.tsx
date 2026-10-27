@@ -5,16 +5,17 @@ import { Provider } from "react-redux";
 import { App } from "./App.tsx";
 import { followersFile, followingFile, must } from "./core/__tests__/helpers.ts";
 import { memoryLastSaved } from "./io/lastSaved.ts";
-import { openIndexedDbTabDatabase } from "./io/tabStore.ts";
+import { openIndexedDbTabDatabase, type TabStore } from "./io/tabStore.ts";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { StoreDeps } from "./store/deps.ts";
 import { makeStore } from "./store/index.ts";
 import { system } from "./theme.ts";
 import { DialogProvider } from "./ui/dialogs.tsx";
 
-function renderApp({
+async function renderApp({
   tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab("tab-1"),
   lastSaved = memoryLastSaved(),
+  waitForRestore = true,
 } = {}) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
@@ -33,6 +34,8 @@ function renderApp({
       </Provider>
     </ChakraProvider>,
   );
+  // The app first checks browser storage for this tab's work ("Loading your work…").
+  if (waitForRestore) await waitFor(() => { expect(screen.queryByText("Loading your work…")).not.toBeInTheDocument(); });
   return { downloads, user: userEvent.setup(), unmount: view.unmount, tab };
 }
 
@@ -54,8 +57,8 @@ const findRow = (username: string) => screen.findByRole("article", { name: `@${u
 const queryRow = (username: string) => screen.queryByRole("article", { name: `@${username}` });
 const reviewedBox = (username: string) => within(row(username)).getByRole("checkbox", { name: "Reviewed" });
 
-test("starts on the import screen", () => {
-  renderApp();
+test("starts on the import screen", async () => {
+  await renderApp();
   expect(screen.getByRole("heading", { name: "Instagram Review" })).toBeInTheDocument();
   expect(screen.getByText("Drop your Instagram export here")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Choose files" })).toBeEnabled();
@@ -66,14 +69,14 @@ test("starts on the import screen", () => {
 });
 
 test("the ? button explains how to get the export", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await user.click(screen.getByRole("button", { name: "How to get your Instagram export" }));
   const dialog = await screen.findByRole("dialog");
   expect(within(dialog).getByText("JSON")).toBeInTheDocument();
 });
 
 test("import → review → save works end to end", async () => {
-  const { downloads, user } = renderApp();
+  const { downloads, user } = await renderApp();
   await user.upload(screen.getByTestId("file-input"), exportFiles());
   expect(await screen.findByText("Following ✓ · Followers ✓ (1 file) · Master: none — a new one will be started")).toBeInTheDocument();
   await user.click(importButton());
@@ -94,7 +97,7 @@ test("import → review → save works end to end", async () => {
 });
 
 test("a missing Followers file is shown and Import stays disabled", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await user.upload(screen.getByTestId("file-input"), [followingJson()]);
   expect(await screen.findByText(/^Following ✓ · Followers ✗/)).toBeInTheDocument();
   expect(screen.getByText(/followers_1\.json .* is missing/)).toBeInTheDocument();
@@ -105,7 +108,7 @@ const masterJson = (savedAt: string, name = "instagram_master_tracker.json") =>
   new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, tagOptions: [], accounts: {} })], name, { type: "application/json" });
 
 test("files chosen one after another add up, e.g. a master from another folder", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await user.upload(screen.getByTestId("file-input"), exportFiles());
   expect(await screen.findByText(/Master: none/)).toBeInTheDocument();
 
@@ -117,7 +120,7 @@ test("files chosen one after another add up, e.g. a master from another folder",
 });
 
 test("choosing the same file twice keeps one entry; × removes a file", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   const files = exportFiles();
   await user.upload(screen.getByTestId("file-input"), files);
   await user.upload(screen.getByTestId("file-input"), [must(files[0])]);
@@ -134,7 +137,7 @@ test("choosing the same file twice keeps one entry; × removes a file", async ()
 });
 
 test("a conflict keeps the list so the extra file can be removed", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await user.upload(screen.getByTestId("file-input"), [...exportFiles(), masterJson("2026-10-01T00:00:00.000Z", "old.json")]);
   await user.upload(screen.getByTestId("file-input"), [masterJson("2026-10-20T00:00:00.000Z", "new.json")]);
   expect(await screen.findByText(/Found 2 master files/)).toBeInTheDocument();
@@ -147,7 +150,7 @@ test("a conflict keeps the list so the extra file can be removed", async () => {
 });
 
 test("a selection that can't be imported shows a readable error", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await user.upload(screen.getByTestId("file-input"), [
     new File(["<html>"], "following.html", { type: "text/html" }),
     new File(["<html>"], "followers_1.html", { type: "text/html" }),
@@ -163,7 +166,7 @@ const savedBefore = () => {
 };
 
 test("without a master, a previous save is only a hint while choosing; Import asks first", async () => {
-  const { user } = renderApp({ lastSaved: savedBefore() });
+  const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId("file-input"), exportFiles());
   expect(await screen.findByText(/Master: none — add the one you saved on .*, or a new one will be started/)).toBeInTheDocument();
   expect(screen.queryByRole("alert")).not.toBeInTheDocument(); // no warning box while still choosing
@@ -181,14 +184,14 @@ test("without a master, a previous save is only a hint while choosing; Import as
 });
 
 test("an older master is warned about as soon as it is added", async () => {
-  const { user } = renderApp({ lastSaved: savedBefore() });
+  const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId("file-input"), [...exportFiles(), masterJson("2026-10-01T00:00:00.000Z")]);
   expect(await screen.findByText(/The chosen master is older than the one you saved from this browser/)).toBeInTheDocument();
   expect(importButton()).toBeEnabled();
 });
 
 test("Import files can be cancelled", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await user.click(await screen.findByRole("button", { name: "Import files" }));
   expect(screen.getByText("Drop your Instagram export here")).toBeInTheDocument();
@@ -197,8 +200,9 @@ test("Import files can be cancelled", async () => {
 });
 
 test("importing over unsaved work asks first", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await importFiles(user, exportFiles());
+  await findRow("bob");
   await user.click(reviewedBox("bob"));
 
   await user.click(screen.getByRole("button", { name: "Import files" }));
@@ -215,20 +219,46 @@ test("importing over unsaved work asks first", async () => {
 });
 
 test("a reload silently continues where the tab left off", async () => {
-  const first = renderApp();
+  const first = await renderApp();
   await importFiles(first.user, exportFiles());
   await first.user.click(within(await findRow("bob")).getByRole("checkbox", { name: "Reviewed" }));
   await new Promise(resolve => setTimeout(resolve, 20)); // let the storage write finish
   first.unmount();
 
-  renderApp({ tab: first.tab }); // same tab storage, fresh page
+  await renderApp({ tab: first.tab }); // same tab storage, fresh page
   expect(await findRow("bob")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Unsaved changes (1)" })).toBeInTheDocument();
   expect(reviewedBox("bob")).toBeChecked();
 });
 
+test("a reload shows Loading your work… instead of flashing the import screen", async () => {
+  const first = await renderApp();
+  await importFiles(first.user, exportFiles());
+  await findRow("bob");
+  await new Promise(resolve => setTimeout(resolve, 20)); // let the storage write finish
+  first.unmount();
+
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const slowTab: TabStore = { ...first.tab, load: async () => { await gate; return first.tab.load(); } };
+  await renderApp({ tab: slowTab, waitForRestore: false });
+  expect(screen.getByText("Loading your work…")).toBeInTheDocument();
+  expect(screen.queryByText("Drop your Instagram export here")).not.toBeInTheDocument();
+  release();
+  expect(await findRow("bob")).toBeInTheDocument();
+});
+
+test("Import shows that it's working", async () => {
+  const { user } = await renderApp();
+  await user.upload(screen.getByTestId("file-input"), exportFiles());
+  await waitFor(() => { expect(importButton()).toBeEnabled(); });
+  await user.click(importButton());
+  expect(screen.getByText(/Importing… large accounts can take a few seconds/)).toBeInTheDocument();
+  expect(await findRow("bob")).toBeInTheDocument();
+});
+
 test("Reset changes asks first, then undoes unsaved work", async () => {
-  const { user } = renderApp();
+  const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow("bob");
   const reset = screen.getByRole("button", { name: "Reset changes" });
@@ -255,7 +285,7 @@ test("Reset changes asks first, then undoes unsaved work", async () => {
 describe("main view", () => {
   // exportFiles(): following alice + bob, followers alice + carol. Without a saved master everyone counts as new.
   async function imported() {
-    const t = renderApp();
+    const t = await renderApp();
     await importFiles(t.user, exportFiles());
     await findRow("bob");
     return t;
@@ -366,7 +396,7 @@ describe("main view", () => {
 
 describe("unsaved changes drawer", () => {
   async function imported() {
-    const t = renderApp();
+    const t = await renderApp();
     await importFiles(t.user, exportFiles());
     await findRow("bob");
     return t;
@@ -406,7 +436,9 @@ describe("unsaved changes drawer", () => {
     await user.click(reviewedBox("bob"));
     await user.click(screen.getByRole("button", { name: "Unsaved changes (1)" }));
     await user.click(within(await waitFor(drawer)).getByRole("button", { name: "Reset changes" }));
-    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }));
+    const confirmReset = within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" });
+    // A dialog opened over the drawer accepts clicks a moment after it appears; retry until it does.
+    await waitFor(() => user.click(confirmReset));
     expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
   });
 });
