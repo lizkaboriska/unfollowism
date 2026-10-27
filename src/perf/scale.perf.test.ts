@@ -6,6 +6,7 @@ import { importPrepared, restoreTab, saveMaster } from "../store/thunks.ts";
 import { setNote } from "../store/masterSlice.ts";
 import { importExport, stringifyMasterFile, toMasterFile } from "../core/index.ts";
 import { analyzeImport } from "../io/analyzeImport.ts";
+import { must } from "../core/__tests__/helpers.ts";
 import { createMemoryTabDatabase } from "../io/tabStore.ts";
 import { memoryLastSaved } from "../io/lastSaved.ts";
 import { makeStore } from "../store/index.ts";
@@ -53,7 +54,7 @@ async function run(total: number) {
   const rows: [string, number, number][] = [];
 
   // A saved master from an earlier import, with 10% of accounts reviewed (built directly, not via thousands of actions).
-  const first = analyzeImport(exportTexts(total), null);
+  const first = must(analyzeImport(exportTexts(total), null).prepared);
   const earlier = importExport(null, first.bundle, "2026-09-01T00:00:00.000Z").master;
   const keys = Object.keys(earlier.accounts);
   for (let i = 0; i < keys.length; i += 10) {
@@ -64,7 +65,7 @@ async function run(total: number) {
 
   // Second import: a newer export plus the saved master (the normal monthly flow).
   const inputs = [...exportTexts(total, 1_000), { path: "instagram_master_tracker.json", text: masterText }];
-  const [prepared, analyzeMs] = time(() => analyzeImport(inputs, null));
+  const [prepared, analyzeMs] = time(() => must(analyzeImport(inputs, null).prepared));
   const [, importMs] = await timeAsync(() => store.dispatch(importPrepared(prepared)).unwrap());
   await flush();
 

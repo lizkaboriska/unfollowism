@@ -51,20 +51,28 @@ describe("readInputs", () => {
 
 describe("analyzeImport", () => {
   const f = (path: string, text: string) => ({ path, text });
+  const prepare = (inputs: { path: string; text: string }[], lastKnownSavedAt: string | null = null) =>
+    must(analyzeImport(inputs, lastKnownSavedAt).prepared);
 
   test("finds following, follower chunks in numeric order, and the master", () => {
     const master = { accounts: {}, lastSavedAt: "2026-10-01T00:00:00Z" };
-    const result = analyzeImport([
+    const { recognized, prepared } = analyzeImport([
       f(`${DIR}/followers_10.json`, followers10),
       f(`${DIR}/followers_2.json`, followers2),
       f(`${DIR}/followers_1.json`, followers1),
       f(`${DIR}/following.json`, following),
-      f("instagram_master_tracker_2026-10-01.json", JSON.stringify(master)),
+      f("saved/instagram_master_tracker_2026-10-01.json", JSON.stringify(master)),
       f("x/liked_posts.json", "[]"),
       f("x/close_friends.json", JSON.stringify({ relationships_close_friends: [] })),
       f("x/broken.json", "{not json"),
     ], null);
 
+    expect(recognized).toEqual({
+      hasFollowing: true,
+      followerFileCount: 3,
+      master: { name: "instagram_master_tracker_2026-10-01.json", savedAt: "2026-10-01T00:00:00Z" },
+    });
+    const result = must(prepared);
     expect(result.bundle.followers.map(a => a.username)).toEqual(["alice", "carol", "zed"]);
     expect(result.bundle.following).toHaveLength(2);
     expect(result.bundle.followerFileCount).toBe(3);
@@ -74,16 +82,22 @@ describe("analyzeImport", () => {
   });
 
   test("no master is fine for a first-time user", () => {
-    const result = analyzeImport([f("following.json", following), f("followers_1.json", followers1)], null);
-    expect(result.rawMaster).toBeNull();
-    expect(result.warnings).toEqual([]);
+    const { recognized, prepared } = analyzeImport([f("following.json", following), f("followers_1.json", followers1)], null);
+    expect(recognized.master).toBeNull();
+    expect(must(prepared).rawMaster).toBeNull();
+    expect(must(prepared).warnings).toEqual([]);
+  });
+
+  test.each([
+    ["nothing relevant", [f("liked_posts.json", "[]")], { hasFollowing: false, followerFileCount: 0, master: null }],
+    ["missing following", [f("followers_1.json", followers1)], { hasFollowing: false, followerFileCount: 1, master: null }],
+    ["missing followers", [f("following.json", following), f("m.json", '{"accounts":{}}')], { hasFollowing: true, followerFileCount: 0, master: { name: "m.json", savedAt: null } }],
+  ])("incomplete selection is reported, not rejected: %s", (_, inputs, recognized) => {
+    expect(analyzeImport(inputs, null)).toEqual({ recognized, prepared: null });
   });
 
   test.each([
     ["HTML export", [f("connections/following.html", "<html>"), f("connections/followers_1.html", "<html>")], /HTML format/],
-    ["nothing relevant", [f("liked_posts.json", "[]")], /No Instagram followers\/following files/],
-    ["missing following", [f("followers_1.json", followers1)], /following\.json\) is missing/],
-    ["missing followers", [f("following.json", following)], /followers_1\.json, …\) are missing/],
     ["two exports", [f("a/following.json", following), f("b/following.json", following), f("followers_1.json", followers1)], /more than one Following file/],
     ["same chunk twice", [f("following.json", following), f("a/followers_1.json", followers1), f("b/followers_1.json", followers1)], /followers_1\.json twice/],
     ["two masters", [f("following.json", following), f("followers_1.json", followers1), f("m1.json", '{"accounts":{}}'), f("m2.json", '{"accounts":{}}')], /2 master files/],
@@ -94,16 +108,16 @@ describe("analyzeImport", () => {
 
   test("warns when the chosen master is older than the last save from this browser", () => {
     const base = [f("following.json", following), f("followers_1.json", followers1)];
-    const old = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, lastSavedAt: "2026-10-01T00:00:00Z" }))], "2026-10-20T00:00:00Z");
+    const old = prepare([...base, f("m.json", JSON.stringify({ accounts: {}, lastSavedAt: "2026-10-01T00:00:00Z" }))], "2026-10-20T00:00:00Z");
     expect(old.warnings).toEqual([{ kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE, fileSavedAt: "2026-10-01T00:00:00Z", lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
 
-    const neverSaved = analyzeImport([...base, f("m.json", '{"accounts":{}}')], "2026-10-20T00:00:00Z");
+    const neverSaved = prepare([...base, f("m.json", '{"accounts":{}}')], "2026-10-20T00:00:00Z");
     expect(neverSaved.warnings[0]?.kind).toBe(IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE);
 
-    const current = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, lastSavedAt: "2026-10-20T00:00:00Z" }))], "2026-10-20T00:00:00Z");
+    const current = prepare([...base, f("m.json", JSON.stringify({ accounts: {}, lastSavedAt: "2026-10-20T00:00:00Z" }))], "2026-10-20T00:00:00Z");
     expect(current.warnings).toEqual([]);
 
-    expect(analyzeImport(base, "2026-10-20T00:00:00Z").warnings).toEqual([{ kind: IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE, lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
+    expect(prepare(base, "2026-10-20T00:00:00Z").warnings).toEqual([{ kind: IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE, lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
   });
 });
 

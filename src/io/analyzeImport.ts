@@ -21,6 +21,20 @@ export interface PreparedImport {
   ignoredCount: number;
 }
 
+/** What the selection contains, for the import screen; shown even when something is missing. */
+export interface RecognizedFiles {
+  hasFollowing: boolean;
+  followerFileCount: number;
+  /** The chosen master; null when none was chosen (a new one will be started). */
+  master: { name: string; savedAt: string | null } | null;
+}
+
+export interface ImportSelection {
+  recognized: RecognizedFiles;
+  /** Null until both the Following and the Followers files are in the selection. */
+  prepared: PreparedImport | null;
+}
+
 const FOLLOWERS_NAME = /(^|\/)followers_(\d+)\.json$/i;
 
 function baseName(path: string): string {
@@ -45,8 +59,10 @@ function parseJson(text: string): unknown {
  * - array named `followers_N.json` → a Followers chunk
  * - object with an `accounts` object → a master
  * Everything else in a full Instagram export (likes, messages, …) is ignored.
+ * A missing Following or Followers file is not an error: the import screen shows what's missing.
+ * Selections that can't be imported as they are (HTML export, duplicates) throw ImportError.
  */
-export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: string | null): PreparedImport {
+export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: string | null): ImportSelection {
   let following: { path: string; data: unknown } | null = null;
   const followers: { path: string; data: unknown }[] = [];
   const masters: { path: string; data: Record<string, unknown> }[] = [];
@@ -86,28 +102,28 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
   if ((!following || !followers.length) && htmlCount) {
     throw new ImportError("This export is in HTML format. In Instagram, request “Download your information” again and choose the JSON format.");
   }
-  if (!following && !followers.length) {
-    throw new ImportError("No Instagram followers/following files found. Choose the .zip from Instagram's “Download your information” (JSON format), or the following.json and followers_*.json files from it.");
-  }
-  if (!following) throw new ImportError("The Following file (following.json) is missing from the selection.");
-  if (!followers.length) throw new ImportError("The Followers files (followers_1.json, …) are missing from the selection.");
+
+  const master = masters[0] ?? null;
+  const masterSavedAt = typeof master?.data.lastSavedAt === "string" ? master.data.lastSavedAt : null;
+  const recognized: RecognizedFiles = {
+    hasFollowing: following !== null,
+    followerFileCount: followers.length,
+    master: master && { name: baseName(master.path), savedAt: masterSavedAt },
+  };
+  if (!following || !followers.length) return { recognized, prepared: null };
 
   followers.sort((a, b) => followerChunkNumber(a.path) - followerChunkNumber(b.path));
-  const master = masters[0] ?? null;
 
   const warnings: ImportWarning[] = [];
   if (lastKnownSavedAt) {
     if (!master) {
       warnings.push({ kind: IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE, lastKnownSavedAt });
-    } else {
-      const fileSavedAt = typeof master.data.lastSavedAt === "string" ? master.data.lastSavedAt : null;
-      if (!fileSavedAt || Date.parse(fileSavedAt) < Date.parse(lastKnownSavedAt)) {
-        warnings.push({ kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE, fileSavedAt, lastKnownSavedAt });
-      }
+    } else if (!masterSavedAt || Date.parse(masterSavedAt) < Date.parse(lastKnownSavedAt)) {
+      warnings.push({ kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE, fileSavedAt: masterSavedAt, lastKnownSavedAt });
     }
   }
 
-  return {
+  const prepared: PreparedImport = {
     rawMaster: master?.data ?? null,
     masterPath: master?.path ?? null,
     bundle: {
@@ -118,4 +134,5 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     warnings,
     ignoredCount,
   };
+  return { recognized, prepared };
 }

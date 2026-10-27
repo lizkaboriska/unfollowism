@@ -1,5 +1,5 @@
 import type { ValueOf } from "../../core/index.ts";
-import { followersFile, followingFile } from "../../core/__tests__/helpers.ts";
+import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
 import { analyzeImport, type PreparedImport } from "../../io/analyzeImport.ts";
 import { memoryLastSaved, type LastSavedStore } from "../../io/lastSaved.ts";
 import { createMemoryTabDatabase, type TabStore } from "../../io/tabStore.ts";
@@ -84,7 +84,7 @@ export function prepared({
     { path: "export/connections/followers_and_following/followers_1.json", text: JSON.stringify(followersFile(...followers)) },
   ];
   if (master) inputs.push({ path: "instagram_master_tracker.json", text: JSON.stringify(master) });
-  return analyzeImport(inputs, lastKnownSavedAt);
+  return must(analyzeImport(inputs, lastKnownSavedAt).prepared);
 }
 
 export function deferred() {
