@@ -11,5 +11,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["src/**/*.perf.test.ts"], // run with `npm run test:perf`
   },
 });
