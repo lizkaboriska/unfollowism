@@ -3,7 +3,7 @@ import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { createReview } from "./review.ts";
 import { computeCurrent, syncCurrentRelationship } from "./scopes.ts";
-import { DEFAULT_TAG_OPTIONS, FORMAT_VERSION, type Account, type FollowChanges, type Master, type ParsedAccount } from "./types.ts";
+import { DEFAULT_TAG_OPTIONS, FOLLOWER_CHANGES, FORMAT_VERSION, type Account, type FollowChanges, type Master, type ParsedAccount } from "./types.ts";
 import { createDict, usernameKey } from "./util.ts";
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
@@ -79,8 +79,8 @@ export function mergeExports(accounts: Record<string, Account>, bundle: ExportBu
     if (!exportChanged) continue;
     delete account.follower_change;
     if (firstImport) continue;
-    if (currentFollowers.has(key) && !previousFollowers.has(key)) account.follower_change = "new";
-    if (!currentFollowers.has(key) && previousFollowers.has(key)) account.follower_change = "lost";
+    if (currentFollowers.has(key) && !previousFollowers.has(key)) account.follower_change = FOLLOWER_CHANGES.NEW;
+    if (!currentFollowers.has(key) && previousFollowers.has(key)) account.follower_change = FOLLOWER_CHANGES.LOST;
   }
 
   const name = (key: string) => accounts[key]?.username ?? key;
@@ -94,8 +94,8 @@ export function mergeExports(accounts: Record<string, Account>, bundle: ExportBu
     : {
         newly_following: firstImport ? [...currentFollowing].map(name) : [],
         stopped_following: [],
-        new_followers: Object.values(accounts).filter(a => a.follower_change === "new").map(a => a.username),
-        lost_followers: Object.values(accounts).filter(a => a.follower_change === "lost").map(a => a.username),
+        new_followers: Object.values(accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.NEW).map(a => a.username),
+        lost_followers: Object.values(accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.LOST).map(a => a.username),
       };
 
   return {

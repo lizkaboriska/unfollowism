@@ -3,6 +3,7 @@ import { createReview } from "./review.ts";
 import { computeCurrent } from "./scopes.ts";
 import {
   ACTION_TYPES,
+  FOLLOWER_CHANGES,
   FORMAT_VERSION,
   type Account,
   type AccountActions,
@@ -151,8 +152,6 @@ function parseActions(value: unknown, path: string): AccountActions {
   };
 }
 
-const FOLLOWER_CHANGES: readonly FollowerChange[] = ["new", "lost"];
-
 /** Builds the working account from its saved record. */
 export function fromAccountRecord(value: unknown, path: string): Account {
   const r = record(value, path);
@@ -165,7 +164,7 @@ export function fromAccountRecord(value: unknown, path: string): Account {
     ),
     actions: r.actions === undefined ? createActions() : parseActions(r.actions, `${path}.actions`),
   };
-  if (r.follower_change !== undefined) account.follower_change = oneOf(r.follower_change, FOLLOWER_CHANGES, `${path}.follower_change`);
+  if (r.follower_change !== undefined) account.follower_change = oneOf(r.follower_change, Object.values(FOLLOWER_CHANGES), `${path}.follower_change`);
   return account;
 }
 

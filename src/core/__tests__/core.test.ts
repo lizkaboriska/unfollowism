@@ -1,5 +1,6 @@
 import {
   DEFAULT_TAG_OPTIONS,
+  FOLLOWER_CHANGES,
   ImportError,
   MasterFormatError,
   actionIneligibility,
@@ -186,7 +187,7 @@ describe("importExport", () => {
     expect(result.exportChanged).toBe(false);
     expect(result.dirty).toBe(false);
     expect(result.master.last_import_at).toBe(T1);
-    expect(result.master.accounts.dave?.follower_change).toBe("new");
+    expect(result.master.accounts.dave?.follower_change).toBe(FOLLOWER_CHANGES.NEW);
     expect(result.changes.new_followers).toEqual(["dave"]);
   });
 
@@ -197,8 +198,8 @@ describe("importExport", () => {
 
     expect(result.exportChanged).toBe(true);
     expect(result.changes).toEqual({ newly_following: [], stopped_following: ["bob"], new_followers: ["dave"], lost_followers: ["carol"] });
-    expect(result.master.accounts.dave?.follower_change).toBe("new");
-    expect(result.master.accounts.carol?.follower_change).toBe("lost");
+    expect(result.master.accounts.dave?.follower_change).toBe(FOLLOWER_CHANGES.NEW);
+    expect(result.master.accounts.carol?.follower_change).toBe(FOLLOWER_CHANGES.LOST);
     expect(result.master.accounts.alice?.follower_change).toBeUndefined();
     expect(result.master.accounts.bob?.current.relationship).toBe("neither");
     expect(result.master.accounts.bob?.review.notes).toBe("hi");

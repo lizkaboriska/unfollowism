@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { importExport, parseFollowersJson, parseFollowingJson, parseMaster, profileUrl, stringifyMasterFile, toMasterFile, type Master } from "../index.ts";
+import { FOLLOWER_CHANGES, importExport, parseFollowersJson, parseFollowingJson, parseMaster, profileUrl, stringifyMasterFile, toMasterFile, type Master } from "../index.ts";
 import { followersFile, followingFile } from "./helpers.ts";
 
 const legacy: any = createRequire(import.meta.url)("../../../legacy/tracker-core.js");
@@ -130,8 +130,8 @@ function toLegacyMaster(master: Master): unknown {
       changes_from_previous_snapshot: {
         newly_following: [],
         stopped_following: [],
-        new_followers: Object.values(master.accounts).filter(a => a.follower_change === "new").map(a => a.username),
-        lost_followers: Object.values(master.accounts).filter(a => a.follower_change === "lost").map(a => a.username),
+        new_followers: Object.values(master.accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.NEW).map(a => a.username),
+        lost_followers: Object.values(master.accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.LOST).map(a => a.username),
       },
     }],
   };
@@ -160,8 +160,8 @@ function projectNew(master: Master): Projection {
     graph: {
       following: sortedKeys(accounts.filter(([, a]) => a.current.you_follow).map(([, a]) => a.username)),
       followers: sortedKeys(accounts.filter(([, a]) => a.current.follows_you).map(([, a]) => a.username)),
-      newFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === "new").map(([, a]) => a.username)),
-      lostFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === "lost").map(([, a]) => a.username)),
+      newFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === FOLLOWER_CHANGES.NEW).map(([, a]) => a.username)),
+      lostFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === FOLLOWER_CHANGES.LOST).map(([, a]) => a.username)),
     },
   };
 }

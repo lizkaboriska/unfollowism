@@ -46,7 +46,8 @@ export interface AccountActions {
 }
 
 /** What the latest import revealed about this account's follow of you. */
-export type FollowerChange = "new" | "lost";
+export const FOLLOWER_CHANGES = { NEW: "new", LOST: "lost" } as const;
+export type FollowerChange = (typeof FOLLOWER_CHANGES)[keyof typeof FOLLOWER_CHANGES];
 
 export interface Account {
   username: string;

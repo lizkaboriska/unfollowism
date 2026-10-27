@@ -16,7 +16,7 @@ import {
   type Master,
   type ScopeStats,
 } from "../core/index.ts";
-import { CHANGE_VIEW_MARKER } from "./filtersSlice.ts";
+import { CHANGE_VIEWS } from "./filtersSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -107,7 +107,7 @@ export const selectVisibleAccountKeys = createSelector(
     keys.filter(key => {
       const account = accountOf(base, changed, key);
       return !!account &&
-        (filters.changeView === "current" ? scopeMatches(account, filters.scope) : account.follower_change === CHANGE_VIEW_MARKER[filters.changeView]) &&
+        (filters.changeView === CHANGE_VIEWS.CURRENT ? scopeMatches(account, filters.scope) : account.follower_change === filters.changeView) &&
         reviewStatusMatches(account, filters.reviewStatus) &&
         tagMatches(account, filters.tag) &&
         queryMatches(account, filters.query);

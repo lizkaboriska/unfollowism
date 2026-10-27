@@ -1,13 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { FollowerChange, Master, ReviewScope, ReviewStatusFilter, TagFilter } from "../core/index.ts";
+import { FOLLOWER_CHANGES, type Master, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
 import { resetScope } from "./masterSlice.ts";
 import { importPrepared, restoreTab } from "./thunks.ts";
 
-export const CHANGE_VIEWS = ["current", "new_followers", "lost_followers"] as const;
-export type ChangeView = (typeof CHANGE_VIEWS)[number];
-
-/** Which account marker each change tab lists. */
-export const CHANGE_VIEW_MARKER = { new_followers: "new", lost_followers: "lost" } as const satisfies Record<Exclude<ChangeView, "current">, FollowerChange>;
+/** "Current review", or the accounts the latest import marked with that follower change. */
+export const CHANGE_VIEWS = { CURRENT: "current", NEW_FOLLOWERS: FOLLOWER_CHANGES.NEW, LOST_FOLLOWERS: FOLLOWER_CHANGES.LOST } as const;
+export type ChangeView = (typeof CHANGE_VIEWS)[keyof typeof CHANGE_VIEWS];
 
 export interface FiltersState {
   scope: ReviewScope;
@@ -23,7 +21,7 @@ const initialState: FiltersState = {
   reviewStatus: "all",
   tag: { kind: "all" },
   query: "",
-  changeView: "current",
+  changeView: CHANGE_VIEWS.CURRENT,
 };
 
 function dropUnknownTag(state: FiltersState, master: Master): void {

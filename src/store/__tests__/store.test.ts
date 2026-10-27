@@ -1,7 +1,7 @@
 import { parseMaster, toMasterFile } from "../../core/index.ts";
 import { must } from "../../core/__tests__/helpers.ts";
 import type { TabStore } from "../../io/tabStore.ts";
-import { setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
+import { CHANGE_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
 import { resetScope, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
   selectAccount,
@@ -306,9 +306,9 @@ describe("selectors", () => {
     await t.store.dispatch(importPrepared(prepared({ master: saved, following: [["alice"], ["erin"]], followers: [["alice"], ["erin"]] }))).unwrap();
 
     t.store.dispatch(setScope("following"));
-    t.store.dispatch(setChangeView("lost_followers"));
+    t.store.dispatch(setChangeView(CHANGE_VIEWS.LOST_FOLLOWERS));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["dave"]);
-    t.store.dispatch(setChangeView("new_followers"));
+    t.store.dispatch(setChangeView(CHANGE_VIEWS.NEW_FOLLOWERS));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["erin"]);
   });
 
