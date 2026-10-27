@@ -12,7 +12,6 @@ function toMeta(state: MasterState, storedAt: string): TabMeta {
   return {
     revision: state.revision,
     savedRevision: state.savedRevision,
-    message: state.message,
     ...(state.savedAt === null ? {} : { lastSavedAt: state.savedAt }),
     storedAt,
   };

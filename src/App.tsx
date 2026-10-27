@@ -5,6 +5,7 @@ import { IMPORT_WARNINGS, analyzeImport, type ImportWarning, type PreparedImport
 import { readInputs } from "./io/readInputs.ts";
 import type { StoreDeps } from "./store/deps.ts";
 import { IMPORT_STATUSES } from "./store/statuses.ts";
+import { statusText } from "./ui/statusText.ts";
 import { useAppDispatch, useAppSelector } from "./store/hooks.ts";
 import { setReviewed } from "./store/masterSlice.ts";
 import { selectAccount, selectHasProject, selectIsDirty, selectRelationshipStats, selectVisibleAccountKeys } from "./store/selectors.ts";
@@ -58,7 +59,7 @@ export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
   const dirty = useAppSelector(selectIsDirty);
-  const message = useAppSelector(s => s.master.message);
+  const message = statusText(useAppSelector(s => s.master.status));
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const storageFailed = useAppSelector(s => s.master.persistenceFailed) || !deps.tab.durable;
   const stats = useAppSelector(selectRelationshipStats);

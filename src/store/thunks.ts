@@ -5,7 +5,6 @@ import {
   accountOf,
   createDict,
   fromAccountRecord,
-  buildImportMessage,
   importExport,
   parseMaster,
   stringifyMasterFile,
@@ -23,16 +22,10 @@ import type { AppDispatch, RootState } from "./index.ts";
 
 const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps; rejectValue: string }>();
 
-export interface ImportFulfilled {
-  result: ImportResult;
-  message: string;
-}
-
 /** Applies an analyzed import (see io/analyzeImport) to the store. */
-export const importPrepared = createAppThunk<ImportFulfilled, PreparedImport>("master/import", (prepared, { extra, rejectWithValue }) => {
+export const importPrepared = createAppThunk<ImportResult, PreparedImport>("master/import", (prepared, { extra, rejectWithValue }) => {
   try {
-    const result = importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
-    return { result, message: buildImportMessage(result) };
+    return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
   } catch (error) {
     if (error instanceof ImportError || error instanceof MasterFormatError) return rejectWithValue(error.message);
     throw error;
@@ -82,7 +75,6 @@ export interface RestoredSession {
   savedAt: string | null;
   revision: number;
   savedRevision: number;
-  message: string;
 }
 
 /**
@@ -101,7 +93,6 @@ export function reviveTab(stored: StoredTab): RestoredSession | null {
       savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
       revision: meta.revision,
       savedRevision: meta.savedRevision,
-      message: meta.message,
     };
   } catch {
     return null;

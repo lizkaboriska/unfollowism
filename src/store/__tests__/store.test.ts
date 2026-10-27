@@ -14,6 +14,7 @@ import {
   selectVisibleAccountKeys,
 } from "../selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../thunks.ts";
+import { STATUS_EVENTS } from "../statuses.ts";
 import { WRITES, deferred, flushPersistence, makeTestStore, prepared, recordingTab } from "./testStore.ts";
 
 async function importedStore(options: Parameters<typeof makeTestStore>[0] = {}) {
@@ -31,7 +32,7 @@ describe("import", () => {
     expect(s.master.base?.lastImportAt).toBe("2026-10-27T12:00:00.000Z");
     expect(Object.keys(s.master.changed)).toEqual([]); // the imported master is the session baseline
     expect(selectIsDirty(s)).toBe(true);
-    expect(s.master.message).toMatch(/^Started a new master/);
+    expect(s.master.status).toMatchObject({ type: STATUS_EVENTS.IMPORTED, isNewMaster: true });
   });
 
   test("re-importing the saved master with the same export is clean", async () => {
@@ -158,7 +159,7 @@ describe("save", () => {
     await saving;
 
     expect(selectIsDirty(t.store.getState())).toBe(true);
-    expect(t.store.getState().master.message).toMatch(/Changes made while saving/);
+    expect(t.store.getState().master.status).toMatchObject({ type: STATUS_EVENTS.SAVED, changedWhileSaving: true });
   });
 
   test("a second save while one is running is ignored", async () => {
@@ -261,7 +262,7 @@ describe("reload safety net", () => {
   test("unusable stored data is ignored", async () => {
     const t = makeTestStore();
     await t.tab.replace({ version: 1, lastImportAt: "x", tagOptions: [], accounts: { bob: { username: "" } } }, {
-      revision: 1, savedRevision: 0, message: "", storedAt: "x",
+      revision: 1, savedRevision: 0, storedAt: "x",
     }, {});
     expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
   });

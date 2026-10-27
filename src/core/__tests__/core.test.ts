@@ -10,7 +10,6 @@ import {
   TAG_FILTER_KINDS,
   actionIneligibility,
   actionStats,
-  buildImportMessage,
   buildSessionDiff,
   createReview,
   importExport,
@@ -28,7 +27,6 @@ import {
   tagMatches,
   toMasterFile,
   type ExportBundle,
-  type ImportResult,
   type Master,
 } from "../index.ts";
 import { deepFreeze, followersFile, followingFile, must } from "./helpers.ts";
@@ -257,20 +255,5 @@ describe("tag filter", () => {
     alice.review.tags = ["untagged"];
     expect(tagMatches(alice, { kind: TAG_FILTER_KINDS.TAG, tag: "untagged" })).toBe(true);
     expect(tagMatches(alice, { kind: TAG_FILTER_KINDS.UNTAGGED })).toBe(false);
-  });
-});
-
-describe("buildImportMessage", () => {
-  const base = importExport(null, bundle(followingFile(["a"]), followersFile(["a"])), T1);
-  const changed: ImportResult = { ...base, isNewMaster: false, summary: { ...base.summary, exportChanged: true, newFollowers: 2, lostFollowers: 1 } };
-
-  test.each([
-    ["new master", base, "Started a new master from 1 follower file. 1 following, 1 followers. Save master to keep it."],
-    ["changed export", { ...changed, summary: { ...changed.summary, confirmed: { [UNFOLLOW]: 2, [REMOVE_FOLLOWER]: 1 } } },
-      "New export loaded from 1 follower file — not saved yet. 1 following, 1 followers. Since the last import: 2 new followers, 1 lost follower. Confirmed 2 unfollows and 1 follower removal."],
-    ["same export", { ...changed, summary: { ...changed.summary, exportChanged: false } },
-      "Loaded 1 follower file: same as the last import. 1 following, 1 followers. From that import: 2 new followers, 1 lost follower."],
-  ])("%s", (_, result, expected) => {
-    expect(buildImportMessage(result)).toBe(expected);
   });
 });

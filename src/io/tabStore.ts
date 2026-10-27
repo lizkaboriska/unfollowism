@@ -9,7 +9,6 @@ import type { AccountRecord, MasterFile } from "../core/index.ts";
 export interface TabMeta {
   revision: number;
   savedRevision: number;
-  message: string;
   /** The master's lastSavedAt, which changes on every save. */
   lastSavedAt?: string;
   /** When this tab's data was last written. */

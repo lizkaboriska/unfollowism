@@ -107,7 +107,7 @@ describe("analyzeImport", () => {
   });
 });
 
-const META: TabMeta = { revision: 2, savedRevision: 0, message: "m", storedAt: "2026-10-27T12:00:00Z" };
+const META: TabMeta = { revision: 2, savedRevision: 0, storedAt: "2026-10-27T12:00:00Z" };
 const BASE: MasterFile = {
   version: 1,
   lastImportAt: "2026-10-27T12:00:00Z",

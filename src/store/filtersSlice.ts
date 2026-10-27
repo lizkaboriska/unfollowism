@@ -55,7 +55,7 @@ export const filtersSlice = createSlice({
         state.reviewStatus = REVIEW_STATUSES.NEEDS_REVIEW;
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
-        dropUnknownTag(state, payload.result.master);
+        dropUnknownTag(state, payload.master);
       })
       .addCase(restoreTab.fulfilled, (state, { payload }) => {
         if (payload) dropUnknownTag(state, payload.base);
