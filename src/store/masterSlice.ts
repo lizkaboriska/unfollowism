@@ -145,11 +145,7 @@ export const masterSlice = createSlice({
         state.saveStatus = "idle";
         state.savedRevision = payload.revision;
         state.pendingSnapshot = false;
-        if (state.master) {
-          state.master.last_saved_at = payload.savedAt;
-          state.master.last_updated_at = payload.savedAt;
-          state.master.exported_at = payload.savedAt;
-        }
+        if (state.master) state.master.last_saved_at = payload.savedAt;
         state.message = state.revision === payload.revision
           ? `Master saved as ${payload.filename}. Keep this file: import it next time.`
           : `Master saved as ${payload.filename}. Changes made while saving are not in that file yet.`;

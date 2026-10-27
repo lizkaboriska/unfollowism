@@ -1,4 +1,4 @@
-import { normalizeMaster } from "../../core/index.ts";
+import { parseMaster } from "../../core/index.ts";
 import { must } from "../../core/__tests__/helpers.ts";
 import type { SessionStore } from "../../io/sessionStore.ts";
 import { setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
@@ -48,7 +48,7 @@ describe("import", () => {
     const { store } = makeTestStore();
     const bad = prepared();
     const result = await store.dispatch(importPrepared({ ...bad, rawMaster: { accounts: [] } }));
-    expect(result.payload).toBe("The master file has no accounts object.");
+    expect(result.payload).toBe("This file is not an Instagram Review master.");
     expect(store.getState().master.master).toBeNull();
     expect(store.getState().master.importStatus).toBe("idle");
   });
@@ -137,9 +137,9 @@ describe("save", () => {
 
     const file = must(t.downloads[0]);
     expect(file.filename).toMatch(/^instagram_master_tracker_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
-    const saved = JSON.parse(file.text) as { last_saved_at: string; schema_version: number };
+    const saved = JSON.parse(file.text) as { last_saved_at: string };
     expect(saved.last_saved_at).toBe("2026-10-27T14:05:09.000Z");
-    expect(normalizeMaster(saved).changed).toBe(false);
+    expect(JSON.parse(JSON.stringify(parseMaster(saved)))).toEqual(saved); // the file is exactly the v6 format
 
     const s = t.store.getState();
     expect(selectIsDirty(s)).toBe(false);

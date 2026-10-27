@@ -1,17 +1,6 @@
 export const SCHEMA_VERSION = 6;
 
-export const STATUS_SEMANTICS = {
-  reviewed: "Whether the account currently needs another personal review. Resetting this flag does not erase tags, notes, actions, or last_reviewed_at.",
-  last_reviewed_at: "The most recent known time you marked the account reviewed. It remains when reviewed is reset to false.",
-  deleted_or_unavailable: "Your account-level flag that the Instagram account appears deleted, disabled, or otherwise unavailable.",
-  tags: "Persistent account metadata used to build focused review scopes. Tags do not reset with review state.",
-  actions: "Things you manually did on Instagram. Pending actions are confirmed only by a later imported relationship snapshot.",
-  action_unfollow: "You stopped following the account. Confirmation requires the account to disappear from Following.",
-  action_remove_follower: "You removed the account from your followers. Confirmation requires the account to disappear from Followers.",
-} as const;
-
-export type StatusSemantics = Record<keyof typeof STATUS_SEMANTICS, string>;
-
+/** Tag choices for a brand-new master (the UI has no tag management yet). */
 export const DEFAULT_TAG_OPTIONS: readonly string[] = ["artist", "fashion", "lifestyle", "aesthetics", "acquaintance", "home", "dog"];
 
 export const ACTION_TYPES = ["unfollow", "remove_follower"] as const;
@@ -70,15 +59,17 @@ export interface SnapshotCounts {
 
 export interface Snapshot {
   snapshot_id: string;
-  snapshot_date?: string | null;
+  /** YYYY-MM-DD (UTC). */
+  snapshot_date: string;
+  /** Exact capture time; null on old date-only snapshots, whose confirmations then get no exact time. */
   captured_at: string | null;
   source_files: string[];
   /** Username (original casing) → Instagram "since" timestamp in seconds. */
   following: Record<string, number | null>;
   followers: Record<string, number | null>;
-  counts?: SnapshotCounts;
+  counts: SnapshotCounts;
   /** Absent on the very first snapshot. */
-  changes_from_previous_snapshot?: Partial<SnapshotChanges>;
+  changes_from_previous_snapshot?: SnapshotChanges;
 }
 
 export interface Action {
@@ -91,30 +82,20 @@ export interface Action {
   cancelled_at: string | null;
   confirmation_snapshot_id: string | null;
   confirmation_snapshot_date: string | null;
-  /** null for actions migrated from legacy review flags. */
+  /** Relationship when the action was marked; null on some older actions. */
   relationship_at_mark: { you_follow: boolean; follows_you: boolean } | null;
 }
 
-/**
- * The persisted master document (schema v6).
- * Objects keep any unknown fields they were loaded with, so saving never drops data
- * written by older or newer versions; only the fields below are relied upon.
- */
+/** The persisted master document (schema v6). Only these fields are saved; see parseMaster. */
 export interface Master {
   schema_version: typeof SCHEMA_VERSION;
-  purpose: string;
-  status_semantics: StatusSemantics;
   tag_options: string[];
   /** Keyed by lower-cased username (see usernameKey). */
   accounts: Record<string, Account>;
   snapshots: Snapshot[];
   actions: Action[];
-  legacy_review_history?: unknown[];
-  /** Actions with an unknown type or no username; preserved but ignored. */
-  unrecognized_actions?: unknown[];
+  /** Set when the master is downloaded. */
   last_saved_at?: string;
-  last_updated_at?: string;
-  exported_at?: string;
 }
 
 /** One account parsed from an Instagram export file. */

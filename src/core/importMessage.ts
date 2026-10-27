@@ -1,5 +1,4 @@
 import type { ImportResult } from "./merge.ts";
-import { SCHEMA_VERSION } from "./types.ts";
 
 export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
@@ -27,9 +26,6 @@ export function buildImportMessage(result: ImportResult): string {
   }
   if (result.confirmed.total) {
     return `Loaded ${files}. The export matches the latest snapshot.${confirmation} Save master to keep the updated action history.`;
-  }
-  if (result.migrated) {
-    return `Loaded ${files} and migrated the master to schema v${SCHEMA_VERSION}. Save master to keep the migration.`;
   }
   return `Loaded ${files}; up to date. Latest saved changes: ${changeSummary(result)}`;
 }

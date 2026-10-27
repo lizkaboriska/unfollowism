@@ -71,13 +71,6 @@ export function cancelPendingAction(source: Pick<Master, "actions">, username: s
   return true;
 }
 
-/** A date-only legacy snapshot must not invent an exact confirmation time. */
-function confirmationIso(snapshot: DeepReadonly<Snapshot>, fallbackIso: string): string | null {
-  if (snapshot.captured_at) return snapshot.captured_at;
-  if (snapshot.snapshot_date) return null;
-  return fallbackIso;
-}
-
 export interface ConfirmedCounts {
   unfollow: number;
   remove_follower: number;
@@ -86,19 +79,16 @@ export interface ConfirmedCounts {
 
 /**
  * WRITE: a pending action is confirmed only when the snapshot's change set lists the
- * username AND the current relationship really is gone.
+ * username AND the current relationship really is gone. The confirmation time is the
+ * snapshot's capture time (null for old date-only snapshots: no exact time is invented).
  */
-export function confirmPendingActions(
-  source: Pick<Master, "accounts" | "actions">,
-  snapshot: DeepReadonly<Snapshot> | null,
-  fallbackIso: string,
-): ConfirmedCounts {
+export function confirmPendingActions(source: Pick<Master, "accounts" | "actions">, snapshot: DeepReadonly<Snapshot> | null): ConfirmedCounts {
   const confirmed: ConfirmedCounts = { unfollow: 0, remove_follower: 0, total: 0 };
   if (!snapshot) return confirmed;
 
-  const changes = snapshot.changes_from_previous_snapshot ?? {};
-  const stoppedFollowing = new Set((changes.stopped_following ?? []).map(usernameKey));
-  const lostFollowers = new Set((changes.lost_followers ?? []).map(usernameKey));
+  const changes = snapshot.changes_from_previous_snapshot;
+  const stoppedFollowing = new Set((changes?.stopped_following ?? []).map(usernameKey));
+  const lostFollowers = new Set((changes?.lost_followers ?? []).map(usernameKey));
 
   for (const action of source.actions) {
     if (action.status !== "pending") continue;
@@ -109,9 +99,9 @@ export function confirmPendingActions(
     if (!matchesChange || !relationshipGone) continue;
 
     action.status = "confirmed";
-    action.confirmed_at = confirmationIso(snapshot, fallbackIso);
-    action.confirmation_snapshot_id = snapshot.snapshot_id || null;
-    action.confirmation_snapshot_date = snapshot.snapshot_date || null;
+    action.confirmed_at = snapshot.captured_at;
+    action.confirmation_snapshot_id = snapshot.snapshot_id;
+    action.confirmation_snapshot_date = snapshot.snapshot_date;
     confirmed[action.type] += 1;
     confirmed.total += 1;
   }

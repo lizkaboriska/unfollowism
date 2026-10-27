@@ -96,6 +96,15 @@ function legacyImport(oldMaster: any, followingRaw: unknown, followerRaws: unkno
   return { next, changed: normalized.changed as boolean, isDuplicateSnapshot, confirmed };
 }
 
+/** Fields the legacy app wrote that the new format no longer keeps (see parseMaster). */
+const DROPPED_FIELDS = ["purpose", "status_semantics", "legacy_review_history", "exported_at", "last_updated_at"];
+
+/** Order-insensitive comparison form: plain JSON without the dropped top-level fields. */
+function comparable(master: unknown): unknown {
+  const plain = JSON.parse(JSON.stringify(master)) as Record<string, unknown>;
+  return Object.fromEntries(Object.entries(plain).filter(([field]) => !DROPPED_FIELDS.includes(field)));
+}
+
 function expectParity(name: string, master: unknown, followingRaw: unknown, followerRaws: unknown[]) {
   const followerFileNames = followerRaws.map((_, i) => `followers_${i + 1}.json`);
   const before = JSON.stringify(master);
@@ -108,52 +117,23 @@ function expectParity(name: string, master: unknown, followingRaw: unknown, foll
   }, NOW);
 
   expect(JSON.stringify(master), `${name}: input must not be mutated`).toBe(before);
-  expect(JSON.stringify(result.master, null, 2), `${name}: master JSON`).toBe(JSON.stringify(old.next, null, 2));
-  expect(result.migrated, `${name}: migrated flag`).toBe(old.changed);
+  expect(old.changed, `${name}: legacy saw no migration work (input is v6)`).toBe(typeof (master as { status_semantics?: unknown }).status_semantics !== "object");
+  expect(comparable(result.master), `${name}: master`).toEqual(comparable(old.next));
   expect(result.snapshotCreated, `${name}: snapshot`).toBe(!old.isDuplicateSnapshot);
   expect(result.confirmed, `${name}: confirmations`).toEqual(old.confirmed);
   return result;
 }
 
 describe("synthetic scenarios", () => {
-  const v3Master = {
-    schema_version: 3,
-    purpose: "Instagram following/follower review tracker",
-    tag_options: ["artist"],
-    review_history: [{ review_date: "2026-01-01", type: "x", source: "y", counts: {} }],
-    accounts: {
-      Alice: { username: "Alice", url: "https://www.instagram.com/Alice", review: { reviewed: true, decision: "keep", tags: ["artist", " friend "], notes: "n", manual_unfollowed_now: false, deleted_or_unavailable: false }, current: { you_follow: true, follows_you: true, relationship: "mutual", following_since_timestamp: 1, follower_since_timestamp: 2 } },
-      bob: { username: "bob", url: "https://www.instagram.com/bob", review: { reviewed: false, tags: [], notes: "", manual_unfollowed_now: true, deleted_or_unavailable: false }, current: { you_follow: true, follows_you: false, relationship: "not_following_back", following_since_timestamp: 1, follower_since_timestamp: null } },
-    },
-    snapshots: [{
-      snapshot_date: "2026-01-01",
-      source_files: [],
-      following: { Alice: 1, bob: 1 },
-      followers: { Alice: 2 },
-      counts: { following: 2, followers: 1, mutual: 1, not_following_back: 1, followers_you_do_not_follow: 0 },
-    }],
-    last_updated_at: "2026-01-01T00:00:00Z",
-  };
-
-  test("v3 master migrates; bob's legacy unfollow is confirmed by the new export", () => {
-    const r = expectParity("v3", v3Master, followingFile(["alice", 5], ["carol", 6]), [followersFile(["Alice", 2]), followersFile(["dave", 9])]);
-    expect(r.snapshotCreated).toBe(true);
-    expect(r.confirmed.unfollow).toBe(1);
-  });
-
-  test("identical export creates no snapshot", () => {
-    const r = expectParity("dup", v3Master, followingFile(["Alice", 1], ["bob", 1]), [followersFile(["Alice", 2])]);
-    expect(r.snapshotCreated).toBe(false);
-  });
-
-  test("v6 master: pending unfollow + follower removal confirmed, others stay pending", () => {
+  /** A saved v6 master: following a, b, c; followers a, d, e; with pending actions. */
+  function savedMaster() {
     const first = importExport(null, {
-      following: parseFollowingJson(followingFile(["a"], ["b"], ["c"])),
-      followers: parseFollowersJson(followersFile(["a"], ["d"], ["e"])),
+      following: parseFollowingJson(followingFile(["a", 1], ["b", 2], ["c", 3])),
+      followers: parseFollowersJson(followersFile(["a", 4], ["d", 5], ["e", 6])),
       sourceFiles: ["following.json", "followers_1.json"],
       followerFileCount: 1,
     }, "2026-10-01T00:00:00.000Z").master;
-    const saved = JSON.parse(JSON.stringify(first)) as typeof first;
+    const saved = JSON.parse(JSON.stringify({ ...first, last_saved_at: "2026-10-01T00:00:00.000Z" })) as typeof first;
     for (const [name, type] of [["b", "unfollow"], ["c", "unfollow"], ["d", "remove_follower"], ["a", "remove_follower"]] as const) {
       saved.actions.push({
         action_id: `action_${type}_${name}`, username: name, type, status: "pending", marked_at: "2026-10-02T00:00:00.000Z",
@@ -161,9 +141,24 @@ describe("synthetic scenarios", () => {
         relationship_at_mark: { you_follow: true, follows_you: true },
       });
     }
-    // b unfollowed, d removed; c and a still present.
-    const r = expectParity("v6", saved, followingFile(["A"], ["c"]), [followersFile(["a"], ["e"], ["f"])]);
+    return saved;
+  }
+
+  test("pending unfollow + follower removal confirmed, others stay pending; username casing updated", () => {
+    // b unfollowed, d removed; c and a still present; "a" now spelled "A".
+    const r = expectParity("changes", savedMaster(), followingFile(["A", 1], ["c", 3]), [followersFile(["a", 4], ["e", 6], ["f", 7])]);
     expect(r.confirmed).toEqual({ unfollow: 1, remove_follower: 1, total: 2 });
+  });
+
+  test("identical export creates no snapshot and confirms nothing", () => {
+    const r = expectParity("dup", savedMaster(), followingFile(["a", 1], ["b", 2], ["c", 3]), [followersFile(["a", 4], ["d", 5], ["e", 6])]);
+    expect(r.snapshotCreated).toBe(false);
+    expect(r.confirmed.total).toBe(0);
+  });
+
+  test("follower chunks split across several files", () => {
+    const r = expectParity("chunks", savedMaster(), followingFile(["a", 1]), [followersFile(["a", 4]), followersFile(["g", 8]), followersFile(["A", 9])]);
+    expect(r.snapshotCreated).toBe(true);
   });
 });
 
@@ -176,10 +171,6 @@ describe.skipIf(!realData)("your real data (local only)", () => {
 
   test("current master + current export", () => {
     expectParity("real", read("instagram_master_tracker.json"), read("connections/following.json"), followerNames().map(n => read(`connections/${n}`)));
-  });
-
-  test.each(existsSync(join(ROOT, "archive")) ? readdirSync(join(ROOT, "archive")).filter(n => n.endsWith(".json")) : [])("archived master %s + current export", name => {
-    expectParity(`archive ${name}`, read(`archive/${name}`), read("connections/following.json"), followerNames().map(n => read(`connections/${n}`)));
   });
 
   test("current master + export where every pending unfollow happened and 3 followers left", () => {

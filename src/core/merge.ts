@@ -1,5 +1,5 @@
 import { confirmPendingActions, type ConfirmedCounts } from "./actions.ts";
-import { normalizeMaster } from "./migrate.ts";
+import { emptyMaster, parseMaster } from "./parseMaster.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { createReview } from "./review.ts";
 import { computeCurrent, syncCurrentRelationship } from "./scopes.ts";
@@ -27,7 +27,6 @@ export interface MergeResult {
 export interface ImportResult extends MergeResult {
   master: Master;
   isNewMaster: boolean;
-  migrated: boolean;
   /** Whether the imported state differs from the master file and should be saved. */
   dirty: boolean;
   followerFileCount: number;
@@ -47,7 +46,8 @@ function sameUsernameSet(snapshotUsers: Readonly<Record<string, unknown>>, curre
   return true;
 }
 
-function fullChanges(changes: Partial<SnapshotChanges> | undefined): SnapshotChanges {
+/** Copy (or empty set for the first snapshot), so the result never aliases master data. */
+function copyChanges(changes: SnapshotChanges | undefined): SnapshotChanges {
   return {
     newly_following: [...(changes?.newly_following ?? [])],
     stopped_following: [...(changes?.stopped_following ?? [])],
@@ -105,7 +105,7 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
     sameUsernameSet(latestStored.followers, currentFollowers);
 
   let confirmationSnapshot: Snapshot | null = latestStored;
-  let changes = fullChanges(latestStored?.changes_from_previous_snapshot);
+  let changes = copyChanges(latestStored?.changes_from_previous_snapshot);
 
   if (!isDuplicate) {
     const displayName = (key: string) => master.accounts[key]?.username ?? key;
@@ -133,13 +133,13 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
         not_following_back: notBack.length,
         followers_you_do_not_follow: followerOnly.length,
       },
-      changes_from_previous_snapshot: fullChanges(changes),
+      changes_from_previous_snapshot: copyChanges(changes),
     };
     master.snapshots.push(snapshot);
     confirmationSnapshot = snapshot;
   }
 
-  const confirmed = confirmPendingActions(master, confirmationSnapshot, now);
+  const confirmed = confirmPendingActions(master, confirmationSnapshot);
 
   return {
     snapshotCreated: !isDuplicate,
@@ -152,22 +152,21 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
 
 /**
  * Pure: raw master (or null for a first-time user) + parsed export → new master.
- * normalizeMaster → mergeExports → confirmPendingActions, with an injected clock.
+ * parseMaster → mergeExports (incl. confirmPendingActions), with an injected clock.
  */
 export function importExport(rawMaster: unknown, bundle: ExportBundle, now: string): ImportResult {
   if (!bundle.following.length) throw new ImportError("No accounts found in the Following file of this export.");
   if (!bundle.followers.length) throw new ImportError("No accounts found in the Followers files of this export.");
 
   const isNewMaster = rawMaster == null;
-  const { next: master, changed } = normalizeMaster(isNewMaster ? { accounts: {} } : rawMaster);
+  const master = isNewMaster ? emptyMaster() : parseMaster(rawMaster);
   const merge = mergeExports(master, bundle, now);
 
   return {
     ...merge,
     master,
     isNewMaster,
-    migrated: !isNewMaster && changed,
-    dirty: isNewMaster || changed || merge.snapshotCreated || merge.confirmed.total > 0,
+    dirty: isNewMaster || merge.snapshotCreated || merge.confirmed.total > 0,
     followerFileCount: bundle.followerFileCount,
   };
 }

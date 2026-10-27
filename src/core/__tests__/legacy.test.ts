@@ -1,8 +1,6 @@
-// 1:1 port of legacy/tests/tracker-core.test.js. Only call shapes changed:
-// tag filters are structured ({ kind: "tag", tag }) and ensureReview became normalizeReview.
+// Port of legacy/tests/tracker-core.test.js. Tag filters are structured ({ kind: "tag", tag });
+// the old v3/v5 migration tests were dropped together with the migration code.
 import {
-  SCHEMA_VERSION,
-  STATUS_SEMANTICS,
   actionStats,
   addPendingAction,
   buildSessionDiff,
@@ -10,8 +8,6 @@ import {
   confirmPendingActions,
   dedupeAccounts,
   markReviewed,
-  normalizeMaster,
-  normalizeReview,
   parseFollowersJson,
   pendingAction,
   relationshipStats,
@@ -21,9 +17,8 @@ import {
   scopeMatches,
   syncCurrentRelationship,
   type Master,
-  type Snapshot,
 } from "../index.ts";
-import { account, stateWith } from "./helpers.ts";
+import { account, snapshotWith, stateWith } from "./helpers.ts";
 
 const tag = (name: string) => ({ kind: "tag", tag: name }) as const;
 
@@ -123,22 +118,15 @@ test("pending unfollow is a separate action and confirms only from stopped_follo
   expect(a.review.reviewed, "core action creation does not implicitly rewrite review state").toBe(false);
 
   // Still followed: cannot be confirmed even if a malformed snapshot mentions the name.
-  const snapshot = {
-    snapshot_id: "snapshot_1",
-    snapshot_date: "2026-09-02",
-    captured_at: "2026-09-02T10:00:00Z",
-    source_files: [],
-    following: {},
-    followers: {},
-    changes_from_previous_snapshot: { stopped_following: ["alice"], lost_followers: [] },
-  } satisfies Snapshot;
-  expect(confirmPendingActions(state, snapshot, "2099-01-01T00:00:00Z").total).toBe(0);
+  const snapshot = snapshotWith({ id: "snapshot_1", date: "2026-09-02", capturedAt: "2026-09-02T10:00:00Z", stopped: ["alice"] });
+  expect(confirmPendingActions(state, snapshot).total).toBe(0);
 
   syncCurrentRelationship(a, null, null);
-  const confirmed = confirmPendingActions(state, snapshot, "2099-01-01T00:00:00Z");
+  const confirmed = confirmPendingActions(state, snapshot);
   expect(confirmed).toEqual({ unfollow: 1, remove_follower: 0, total: 1 });
   expect(state.actions[0]?.status).toBe("confirmed");
   expect(state.actions[0]?.confirmation_snapshot_id).toBe("snapshot_1");
+  expect(state.actions[0]?.confirmed_at).toBe("2026-09-02T10:00:00Z");
 });
 
 test("remove follower is symmetric to unfollow and confirms from lost_followers", () => {
@@ -148,17 +136,9 @@ test("remove follower is symmetric to unfollow and confirms from lost_followers"
 
   addPendingAction(state, a, "remove_follower", "2026-09-01T10:00:00Z");
   syncCurrentRelationship(a, null, null);
-  const snapshot = {
-    snapshot_id: "snapshot_2",
-    snapshot_date: "2026-09-03",
-    captured_at: "2026-09-03T10:00:00Z",
-    source_files: [],
-    following: {},
-    followers: {},
-    changes_from_previous_snapshot: { stopped_following: [], lost_followers: ["Alice"] },
-  } satisfies Snapshot;
+  const snapshot = snapshotWith({ id: "snapshot_2", date: "2026-09-03", capturedAt: "2026-09-03T10:00:00Z", lost: ["Alice"] });
 
-  const confirmed = confirmPendingActions(state, snapshot, "2099-01-01T00:00:00Z");
+  const confirmed = confirmPendingActions(state, snapshot);
   expect(confirmed).toEqual({ unfollow: 0, remove_follower: 1, total: 1 });
   expect(state.actions[0]?.type).toBe("remove_follower");
   expect(state.actions[0]?.status).toBe("confirmed");
@@ -177,87 +157,17 @@ test("pending action can be cancelled without affecting account review data", ()
   expect(a.review.tags).toEqual(["artist"]);
 });
 
-test("normalization migrates legacy review fields into v6 review + actions", () => {
-  const old = {
-    schema_version: 5,
-    status_semantics: { old: true },
-    tag_options: ["artist"],
-    accounts: {
-      alice: {
-        username: "alice",
-        current: { you_follow: true, follows_you: false, relationship: "not_following_back" },
-        review: {
-          reviewed: true,
-          deleted_or_unavailable: false,
-          manual_unfollowed_now: true,
-          manual_unfollowed_marked_at: "2026-09-01T10:00:00Z",
-          manual_unfollow_confirmed_snapshot_id: null,
-          decision: "unfollowed",
-          tags: ["artist", "photographer"],
-          notes: "legacy",
-        },
-      },
-    },
-    snapshots: [],
-    actions: [{
-      type: "manual_unfollow",
-      status: "confirmed",
-      username: "older",
-      marked_at: "2026-01-01T00:00:00Z",
-      confirmed_at: "2026-01-02T00:00:00Z",
-      confirmation_snapshot_id: "legacy_snapshot",
-    }],
-  };
+test("a date-only snapshot confirms without inventing an exact confirmation time", () => {
+  const a = account();
+  syncCurrentRelationship(a, { username: "alice" }, null);
+  const state = stateWith(a);
+  addPendingAction(state, a, "unfollow", "2026-09-01T10:00:00Z");
+  syncCurrentRelationship(a, null, null);
 
-  const { next, changed } = normalizeMaster(old);
-  expect(changed).toBe(true);
-  expect(next.schema_version).toBe(SCHEMA_VERSION);
-  expect(next.status_semantics).toEqual(STATUS_SEMANTICS);
-  expect(next.accounts.alice?.review).toEqual({
-    reviewed: true,
-    last_reviewed_at: null,
-    deleted_or_unavailable: false,
-    tags: ["artist", "photographer"],
-    notes: "legacy",
-  });
-  expect(next.tag_options).toContain("photographer");
-  expect(pendingAction(next, "alice", "unfollow")).toBeTruthy();
-  expect(next.actions.find(a => a.username === "older")?.type).toBe("unfollow");
-  expect(next.actions.every(a => a.action_id)).toBe(true);
-});
-
-test("legacy pending unfollow can be confirmed by the latest saved snapshot after migration", () => {
-  const old = {
-    schema_version: 3,
-    accounts: {
-      alice: {
-        username: "alice",
-        current: { you_follow: false, follows_you: false, relationship: "neither" },
-        review: { reviewed: true, deleted_or_unavailable: false, manual_unfollowed_now: true, tags: [], notes: "" },
-      },
-    },
-    tag_options: [],
-    snapshots: [{
-      snapshot_id: "snapshot_latest",
-      snapshot_date: "2026-09-04",
-      captured_at: null,
-      source_files: [],
-      following: {},
-      followers: {},
-      changes_from_previous_snapshot: { stopped_following: ["alice"], lost_followers: [] },
-    }],
-  };
-
-  const { next } = normalizeMaster(old);
-  const alice = next.accounts.alice;
-  if (!alice) throw new Error("alice missing");
-  syncCurrentRelationship(alice, null, null);
-  const result = confirmPendingActions(next, next.snapshots[0] ?? null, "2099-01-01T00:00:00Z");
+  const result = confirmPendingActions(state, snapshotWith({ id: "legacy_snapshot_2", date: "2026-09-04", capturedAt: null, stopped: ["alice"] }));
   expect(result.unfollow).toBe(1);
-  const action = next.actions.find(a => a.username === "alice");
-  expect(action?.status).toBe("confirmed");
-  expect(action?.confirmed_at, "legacy date-only snapshot must not invent an exact confirmation time").toBeNull();
-  expect(action?.confirmation_snapshot_date).toBe("2026-09-04");
+  expect(state.actions[0]?.confirmed_at).toBeNull();
+  expect(state.actions[0]?.confirmation_snapshot_date).toBe("2026-09-04");
 });
 
 test("multiple follower export chunks can be parsed and deduplicated case-insensitively", () => {
@@ -292,14 +202,6 @@ test("review query can combine scope, tag and status", () => {
   const state = stateWith(a, b, c);
   const result = reviewScopeAccounts(state, { scope: "following", tag: tag("artist"), reviewStatus: "needs_review" });
   expect(result.map(x => x.username)).toEqual(["artist_pending"]);
-});
-
-test("normalizeReview repairs malformed optional fields without inventing review history", () => {
-  const review = normalizeReview({ reviewed: 1, tags: ["artist", "artist", "", null], notes: null });
-  expect(review.reviewed).toBe(true);
-  expect(review.last_reviewed_at).toBeNull();
-  expect(review.tags).toEqual(["artist"]);
-  expect(review.notes).toBe("");
 });
 
 test("session diff reports only net review, tag, action and metadata changes", () => {

@@ -1,6 +1,6 @@
 import { IDBFactory } from "fake-indexeddb";
 import { strToU8, zipSync } from "fflate";
-import { ImportError, normalizeMaster } from "../../core/index.ts";
+import { ImportError, emptyMaster, parseMaster, profileUrl, createReview, computeCurrent } from "../../core/index.ts";
 import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
 import { analyzeImport } from "../analyzeImport.ts";
 import { masterFileName } from "../download.ts";
@@ -112,7 +112,9 @@ describe("IndexedDB session store", () => {
     expect(await store.loadSession()).toBeNull();
     expect(await store.getLastSavedAt()).toBeNull();
 
-    const master = normalizeMaster(JSON.parse('{"accounts":{"constructor":{"username":"constructor"}}}')).next;
+    const master = emptyMaster();
+    const constructorKey: string = "constructor";
+    master.accounts[constructorKey] = { username: "constructor", url: profileUrl("constructor"), review: createReview(), current: computeCurrent(null, null) };
     const session: StoredSession = {
       master: Object.freeze(master), baseline: master, revision: 3, savedRevision: 1, pendingSnapshot: true, message: "m", storedAt: "2026-10-27T12:00:00Z",
     };
@@ -121,8 +123,8 @@ describe("IndexedDB session store", () => {
 
     const loaded = must(await store.loadSession());
     expect(loaded.revision).toBe(3);
-    // IndexedDB returns plain objects; normalizeMaster rebuilds the prototype-free dictionary.
-    const revived = normalizeMaster(loaded.master).next;
+    // IndexedDB returns plain objects; parseMaster rebuilds the prototype-free dictionary.
+    const revived = parseMaster(loaded.master);
     const key: string = "constructor";
     expect(revived.accounts[key]?.username).toBe("constructor");
     expect(await store.getLastSavedAt()).toBe("2026-10-27T12:00:00Z");

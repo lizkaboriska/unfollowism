@@ -14,7 +14,7 @@ export type RootState = ReturnType<typeof rootReducer>;
 export type AppDispatch = ThunkDispatch<RootState, StoreDeps, UnknownAction>;
 
 // The master is ~0.5 MB; walking it on every action in dev is too slow, and it is
-// plain JSON validated by normalizeMaster anyway.
+// plain JSON validated by parseMaster anyway.
 const LARGE_STATE_PATHS = ["master.master", "master.baseline"];
 const LARGE_ACTION_PATHS = ["payload.result.master", "payload.master", "payload.baseline", "meta.arg"];
 

@@ -2,12 +2,9 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   ImportError,
   MasterFormatError,
-  SCHEMA_VERSION,
-  STATUS_SEMANTICS,
   buildImportMessage,
-  cloneJson,
   importExport,
-  normalizeMaster,
+  parseMaster,
   type ImportResult,
   type Master,
 } from "../core/index.ts";
@@ -41,14 +38,8 @@ export interface SaveFulfilled {
   filename: string;
 }
 
-export function prepareMasterForSave(master: Master, savedAt: string): Master {
-  const out = cloneJson(master);
-  out.schema_version = SCHEMA_VERSION;
-  out.status_semantics = cloneJson(STATUS_SEMANTICS);
-  out.exported_at = savedAt;
-  out.last_updated_at = savedAt;
-  out.last_saved_at = savedAt;
-  return out;
+export function serializeMaster(master: Master, savedAt: string): string {
+  return `${JSON.stringify({ ...master, last_saved_at: savedAt }, null, 2)}\n`;
 }
 
 /** Downloads the master. Edits made while the download is in progress stay unsaved. */
@@ -60,7 +51,7 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     const now = extra.now();
     const savedAt = now.toISOString();
     const filename = masterFileName(now);
-    await extra.download(filename, `${JSON.stringify(prepareMasterForSave(master, savedAt), null, 2)}\n`);
+    await extra.download(filename, serializeMaster(master, savedAt));
     await extra.sessionStore.setLastSavedAt(savedAt).catch(() => undefined); // best effort
     return { savedAt, revision, filename };
   },
@@ -77,12 +68,12 @@ export interface RestoredSession {
   storedAt: string;
 }
 
-/** Re-validates a stored draft through the single normalizeMaster entry point. Null if unusable. */
+/** Re-validates a stored draft through the single parseMaster entry point. Null if unusable. */
 export function reviveSession(stored: StoredSession): RestoredSession | null {
   try {
     return {
-      master: normalizeMaster(stored.master).next,
-      baseline: normalizeMaster(stored.baseline).next,
+      master: parseMaster(stored.master),
+      baseline: parseMaster(stored.baseline),
       revision: stored.revision,
       savedRevision: stored.savedRevision,
       pendingSnapshot: stored.pendingSnapshot,
