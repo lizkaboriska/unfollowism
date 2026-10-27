@@ -1,5 +1,5 @@
 import type { ListenerMiddlewareInstance } from "@reduxjs/toolkit";
-import { toAccountRecord, toMasterFile, type Account, type AccountRecord, type DeepReadonly, type Master } from "../core/index.ts";
+import { createDict, toAccountRecord, toMasterFile, type Account, type AccountRecord, type DeepReadonly, type Master } from "../core/index.ts";
 import type { TabMeta } from "../io/tabStore.ts";
 import type { StoreDeps } from "./deps.ts";
 import { persistenceFailed, type MasterState } from "./masterSlice.ts";
@@ -19,7 +19,7 @@ function toMeta(state: MasterState, storedAt: string): TabMeta {
 
 /** Accounts whose object differs from what was last stored. Only looks at edited accounts. */
 function newlyChanged(stored: Accounts | null, current: Accounts): Record<string, AccountRecord> {
-  const records: Record<string, AccountRecord> = {};
+  const records = createDict<AccountRecord>();
   if (stored === current) return records;
   for (const [key, account] of Object.entries(current)) {
     if (stored?.[key] !== account) records[key] = toAccountRecord(account);

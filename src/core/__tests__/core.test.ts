@@ -185,6 +185,9 @@ describe("master file", () => {
     expect(Object.keys(parsed.accounts).sort()).toEqual(["__proto__", "constructor", "tostring"]);
     const key: string = "constructor";
     expect(parsed.accounts[key]?.username).toBe("constructor");
+
+    const resaved = parseMaster(JSON.parse(stringifyMasterFile(toMasterFile(parsed))));
+    expect(Object.keys(resaved.accounts).sort()).toEqual(["__proto__", "constructor", "tostring"]);
   });
 
   test("rejects an account listed twice under different casing", () => {

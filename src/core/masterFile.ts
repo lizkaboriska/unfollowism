@@ -70,7 +70,7 @@ export function sameAccountRecord(a: ReadonlyAccount, b: ReadonlyAccount): boole
 }
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
-  const accounts: Record<string, AccountRecord> = {};
+  const accounts = createDict<AccountRecord>();
   for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account);
   return {
     version: FORMAT_VERSION,

@@ -198,7 +198,7 @@ const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tag
 
 /** How many accounts have each tag: imported counts, adjusted by the edited accounts. */
 export const selectTagCounts = createSelector([selectBaseTagCounts, selectBaseAccounts, selectChanged], (baseCounts, base, changed): Readonly<TagCounts> => {
-  const counts: TagCounts = { ...baseCounts };
+  const counts: TagCounts = Object.assign(createDict<number>(), baseCounts);
   for (const [key, account] of Object.entries(changed)) {
     const before = base[key];
     if (before) countTags(counts, before, -1);

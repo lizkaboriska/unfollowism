@@ -395,6 +395,25 @@ describe("reload safety net", () => {
     expect(selectUnsavedDiff(after)).toEqual(selectUnsavedDiff(before));
   });
 
+  test("a __proto__ account and tag survive edits, a save and a reload", async () => {
+    const t = makeTestStore();
+    await t.store.dispatch(importPrepared(prepared({ following: [["__proto__"], ["bob"]] }))).unwrap();
+    t.store.dispatch(toggleTag({ username: "__proto__", tag: "__proto__" }));
+    expect(selectTags(t.store.getState())).toEqual(["__proto__"]);
+    expect(selectTagCounts(t.store.getState())["__proto__"]).toBe(1);
+
+    await t.store.dispatch(saveMaster()).unwrap();
+    expect(Object.keys(parseMaster(JSON.parse(must(t.downloads[0]).text)).accounts)).toContain("__proto__");
+    t.store.dispatch(setNote({ username: "__proto__", note: "after save" }));
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ tab: t.tab });
+    await reloaded.store.dispatch(restoreTab());
+    expect(account(reloaded, "__proto__").review).toMatchObject({ tags: ["__proto__"], notes: "after save" });
+    reloaded.store.dispatch(resetChanges());
+    expect(account(reloaded, "__proto__").review).toMatchObject({ tags: ["__proto__"], notes: "" });
+  });
+
   test("a new tab (nothing stored) starts empty", async () => {
     const { store } = makeTestStore();
     expect(await store.dispatch(restoreTab()).unwrap()).toBeNull();
