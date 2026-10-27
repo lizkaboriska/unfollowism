@@ -7,7 +7,7 @@ import { saveMaster } from "../store/thunks.ts";
 import { useConfirm } from "./dialogs.tsx";
 import { plural } from "./statusText.ts";
 
-/** `onImportNew` shows the Import new export button (hidden while the import screen is open). */
+/** `onImportNew` shows the Import files button (hidden while the import screen is open). */
 export function Header({ onImportNew }: { onImportNew?: () => void }) {
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
@@ -34,7 +34,7 @@ export function Header({ onImportNew }: { onImportNew?: () => void }) {
       </Box>
       <HStack gap="3" wrap="wrap">
         {hasProject && <Text color={dirty ? "yellow.700" : "green.700"}>{dirty ? "Unsaved changes" : "Saved"}</Text>}
-        {hasProject && onImportNew && <Button variant="outline" onClick={onImportNew}>Import new export</Button>}
+        {hasProject && onImportNew && <Button variant="outline" onClick={onImportNew}>Import files</Button>}
         <Button variant="outline" disabled={unsavedCount === 0 || saving} onClick={() => void onReset()}>
           Reset changes
         </Button>

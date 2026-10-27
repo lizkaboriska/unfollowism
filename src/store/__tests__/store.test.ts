@@ -1,14 +1,15 @@
-import { ACTION_TYPES, REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
+import { ACTION_TYPES, FOLLOW_CHANGES, PLAN_STATES, REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
 import type { TabStore } from "../../io/tabStore.ts";
-import { CHANGE_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
-import { resetChanges, resetScope, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
+import { LIST_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setView } from "../filtersSlice.ts";
+import { resetChanges, resetScope, setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
   selectAccount,
   selectIsDirty,
-  selectActionStats,
+  selectFollowChangeCounts,
+  selectPlanStats,
   selectScopeStats,
   selectSessionDiff,
   selectUnsavedAccountCount,
@@ -89,20 +90,29 @@ describe("edits", () => {
     expect(account(t, "bob").review).toMatchObject({ unavailable: false, reviewed: true });
   });
 
-  test("actions: checking adds a pending action and reviews; unchecking cancels; ineligible is ignored", async () => {
+  test("plans: marking plans and reviews; done and back; cancelling; ineligible is ignored", async () => {
     const t = await importedStore();
-    t.store.dispatch(setAction({ username: "bob", type: UNFOLLOW, checked: true }));
-    expect(account(t, "bob").actions.pending).toEqual([UNFOLLOW]);
-    expect(selectActionStats(t.store.getState()).pending[UNFOLLOW]).toBe(1);
+    const stats = () => selectPlanStats(t.store.getState());
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    expect(account(t, "bob").toUnfollow).toBe(PLAN_STATES.PLANNED);
+    expect(stats().planned[UNFOLLOW]).toBe(1);
     expect(account(t, "bob").review.reviewed).toBe(true);
 
-    t.store.dispatch(setAction({ username: "bob", type: UNFOLLOW, checked: false }));
-    expect(account(t, "bob").actions).toEqual({ pending: [], confirmed: [] });
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: false }));
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    expect(account(t, "bob").toUnfollow).toBe(PLAN_STATES.DONE);
+    expect(account(t, "bob").review.reviewed).toBe(false); // only a new plan reviews
+    expect(stats()).toMatchObject({ planned: { [UNFOLLOW]: 0 }, done: { [UNFOLLOW]: 1 } });
+
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    expect(account(t, "bob").toUnfollow).toBe(PLAN_STATES.PLANNED);
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: null }));
+    expect(account(t, "bob").toUnfollow).toBeUndefined();
 
     const r = t.store.getState().master.revision;
-    t.store.dispatch(setAction({ username: "bob", type: REMOVE_FOLLOWER, checked: true })); // bob doesn't follow you
+    t.store.dispatch(setPlan({ username: "bob", type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED })); // bob doesn't follow you
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: null })); // nothing to cancel
     expect(t.store.getState().master.revision).toBe(r);
-    expect(account(t, "bob").review.reviewed).toBe(true);
   });
 
   test("tags toggle and notes only count real changes", async () => {
@@ -411,17 +421,37 @@ describe("selectors", () => {
     expect(keys()).toEqual(["carol"]);
   });
 
-  test("change tabs list who started/stopped following you in the latest import, regardless of scope", async () => {
+  test("change views list what changed since the imported master was saved, regardless of scope", async () => {
     const t = await importedStore();
-    await t.store.dispatch(saveMaster()).unwrap();
+    await t.store.dispatch(saveMaster()).unwrap(); // saved at 12:00
     const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
-    await t.store.dispatch(importPrepared(prepared({ master: saved, following: [["alice"], ["erin"]], followers: [["alice"], ["erin"]] }))).unwrap();
+    const afterSave = Date.parse("2026-10-27T12:30:00.000Z") / 1000;
+    t.setNow("2026-10-27T13:00:00.000Z");
+    await t.store.dispatch(importPrepared(prepared({ master: saved, following: [["alice"], ["erin", afterSave]], followers: [["alice"], ["erin", afterSave]] }))).unwrap();
 
-    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWING));
-    t.store.dispatch(setChangeView(CHANGE_VIEWS.LOST_FOLLOWERS));
+    const keys = (view: Parameters<typeof setView>[0]) => {
+      t.store.dispatch(setView(view));
+      return selectVisibleAccountKeys(t.store.getState());
+    };
+    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS)); // ignored outside the review view
+    expect(keys(LIST_VIEWS.NEW_FOLLOWS)).toEqual(["erin"]);
+    expect(keys(LIST_VIEWS.UNFOLLOWED)).toEqual(["bob", "carol"]);
+    expect(keys(LIST_VIEWS.NEW_FOLLOWERS)).toEqual(["erin"]);
+    expect(keys(LIST_VIEWS.LOST_FOLLOWERS)).toEqual(["dave"]);
+    expect(selectFollowChangeCounts(t.store.getState())).toEqual({
+      [FOLLOW_CHANGES.NEW_FOLLOWS]: 1, [FOLLOW_CHANGES.UNFOLLOWED]: 2, [FOLLOW_CHANGES.NEW_FOLLOWERS]: 1, [FOLLOW_CHANGES.LOST_FOLLOWERS]: 1,
+    });
+  });
+
+  test("plan views list planned actions; done ones leave the list", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setPlan({ username: "alice", type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    t.store.dispatch(setPlan({ username: "dave", type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
+    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["alice"]);
+    t.store.dispatch(setView(LIST_VIEWS.TO_REMOVE));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["dave"]);
-    t.store.dispatch(setChangeView(CHANGE_VIEWS.NEW_FOLLOWERS));
-    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["erin"]);
   });
 
   test("editing one account keeps the list array and other accounts referentially stable", async () => {

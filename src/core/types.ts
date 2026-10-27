@@ -41,9 +41,21 @@ export const RELATIONSHIPS = {
 } as const;
 export type Relationship = ValueOf<typeof RELATIONSHIPS>;
 
-/** What the latest import revealed about this account's follow of you. */
-export const FOLLOWER_CHANGES = { NEW: "new", LOST: "lost" } as const;
-export type FollowerChange = ValueOf<typeof FOLLOWER_CHANGES>;
+/** A planned Instagram action: marked in the app, then "done" once you did it by hand. The next import checks it. */
+export const PLAN_STATES = { PLANNED: "planned", DONE: "done" } as const;
+export type PlanState = ValueOf<typeof PLAN_STATES>;
+
+/**
+ * What changed since the master you imported was saved (or everything, without a saved master).
+ * Follows use Instagram's own dates; stopped follows use the date an import first noticed them.
+ */
+export const FOLLOW_CHANGES = {
+  NEW_FOLLOWS: "newFollows",
+  UNFOLLOWED: "unfollowed",
+  NEW_FOLLOWERS: "newFollowers",
+  LOST_FOLLOWERS: "lostFollowers",
+} as const;
+export type FollowChange = ValueOf<typeof FOLLOW_CHANGES>;
 
 export interface Review {
   /** Whether the account currently counts as reviewed. Resetting it keeps everything else. */
@@ -62,14 +74,6 @@ export interface Follow {
   since: number | null;
 }
 
-/** Instagram actions you did by hand. Each type appears at most once per list. */
-export interface AccountActions {
-  /** Marked in the app, not yet seen in an imported export. */
-  pending: ActionType[];
-  /** Seen in an imported export: you did this at some point. */
-  confirmed: ActionType[];
-}
-
 export interface Account {
   username: string;
   /** You follow them (as of the latest export); null when you don't. */
@@ -77,9 +81,14 @@ export interface Account {
   /** They follow you (as of the latest export); null when they don't. */
   followedBy: Follow | null;
   review: Review;
-  actions: AccountActions;
-  /** Set by the latest import when they started or stopped following you; absent otherwise. */
-  followerChange?: FollowerChange;
+  /** You plan to unfollow them; absent when not marked. Cleared by the import that no longer finds the follow. */
+  toUnfollow?: PlanState;
+  /** You plan to remove them as a follower; absent when not marked. Cleared like toUnfollow. */
+  toRemove?: PlanState;
+  /** When an import found you no longer follow them; absent while you do (or never did). */
+  unfollowedSeenAt?: string;
+  /** When an import found they no longer follow you; absent while they do (or never did). */
+  unfollowedMeSeenAt?: string;
 }
 
 export type ReadonlyAccount = DeepReadonly<Account>;

@@ -1,15 +1,16 @@
-import { ACTION_TYPES, type Account, type AccountActions, type ActionType, type DeepReadonly, type Master, type ReadonlyAccount } from "./types.ts";
+import { ACTION_TYPES, PLAN_STATES, type Account, type ActionType, type DeepReadonly, type Master, type PlanState, type ReadonlyAccount } from "./types.ts";
 
-export function createActions(): AccountActions {
-  return { pending: [], confirmed: [] };
+/** The account field that holds each action's plan. */
+export const PLAN_FIELDS = { [ACTION_TYPES.UNFOLLOW]: "toUnfollow", [ACTION_TYPES.REMOVE_FOLLOWER]: "toRemove" } as const satisfies Record<ActionType, keyof Account>;
+
+/** The plan for an action, or undefined when it isn't marked. */
+export function planOf(account: ReadonlyAccount, type: ActionType): PlanState | undefined {
+  return account[PLAN_FIELDS[type]];
 }
 
-export function isPending(account: ReadonlyAccount, type: ActionType): boolean {
-  return account.actions.pending.includes(type);
-}
-
-export function isConfirmed(account: ReadonlyAccount, type: ActionType): boolean {
-  return account.actions.confirmed.includes(type);
+/** Whether the follow the action ends still exists. */
+function followExists(account: ReadonlyAccount, type: ActionType): boolean {
+  return type === ACTION_TYPES.UNFOLLOW ? account.following !== null : account.followedBy !== null;
 }
 
 /** Why an action can't be marked right now, or null when it can. */
@@ -19,19 +20,19 @@ export function actionIneligibility(account: ReadonlyAccount, type: ActionType):
   return null;
 }
 
-/** WRITE: idempotent. Throws if the current relationship doesn't allow the action. */
-export function markPending(account: Account, type: ActionType): void {
-  const reason = actionIneligibility(account, type);
-  if (reason) throw new Error(reason);
-  if (!isPending(account, type)) account.actions.pending.push(type);
-}
-
-/** WRITE: returns false if the action wasn't pending. */
-export function cancelPending(account: Account, type: ActionType): boolean {
-  const index = account.actions.pending.indexOf(type);
-  if (index === -1) return false;
-  account.actions.pending.splice(index, 1);
-  return true;
+/** WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise. */
+export function setPlan(account: Account, type: ActionType, state: PlanState | undefined): void {
+  const field = PLAN_FIELDS[type];
+  if (state === undefined) {
+    if (type === ACTION_TYPES.UNFOLLOW) delete account.toUnfollow;
+    else delete account.toRemove;
+    return;
+  }
+  if (account[field] === undefined) {
+    const reason = actionIneligibility(account, type);
+    if (reason) throw new Error(reason);
+  }
+  account[field] = state;
 }
 
 export type ActionCounts = Record<ActionType, number>;
@@ -44,49 +45,48 @@ export function totalOf(counts: Readonly<ActionCounts>): number {
   return Object.values(counts).reduce((sum, n) => sum + n, 0);
 }
 
-/** Lower-cased usernames whose follow disappeared in an import. */
-export interface FollowLosses {
-  /** You no longer follow them. */
-  stoppedFollowing: ReadonlySet<string>;
-  /** They no longer follow you. */
-  lostFollowers: ReadonlySet<string>;
+export interface PlanOutcomes {
+  /** Plans whose follow is gone in the export: done, so cleared. */
+  completed: ActionCounts;
+  /** Marked done, but the export still has the follow: back to planned. */
+  reopened: ActionCounts;
 }
 
-/**
- * WRITE: a pending action is confirmed only when the import lost that follow AND the
- * current relationship really is gone.
- */
-export function confirmPendingActions(source: Pick<Master, "accounts">, losses: FollowLosses): ActionCounts {
-  const confirmed = emptyActionCounts();
-  const lost: Record<ActionType, ReadonlySet<string>> = {
-    [ACTION_TYPES.UNFOLLOW]: losses.stoppedFollowing,
-    [ACTION_TYPES.REMOVE_FOLLOWER]: losses.lostFollowers,
-  };
-
-  for (const [key, account] of Object.entries(source.accounts)) {
+/** WRITE: after an import has updated the follows, settles every plan against them. */
+export function settlePlans(source: Pick<Master, "accounts">): PlanOutcomes {
+  const outcomes: PlanOutcomes = { completed: emptyActionCounts(), reopened: emptyActionCounts() };
+  for (const account of Object.values(source.accounts)) {
     for (const type of Object.values(ACTION_TYPES)) {
-      if (!isPending(account, type) || !lost[type].has(key)) continue;
-      const relationshipGone = type === ACTION_TYPES.UNFOLLOW ? !account.following : !account.followedBy;
-      if (!relationshipGone) continue;
-      cancelPending(account, type);
-      if (!isConfirmed(account, type)) account.actions.confirmed.push(type);
-      confirmed[type] += 1;
+      const plan = planOf(account, type);
+      if (plan === undefined) continue;
+      if (!followExists(account, type)) {
+        setPlan(account, type, undefined);
+        outcomes.completed[type] += 1;
+      } else if (plan === PLAN_STATES.DONE) {
+        setPlan(account, type, PLAN_STATES.PLANNED);
+        outcomes.reopened[type] += 1;
+      }
     }
   }
-
-  return confirmed;
+  return outcomes;
 }
 
-export interface ActionStats {
-  pending: ActionCounts;
-  confirmed: ActionCounts;
+export type PlanStats = Record<PlanState, ActionCounts>;
+
+export function emptyPlanStats(): PlanStats {
+  return { [PLAN_STATES.PLANNED]: emptyActionCounts(), [PLAN_STATES.DONE]: emptyActionCounts() };
 }
 
-export function actionStats(source: DeepReadonly<Pick<Master, "accounts">>): ActionStats {
-  const stats: ActionStats = { pending: emptyActionCounts(), confirmed: emptyActionCounts() };
-  for (const { actions } of Object.values(source.accounts)) {
-    for (const type of actions.pending) stats.pending[type] += 1;
-    for (const type of actions.confirmed) stats.confirmed[type] += 1;
+/** WRITE (to `stats`): adds (sign 1) or removes (sign -1) one account's plans. */
+export function countPlans(stats: PlanStats, account: ReadonlyAccount, sign: 1 | -1): void {
+  for (const type of Object.values(ACTION_TYPES)) {
+    const plan = planOf(account, type);
+    if (plan !== undefined) stats[plan][type] += sign;
   }
+}
+
+export function planStats(source: DeepReadonly<Pick<Master, "accounts">>): PlanStats {
+  const stats = emptyPlanStats();
+  for (const account of Object.values(source.accounts)) countPlans(stats, account, 1);
   return stats;
 }

@@ -1,10 +1,9 @@
-import { createActions } from "./actions.ts";
 import { createReview } from "./review.ts";
 import type { Account, ReadonlyAccount } from "./types.ts";
 
-/** A new account with no follows, review or actions yet. */
+/** A new account with no follows, review or plans yet. */
 export function createAccount(username: string): Account {
-  return { username, following: null, followedBy: null, review: createReview(), actions: createActions() };
+  return { username, following: null, followedBy: null, review: createReview() };
 }
 
 /** A mutable copy of one account (cheap: a handful of small fields). */
@@ -14,9 +13,11 @@ export function copyAccount(account: ReadonlyAccount): Account {
     following: account.following && { ...account.following },
     followedBy: account.followedBy && { ...account.followedBy },
     review: { ...account.review, tags: [...account.review.tags] },
-    actions: { pending: [...account.actions.pending], confirmed: [...account.actions.confirmed] },
   };
-  if (account.followerChange) copy.followerChange = account.followerChange;
+  if (account.toUnfollow) copy.toUnfollow = account.toUnfollow;
+  if (account.toRemove) copy.toRemove = account.toRemove;
+  if (account.unfollowedSeenAt) copy.unfollowedSeenAt = account.unfollowedSeenAt;
+  if (account.unfollowedMeSeenAt) copy.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
   return copy;
 }
 

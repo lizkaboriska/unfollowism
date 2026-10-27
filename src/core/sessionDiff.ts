@@ -1,5 +1,6 @@
+import { planOf } from "./actions.ts";
 import { createReview } from "./review.ts";
-import { ACTION_TYPES, type ActionType, type ReadonlyAccounts, type ValueOf } from "./types.ts";
+import { ACTION_TYPES, PLAN_STATES, type ActionType, type ReadonlyAccounts, type ValueOf } from "./types.ts";
 import { usernameKey } from "./util.ts";
 
 export const SESSION_CHANGES = {
@@ -8,6 +9,8 @@ export const SESSION_CHANGES = {
   TAG_ADDED: "tagAdded",
   TAG_REMOVED: "tagRemoved",
   ACTION_MARKED: "actionMarked",
+  ACTION_DONE: "actionDone",
+  ACTION_UNDONE: "actionUndone",
   ACTION_CANCELLED: "actionCancelled",
   UNAVAILABLE_MARKED: "unavailableMarked",
   UNAVAILABLE_CLEARED: "unavailableCleared",
@@ -17,7 +20,11 @@ export const SESSION_CHANGES = {
 export type SessionChangeType = ValueOf<typeof SESSION_CHANGES>;
 
 type TagChangeType = typeof SESSION_CHANGES.TAG_ADDED | typeof SESSION_CHANGES.TAG_REMOVED;
-type ActionChangeType = typeof SESSION_CHANGES.ACTION_MARKED | typeof SESSION_CHANGES.ACTION_CANCELLED;
+type ActionChangeType =
+  | typeof SESSION_CHANGES.ACTION_MARKED
+  | typeof SESSION_CHANGES.ACTION_DONE
+  | typeof SESSION_CHANGES.ACTION_UNDONE
+  | typeof SESSION_CHANGES.ACTION_CANCELLED;
 
 /** One net change to one account since the session started. Wording is up to the UI. */
 export type SessionChange =
@@ -34,6 +41,8 @@ export const SESSION_CHANGE_CATEGORY: Readonly<Record<SessionChangeType, Session
   [SESSION_CHANGES.TAG_ADDED]: SESSION_CATEGORIES.TAGS,
   [SESSION_CHANGES.TAG_REMOVED]: SESSION_CATEGORIES.TAGS,
   [SESSION_CHANGES.ACTION_MARKED]: SESSION_CATEGORIES.ACTIONS,
+  [SESSION_CHANGES.ACTION_DONE]: SESSION_CATEGORIES.ACTIONS,
+  [SESSION_CHANGES.ACTION_UNDONE]: SESSION_CATEGORIES.ACTIONS,
   [SESSION_CHANGES.ACTION_CANCELLED]: SESSION_CATEGORIES.ACTIONS,
   [SESSION_CHANGES.UNAVAILABLE_MARKED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.UNAVAILABLE_CLEARED]: SESSION_CATEGORIES.OTHER,
@@ -67,13 +76,14 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
     if (before.notes !== after.notes) changes.push({ type: SESSION_CHANGES.NOTE_EDITED });
     if (before.reviewed === after.reviewed && before.lastReviewedAt !== after.lastReviewedAt) changes.push({ type: SESSION_CHANGES.LAST_REVIEWED_UPDATED });
 
-    const beforePending = beforeAccount?.actions.pending ?? [];
-    const afterPending = afterAccount?.actions.pending ?? [];
+    // Plans are only settled on import, which starts a new session, so a plan that went away was cancelled.
     for (const action of Object.values(ACTION_TYPES)) {
-      const was = beforePending.includes(action);
-      const is = afterPending.includes(action);
-      // Confirmation only happens on import, which starts a new session, so a pending action that went away was cancelled.
-      if (was !== is) changes.push({ type: is ? SESSION_CHANGES.ACTION_MARKED : SESSION_CHANGES.ACTION_CANCELLED, action });
+      const was = beforeAccount && planOf(beforeAccount, action);
+      const is = afterAccount && planOf(afterAccount, action);
+      if (was === is) continue;
+      if (is === undefined) changes.push({ type: SESSION_CHANGES.ACTION_CANCELLED, action });
+      else if (was === undefined) changes.push({ type: is === PLAN_STATES.DONE ? SESSION_CHANGES.ACTION_DONE : SESSION_CHANGES.ACTION_MARKED, action });
+      else changes.push({ type: is === PLAN_STATES.DONE ? SESSION_CHANGES.ACTION_DONE : SESSION_CHANGES.ACTION_UNDONE, action });
     }
 
     if (changes.length) result.push({ username: afterAccount?.username ?? beforeAccount?.username ?? key, changes });

@@ -1,4 +1,5 @@
 import {
+  FOLLOW_CHANGES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
   REVIEW_STATUSES,
@@ -6,6 +7,8 @@ import {
   type Account,
   type DeepReadonly,
   type ExportEntry,
+  type Follow,
+  type FollowChange,
   type Master,
   type ReadonlyAccount,
   type Relationship,
@@ -24,10 +27,52 @@ export function relationshipOf(account: ReadonlyAccount): Relationship {
   return RELATIONSHIPS.NEITHER;
 }
 
-/** WRITE: records the follows found in the latest export (absent entry = no follow). */
-export function setFollows(account: Account, following: ExportEntry | undefined, followedBy: ExportEntry | undefined): void {
+/**
+ * WRITE: records the follows found in the latest export (absent entry = no follow).
+ * A follow that disappears is dated with this import (`seenAt`); one that comes back clears that date.
+ */
+export function setFollows(account: Account, following: ExportEntry | undefined, followedBy: ExportEntry | undefined, seenAt: string): void {
+  if (account.following && !following) account.unfollowedSeenAt = seenAt;
+  if (following) delete account.unfollowedSeenAt;
+  if (account.followedBy && !followedBy) account.unfollowedMeSeenAt = seenAt;
+  if (followedBy) delete account.unfollowedMeSeenAt;
   account.following = following ? { since: following.since } : null;
   account.followedBy = followedBy ? { since: followedBy.since } : null;
+}
+
+/** A follow that started after `since` (Instagram's date, in seconds). Unknown start dates count as new so they get looked at. */
+function followedAfter(follow: DeepReadonly<Follow> | null, since: number): boolean {
+  return follow !== null && (follow.since === null || follow.since > since);
+}
+
+/**
+ * Whether the account belongs to a change list. `since` is when the imported master was
+ * saved; null (no saved master yet) means everything counts.
+ */
+export function followChangeMatches(account: ReadonlyAccount, change: FollowChange, since: string | null): boolean {
+  const sinceMs = since === null ? Number.NEGATIVE_INFINITY : Date.parse(since);
+  const after = (seenAt: string | undefined) => seenAt !== undefined && Date.parse(seenAt) > sinceMs;
+  switch (change) {
+    case FOLLOW_CHANGES.NEW_FOLLOWS: return followedAfter(account.following, sinceMs / 1000);
+    case FOLLOW_CHANGES.NEW_FOLLOWERS: return followedAfter(account.followedBy, sinceMs / 1000);
+    case FOLLOW_CHANGES.UNFOLLOWED: return after(account.unfollowedSeenAt);
+    case FOLLOW_CHANGES.LOST_FOLLOWERS: return after(account.unfollowedMeSeenAt);
+  }
+}
+
+export type FollowChangeCounts = Record<FollowChange, number>;
+
+export function followChangeCounts(source: DeepReadonly<Pick<Master, "accounts">>, since: string | null): FollowChangeCounts {
+  const counts: FollowChangeCounts = {
+    [FOLLOW_CHANGES.NEW_FOLLOWS]: 0,
+    [FOLLOW_CHANGES.UNFOLLOWED]: 0,
+    [FOLLOW_CHANGES.NEW_FOLLOWERS]: 0,
+    [FOLLOW_CHANGES.LOST_FOLLOWERS]: 0,
+  };
+  for (const account of Object.values(source.accounts)) {
+    for (const change of Object.values(FOLLOW_CHANGES)) if (followChangeMatches(account, change, since)) counts[change] += 1;
+  }
+  return counts;
 }
 
 export function scopeMatches(account: ReadonlyAccount, scope: ReviewScope): boolean {

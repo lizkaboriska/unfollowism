@@ -1,8 +1,14 @@
 import { createSelector } from "@reduxjs/toolkit";
 import {
+  ACTION_TYPES,
+  PLAN_STATES,
   accountOf,
-  actionStats,
   buildSessionDiff,
+  countPlans,
+  followChangeCounts,
+  followChangeMatches,
+  planOf,
+  planStats,
   summarizeSession,
   createDict,
   queryMatches,
@@ -13,14 +19,16 @@ import {
   scopeMatches,
   tagMatches,
   type Account,
-  type ActionStats,
+  type ActionType,
   type DeepReadonly,
+  type FollowChangeCounts,
+  type PlanStats,
   type ReadonlyAccount,
   type ReadonlyAccounts,
   type Master,
   type ScopeStats,
 } from "../core/index.ts";
-import { CHANGE_VIEWS } from "./filtersSlice.ts";
+import { LIST_VIEWS, isFollowChangeView, type FiltersState } from "./filtersSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -81,21 +89,39 @@ export const selectScopeStats = createSelector(
   },
 );
 
-const selectBaseActionStats = createSelector([selectBaseAccounts], accounts => actionStats({ accounts }));
+const selectBasePlanStats = createSelector([selectBaseAccounts], accounts => planStats({ accounts }));
 
-/** Pending/confirmed action counts: imported counts, adjusted by the edited accounts. */
-export const selectActionStats = createSelector([selectBaseActionStats, selectBaseAccounts, selectChanged], (baseStats, base, changed): ActionStats => {
-  const stats: ActionStats = { pending: { ...baseStats.pending }, confirmed: { ...baseStats.confirmed } };
+/** Planned/done action counts: imported counts, adjusted by the edited accounts. */
+export const selectPlanStats = createSelector([selectBasePlanStats, selectBaseAccounts, selectChanged], (baseStats, base, changed): PlanStats => {
+  const stats: PlanStats = { [PLAN_STATES.PLANNED]: { ...baseStats.planned }, [PLAN_STATES.DONE]: { ...baseStats.done } };
   for (const [key, account] of Object.entries(changed)) {
     const before = base[key];
-    for (const [list, sign] of [[before?.actions, -1], [account.actions, 1]] as const) {
-      if (!list) continue;
-      for (const type of list.pending) stats.pending[type] += sign;
-      for (const type of list.confirmed) stats.confirmed[type] += sign;
-    }
+    if (before) countPlans(stats, before, -1);
+    countPlans(stats, account, 1);
   }
   return stats;
 });
+
+/** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
+export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
+
+/** Sizes of the change lists. Once per import: edits never change follows. */
+export const selectFollowChangeCounts = createSelector([selectBaseAccounts, selectChangesSince], (accounts, since): FollowChangeCounts =>
+  followChangeCounts({ accounts }, since),
+);
+
+const PLAN_VIEW_ACTIONS: Partial<Record<FiltersState["view"], ActionType>> = {
+  [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
+  [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
+};
+
+/** Whether the account belongs to the selected view (before status, tag and search filters). */
+function viewMatches(account: RAccount, filters: FiltersState, since: string | null): boolean {
+  if (filters.view === LIST_VIEWS.REVIEW) return scopeMatches(account, filters.scope);
+  if (isFollowChangeView(filters.view)) return followChangeMatches(account, filters.view, since);
+  const action = PLAN_VIEW_ACTIONS[filters.view];
+  return action !== undefined && planOf(account, action) === PLAN_STATES.PLANNED;
+}
 
 function sameKeys(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((key, i) => key === b[i]);
@@ -107,12 +133,12 @@ function sameKeys(a: readonly string[], b: readonly string[]): boolean {
  * re-render the list.
  */
 export const selectVisibleAccountKeys = createSelector(
-  [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters],
-  (keys, base, changed, filters): readonly string[] =>
+  [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters, selectChangesSince],
+  (keys, base, changed, filters, since): readonly string[] =>
     keys.filter(key => {
       const account = accountOf(base, changed, key);
       return !!account &&
-        (filters.changeView === CHANGE_VIEWS.CURRENT ? scopeMatches(account, filters.scope) : account.followerChange === filters.changeView) &&
+        viewMatches(account, filters, since) &&
         reviewStatusMatches(account, filters.reviewStatus) &&
         tagMatches(account, filters.tag) &&
         queryMatches(account, filters.query);

@@ -3,19 +3,19 @@ import {
   REVIEW_STATUSES,
   accountOf,
   actionIneligibility,
-  cancelPending,
   copyAccount,
   createDict,
-  isPending,
-  markPending,
   markReviewed,
+  planOf,
   reviewStatusMatches,
   scopeMatches,
+  setPlan as applyPlan,
   tagMatches,
   usernameKey,
   type Account,
   type ActionType,
   type Master,
+  type PlanState,
   type ReadonlyAccount,
   type ReviewScope,
   type TagFilter,
@@ -72,6 +72,13 @@ function stamped<P>(payload: P) {
 }
 
 type Stamped<P> = PayloadAction<P & { at: string }>;
+
+/** `state` null = not marked (cancels the plan). */
+interface PlanPayload {
+  username: string;
+  type: ActionType;
+  state: PlanState | null;
+}
 
 /** The account as it is before this reducer runs (imported, or edited earlier). */
 function accountBefore(state: MasterState, username: string): ReadonlyAccount | undefined {
@@ -132,23 +139,24 @@ export const masterSlice = createSlice({
       if (accountBefore(state, payload.username)?.review.notes === payload.note) return;
       editAccount(state, payload.username, account => { account.review.notes = payload.note; });
     },
-    /** Checking records a pending Instagram action and marks the account reviewed; unchecking cancels it. */
-    setAction: {
-      reducer(state, { payload }: Stamped<{ username: string; type: ActionType; checked: boolean }>) {
+    /**
+     * Plans an Instagram action (planned → done after doing it by hand), or cancels it with
+     * `state: null`. A new plan also marks the account reviewed.
+     */
+    setPlan: {
+      reducer(state, { payload }: Stamped<PlanPayload>) {
         const before = accountBefore(state, payload.username);
         if (!before) return;
-        if (!payload.checked) {
-          if (!isPending(before, payload.type)) return;
-          editAccount(state, payload.username, account => { cancelPending(account, payload.type); });
-          return;
-        }
-        if (actionIneligibility(before, payload.type)) return; // the UI explains why before dispatching
+        const current = planOf(before, payload.type);
+        const next = payload.state ?? undefined;
+        if (current === next) return;
+        if (current === undefined && actionIneligibility(before, payload.type)) return; // the UI only offers eligible actions
         editAccount(state, payload.username, account => {
-          markPending(account, payload.type);
-          markReviewed(account, true, payload.at);
+          applyPlan(account, payload.type, next);
+          if (current === undefined) markReviewed(account, true, payload.at);
         });
       },
-      prepare: (p: { username: string; type: ActionType; checked: boolean }) => stamped(p),
+      prepare: (p: PlanPayload) => stamped(p),
     },
     /** Only `reviewed` is reset; search and review-status filters are deliberately ignored. */
     resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {
@@ -227,4 +235,4 @@ export const masterSlice = createSlice({
   },
 });
 
-export const { setReviewed, setUnavailable, toggleTag, setNote, setAction, resetScope, resetChanges, persistenceFailed } = masterSlice.actions;
+export const { setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, resetChanges, persistenceFailed } = masterSlice.actions;

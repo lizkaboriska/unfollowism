@@ -1,4 +1,4 @@
-import { createAccount, createDict, type Account, type FollowLosses, type Master } from "../index.ts";
+import { createAccount, createDict, type Account, type Master } from "../index.ts";
 
 export function account(username = "alice"): Account {
   return createAccount(username);
@@ -15,11 +15,6 @@ export function stateWith(...items: Account[]): Pick<Master, "accounts"> {
   const accounts = createDict<Account>();
   for (const item of items) accounts[item.username.toLowerCase()] = item;
   return { accounts };
-}
-
-/** Follow losses of an import, for the given (any-case) usernames. */
-export function lossesWith({ stopped = [], lost = [] }: { stopped?: string[]; lost?: string[] }): FollowLosses {
-  return { stoppedFollowing: new Set(stopped.map(u => u.toLowerCase())), lostFollowers: new Set(lost.map(u => u.toLowerCase())) };
 }
 
 /** Non-null assertion for tests that fails with a readable message. */

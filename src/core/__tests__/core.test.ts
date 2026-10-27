@@ -1,19 +1,22 @@
 import {
   ACTION_TYPES,
   DEFAULT_TAG_OPTIONS,
-  FOLLOWER_CHANGES,
+  FOLLOW_CHANGES,
   ImportError,
   MasterFormatError,
+  PLAN_STATES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
   REVIEW_STATUSES,
   TAG_FILTER_KINDS,
   actionIneligibility,
-  actionStats,
   buildSessionDiff,
   createReview,
+  followChangeCounts,
+  followChangeMatches,
   importExport,
-  isPending,
+  planOf,
+  planStats,
   parseFollowersJson,
   parseFollowingJson,
   parseMaster,
@@ -33,6 +36,7 @@ import { deepFreeze, followersFile, followingFile, must } from "./helpers.ts";
 
 const T1 = "2026-10-01T10:00:00.000Z";
 const T2 = "2026-10-20T10:00:00.000Z";
+const T3 = "2026-10-25T10:00:00.000Z";
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 
 function bundle(following: ReturnType<typeof followingFile>, ...followerFiles: ReturnType<typeof followersFile>[]): ExportBundle {
@@ -54,7 +58,8 @@ describe("read functions never write (safe on frozen Redux state)", () => {
   test("all selector-side helpers work on a deep-frozen master", () => {
     const master = freshMaster();
     must(master.accounts.alice).review.tags = ["artist"];
-    must(master.accounts.bob).actions = { pending: [UNFOLLOW], confirmed: [UNFOLLOW] };
+    must(master.accounts.bob).toUnfollow = PLAN_STATES.DONE;
+    must(master.accounts.bob).unfollowedMeSeenAt = T1;
     const frozen = deepFreeze(master);
     const alice = must(frozen.accounts.alice);
 
@@ -67,8 +72,10 @@ describe("read functions never write (safe on frozen Redux state)", () => {
       reviewScopeAccounts(frozen, { scope: REVIEW_SCOPES.ALL_ACCOUNTS, tag: { kind: TAG_FILTER_KINDS.ALL }, reviewStatus: REVIEW_STATUSES.ALL, query: "a" });
       reviewScopeStats(frozen, { scope: REVIEW_SCOPES.FOLLOWING });
       relationshipStats(frozen);
-      actionStats(frozen);
-      isPending(alice, UNFOLLOW);
+      planStats(frozen);
+      planOf(alice, UNFOLLOW);
+      followChangeMatches(alice, FOLLOW_CHANGES.NEW_FOLLOWS, T1);
+      followChangeCounts(frozen, null);
       actionIneligibility(alice, REMOVE_FOLLOWER);
       buildSessionDiff(frozen.accounts, frozen.accounts);
     }).not.toThrow();
@@ -76,11 +83,12 @@ describe("read functions never write (safe on frozen Redux state)", () => {
 });
 
 describe("master file", () => {
-  /** A saved master file as it comes out of JSON.parse, with one reviewed account and a pending action. */
+  /** A saved master file as it comes out of JSON.parse, with one reviewed account, a plan and a stopped follow. */
   function saved(): Record<string, unknown> & { accounts: Record<string, Record<string, unknown>> } {
     const master = freshMaster();
     must(master.accounts.bob).review = { reviewed: true, lastReviewedAt: T1, unavailable: false, tags: ["artist"], notes: "" };
-    must(master.accounts.bob).actions.pending.push(UNFOLLOW);
+    must(master.accounts.bob).toUnfollow = PLAN_STATES.PLANNED;
+    must(master.accounts.carol).unfollowedSeenAt = T1;
     return asFile({ ...master, lastSavedAt: T2 }) as ReturnType<typeof saved>;
   }
 
@@ -91,9 +99,9 @@ describe("master file", () => {
       bob: {
         username: "bob", followingSince: 1_700_000_000,
         review: { reviewed: true, lastReviewedAt: T1, unavailable: false, tags: ["artist"], notes: "" },
-        actions: { pending: [UNFOLLOW], confirmed: [] },
+        toUnfollow: PLAN_STATES.PLANNED,
       },
-      carol: { username: "carol", followerSince: 1_700_000_000 },
+      carol: { username: "carol", followerSince: 1_700_000_000, unfollowedSeenAt: T1 },
     });
     expect(file.lastImportAt).toBe(T1);
   });
@@ -136,20 +144,23 @@ describe("master file", () => {
     expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.review.tags should be a list.");
 
     const raw2 = saved();
-    (must(raw2.accounts.bob).actions as { pending: unknown[] }).pending.push("block");
-    expect(() => parseMaster(raw2)).toThrow("accounts.bob.actions.pending[1] should be one of unfollow, removeFollower");
+    must(raw2.accounts.bob).toUnfollow = true;
+    expect(() => parseMaster(raw2)).toThrow("accounts.bob.toUnfollow should be one of planned, done");
 
     const raw3 = saved();
-    (must(raw3.accounts.bob).actions as { pending: unknown[] }).pending.push(UNFOLLOW);
-    expect(() => parseMaster(raw3)).toThrow("accounts.bob.actions.pending should be a list without duplicates");
+    must(raw3.accounts.carol).unfollowedSeenAt = "last week";
+    expect(() => parseMaster(raw3)).toThrow("accounts.carol.unfollowedSeenAt should be a date");
 
     const raw4 = saved();
     must(raw4.accounts.alice).followingSince = "yesterday";
     expect(() => parseMaster(raw4)).toThrow("accounts.alice.followingSince should be a number or null");
 
-    const raw5 = saved();
-    must(raw5.accounts.alice).followerChange = "maybe";
-    expect(() => parseMaster(raw5)).toThrow("accounts.alice.followerChange should be one of new, lost");
+  });
+
+  test("rejects an account field it doesn't know instead of silently dropping it", () => {
+    const raw = saved();
+    must(raw.accounts.bob).plans = ["unfollow"];
+    expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.plans is not a known field.");
   });
 
   test("drops fields the app does not use", () => {
@@ -182,7 +193,17 @@ describe("master file", () => {
 });
 
 describe("importExport", () => {
-  test("first-time user: new master, nothing to compare with yet", () => {
+  /** Instagram follow date (seconds) just after T1, i.e. after the master below was saved. */
+  const AFTER_T1 = Date.parse(T1) / 1000 + 60;
+  const savedAtT1 = (master: Master) => asFile({ ...master, lastSavedAt: T1 });
+  const changes = (newFollows: number, unfollowed: number, newFollowers: number, lostFollowers: number) => ({
+    [FOLLOW_CHANGES.NEW_FOLLOWS]: newFollows,
+    [FOLLOW_CHANGES.UNFOLLOWED]: unfollowed,
+    [FOLLOW_CHANGES.NEW_FOLLOWERS]: newFollowers,
+    [FOLLOW_CHANGES.LOST_FOLLOWERS]: lostFollowers,
+  });
+
+  test("first-time user: new master, everyone counts as new, nothing stopped", () => {
     const result = importExport(null, bundle(followingFile(["Alice", 100], ["bob", 200]), followersFile(["alice", 300]), followersFile(["carol", 400])), T1);
     expect(result.isNewMaster).toBe(true);
     expect(result.dirty).toBe(true);
@@ -191,40 +212,73 @@ describe("importExport", () => {
     expect(must(result.master.accounts.alice).following).toEqual({ since: 100 });
     expect(must(result.master.accounts.alice).followedBy).toEqual({ since: 300 });
     expect(relationshipOf(must(result.master.accounts.carol))).toBe(RELATIONSHIPS.FOLLOWS_YOU_ONLY);
-    expect(Object.values(result.master.accounts).some(a => a.followerChange)).toBe(false); // no "new followers" on day one
-    expect(result.summary).toMatchObject({ newFollowers: 0, lostFollowers: 0, followingCount: 2, followersCount: 2 });
+    expect(Object.values(result.master.accounts).some(a => a.unfollowedSeenAt ?? a.unfollowedMeSeenAt)).toBe(false);
+    expect(result.summary).toMatchObject({ followingCount: 2, followersCount: 2, changes: changes(2, 0, 2, 0) });
   });
 
-  test("re-importing the same export is not dirty and keeps the last import's markers and time", () => {
-    const earlier = importExport(asFile(freshMaster()), bundle(followingFile(["Alice"]), followersFile(["alice"], ["dave"])), T1).master;
-    const result = importExport(asFile(earlier), bundle(followingFile(["Alice"]), followersFile(["alice"], ["dave"])), T2);
+  test("re-importing the same export is not dirty and changes nothing", () => {
+    const earlier = importExport(savedAtT1(freshMaster()), bundle(followingFile(["Alice"]), followersFile(["alice"], ["dave", AFTER_T1])), T2).master;
+    const result = importExport(asFile(earlier), bundle(followingFile(["Alice"]), followersFile(["alice"], ["dave", AFTER_T1])), T3);
     expect(result.summary.exportChanged).toBe(false);
     expect(result.dirty).toBe(false);
-    expect(result.master.lastImportAt).toBe(T1);
-    expect(result.master.accounts.dave?.followerChange).toBe(FOLLOWER_CHANGES.NEW);
-    expect(result.summary.newFollowers).toBe(1);
+    expect(result.master.lastImportAt).toBe(T2);
+    expect(result.master.accounts).toEqual(earlier.accounts);
+    expect(result.summary.changes).toEqual(changes(0, 1, 1, 1)); // bob unfollowed, dave new, carol lost (all since T1)
   });
 
-  test("a later export updates follows, marks new/lost followers and keeps review data", () => {
+  test("a later export dates stopped follows and keeps review data", () => {
     const saved = freshMaster();
     must(saved.accounts.bob).review = { reviewed: true, lastReviewedAt: T1, unavailable: false, tags: ["artist"], notes: "hi" };
-    const result = importExport(asFile(saved), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave"])), T2);
+    const result = importExport(savedAtT1(saved), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave", AFTER_T1])), T2);
 
-    expect(result.summary).toMatchObject({ exportChanged: true, newFollowers: 1, lostFollowers: 1 });
-    expect(result.master.accounts.dave?.followerChange).toBe(FOLLOWER_CHANGES.NEW);
-    expect(result.master.accounts.carol?.followerChange).toBe(FOLLOWER_CHANGES.LOST);
-    expect(result.master.accounts.alice?.followerChange).toBeUndefined();
+    expect(result.summary).toMatchObject({ exportChanged: true, changes: changes(0, 1, 1, 1) });
+    expect(result.master.accounts.bob?.unfollowedSeenAt).toBe(T2);
+    expect(result.master.accounts.carol?.unfollowedMeSeenAt).toBe(T2);
+    expect(result.master.accounts.alice?.unfollowedSeenAt).toBeUndefined();
     expect(relationshipOf(must(result.master.accounts.bob))).toBe(RELATIONSHIPS.NEITHER);
     expect(result.master.accounts.bob?.review.notes).toBe("hi");
     expect(result.master.accounts.alice?.username).toBe("alice"); // casing follows the newest export
     expect(result.master.lastImportAt).toBe(T2);
   });
 
-  test("the next changed export replaces the markers", () => {
-    const second = importExport(asFile(freshMaster()), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave"])), T2).master;
-    const third = importExport(asFile(second), bundle(followingFile(["alice"]), followersFile(["dave"], ["erin"])), T2).master;
-    expect(Object.entries(third.accounts).filter(([, a]) => a.followerChange).map(([k, a]) => [k, a.followerChange]))
-      .toEqual([["alice", FOLLOWER_CHANGES.LOST], ["erin", FOLLOWER_CHANGES.NEW]]);
+  test("changes count from the save of the imported master, however many imports happened since", () => {
+    const second = importExport(savedAtT1(freshMaster()), bundle(followingFile(["alice"], ["bob"], ["erin", AFTER_T1]), followersFile(["alice"])), T2).master;
+    const third = importExport(asFile(second), bundle(followingFile(["alice"], ["erin", AFTER_T1], ["finn", AFTER_T1]), followersFile(["alice"])), T3);
+    expect(third.summary.changes).toEqual(changes(2, 1, 0, 1)); // erin + finn new, bob unfollowed, carol lost
+    const since = (key: string) => followChangeMatches(must(third.master.accounts[key]), FOLLOW_CHANGES.NEW_FOLLOWS, T1);
+    expect(since("alice")).toBe(false); // followed before the save
+    expect(since("erin")).toBe(true);
+  });
+
+  test("a follow without a known date counts as new so it gets looked at", () => {
+    const followingNoDate = { relationships_following: [{ title: "zoe", string_list_data: [] }] };
+    const result = importExport(savedAtT1(freshMaster()), bundle(followingNoDate, followersFile(["alice"])), T2);
+    expect(followChangeMatches(must(result.master.accounts.zoe), FOLLOW_CHANGES.NEW_FOLLOWS, T1)).toBe(true);
+  });
+
+  test("following again clears the unfollow date", () => {
+    const second = importExport(savedAtT1(freshMaster()), bundle(followingFile(["alice"]), followersFile(["alice"])), T2).master;
+    expect(second.accounts.bob?.unfollowedSeenAt).toBe(T2);
+    const third = importExport(asFile(second), bundle(followingFile(["alice"], ["bob"]), followersFile(["alice"], ["carol"])), T3).master;
+    expect(third.accounts.bob?.unfollowedSeenAt).toBeUndefined();
+    expect(third.accounts.carol?.unfollowedMeSeenAt).toBeUndefined();
+  });
+
+  test("plans are settled against the export and make the import dirty", () => {
+    const saved = freshMaster();
+    must(saved.accounts.bob).toUnfollow = PLAN_STATES.DONE; // really unfollowed
+    must(saved.accounts.alice).toUnfollow = PLAN_STATES.DONE; // marked done, but still followed
+    must(saved.accounts.carol).toRemove = PLAN_STATES.PLANNED; // not done yet
+    const same = bundle(followingFile(["Alice"]), followersFile(["alice"], ["carol"]));
+    const result = importExport(savedAtT1(saved), same, T2);
+    expect(result.summary.plans).toEqual({
+      completed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
+      reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
+    });
+    expect(result.master.accounts.bob?.toUnfollow).toBeUndefined();
+    expect(result.master.accounts.alice?.toUnfollow).toBe(PLAN_STATES.PLANNED);
+    expect(result.master.accounts.carol?.toRemove).toBe(PLAN_STATES.PLANNED);
+    expect(result.dirty).toBe(true);
   });
 
   test("rejects exports with an empty side", () => {

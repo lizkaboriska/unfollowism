@@ -2,31 +2,33 @@
 // The old v3/v5 migration tests were dropped together with the migration code.
 import {
   ACTION_TYPES,
+  PLAN_STATES,
   REVIEW_SCOPES,
   REVIEW_STATUSES,
   SESSION_CATEGORIES,
   SESSION_CHANGES,
   TAG_FILTER_KINDS,
-  actionStats,
   buildSessionDiff,
-  cancelPending,
-  confirmPendingActions,
   dedupeAccounts,
-  isPending,
-  markPending,
   markReviewed,
+  planOf,
+  planStats,
   parseFollowersJson,
   relationshipStats,
   resetReviewedForScope,
   reviewScopeAccounts,
   reviewScopeStats,
   scopeMatches,
+  setPlan,
+  settlePlans,
   summarizeSession,
   type Account,
 } from "../index.ts";
-import { account, follows, lossesWith, must, stateWith } from "./helpers.ts";
+import { account, follows, must, stateWith } from "./helpers.ts";
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
+const { PLANNED, DONE } = PLAN_STATES;
+const none = { [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 };
 const tag = (name: string) => ({ kind: TAG_FILTER_KINDS.TAG, tag: name });
 const accountsOf = (...items: Account[]) => stateWith(...items).accounts;
 
@@ -93,59 +95,54 @@ test("scope stats describe whichever audit queue is selected", () => {
   expect(reviewScopeStats(state, { scope: REVIEW_SCOPES.FOLLOWERS })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
 });
 
-test("pending unfollow is separate from review state and confirms only from stopped-following", () => {
+// Changed with the plan model: a plan is cleared once the export no longer has the follow (no "confirmed" history),
+// and a plan marked done that the export contradicts goes back to planned.
+test("a planned unfollow is separate from review state and is completed only once the follow is gone", () => {
   const a = follows(account(), { following: true });
   const state = stateWith(a);
 
-  markPending(a, UNFOLLOW);
-  expect(isPending(a, UNFOLLOW)).toBe(true);
-  expect(a.review.reviewed, "core action creation does not implicitly rewrite review state").toBe(false);
+  setPlan(a, UNFOLLOW, PLANNED);
+  expect(planOf(a, UNFOLLOW)).toBe(PLANNED);
+  expect(a.review.reviewed, "core plan creation does not implicitly rewrite review state").toBe(false);
 
-  // Still followed: cannot be confirmed even if a malformed loss list mentions the name.
-  const losses = lossesWith({ stopped: ["alice"] });
-  expect(confirmPendingActions(state, losses)).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 });
+  expect(settlePlans(state)).toEqual({ completed: none, reopened: none }); // still followed
+  expect(planOf(a, UNFOLLOW)).toBe(PLANNED);
 
   follows(a, {});
-  expect(confirmPendingActions(state, losses)).toEqual({ [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 });
-  expect(a.actions).toEqual({ pending: [], confirmed: [UNFOLLOW] });
+  expect(settlePlans(state)).toEqual({ completed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 }, reopened: none });
+  expect(a.toUnfollow).toBeUndefined();
 });
 
-test("remove follower is symmetric to unfollow and confirms from lost followers", () => {
+test("remove follower is symmetric to unfollow", () => {
   const a = follows(account(), { followedBy: true });
-  const state = stateWith(a);
-
-  markPending(a, REMOVE_FOLLOWER);
+  setPlan(a, REMOVE_FOLLOWER, PLANNED);
   follows(a, {});
-  expect(confirmPendingActions(state, lossesWith({ lost: ["Alice"] }))).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 1 });
-  expect(a.actions).toEqual({ pending: [], confirmed: [REMOVE_FOLLOWER] });
+  expect(settlePlans(stateWith(a)).completed).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 1 });
+  expect(a.toRemove).toBeUndefined();
 });
 
-test("pending action can be cancelled without affecting account review data", () => {
+test("a plan marked done that the export contradicts goes back to planned", () => {
+  const a = follows(account(), { following: true });
+  setPlan(a, UNFOLLOW, DONE);
+  expect(settlePlans(stateWith(a))).toEqual({ completed: none, reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 } });
+  expect(a.toUnfollow).toBe(PLANNED);
+});
+
+test("a plan can be cancelled without affecting account review data", () => {
   const a = follows(account(), { following: true, followedBy: true });
   a.review.tags = ["artist"];
-  markPending(a, UNFOLLOW);
-
-  expect(cancelPending(a, UNFOLLOW)).toBe(true);
-  expect(cancelPending(a, UNFOLLOW)).toBe(false);
-  expect(a.actions).toEqual({ pending: [], confirmed: [] });
+  setPlan(a, UNFOLLOW, PLANNED);
+  setPlan(a, UNFOLLOW, undefined);
+  expect(planOf(a, UNFOLLOW)).toBeUndefined();
   expect(a.review.tags).toEqual(["artist"]);
 });
 
 test("marking is idempotent and refuses actions the relationship doesn't allow", () => {
   const a = follows(account(), { following: true });
-  markPending(a, UNFOLLOW);
-  markPending(a, UNFOLLOW);
-  expect(a.actions.pending).toEqual([UNFOLLOW]);
-  expect(() => { markPending(a, REMOVE_FOLLOWER); }).toThrow("does not follow you");
-});
-
-test("re-unfollowing after a refollow keeps one confirmed entry", () => {
-  const a = follows(account(), { following: true }); // followed again
-  a.actions.confirmed = [UNFOLLOW];
-  markPending(a, UNFOLLOW);
-  follows(a, {});
-  confirmPendingActions(stateWith(a), lossesWith({ stopped: ["alice"] }));
-  expect(a.actions).toEqual({ pending: [], confirmed: [UNFOLLOW] });
+  setPlan(a, UNFOLLOW, PLANNED);
+  setPlan(a, UNFOLLOW, PLANNED);
+  expect(a.toUnfollow).toBe(PLANNED);
+  expect(() => { setPlan(a, REMOVE_FOLLOWER, PLANNED); }).toThrow("does not follow you");
 });
 
 test("multiple follower export chunks can be parsed and deduplicated case-insensitively", () => {
@@ -187,7 +184,7 @@ test("session diff reports only net review, tag, action and metadata changes", (
   markReviewed(currentAlice, true, "2026-09-05T18:00:00Z");
   currentAlice.review.tags = ["artist", "photography"];
   currentAlice.review.notes = "after";
-  markPending(currentAlice, UNFOLLOW);
+  setPlan(currentAlice, UNFOLLOW, PLANNED);
 
   const diff = buildSessionDiff(baseline, current);
   expect(diff).toEqual([{
@@ -221,13 +218,22 @@ test("session diff ignores tag edits that end back at baseline but keeps persist
   expect(buildSessionDiff(baseline, current)).toEqual([{ username: "alice", changes: [{ type: SESSION_CHANGES.LAST_REVIEWED_UPDATED }] }]);
 });
 
-test("session diff reports a cancelled action", () => {
-  const a = follows(account("alice"), { followedBy: true });
-  markPending(a, REMOVE_FOLLOWER);
+test("session diff reports a cancelled, a done and an undone plan", () => {
+  const a = follows(account("alice"), { following: true, followedBy: true });
+  setPlan(a, REMOVE_FOLLOWER, PLANNED);
+  setPlan(a, UNFOLLOW, DONE);
   const baseline = accountsOf(a);
   const current = structuredClone(baseline);
-  cancelPending(must(current.alice), REMOVE_FOLLOWER);
-  expect(buildSessionDiff(baseline, current)[0]?.changes).toEqual([{ type: SESSION_CHANGES.ACTION_CANCELLED, action: REMOVE_FOLLOWER }]);
+  setPlan(must(current.alice), REMOVE_FOLLOWER, undefined);
+  setPlan(must(current.alice), UNFOLLOW, PLANNED);
+  expect(buildSessionDiff(baseline, current)[0]?.changes).toEqual([
+    { type: SESSION_CHANGES.ACTION_UNDONE, action: UNFOLLOW },
+    { type: SESSION_CHANGES.ACTION_CANCELLED, action: REMOVE_FOLLOWER },
+  ]);
+
+  const later = structuredClone(current);
+  setPlan(must(later.alice), UNFOLLOW, DONE);
+  expect(buildSessionDiff(current, later)[0]?.changes).toEqual([{ type: SESSION_CHANGES.ACTION_DONE, action: UNFOLLOW }]);
 });
 
 test("session summary groups tag additions across accounts", () => {
@@ -247,13 +253,14 @@ test("session summary groups tag additions across accounts", () => {
   expect(summary.changedAccounts).toBe(2);
 });
 
-test("action stats count pending and confirmed actions per type", () => {
-  const a = follows(account(), { following: true, followedBy: true });
-  markPending(a, UNFOLLOW);
-  markPending(a, REMOVE_FOLLOWER);
-  a.actions.confirmed = [UNFOLLOW];
-  expect(actionStats(stateWith(a))).toEqual({
-    pending: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 1 },
-    confirmed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
+test("plan stats count planned and done actions per type", () => {
+  const a = follows(account("a"), { following: true, followedBy: true });
+  setPlan(a, UNFOLLOW, PLANNED);
+  setPlan(a, REMOVE_FOLLOWER, DONE);
+  const b = follows(account("b"), { following: true });
+  setPlan(b, UNFOLLOW, DONE);
+  expect(planStats(stateWith(a, b))).toEqual({
+    [PLANNED]: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
+    [DONE]: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 1 },
   });
 });

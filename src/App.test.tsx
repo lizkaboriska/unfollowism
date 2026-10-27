@@ -59,7 +59,7 @@ test("starts on the import screen", () => {
   expect(importButton()).toBeDisabled();
   expect(screen.getByRole("button", { name: "Save master" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Reset changes" })).toBeDisabled();
-  expect(screen.queryByRole("button", { name: "Import new export" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Import files" })).not.toBeInTheDocument();
 });
 
 test("the ? button explains how to get the export", async () => {
@@ -184,10 +184,10 @@ test("an older master is warned about as soon as it is added", async () => {
   expect(importButton()).toBeEnabled();
 });
 
-test("Import new export can be cancelled", async () => {
+test("Import files can be cancelled", async () => {
   const { user } = renderApp();
   await importFiles(user, exportFiles());
-  await user.click(await screen.findByRole("button", { name: "Import new export" }));
+  await user.click(await screen.findByRole("button", { name: "Import files" }));
   expect(screen.getByText("Drop your Instagram export here")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.getByText("@bob")).toBeInTheDocument();
@@ -198,7 +198,7 @@ test("importing over unsaved work asks first", async () => {
   await importFiles(user, exportFiles());
   await user.click(within(row("bob")).getByText("Reviewed"));
 
-  await user.click(screen.getByRole("button", { name: "Import new export" }));
+  await user.click(screen.getByRole("button", { name: "Import files" }));
   await importFiles(user, exportFiles());
   const dialog = await screen.findByRole("alertdialog");
   expect(within(dialog).getByText("Discard unsaved changes?")).toBeInTheDocument();

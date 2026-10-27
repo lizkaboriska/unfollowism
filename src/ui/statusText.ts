@@ -1,21 +1,32 @@
-import { ACTION_TYPES, type ImportSummary } from "../core/index.ts";
+import { ACTION_TYPES, type FollowChangeCounts, type ImportSummary, type PlanOutcomes } from "../core/index.ts";
 import { STATUS_EVENTS, type StatusEvent } from "../store/statuses.ts";
 
 export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
+function changesText(c: FollowChangeCounts): string {
+  return `Since your last save: ${plural(c.newFollows, "new follow")}, ${c.unfollowed} unfollowed, ` +
+    `${plural(c.newFollowers, "new follower")}, ${plural(c.lostFollowers, "lost follower")}.`;
+}
+
+function plansText({ completed, reopened }: PlanOutcomes): string {
+  const parts: string[] = [];
+  if (completed[ACTION_TYPES.UNFOLLOW]) parts.push(`${plural(completed[ACTION_TYPES.UNFOLLOW], "planned unfollow")} done.`);
+  if (completed[ACTION_TYPES.REMOVE_FOLLOWER]) parts.push(`${plural(completed[ACTION_TYPES.REMOVE_FOLLOWER], "planned follower removal")} done.`);
+  if (reopened[ACTION_TYPES.UNFOLLOW]) parts.push(`${plural(reopened[ACTION_TYPES.UNFOLLOW], "account")} marked done but still followed: back in To unfollow.`);
+  if (reopened[ACTION_TYPES.REMOVE_FOLLOWER]) parts.push(`${plural(reopened[ACTION_TYPES.REMOVE_FOLLOWER], "account")} marked done but still following you: back in To remove.`);
+  return parts.map(part => ` ${part}`).join("");
+}
+
 function importText(isNewMaster: boolean, followerFileCount: number, summary: ImportSummary): string {
   const files = plural(followerFileCount, "follower file");
   const counts = `${summary.followingCount} following, ${summary.followersCount} followers.`;
-  const followerChanges = `${plural(summary.newFollowers, "new follower")}, ${plural(summary.lostFollowers, "lost follower")}.`;
-  const unfollows = summary.confirmed[ACTION_TYPES.UNFOLLOW];
-  const removals = summary.confirmed[ACTION_TYPES.REMOVE_FOLLOWER];
-  const confirmation = unfollows || removals ? ` Confirmed ${plural(unfollows, "unfollow")} and ${plural(removals, "follower removal")}.` : "";
+  const details = `${changesText(summary.changes)}${plansText(summary.plans)}`;
 
   if (isNewMaster) return `Started a new master from ${files}. ${counts} Save master to keep it.`;
-  if (summary.exportChanged) return `New export loaded from ${files} — not saved yet. ${counts} Since the last import: ${followerChanges}${confirmation}`;
-  return `Loaded ${files}: same as the last import. ${counts} From that import: ${followerChanges}${confirmation}`;
+  if (summary.exportChanged) return `New export loaded from ${files} — not saved yet. ${counts} ${details}`;
+  return `Loaded ${files}: same as the last import. ${counts} ${details}`;
 }
 
 /** Status-bar text for what last happened. */

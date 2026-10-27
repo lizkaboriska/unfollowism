@@ -1,19 +1,43 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { FOLLOWER_CHANGES, REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type Master, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
+import {
+  FOLLOW_CHANGES,
+  REVIEW_SCOPES,
+  REVIEW_STATUSES,
+  TAG_FILTER_KINDS,
+  type FollowChange,
+  type Master,
+  type ReviewScope,
+  type ReviewStatusFilter,
+  type TagFilter,
+  type ValueOf,
+} from "../core/index.ts";
 import { resetScope } from "./masterSlice.ts";
 import { importPrepared, restoreTab } from "./thunks.ts";
 
-/** "Current review", or the accounts the latest import marked with that follower change. */
-export const CHANGE_VIEWS = { CURRENT: "current", NEW_FOLLOWERS: FOLLOWER_CHANGES.NEW, LOST_FOLLOWERS: FOLLOWER_CHANGES.LOST } as const;
-export type ChangeView = (typeof CHANGE_VIEWS)[keyof typeof CHANGE_VIEWS];
+/** Which list the main view shows: the review queue, a change since the last save, or a list of planned actions. */
+export const LIST_VIEWS = {
+  REVIEW: "review",
+  NEW_FOLLOWS: FOLLOW_CHANGES.NEW_FOLLOWS,
+  UNFOLLOWED: FOLLOW_CHANGES.UNFOLLOWED,
+  NEW_FOLLOWERS: FOLLOW_CHANGES.NEW_FOLLOWERS,
+  LOST_FOLLOWERS: FOLLOW_CHANGES.LOST_FOLLOWERS,
+  TO_UNFOLLOW: "toUnfollow",
+  TO_REMOVE: "toRemove",
+} as const;
+export type ListView = ValueOf<typeof LIST_VIEWS>;
+
+const FOLLOW_CHANGE_VALUES: readonly string[] = Object.values(FOLLOW_CHANGES);
+export function isFollowChangeView(view: ListView): view is FollowChange {
+  return FOLLOW_CHANGE_VALUES.includes(view);
+}
 
 export interface FiltersState {
   scope: ReviewScope;
   reviewStatus: ReviewStatusFilter;
   tag: TagFilter;
   query: string;
-  /** CURRENT = review queue; the others list who started/stopped following you in the latest import. */
-  changeView: ChangeView;
+  /** Only REVIEW uses `scope`; status, tag and search apply to every view. */
+  view: ListView;
 }
 
 const initialState: FiltersState = {
@@ -21,7 +45,7 @@ const initialState: FiltersState = {
   reviewStatus: REVIEW_STATUSES.ALL,
   tag: { kind: TAG_FILTER_KINDS.ALL },
   query: "",
-  changeView: CHANGE_VIEWS.CURRENT,
+  view: LIST_VIEWS.REVIEW,
 };
 
 function dropUnknownTag(state: FiltersState, master: Master): void {
@@ -44,8 +68,8 @@ export const filtersSlice = createSlice({
     setQuery(state, { payload }: PayloadAction<string>) {
       state.query = payload;
     },
-    setChangeView(state, { payload }: PayloadAction<ChangeView>) {
-      state.changeView = payload;
+    setView(state, { payload }: PayloadAction<ListView>) {
+      state.view = payload;
     },
   },
   extraReducers: builder => {
@@ -63,4 +87,4 @@ export const filtersSlice = createSlice({
   },
 });
 
-export const { setScope, setReviewStatus, setTagFilter, setQuery, setChangeView } = filtersSlice.actions;
+export const { setScope, setReviewStatus, setTagFilter, setQuery, setView } = filtersSlice.actions;
