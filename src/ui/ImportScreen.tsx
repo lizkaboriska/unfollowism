@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Alert, Box, Button, HStack, IconButton, List, Stack, Text } from "@chakra-ui/react";
-import { analyzeImport, type ImportSelection } from "../io/analyzeImport.ts";
+import { IMPORT_WARNINGS, analyzeImport, type ImportSelection } from "../io/analyzeImport.ts";
 import type { LastSavedStore } from "../io/lastSaved.ts";
 import { readInputs, type InputText } from "../io/readInputs.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
@@ -8,7 +8,7 @@ import { selectIsDirty } from "../store/selectors.ts";
 import { IMPORT_STATUSES } from "../store/statuses.ts";
 import { importPrepared } from "../store/thunks.ts";
 import { useAlert, useConfirm } from "./dialogs.tsx";
-import { missingText, recognizedText, warningText } from "./importText.ts";
+import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from "./importText.ts";
 
 function errorMessage(error: unknown): string {
   return typeof error === "string" ? error : error instanceof Error ? error.message : "Unexpected error";
@@ -118,6 +118,16 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
   async function onImport() {
     const prepared = selection?.prepared;
     if (!prepared) return;
+    const noMaster = prepared.warnings.find(w => w.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE);
+    if (noMaster) {
+      const proceed = await confirm({
+        title: "Import without your master?",
+        body: noMasterConfirmText(noMaster.lastKnownSavedAt),
+        confirmLabel: "Import anyway",
+        destructive: true,
+      });
+      if (!proceed) return;
+    }
     if (dirty) {
       const discard = await confirm({
         title: "Discard unsaved changes?",
@@ -181,13 +191,13 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
         </Stack>
       )}
 
-      {selection && <Text>{recognizedText(selection.recognized)}</Text>}
+      {selection && <Text>{recognizedText(selection.recognized, lastSaved.get())}</Text>}
       {missing && <Text color="fg.muted">{missing}</Text>}
 
-      {selection?.prepared?.warnings.map(w => (
+      {selection?.prepared?.warnings.map(w => w.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE && (
         <Alert.Root key={w.kind} status="warning">
           <Alert.Indicator />
-          <Alert.Title>{warningText(w)}</Alert.Title>
+          <Alert.Title>{olderMasterText(w)}</Alert.Title>
         </Alert.Root>
       ))}
 

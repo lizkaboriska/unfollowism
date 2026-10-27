@@ -5,13 +5,18 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-/** One line saying what the chosen files contain, e.g. "Following ✓ · Followers ✓ (1 file) · Master: none — a new one will be started". */
-export function recognizedText({ hasFollowing, followerFileCount, master }: RecognizedFiles): string {
+/**
+ * One line saying what the chosen files contain, e.g. "Following ✓ · Followers ✓ (1 file) · Master: none — a new one will be started".
+ * `lastKnownSavedAt` (last save from this browser) turns a missing master into a hint to add it.
+ */
+export function recognizedText({ hasFollowing, followerFileCount, master }: RecognizedFiles, lastKnownSavedAt: string | null): string {
   const followingPart = `Following ${hasFollowing ? "✓" : "✗"}`;
   const followersPart = followerFileCount ? `Followers ✓ (${plural(followerFileCount, "file")})` : "Followers ✗";
   const masterPart = master
     ? `Master: ${master.name}${master.savedAt ? ` (saved ${formatDateTime(master.savedAt)})` : ""}`
-    : "Master: none — a new one will be started";
+    : lastKnownSavedAt
+      ? `Master: none — add the one you saved on ${formatDateTime(lastKnownSavedAt)}, or a new one will be started`
+      : "Master: none — a new one will be started";
   return [followingPart, followersPart, masterPart].join(" · ");
 }
 
@@ -25,9 +30,12 @@ export function missingText({ hasFollowing, followerFileCount }: RecognizedFiles
   return null;
 }
 
-export function warningText(warning: ImportWarning): string {
-  const when = formatDateTime(warning.lastKnownSavedAt);
-  return warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE
-    ? `You saved a master from this browser on ${when}, but didn't choose one. Importing without it starts your review history from scratch.`
-    : `The chosen master is older than the one you saved from this browser on ${when}. Recent review work may be missing from it.`;
+/** Shown while choosing files, for a master that has been added. */
+export function olderMasterText(warning: ImportWarning & { kind: typeof IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE }): string {
+  return `The chosen master is older than the one you saved from this browser on ${formatDateTime(warning.lastKnownSavedAt)}. Recent review work may be missing from it.`;
+}
+
+/** Asked on Import, not while choosing: the master may simply not have been added yet. */
+export function noMasterConfirmText(lastKnownSavedAt: string): string {
+  return `You saved one on ${formatDateTime(lastKnownSavedAt)}. Without it your review history starts from scratch.`;
 }

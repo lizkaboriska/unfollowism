@@ -153,12 +153,34 @@ test("a selection that can't be imported shows a readable error", async () => {
   expect(importButton()).toBeDisabled();
 });
 
-test("older-master warnings are shown before importing", async () => {
+const savedBefore = () => {
   const lastSaved = memoryLastSaved();
   lastSaved.set("2026-10-20T00:00:00.000Z");
-  const { user } = renderApp({ lastSaved });
+  return lastSaved;
+};
+
+test("without a master, a previous save is only a hint while choosing; Import asks first", async () => {
+  const { user } = renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId("file-input"), exportFiles());
-  expect(await screen.findByText(/You saved a master from this browser on .*, but didn't choose one/)).toBeInTheDocument();
+  expect(await screen.findByText(/Master: none — add the one you saved on .*, or a new one will be started/)).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument(); // no warning box while still choosing
+
+  await user.click(importButton());
+  const dialog = await screen.findByRole("alertdialog");
+  expect(within(dialog).getByText("Import without your master?")).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => { expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(); });
+  expect(screen.getByText("Drop your Instagram export here")).toBeInTheDocument(); // nothing imported
+
+  await user.click(importButton());
+  await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Import anyway" }));
+  expect(await screen.findByText("@bob")).toBeInTheDocument();
+});
+
+test("an older master is warned about as soon as it is added", async () => {
+  const { user } = renderApp({ lastSaved: savedBefore() });
+  await user.upload(screen.getByTestId("file-input"), [...exportFiles(), masterJson("2026-10-01T00:00:00.000Z")]);
+  expect(await screen.findByText(/The chosen master is older than the one you saved from this browser/)).toBeInTheDocument();
   expect(importButton()).toBeEnabled();
 });
 
