@@ -19,11 +19,10 @@ const LARGE_STATE_PATHS = ["master.master", "master.baseline"];
 const LARGE_ACTION_PATHS = ["payload.result.master", "payload.master", "payload.baseline", "meta.arg"];
 
 export interface StoreOptions {
-  persistDebounceMs?: number;
   preloadedState?: Partial<RootState>;
 }
 
-export function makeStore(deps: StoreDeps, { persistDebounceMs = 500, preloadedState }: StoreOptions = {}) {
+export function makeStore(deps: StoreDeps, { preloadedState }: StoreOptions = {}) {
   const listener = createListenerMiddleware<RootState, AppDispatch, StoreDeps>({ extra: deps });
   const store = configureStore({
     reducer: rootReducer,
@@ -35,7 +34,7 @@ export function makeStore(deps: StoreDeps, { persistDebounceMs = 500, preloadedS
         serializableCheck: { ignoredPaths: LARGE_STATE_PATHS, ignoredActionPaths: LARGE_ACTION_PATHS },
       }).prepend(listener.middleware),
   });
-  startPersistence(listener, persistDebounceMs);
+  startPersistence(listener);
   return store;
 }
 

@@ -1,6 +1,6 @@
 import { parseMaster } from "../../core/index.ts";
 import { must } from "../../core/__tests__/helpers.ts";
-import type { SessionStore } from "../../io/sessionStore.ts";
+import { createMemorySessionStore, type SessionStore, type StoredSession } from "../../io/sessionStore.ts";
 import { setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
 import { resetScope, restoreSession, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
@@ -197,6 +197,40 @@ describe("browser storage", () => {
     expect(selectIsDirty(s)).toBe(true);
     expect(selectSessionDiff(s).summary).toEqual(selectSessionDiff(t.store.getState()).summary);
     expect(selectVisibleAccountKeys(s)).toEqual(selectVisibleAccountKeys(t.store.getState()));
+  });
+
+  test("every change is written right away; changes during a write are coalesced into one follow-up write", async () => {
+    const memory = createMemorySessionStore();
+    const writes: StoredSession[] = [];
+    let gate = deferred();
+    const slowStore: SessionStore = {
+      ...memory,
+      saveSession: async session => {
+        writes.push(structuredClone(session));
+        await gate.promise;
+        await memory.saveSession(session);
+      },
+    };
+    const t = makeTestStore({ sessionStore: slowStore });
+    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    await flushPersistence();
+    expect(writes).toHaveLength(1); // the import, started immediately
+
+    // Three edits while that write is still in progress…
+    t.store.dispatch(setNote({ username: "bob", note: "a" }));
+    t.store.dispatch(setNote({ username: "bob", note: "ab" }));
+    t.store.dispatch(setNote({ username: "bob", note: "abc" }));
+    const first = gate;
+    gate = deferred();
+    first.resolve();
+    await flushPersistence();
+    gate.resolve();
+    await flushPersistence();
+
+    // …become exactly one more write, holding the latest state.
+    expect(writes).toHaveLength(2);
+    const stored = must(await memory.loadSession());
+    expect((stored.master as { accounts: Record<string, { review: { notes: string } }> }).accounts.bob?.review.notes).toBe("abc");
   });
 
   test("a corrupt stored draft is ignored", async () => {

@@ -21,7 +21,6 @@ export function makeTestStore({ now = "2026-10-27T12:00:00.000Z", sessionStore =
       download: download ?? ((filename, text) => { downloads.push({ filename, text }); }),
       sessionStore,
     },
-    { persistDebounceMs: 5 },
   );
   return {
     store,
@@ -31,8 +30,8 @@ export function makeTestStore({ now = "2026-10-27T12:00:00.000Z", sessionStore =
   };
 }
 
-/** Waits for the debounced persistence listener. */
-export const flushPersistence = () => new Promise(resolve => setTimeout(resolve, 30));
+/** Lets the persistence listener finish its (async) storage writes. */
+export const flushPersistence = () => new Promise(resolve => setTimeout(resolve, 0));
 
 export function prepared({
   following = [["Alice"], ["bob"], ["carol"]],

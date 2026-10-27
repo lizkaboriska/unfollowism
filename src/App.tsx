@@ -51,6 +51,7 @@ export function App({ deps }: { deps: StoreDeps }) {
   const dirty = useAppSelector(selectIsDirty);
   const message = useAppSelector(s => s.master.message);
   const importing = useAppSelector(s => s.master.importStatus === "importing");
+  const storageFailed = useAppSelector(s => s.master.persistenceFailed);
   const stats = useAppSelector(selectRelationshipStats);
   const keys = useAppSelector(selectVisibleAccountKeys);
 
@@ -62,13 +63,6 @@ export function App({ deps }: { deps: StoreDeps }) {
   useEffect(() => {
     void dispatch(loadStoredSession()).unwrap().then(setStored);
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
-    window.addEventListener("beforeunload", warn);
-    return () => { window.removeEventListener("beforeunload", warn); };
-  }, [dirty]);
 
   async function apply(prepared: PreparedImport) {
     setAwaitingConfirm(null);
@@ -146,6 +140,13 @@ export function App({ deps }: { deps: StoreDeps }) {
                 </HStack>
               </Alert.Description>
             </Alert.Content>
+          </Alert.Root>
+        )}
+
+        {storageFailed && (
+          <Alert.Root status="warning">
+            <Alert.Indicator />
+            <Alert.Title>This browser isn't keeping your work. Save master before closing the tab.</Alert.Title>
           </Alert.Root>
         )}
 

@@ -31,17 +31,33 @@ export async function persistNow(state: RootState, deps: StoreDeps, dispatch: Ap
   }
 }
 
-/** Debounced autosave of the working state whenever the master slice changes. */
-export function startPersistence(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>, debounceMs: number): void {
+/**
+ * Saves the working state to browser storage on every change (a write takes ~2–4 ms).
+ * If a change arrives while a write is in progress, one more write follows it with
+ * the latest state, so writes never overlap and the last change is never skipped.
+ */
+export function startPersistence(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>): void {
+  let changes = 0; // bumped on every change
+  let writing = false;
+
   listener.startListening({
     predicate: (_action, current, previous) =>
       current.master.master !== previous.master.master ||
       current.master.savedRevision !== previous.master.savedRevision ||
       current.master.pendingSnapshot !== previous.master.pendingSnapshot,
     effect: async (_action, api) => {
-      api.cancelActiveListeners();
-      await api.delay(debounceMs);
-      await persistNow(api.getState(), api.extra, api.dispatch);
+      changes += 1;
+      if (writing) return; // the running loop below will pick this change up
+      writing = true;
+      try {
+        let written = 0;
+        while (written < changes) {
+          written = changes;
+          await persistNow(api.getState(), api.extra, api.dispatch);
+        }
+      } finally {
+        writing = false;
+      }
     },
   });
 }
