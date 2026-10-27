@@ -28,7 +28,7 @@ import {
   type Master,
   type ScopeStats,
 } from "../core/index.ts";
-import { LIST_VIEWS, isFollowChangeView, type FiltersState } from "./filtersSlice.ts";
+import { LIST_VIEWS, isFollowChangeView, isPlanView, type FiltersState } from "./filtersSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -128,9 +128,9 @@ function sameKeys(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /**
- * Account keys to render, in username order. Filtering is one pass over the pre-sorted
- * keys; the previous array is returned when nothing changed, so typing a note doesn't
- * re-render the list.
+ * Account keys matching the tab and filters, in username order: one pass over the
+ * pre-sorted keys. The list shown on screen is a snapshot of this taken by the list slice
+ * (listSlice.ts), which decides when to recompute it.
  */
 export const selectVisibleAccountKeys = createSelector(
   [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters, selectChangesSince],
@@ -139,7 +139,7 @@ export const selectVisibleAccountKeys = createSelector(
       const account = accountOf(base, changed, key);
       return !!account &&
         viewMatches(account, filters, since) &&
-        reviewStatusMatches(account, filters.reviewStatus) &&
+        (isPlanView(filters.view) || reviewStatusMatches(account, filters.reviewStatus)) &&
         tagMatches(account, filters.tag) &&
         queryMatches(account, filters.query);
     }),

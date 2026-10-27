@@ -17,6 +17,7 @@ import {
 } from "../selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../thunks.ts";
 import { STATUS_EVENTS } from "../statuses.ts";
+import { selectListKeys } from "../listSlice.ts";
 import { WRITES, deferred, flushPersistence, makeTestStore, prepared, recordingTab, type RecordedWrite } from "./testStore.ts";
 
 const write = (kind: RecordedWrite["kind"], keys: Partial<Omit<RecordedWrite, "kind">> = {}): RecordedWrite =>
@@ -289,6 +290,36 @@ describe("reset changes", () => {
     await again.store.dispatch(restoreTab());
     expect(review(again, "carol").notes).toBe("");
     expect(selectIsDirty(again.store.getState())).toBe(false);
+  });
+});
+
+describe("list refresh", () => {
+  test("the shown list changes on filter change, import, restore and resets, never on an edit", async () => {
+    const t = await importedStore();
+    const shown = () => selectListKeys(t.store.getState());
+    expect(shown()).toEqual(["alice", "bob", "carol"]); // import
+
+    t.store.dispatch(setReviewStatus(REVIEW_STATUSES.NEEDS_REVIEW));
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    expect(shown()).toEqual(["alice", "bob", "carol"]); // an edit doesn't move cards
+    t.store.dispatch(setQuery(""));
+    expect(shown()).toEqual(["alice", "bob", "carol"]); // same filters: same list
+    t.store.dispatch(setQuery("a"));
+    expect(shown()).toEqual(["alice", "carol"]);
+
+    t.store.dispatch(setQuery(""));
+    t.store.dispatch(resetChanges());
+    expect(shown()).toEqual(["alice", "bob", "carol"]); // bob needs review again
+
+    t.store.dispatch(setReviewed({ username: "alice", reviewed: true }));
+    t.store.dispatch(setReviewStatus(REVIEW_STATUSES.ALL));
+    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.FOLLOWING, tag: { kind: TAG_FILTER_KINDS.ALL } }));
+    expect(shown()).toEqual(["alice", "bob", "carol"]);
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ tab: t.tab });
+    await reloaded.store.dispatch(restoreTab());
+    expect(selectListKeys(reloaded.store.getState())).toEqual(["alice", "bob", "carol"]);
   });
 });
 

@@ -26,6 +26,12 @@ export const LIST_VIEWS = {
 } as const;
 export type ListView = ValueOf<typeof LIST_VIEWS>;
 
+const PLAN_VIEW_VALUES: readonly ListView[] = [LIST_VIEWS.TO_UNFOLLOW, LIST_VIEWS.TO_REMOVE];
+/** The To do lists. Status doesn't apply there: planning an action marks the account reviewed. */
+export function isPlanView(view: ListView): view is typeof LIST_VIEWS.TO_UNFOLLOW | typeof LIST_VIEWS.TO_REMOVE {
+  return PLAN_VIEW_VALUES.includes(view);
+}
+
 const FOLLOW_CHANGE_VALUES: readonly string[] = Object.values(FOLLOW_CHANGES);
 export function isFollowChangeView(view: ListView): view is FollowChange {
   return FOLLOW_CHANGE_VALUES.includes(view);
@@ -36,7 +42,7 @@ export interface FiltersState {
   reviewStatus: ReviewStatusFilter;
   tag: TagFilter;
   query: string;
-  /** Only REVIEW uses `scope`; status, tag and search apply to every view. */
+  /** Only REVIEW uses `scope`; status applies everywhere except the To do lists; tag and search apply to every view. */
   view: ListView;
 }
 

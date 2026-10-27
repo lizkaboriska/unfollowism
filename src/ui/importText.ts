@@ -1,9 +1,6 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from "../io/analyzeImport.ts";
+import { formatDateTime } from "./dates.ts";
 import { plural } from "./statusText.ts";
-
-export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-}
 
 /**
  * One line saying what the chosen files contain, e.g. "Following ✓ · Followers ✓ (1 file) · Master: none — a new one will be started".

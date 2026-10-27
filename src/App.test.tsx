@@ -49,7 +49,10 @@ async function importFiles(user: UserEvent, files: File[]) {
   await user.click(importButton());
 }
 
-const row = (username: string) => must(screen.getByText(`@${username}`).closest("div")?.parentElement, `${username}'s row`);
+const row = (username: string) => screen.getByRole("article", { name: `@${username}` });
+const findRow = (username: string) => screen.findByRole("article", { name: `@${username}` });
+const queryRow = (username: string) => screen.queryByRole("article", { name: `@${username}` });
+const reviewedBox = (username: string) => within(row(username)).getByRole("checkbox", { name: "Reviewed" });
 
 test("starts on the import screen", () => {
   renderApp();
@@ -79,10 +82,10 @@ test("import → review → save works end to end", async () => {
   expect(screen.queryByText("Drop your Instagram export here")).not.toBeInTheDocument();
   expect(screen.getByText("Following 2")).toBeInTheDocument();
   expect(screen.getByText("Mutual 1")).toBeInTheDocument();
-  expect(screen.getByText("@alice")).toBeInTheDocument();
-  expect(screen.queryByText("@carol")).not.toBeInTheDocument(); // only "I follow" is listed
+  expect(row("alice")).toBeInTheDocument();
+  expect(queryRow("carol")).not.toBeInTheDocument(); // the Review tab starts on "I follow"
 
-  await user.click(within(row("bob")).getByText("Reviewed"));
+  await user.click(reviewedBox("bob"));
   await user.click(screen.getByRole("button", { name: "Save master" }));
   await waitFor(() => { expect(downloads).toHaveLength(1); });
   const saved = JSON.parse(downloads[0]?.text ?? "{}") as { accounts: Record<string, { review: { reviewed: boolean } }> };
@@ -174,7 +177,7 @@ test("without a master, a previous save is only a hint while choosing; Import as
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Import anyway" }));
-  expect(await screen.findByText("@bob")).toBeInTheDocument();
+  expect(await findRow("bob")).toBeInTheDocument();
 });
 
 test("an older master is warned about as soon as it is added", async () => {
@@ -190,13 +193,13 @@ test("Import files can be cancelled", async () => {
   await user.click(await screen.findByRole("button", { name: "Import files" }));
   expect(screen.getByText("Drop your Instagram export here")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(screen.getByText("@bob")).toBeInTheDocument();
+  expect(row("bob")).toBeInTheDocument();
 });
 
 test("importing over unsaved work asks first", async () => {
   const { user } = renderApp();
   await importFiles(user, exportFiles());
-  await user.click(within(row("bob")).getByText("Reviewed"));
+  await user.click(reviewedBox("bob"));
 
   await user.click(screen.getByRole("button", { name: "Import files" }));
   await importFiles(user, exportFiles());
@@ -208,31 +211,31 @@ test("importing over unsaved work asks first", async () => {
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Import anyway" }));
-  await waitFor(() => { expect(within(row("bob")).getByRole("checkbox")).not.toBeChecked(); });
+  await waitFor(() => { expect(reviewedBox("bob")).not.toBeChecked(); });
 });
 
 test("a reload silently continues where the tab left off", async () => {
   const first = renderApp();
   await importFiles(first.user, exportFiles());
-  await first.user.click(within(await waitFor(() => row("bob"))).getByText("Reviewed"));
+  await first.user.click(within(await findRow("bob")).getByRole("checkbox", { name: "Reviewed" }));
   await new Promise(resolve => setTimeout(resolve, 20)); // let the storage write finish
   first.unmount();
 
   renderApp({ tab: first.tab }); // same tab storage, fresh page
-  expect(await screen.findByText("@bob")).toBeInTheDocument();
+  expect(await findRow("bob")).toBeInTheDocument();
   expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
-  expect(within(row("bob")).getByRole("checkbox")).toBeChecked();
+  expect(reviewedBox("bob")).toBeChecked();
 });
 
 test("Reset changes asks first, then undoes unsaved work", async () => {
   const { user } = renderApp();
   await importFiles(user, exportFiles());
-  await screen.findByText("@bob");
+  await findRow("bob");
   const reset = screen.getByRole("button", { name: "Reset changes" });
   expect(reset).toBeDisabled();
 
-  const bobCheckbox = () => within(row("bob")).getByRole("checkbox");
-  await user.click(within(row("bob")).getByText("Reviewed"));
+  const bobCheckbox = () => reviewedBox("bob");
+  await user.click(reviewedBox("bob"));
   expect(bobCheckbox()).toBeChecked();
   expect(reset).toBeEnabled();
 
@@ -247,4 +250,116 @@ test("Reset changes asks first, then undoes unsaved work", async () => {
   await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }));
   await waitFor(() => { expect(bobCheckbox()).not.toBeChecked(); });
   expect(reset).toBeDisabled();
+});
+
+describe("main view", () => {
+  // exportFiles(): following alice + bob, followers alice + carol. Without a saved master everyone counts as new.
+  async function imported() {
+    const t = renderApp();
+    await importFiles(t.user, exportFiles());
+    await findRow("bob");
+    return t;
+  }
+  const tab = (name: RegExp) => screen.getByRole("button", { name });
+  const select = (name: string) => screen.getByRole("combobox", { name });
+  const shown = () => screen.queryAllByRole("article").map(card => card.getAttribute("aria-label"));
+
+  test("tabs switch lists; empty tabs are disabled", async () => {
+    const { user } = await imported();
+    expect(shown()).toEqual(["@alice", "@bob"]);
+    expect(tab(/^I unfollowed \(0\)$/)).toBeDisabled();
+    expect(tab(/^To do \(0\)$/)).toBeDisabled();
+
+    await user.click(tab(/^New followers \(2\)$/));
+    expect(shown()).toEqual(["@alice", "@carol"]);
+    expect(screen.getByText("2 accounts started following you since you started")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Scope" })).not.toBeInTheDocument(); // scope is Review-only
+  });
+
+  test("search, status and tag narrow the list and are kept across tabs", async () => {
+    const { user } = await imported();
+    await user.type(screen.getByRole("textbox", { name: "Search username" }), "bo");
+    expect(shown()).toEqual(["@bob"]);
+    await user.click(tab(/^New follows/));
+    expect(shown()).toEqual(["@bob"]);
+    await user.clear(screen.getByRole("textbox", { name: "Search username" }));
+
+    await user.click(within(row("alice")).getByRole("button", { name: "artist" }));
+    await user.selectOptions(select("Tag"), "artist");
+    expect(shown()).toEqual(["@alice"]);
+    await user.selectOptions(select("Tag"), "Untagged");
+    expect(shown()).toEqual(["@bob"]);
+  });
+
+  test("a ticked card stays until the list refreshes", async () => {
+    const { user } = await imported();
+    await user.selectOptions(select("Status"), "Needs review");
+    await user.click(reviewedBox("bob"));
+    expect(shown()).toEqual(["@alice", "@bob"]); // still there while you work
+    await user.selectOptions(select("Status"), "All");
+    await user.selectOptions(select("Status"), "Needs review");
+    expect(shown()).toEqual(["@alice"]);
+  });
+
+  test("plans: offered only when the follow exists; To do → Done leaves the list on refresh", async () => {
+    const { user } = await imported();
+    await user.selectOptions(select("Scope"), "All current accounts");
+    expect(within(row("bob")).queryByRole("checkbox", { name: "To remove" })).not.toBeInTheDocument(); // bob doesn't follow me
+    expect(within(row("carol")).queryByRole("checkbox", { name: "To unfollow" })).not.toBeInTheDocument(); // I don't follow carol
+    expect(within(row("alice")).getByRole("checkbox", { name: "To remove" })).toBeInTheDocument();
+
+    await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" }));
+    expect(reviewedBox("bob")).toBeChecked(); // planning counts as reviewing
+    await user.selectOptions(select("Status"), "Needs review");
+    await user.click(tab(/^To do \(1\)$/));
+    expect(shown()).toEqual(["@bob"]); // Status doesn't apply in To do…
+    expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument(); // …so it's hidden there
+    expect(screen.getByText("1 to unfollow")).toBeInTheDocument();
+
+    await user.click(within(row("bob")).getByRole("checkbox", { name: "Done" }));
+    expect(screen.getByText("0 to unfollow · 1 done, waiting for the next import")).toBeInTheDocument();
+    expect(shown()).toEqual(["@bob"]); // stays until the list refreshes
+    await user.click(tab(/^Review$/));
+    expect(tab(/^To do \(0\)$/)).toBeDisabled();
+  });
+
+  test("tags and notes end up in the saved master", async () => {
+    const { user, downloads } = await imported();
+    await user.click(within(row("bob")).getByRole("button", { name: "dog" }));
+    await user.type(within(row("bob")).getByRole("textbox", { name: "Note for @bob" }), "met at a show");
+    await user.click(screen.getByRole("button", { name: "Save master" }));
+    await waitFor(() => { expect(downloads).toHaveLength(1); });
+    const saved = JSON.parse(must(downloads[0]).text) as { accounts: Record<string, { review: { tags: string[]; notes: string } }> };
+    expect(saved.accounts.bob?.review).toMatchObject({ tags: ["dog"], notes: "met at a show" });
+  });
+
+  test("Reset scope asks with the count and is disabled with nothing to reset", async () => {
+    const { user } = await imported();
+    const reset = screen.getByRole("button", { name: "Reset scope" });
+    expect(reset).toBeDisabled();
+    await user.click(reviewedBox("alice"));
+    await user.click(reviewedBox("bob"));
+    await user.click(reset);
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(/Reset reviewed for 2 accounts matching I follow\?/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Reset" }));
+    await waitFor(() => { expect(reviewedBox("bob")).not.toBeChecked(); });
+    expect(select("Status")).toHaveValue("needsReview");
+  });
+
+  test("the Instagram link opens a side popup; modifier clicks are left to the browser", async () => {
+    const { user } = await imported();
+    const open = vi.spyOn(window, "open").mockReturnValue({ focus: () => undefined } as Window);
+    const link = within(row("bob")).getByRole("link", { name: /@bob/ });
+    expect(link).toHaveAttribute("href", "https://www.instagram.com/bob");
+    await user.click(link);
+    expect(open).toHaveBeenCalledWith("https://www.instagram.com/bob", "instagram-review-profile", expect.stringContaining("popup=yes"));
+
+    open.mockClear();
+    await user.keyboard("{Meta>}");
+    await user.click(link);
+    await user.keyboard("{/Meta}");
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
 });

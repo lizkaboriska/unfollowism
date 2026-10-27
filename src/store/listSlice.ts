@@ -1,0 +1,43 @@
+import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from "@reduxjs/toolkit";
+import type { StoreDeps } from "./deps.ts";
+import { resetChanges, resetScope } from "./masterSlice.ts";
+import { selectVisibleAccountKeys } from "./selectors.ts";
+import type { AppDispatch, RootState } from "./index.ts";
+
+/**
+ * The account keys the list shows. Recomputed only when the tab or a filter changes, on
+ * import/restore, and after a reset, never on an ordinary edit: a card you just ticked
+ * stays where it is, and typing a note doesn't refilter 100k accounts.
+ */
+export interface ListState {
+  keys: readonly string[];
+}
+
+const initialState: ListState = { keys: [] };
+
+export const listSlice = createSlice({
+  name: "list",
+  initialState,
+  reducers: {
+    listRefreshed(_state, { payload }: PayloadAction<readonly string[]>) {
+      return { keys: payload };
+    },
+  },
+});
+
+export const { listRefreshed } = listSlice.actions;
+
+export const selectListKeys = (s: RootState): readonly string[] => s.list.keys;
+
+export function startListRefresh(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>): void {
+  listener.startListening({
+    predicate: (action, current, previous) =>
+      current.filters !== previous.filters ||
+      current.master.base !== previous.master.base ||
+      resetChanges.match(action) ||
+      resetScope.match(action),
+    effect: (_action, api) => {
+      api.dispatch(listRefreshed(selectVisibleAccountKeys(api.getState())));
+    },
+  });
+}

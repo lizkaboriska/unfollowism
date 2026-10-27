@@ -4,6 +4,7 @@
 import { selectAccount, selectRelationshipStats, selectScopeStats, selectSessionDiff, selectUnsavedAccountCount, selectVisibleAccountKeys } from "../store/selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../store/thunks.ts";
 import { setNote } from "../store/masterSlice.ts";
+import { setQuery } from "../store/filtersSlice.ts";
 import { importExport, stringifyMasterFile, toMasterFile } from "../core/index.ts";
 import { analyzeImport } from "../io/analyzeImport.ts";
 import { must } from "../core/__tests__/helpers.ts";
@@ -83,7 +84,7 @@ async function run(total: number) {
   const keystrokes = Array.from({ length: 20 }, (_, i) => time(() => store.dispatch(setNote({ username: someone, note: "typing…".slice(0, i % 8) })))[1]);
   store.dispatch(setNote({ username: someone, note: "typing…" }));
   const editMs = keystrokes.sort((a, b) => a - b)[10] ?? 0;
-  const [, listMs] = time(() => selectVisibleAccountKeys(store.getState()));
+  const [, listMs] = time(() => store.dispatch(setQuery("a"))); // the list refreshes only on filter changes like this
   const [, statsMs] = time(() => { selectRelationshipStats(store.getState()); selectScopeStats(store.getState()); selectUnsavedAccountCount(store.getState()); });
   const [, diffMs] = time(() => selectSessionDiff(store.getState()));
   const [, persistMs] = await timeAsync(flush);
@@ -97,7 +98,7 @@ async function run(total: number) {
     ["import (merge, markers, confirm)", importMs, 0],
     ["first screen after import (sort + counts)", firstRenderMs, 0],
     ["one edit: reducer", editMs, 0],
-    ["one edit: visible list (filter)", listMs, 0],
+    ["filter change: refresh list", listMs, 0],
     ["one edit: stats", statsMs, 0],
     ["one edit: session changes", diffMs, 0],
     ["one edit: storage write", persistMs, 0],
@@ -117,7 +118,7 @@ test("100k accounts: fast", { timeout: 120_000 }, async () => {
   expect(t["one edit: stats"]).toBeLessThan(5);
   expect(t["one edit: session changes"]).toBeLessThan(5);
   expect(t["one edit: storage write"]).toBeLessThan(50);
-  expect(t["one edit: visible list (filter)"]).toBeLessThan(50); // phase 4: skip when the edit can't change the list
+  expect(t["filter change: refresh list"]).toBeLessThan(50);
   expect(t["import (merge, markers, confirm)"]).toBeLessThan(5_000);
   expect(t["save (serialize master)"]).toBeLessThan(2_000);
   expect(t["reload restore"]).toBeLessThan(3_000);
