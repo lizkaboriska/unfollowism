@@ -7,11 +7,10 @@ import {
   buildImportMessage,
   buildSessionDiff,
   importExport,
-  latestConfirmedActions,
   parseMaster,
   parseFollowersJson,
   parseFollowingJson,
-  pendingAction,
+  isPending,
   relationshipStats,
   reviewScopeAccounts,
   reviewScopeStats,
@@ -30,7 +29,6 @@ function bundle(following: ReturnType<typeof followingFile>, ...followerFiles: R
   return {
     following: parseFollowingJson(following),
     followers: followerFiles.flatMap(parseFollowersJson),
-    sourceFiles: ["following.json", ...followerFiles.map((_, i) => `followers_${i + 1}.json`)],
     followerFileCount: followerFiles.length,
   };
 }
@@ -43,10 +41,7 @@ describe("read functions never write (safe on frozen Redux state)", () => {
   test("all selectors-side helpers work on a deep-frozen master", () => {
     const master = freshMaster();
     must(master.accounts.alice).review.tags = ["artist"];
-    master.actions.push({
-      action_id: "x", username: "bob", type: "unfollow", status: "confirmed", marked_at: T1, confirmed_at: T2,
-      cancelled_at: null, confirmation_snapshot_id: "s", confirmation_snapshot_date: "2026-10-20", relationship_at_mark: null,
-    });
+    must(master.accounts.bob).actions = { pending: ["unfollow"], confirmed: ["unfollow"] };
     const frozen = deepFreeze(master);
     const alice = must(frozen.accounts.alice);
 
@@ -59,8 +54,7 @@ describe("read functions never write (safe on frozen Redux state)", () => {
       reviewScopeStats(frozen, { scope: "following" });
       relationshipStats(frozen);
       actionStats(frozen);
-      pendingAction(frozen, "bob", "unfollow");
-      latestConfirmedActions(frozen);
+      isPending(alice, "unfollow");
       actionIneligibility(alice, "remove_follower");
       buildSessionDiff(frozen, frozen);
     }).not.toThrow();
@@ -93,14 +87,18 @@ describe("parseMaster", () => {
     expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.review.tags should be a list.");
 
     const raw2 = saved();
-    (raw2.actions as unknown[]).push({ action_id: "a", username: "bob", type: "block" });
-    expect(() => parseMaster(raw2)).toThrow("actions[0].type should be one of unfollow, remove_follower");
+    must((raw2.accounts as Record<string, { actions: { pending: unknown[] } } | undefined>).bob).actions.pending.push("block");
+    expect(() => parseMaster(raw2)).toThrow("accounts.bob.actions.pending[0] should be one of unfollow, remove_follower");
+
+    const raw3 = saved();
+    must((raw3.accounts as Record<string, { actions: { confirmed: unknown[] } } | undefined>).bob).actions.confirmed.push("unfollow", "unfollow");
+    expect(() => parseMaster(raw3)).toThrow("accounts.bob.actions.confirmed should be a list without duplicates");
   });
 
   test("drops fields the app does not use", () => {
     const raw = { ...saved(), notes_from_elsewhere: "x", extra: [1] };
     const parsed = parseMaster(raw) as unknown as Record<string, unknown>;
-    expect(Object.keys(parsed)).toEqual(["version", "tag_options", "accounts", "snapshots", "actions", "last_saved_at"]);
+    expect(Object.keys(parsed)).toEqual(["version", "tag_options", "accounts", "snapshots", "last_saved_at"]);
   });
 
   test("does not mutate its input", () => {
@@ -137,7 +135,7 @@ describe("importExport", () => {
     expect(result.snapshotCreated).toBe(true);
     expect(result.master.snapshots).toHaveLength(1);
     expect(result.master.tag_options).toEqual(DEFAULT_TAG_OPTIONS);
-    expect(result.master.snapshots[0]?.source_files).toEqual(["following.json", "followers_1.json", "followers_2.json"]);
+    expect(result.master.snapshots[0]).toEqual({ captured_at: T1, following: ["Alice", "bob"], followers: ["alice", "carol"] }); // first: no changes
     expect(result.master.accounts.alice?.current).toEqual({
       you_follow: true, follows_you: true, relationship: "mutual", following_since_timestamp: 100, follower_since_timestamp: 300,
     });
@@ -164,7 +162,8 @@ describe("importExport", () => {
     expect(result.master.accounts.bob?.current.relationship).toBe("neither");
     expect(result.master.accounts.bob?.review.notes).toBe("hi");
     expect(result.master.accounts.alice?.username).toBe("alice"); // casing follows the newest export
-    expect(result.master.snapshots.map(s => s.snapshot_date)).toEqual(["2026-10-01", "2026-10-20"]);
+    expect(result.master.snapshots.map(s => s.captured_at)).toEqual([T1, T2]);
+    expect(result.master.snapshots[1]?.changes).toEqual(result.changes);
   });
 
   test("rejects exports with an empty side", () => {

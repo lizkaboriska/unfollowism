@@ -1,4 +1,4 @@
-import { computeCurrent, createDict, createReview, profileUrl, type Account, type Master, type Snapshot } from "../index.ts";
+import { computeCurrent, createActions, createDict, createReview, profileUrl, type Account, type Master, type Snapshot } from "../index.ts";
 
 export function account(username = "alice"): Account {
   return {
@@ -6,32 +6,27 @@ export function account(username = "alice"): Account {
     url: profileUrl(username),
     review: createReview(),
     current: computeCurrent(null, null),
+    actions: createActions(),
   };
 }
 
-export function stateWith(...items: Account[]): Pick<Master, "accounts" | "actions"> {
+export function stateWith(...items: Account[]): Pick<Master, "accounts"> {
   const accounts = createDict<Account>();
   for (const item of items) accounts[item.username.toLowerCase()] = item;
-  return { accounts, actions: [] };
+  return { accounts };
 }
 
 /** A snapshot whose change set lists the given usernames. */
-export function snapshotWith({ id, date, capturedAt, stopped = [], lost = [] }: {
-  id: string;
-  date: string;
-  capturedAt: string | null;
+export function snapshotWith({ capturedAt = "2026-09-02T10:00:00.000Z", stopped = [], lost = [] }: {
+  capturedAt?: string;
   stopped?: string[];
   lost?: string[];
 }): Snapshot {
   return {
-    snapshot_id: id,
-    snapshot_date: date,
     captured_at: capturedAt,
-    source_files: [],
-    following: {},
-    followers: {},
-    counts: { following: 0, followers: 0, mutual: 0, not_following_back: 0, followers_you_do_not_follow: 0 },
-    changes_from_previous_snapshot: { newly_following: [], stopped_following: stopped, new_followers: [], lost_followers: lost },
+    following: [],
+    followers: [],
+    changes: { newly_following: [], stopped_following: stopped, new_followers: [], lost_followers: lost },
   };
 }
 

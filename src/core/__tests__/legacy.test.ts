@@ -2,14 +2,14 @@
 // the old v3/v5 migration tests were dropped together with the migration code.
 import {
   actionStats,
-  addPendingAction,
   buildSessionDiff,
-  cancelPendingAction,
+  cancelPending,
   confirmPendingActions,
   dedupeAccounts,
   markReviewed,
+  isPending,
+  markPending,
   parseFollowersJson,
-  pendingAction,
   relationshipStats,
   resetReviewedForScope,
   reviewScopeAccounts,
@@ -108,25 +108,22 @@ test("scope stats describe whichever audit queue is selected", () => {
   expect(reviewScopeStats(state, { scope: "followers" })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
 });
 
-test("pending unfollow is a separate action and confirms only from stopped_following", () => {
+test("pending unfollow is separate from review state and confirms only from stopped_following", () => {
   const a = account();
   syncCurrentRelationship(a, { username: "alice" }, null);
   const state = stateWith(a);
 
-  addPendingAction(state, a, "unfollow", "2026-09-01T10:00:00Z");
-  expect(pendingAction(state, "alice", "unfollow")).toBeTruthy();
+  markPending(a, "unfollow");
+  expect(isPending(a, "unfollow")).toBe(true);
   expect(a.review.reviewed, "core action creation does not implicitly rewrite review state").toBe(false);
 
   // Still followed: cannot be confirmed even if a malformed snapshot mentions the name.
-  const snapshot = snapshotWith({ id: "snapshot_1", date: "2026-09-02", capturedAt: "2026-09-02T10:00:00Z", stopped: ["alice"] });
+  const snapshot = snapshotWith({ stopped: ["alice"] });
   expect(confirmPendingActions(state, snapshot).total).toBe(0);
 
   syncCurrentRelationship(a, null, null);
-  const confirmed = confirmPendingActions(state, snapshot);
-  expect(confirmed).toEqual({ unfollow: 1, remove_follower: 0, total: 1 });
-  expect(state.actions[0]?.status).toBe("confirmed");
-  expect(state.actions[0]?.confirmation_snapshot_id).toBe("snapshot_1");
-  expect(state.actions[0]?.confirmed_at).toBe("2026-09-02T10:00:00Z");
+  expect(confirmPendingActions(state, snapshot)).toEqual({ unfollow: 1, remove_follower: 0, total: 1 });
+  expect(a.actions).toEqual({ pending: [], confirmed: ["unfollow"] });
 });
 
 test("remove follower is symmetric to unfollow and confirms from lost_followers", () => {
@@ -134,40 +131,41 @@ test("remove follower is symmetric to unfollow and confirms from lost_followers"
   syncCurrentRelationship(a, null, { username: "alice" });
   const state = stateWith(a);
 
-  addPendingAction(state, a, "remove_follower", "2026-09-01T10:00:00Z");
+  markPending(a, "remove_follower");
   syncCurrentRelationship(a, null, null);
-  const snapshot = snapshotWith({ id: "snapshot_2", date: "2026-09-03", capturedAt: "2026-09-03T10:00:00Z", lost: ["Alice"] });
-
-  const confirmed = confirmPendingActions(state, snapshot);
-  expect(confirmed).toEqual({ unfollow: 0, remove_follower: 1, total: 1 });
-  expect(state.actions[0]?.type).toBe("remove_follower");
-  expect(state.actions[0]?.status).toBe("confirmed");
+  expect(confirmPendingActions(state, snapshotWith({ lost: ["Alice"] }))).toEqual({ unfollow: 0, remove_follower: 1, total: 1 });
+  expect(a.actions).toEqual({ pending: [], confirmed: ["remove_follower"] });
 });
 
 test("pending action can be cancelled without affecting account review data", () => {
   const a = account();
   a.review.tags = ["artist"];
   syncCurrentRelationship(a, { username: "alice" }, { username: "alice" });
-  const state = stateWith(a);
-  addPendingAction(state, a, "unfollow", "2026-09-01T10:00:00Z");
+  markPending(a, "unfollow");
 
-  expect(cancelPendingAction(state, "alice", "unfollow", "2026-09-01T11:00:00Z")).toBe(true);
-  expect(pendingAction(state, "alice", "unfollow")).toBeNull();
-  expect(state.actions[0]?.status).toBe("cancelled");
+  expect(cancelPending(a, "unfollow")).toBe(true);
+  expect(cancelPending(a, "unfollow")).toBe(false);
+  expect(a.actions).toEqual({ pending: [], confirmed: [] });
   expect(a.review.tags).toEqual(["artist"]);
 });
 
-test("a date-only snapshot confirms without inventing an exact confirmation time", () => {
+test("marking is idempotent and refuses actions the relationship doesn't allow", () => {
   const a = account();
   syncCurrentRelationship(a, { username: "alice" }, null);
-  const state = stateWith(a);
-  addPendingAction(state, a, "unfollow", "2026-09-01T10:00:00Z");
-  syncCurrentRelationship(a, null, null);
+  markPending(a, "unfollow");
+  markPending(a, "unfollow");
+  expect(a.actions.pending).toEqual(["unfollow"]);
+  expect(() => { markPending(a, "remove_follower"); }).toThrow("does not follow you");
+});
 
-  const result = confirmPendingActions(state, snapshotWith({ id: "legacy_snapshot_2", date: "2026-09-04", capturedAt: null, stopped: ["alice"] }));
-  expect(result.unfollow).toBe(1);
-  expect(state.actions[0]?.confirmed_at).toBeNull();
-  expect(state.actions[0]?.confirmation_snapshot_date).toBe("2026-09-04");
+test("re-unfollowing after a refollow keeps one confirmed entry", () => {
+  const a = account();
+  a.actions.confirmed = ["unfollow"];
+  syncCurrentRelationship(a, { username: "alice" }, null); // followed again
+  markPending(a, "unfollow");
+  syncCurrentRelationship(a, null, null);
+  confirmPendingActions(stateWith(a), snapshotWith({ stopped: ["alice"] }));
+  expect(a.actions).toEqual({ pending: [], confirmed: ["unfollow"] });
 });
 
 test("multiple follower export chunks can be parsed and deduplicated case-insensitively", () => {
@@ -217,7 +215,7 @@ test("session diff reports only net review, tag, action and metadata changes", (
   markReviewed(currentAlice, true, "2026-09-05T18:00:00Z");
   currentAlice.review.tags = ["artist", "photography"];
   currentAlice.review.notes = "after";
-  addPendingAction(current, currentAlice, "unfollow", "2026-09-05T18:05:00Z");
+  markPending(currentAlice, "unfollow");
 
   const diff = buildSessionDiff(baseline, current);
   expect(diff.changedAccounts).toBe(1);
@@ -256,7 +254,7 @@ test("session diff groups tag additions across accounts for review", () => {
   const b = account("bob");
   syncCurrentRelationship(a, { username: "alice" }, null);
   syncCurrentRelationship(b, { username: "bob" }, null);
-  const baseline: Pick<Master, "accounts" | "actions"> = stateWith(a, b);
+  const baseline: Pick<Master, "accounts"> = stateWith(a, b);
   const current = structuredClone(baseline);
   if (!current.accounts.alice || !current.accounts.bob) throw new Error("accounts missing");
   current.accounts.alice.review.tags = ["artist"];
@@ -274,8 +272,11 @@ test("session diff groups tag additions across accounts for review", () => {
 test("action stats count pending and confirmed actions per type", () => {
   const a = account();
   syncCurrentRelationship(a, { username: "alice" }, { username: "alice" });
-  const state = stateWith(a);
-  addPendingAction(state, a, "unfollow", "2026-09-01T10:00:00Z");
-  addPendingAction(state, a, "remove_follower", "2026-09-01T10:00:00Z");
-  expect(actionStats(state)).toEqual({ pendingUnfollow: 1, pendingRemoveFollower: 1, confirmedUnfollow: 0, confirmedRemoveFollower: 0 });
+  markPending(a, "unfollow");
+  markPending(a, "remove_follower");
+  a.actions.confirmed = ["unfollow"];
+  expect(actionStats(stateWith(a))).toEqual({
+    pending: { unfollow: 1, remove_follower: 1, total: 2 },
+    confirmed: { unfollow: 1, remove_follower: 0, total: 1 },
+  });
 });

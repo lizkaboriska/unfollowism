@@ -2,7 +2,6 @@ import { createSelector } from "@reduxjs/toolkit";
 import {
   actionStats,
   buildSessionDiff,
-  latestConfirmedActions,
   queryMatches,
   relationshipStats,
   reviewScopeStats,
@@ -11,8 +10,6 @@ import {
   tagMatches,
   usernameKey,
   type Account,
-  type Action,
-  type ActionType,
   type DeepReadonly,
   type Master,
   type Snapshot,
@@ -21,10 +18,8 @@ import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
 type RAccount = DeepReadonly<Account>;
-type RAction = DeepReadonly<Action>;
 
 const EMPTY_ACCOUNTS: DeepReadonly<Record<string, Account>> = Object.freeze({});
-const EMPTY_ACTIONS: readonly RAction[] = Object.freeze([]);
 const EMPTY_TAGS: readonly string[] = Object.freeze([]);
 
 export const selectMaster = (s: RootState): DeepReadonly<Master> | null => s.master.master;
@@ -33,7 +28,6 @@ export const selectHasProject = (s: RootState): boolean => s.master.master !== n
 export const selectIsDirty = (s: RootState): boolean => s.master.master !== null && s.master.revision !== s.master.savedRevision;
 export const selectAccounts = (s: RootState): DeepReadonly<Record<string, Account>> => s.master.master?.accounts ?? EMPTY_ACCOUNTS;
 export const selectAccount = (s: RootState, key: string): RAccount | undefined => s.master.master?.accounts[key];
-export const selectActions = (s: RootState): readonly RAction[] => s.master.master?.actions ?? EMPTY_ACTIONS;
 export const selectTagOptions = (s: RootState): readonly string[] => s.master.master?.tag_options ?? EMPTY_TAGS;
 export const selectFilters = (s: RootState) => s.filters;
 
@@ -46,14 +40,14 @@ export const selectScopeStats = createSelector(
   (accounts, scope, tag) => reviewScopeStats({ accounts }, { scope, tag }),
 );
 
-export const selectActionStats = createSelector([selectActions], actions => actionStats({ actions }));
+export const selectActionStats = createSelector([selectAccounts], accounts => actionStats({ accounts }));
 
 /** Lower-cased usernames in the latest snapshot's change list for the active change tab; null on "current". */
 export const selectChangedKeys = createSelector(
   [selectLatestSnapshot, (s: RootState) => s.filters.changeView],
   (snapshot, view): ReadonlySet<string> | null => {
     if (view === "current") return null;
-    const changes = snapshot?.changes_from_previous_snapshot;
+    const changes = snapshot?.changes;
     const list = {
       followed_since: changes?.newly_following,
       unfollowed_since: changes?.stopped_following,
@@ -88,18 +82,3 @@ export const selectVisibleAccountKeys = createSelector(
 );
 
 export const selectSessionDiff = createSelector([selectBaseline, selectMaster], (baseline, master) => buildSessionDiff(baseline, master));
-
-/** Pending action per account key and type. Unchanged actions keep their identity, so cards don't re-render. */
-export const selectPendingIndex = createSelector([selectActions], actions => {
-  const index = new Map<string, Partial<Record<ActionType, RAction>>>();
-  for (const action of actions) {
-    if (action.status !== "pending") continue;
-    const key = usernameKey(action.username);
-    const entry = index.get(key) ?? {};
-    entry[action.type] ??= action; // first pending wins, like pendingAction()
-    index.set(key, entry);
-  }
-  return index;
-});
-
-export const selectConfirmedIndex = createSelector([selectActions], actions => latestConfirmedActions({ actions }));

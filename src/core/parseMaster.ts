@@ -1,17 +1,16 @@
 import {
-  ACTION_STATUSES,
   ACTION_TYPES,
   DEFAULT_TAG_OPTIONS,
   FORMAT_VERSION,
   type Account,
-  type Action,
+  type AccountActions,
+  type ActionType,
   type CurrentRelationship,
   type Master,
   type Relationship,
   type Review,
   type Snapshot,
   type SnapshotChanges,
-  type SnapshotCounts,
 } from "./types.ts";
 import { createDict, isRecord, usernameKey } from "./util.ts";
 
@@ -66,12 +65,6 @@ function strings(value: unknown, path: string): string[] {
   return array(value, path).map((item, i) => str(item, `${path}[${i}]`));
 }
 
-function timestamps(value: unknown, path: string): Record<string, number | null> {
-  const out: Record<string, number | null> = {};
-  for (const [name, ts] of Object.entries(record(value, path))) out[name] = numOrNull(ts, `${path}.${name}`);
-  return out;
-}
-
 function parseReview(value: unknown, path: string): Review {
   const r = record(value, path);
   return {
@@ -94,6 +87,19 @@ function parseCurrent(value: unknown, path: string): CurrentRelationship {
   };
 }
 
+function actionTypes(value: unknown, path: string): ActionType[] {
+  const types = array(value, path).map((item, i) => oneOf(item, ACTION_TYPES, `${path}[${i}]`));
+  return new Set(types).size === types.length ? types : fail(path, "a list without duplicates");
+}
+
+function parseActions(value: unknown, path: string): AccountActions {
+  const a = record(value, path);
+  return {
+    pending: actionTypes(a.pending, `${path}.pending`),
+    confirmed: actionTypes(a.confirmed, `${path}.confirmed`),
+  };
+}
+
 function parseAccount(value: unknown, path: string): Account {
   const a = record(value, path);
   return {
@@ -101,17 +107,7 @@ function parseAccount(value: unknown, path: string): Account {
     url: str(a.url, `${path}.url`),
     review: parseReview(a.review, `${path}.review`),
     current: parseCurrent(a.current, `${path}.current`),
-  };
-}
-
-function parseCounts(value: unknown, path: string): SnapshotCounts {
-  const c = record(value, path);
-  return {
-    following: num(c.following, `${path}.following`),
-    followers: num(c.followers, `${path}.followers`),
-    mutual: num(c.mutual, `${path}.mutual`),
-    not_following_back: num(c.not_following_back, `${path}.not_following_back`),
-    followers_you_do_not_follow: num(c.followers_you_do_not_follow, `${path}.followers_you_do_not_follow`),
+    actions: parseActions(a.actions, `${path}.actions`),
   };
 }
 
@@ -128,42 +124,16 @@ function parseChanges(value: unknown, path: string): SnapshotChanges {
 function parseSnapshot(value: unknown, path: string): Snapshot {
   const s = record(value, path);
   const snapshot: Snapshot = {
-    snapshot_id: nonEmptyStr(s.snapshot_id, `${path}.snapshot_id`),
-    snapshot_date: nonEmptyStr(s.snapshot_date, `${path}.snapshot_date`),
-    captured_at: strOrNull(s.captured_at, `${path}.captured_at`),
-    source_files: strings(s.source_files, `${path}.source_files`),
-    following: timestamps(s.following, `${path}.following`),
-    followers: timestamps(s.followers, `${path}.followers`),
-    counts: parseCounts(s.counts, `${path}.counts`),
+    captured_at: nonEmptyStr(s.captured_at, `${path}.captured_at`),
+    following: strings(s.following, `${path}.following`),
+    followers: strings(s.followers, `${path}.followers`),
   };
-  if (s.changes_from_previous_snapshot !== undefined) {
-    snapshot.changes_from_previous_snapshot = parseChanges(s.changes_from_previous_snapshot, `${path}.changes_from_previous_snapshot`);
-  }
+  if (s.changes !== undefined) snapshot.changes = parseChanges(s.changes, `${path}.changes`);
   return snapshot;
 }
 
-function parseAction(value: unknown, path: string): Action {
-  const a = record(value, path);
-  const rel = a.relationship_at_mark;
-  return {
-    action_id: nonEmptyStr(a.action_id, `${path}.action_id`),
-    username: nonEmptyStr(a.username, `${path}.username`),
-    type: oneOf(a.type, ACTION_TYPES, `${path}.type`),
-    status: oneOf(a.status, ACTION_STATUSES, `${path}.status`),
-    marked_at: strOrNull(a.marked_at, `${path}.marked_at`),
-    confirmed_at: strOrNull(a.confirmed_at, `${path}.confirmed_at`),
-    cancelled_at: strOrNull(a.cancelled_at, `${path}.cancelled_at`),
-    confirmation_snapshot_id: strOrNull(a.confirmation_snapshot_id, `${path}.confirmation_snapshot_id`),
-    confirmation_snapshot_date: strOrNull(a.confirmation_snapshot_date, `${path}.confirmation_snapshot_date`),
-    relationship_at_mark: rel === null ? null : {
-      you_follow: bool(record(rel, `${path}.relationship_at_mark`).you_follow, `${path}.relationship_at_mark.you_follow`),
-      follows_you: bool(record(rel, `${path}.relationship_at_mark`).follows_you, `${path}.relationship_at_mark.follows_you`),
-    },
-  };
-}
-
 export function emptyMaster(): Master {
-  return { version: FORMAT_VERSION, tag_options: [...DEFAULT_TAG_OPTIONS], accounts: createDict<Account>(), snapshots: [], actions: [] };
+  return { version: FORMAT_VERSION, tag_options: [...DEFAULT_TAG_OPTIONS], accounts: createDict<Account>(), snapshots: [] };
 }
 
 /**
@@ -192,7 +162,6 @@ export function parseMaster(raw: unknown): Master {
     tag_options: strings(raw.tag_options, "tag_options"),
     accounts,
     snapshots: array(raw.snapshots, "snapshots").map((s, i) => parseSnapshot(s, `snapshots[${i}]`)),
-    actions: array(raw.actions, "actions").map((a, i) => parseAction(a, `actions[${i}]`)),
   };
   if (raw.last_saved_at !== undefined) master.last_saved_at = str(raw.last_saved_at, "last_saved_at");
   return master;

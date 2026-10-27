@@ -1,5 +1,5 @@
 import { createReview } from "./review.ts";
-import type { Action, DeepReadonly, Master } from "./types.ts";
+import { ACTION_TYPES, type ActionType, type DeepReadonly, type Master } from "./types.ts";
 import { usernameKey } from "./util.ts";
 
 export type SessionCategory = "reviews" | "tags" | "actions" | "other";
@@ -44,7 +44,7 @@ export interface SessionDiff {
   tagsRemoved: TagCount[];
 }
 
-type DiffSource = DeepReadonly<Pick<Master, "accounts" | "actions">>;
+type DiffSource = DeepReadonly<Pick<Master, "accounts">>;
 
 function sortedTagCounts(counts: Map<string, number>): TagCount[] {
   return [...counts.entries()]
@@ -52,8 +52,8 @@ function sortedTagCounts(counts: Map<string, number>): TagCount[] {
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }
 
-function pendingChange(action: DeepReadonly<Action>): SessionChange {
-  return action.type === "unfollow"
+function pendingChange(type: ActionType): SessionChange {
+  return type === "unfollow"
     ? { category: "actions", type: "unfollow_pending", label: "Marked Unfollowed now" }
     : { category: "actions", type: "remove_follower_pending", label: "Marked Remove follower" };
 }
@@ -147,22 +147,22 @@ export function buildSessionDiff(baseline: DiffSource | null, current: DiffSourc
       counts.lastReviewedUpdated += 1;
       addChange(username, { category: "other", type: "last_reviewed_updated", label: "Updated last reviewed date" });
     }
-  }
 
-  const baselineActions = new Map((baseline?.actions ?? []).map(action => [action.action_id, action]));
-
-  for (const action of current?.actions ?? []) {
-    const before = baselineActions.get(action.action_id);
-    const actionName = action.type === "unfollow" ? "unfollow" : "follower removal";
-    if (before && before.status === action.status) continue;
-
-    if (action.status === "pending") {
-      if (action.type === "unfollow") counts.pendingUnfollow += 1;
-      else counts.pendingRemoveFollower += 1;
-      addChange(action.username, pendingChange(action));
-    } else if (action.status === "cancelled") {
-      counts.actionsCancelled += 1;
-      addChange(action.username, { category: "actions", type: "action_cancelled", label: `Cancelled ${actionName}` });
+    const beforePending = beforeAccount?.actions.pending ?? [];
+    const afterPending = afterAccount?.actions.pending ?? [];
+    for (const type of ACTION_TYPES) {
+      const wasPending = beforePending.includes(type);
+      const isPendingNow = afterPending.includes(type);
+      if (wasPending === isPendingNow) continue;
+      if (isPendingNow) {
+        if (type === "unfollow") counts.pendingUnfollow += 1;
+        else counts.pendingRemoveFollower += 1;
+        addChange(username, pendingChange(type));
+      } else {
+        // Confirmation only happens on import, which starts a new session, so this is a cancel.
+        counts.actionsCancelled += 1;
+        addChange(username, { category: "actions", type: "action_cancelled", label: `Cancelled ${type === "unfollow" ? "unfollow" : "follower removal"}` });
+      }
     }
   }
 

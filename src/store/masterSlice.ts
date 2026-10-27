@@ -1,8 +1,8 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
   actionIneligibility,
-  addPendingAction,
-  cancelPendingAction,
+  cancelPending,
+  markPending,
   markReviewed,
   resetReviewedForScope,
   usernameKey,
@@ -50,11 +50,10 @@ function stamped<P>(payload: P) {
 type Stamped<P> = PayloadAction<P & { at: string }>;
 
 /** Runs an edit against one account; bumps the revision unless the account is missing or the edit returns false. */
-function editAccount(state: MasterState, username: string, edit: (account: Account, master: Master) => boolean | undefined): void {
-  const master = state.master;
-  const account = master?.accounts[usernameKey(username)];
-  if (!master || !account) return;
-  if (edit(account, master) === false) return;
+function editAccount(state: MasterState, username: string, edit: (account: Account) => boolean | undefined): void {
+  const account = state.master?.accounts[usernameKey(username)];
+  if (!account) return;
+  if (edit(account) === false) return;
   state.revision += 1;
 }
 
@@ -95,10 +94,10 @@ export const masterSlice = createSlice({
     /** Checking records a pending Instagram action and marks the account reviewed; unchecking cancels it. */
     setAction: {
       reducer(state, { payload }: Stamped<{ username: string; type: ActionType; checked: boolean }>) {
-        editAccount(state, payload.username, (account, master) => {
-          if (!payload.checked) return cancelPendingAction(master, account.username, payload.type, payload.at);
+        editAccount(state, payload.username, account => {
+          if (!payload.checked) return cancelPending(account, payload.type);
           if (actionIneligibility(account, payload.type)) return false; // the UI explains why before dispatching
-          addPendingAction(master, account, payload.type, payload.at);
+          markPending(account, payload.type);
           markReviewed(account, true, payload.at);
         });
       },

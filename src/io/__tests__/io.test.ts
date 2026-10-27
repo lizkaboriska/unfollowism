@@ -1,6 +1,6 @@
 import { IDBFactory } from "fake-indexeddb";
 import { strToU8, zipSync } from "fflate";
-import { ImportError, emptyMaster, parseMaster, profileUrl, createReview, computeCurrent } from "../../core/index.ts";
+import { ImportError, computeCurrent, createActions, createReview, emptyMaster, parseMaster, profileUrl } from "../../core/index.ts";
 import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
 import { analyzeImport } from "../analyzeImport.ts";
 import { masterFileName } from "../download.ts";
@@ -63,7 +63,6 @@ describe("analyzeImport", () => {
       f("x/broken.json", "{not json"),
     ], null);
 
-    expect(result.bundle.sourceFiles).toEqual([`${DIR}/following.json`, `${DIR}/followers_1.json`, `${DIR}/followers_2.json`, `${DIR}/followers_10.json`]);
     expect(result.bundle.followers.map(a => a.username)).toEqual(["alice", "carol", "zed"]);
     expect(result.bundle.following).toHaveLength(2);
     expect(result.bundle.followerFileCount).toBe(3);
@@ -114,7 +113,7 @@ describe("IndexedDB session store", () => {
 
     const master = emptyMaster();
     const constructorKey: string = "constructor";
-    master.accounts[constructorKey] = { username: "constructor", url: profileUrl("constructor"), review: createReview(), current: computeCurrent(null, null) };
+    master.accounts[constructorKey] = { username: "constructor", url: profileUrl("constructor"), review: createReview(), current: computeCurrent(null, null), actions: createActions() };
     const session: StoredSession = {
       master: Object.freeze(master), baseline: master, revision: 3, savedRevision: 1, pendingSnapshot: true, message: "m", storedAt: "2026-10-27T12:00:00Z",
     };

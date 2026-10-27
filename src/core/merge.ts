@@ -1,4 +1,4 @@
-import { confirmPendingActions, type ConfirmedCounts } from "./actions.ts";
+import { confirmPendingActions, createActions, type ActionCounts } from "./actions.ts";
 import { emptyMaster, parseMaster } from "./parseMaster.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { createReview } from "./review.ts";
@@ -10,8 +10,6 @@ import { profileUrl, usernameKey } from "./util.ts";
 export interface ExportBundle {
   following: readonly ParsedAccount[];
   followers: readonly ParsedAccount[];
-  /** Display names of the files the data came from, stored in the snapshot. */
-  sourceFiles: readonly string[];
   followerFileCount: number;
 }
 
@@ -21,7 +19,7 @@ export interface MergeResult {
   changes: SnapshotChanges;
   followingCount: number;
   followersCount: number;
-  confirmed: ConfirmedCounts;
+  confirmed: ActionCounts;
 }
 
 export interface ImportResult extends MergeResult {
@@ -36,8 +34,8 @@ export class ImportError extends Error {
   override name = "ImportError";
 }
 
-function sameUsernameSet(snapshotUsers: Readonly<Record<string, unknown>>, current: ReadonlySet<string>): boolean {
-  const keys = Object.keys(snapshotUsers).map(usernameKey);
+function sameUsernameSet(snapshotUsers: readonly string[], current: ReadonlySet<string>): boolean {
+  const keys = snapshotUsers.map(usernameKey);
   if (keys.length !== current.size) return false;
   const keySet = new Set(keys);
   for (const username of current) {
@@ -57,7 +55,7 @@ function copyChanges(changes: SnapshotChanges | undefined): SnapshotChanges {
 }
 
 /**
- * WRITE: applies a fresh export to a normalized master (mutated in place):
+ * WRITE: applies a fresh export to a parsed master (mutated in place):
  * syncs every account's current relationship, appends a snapshot when either
  * username set differs from the latest one, and confirms pending actions.
  */
@@ -66,8 +64,8 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
   const followers = dedupeAccounts(bundle.followers);
 
   const latestStored = master.snapshots.at(-1) ?? null;
-  const previousFollowing = new Set(latestStored ? Object.keys(latestStored.following).map(usernameKey) : []);
-  const previousFollowers = new Set(latestStored ? Object.keys(latestStored.followers).map(usernameKey) : []);
+  const previousFollowing = new Set((latestStored?.following ?? []).map(usernameKey));
+  const previousFollowers = new Set((latestStored?.followers ?? []).map(usernameKey));
 
   const followingMap = new Map(following.map(item => [usernameKey(item.username), item]));
   const followersMap = new Map(followers.map(item => [usernameKey(item.username), item]));
@@ -88,6 +86,7 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
         url: source.url || profileUrl(source.username),
         review: createReview(),
         current: computeCurrent(null, null), // overwritten below
+        actions: createActions(),
       };
     }
 
@@ -105,13 +104,10 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
     sameUsernameSet(latestStored.followers, currentFollowers);
 
   let confirmationSnapshot: Snapshot | null = latestStored;
-  let changes = copyChanges(latestStored?.changes_from_previous_snapshot);
+  let changes = copyChanges(latestStored?.changes);
 
   if (!isDuplicate) {
     const displayName = (key: string) => master.accounts[key]?.username ?? key;
-    const mutual = [...currentFollowing].filter(key => currentFollowers.has(key));
-    const notBack = [...currentFollowing].filter(key => !currentFollowers.has(key));
-    const followerOnly = [...currentFollowers].filter(key => !currentFollowing.has(key));
     changes = {
       newly_following: [...currentFollowing].filter(key => !previousFollowing.has(key)).map(displayName),
       stopped_following: [...previousFollowing].filter(key => !currentFollowing.has(key)).map(displayName),
@@ -120,20 +116,11 @@ export function mergeExports(master: Master, bundle: ExportBundle, now: string):
     };
 
     const snapshot: Snapshot = {
-      snapshot_id: `snapshot_${now}`,
-      snapshot_date: now.slice(0, 10),
       captured_at: now,
-      source_files: [...bundle.sourceFiles],
-      following: Object.fromEntries(following.map(item => [item.username, item.timestamp])),
-      followers: Object.fromEntries(followers.map(item => [item.username, item.timestamp])),
-      counts: {
-        following: currentFollowing.size,
-        followers: currentFollowers.size,
-        mutual: mutual.length,
-        not_following_back: notBack.length,
-        followers_you_do_not_follow: followerOnly.length,
-      },
-      changes_from_previous_snapshot: copyChanges(changes),
+      following: following.map(item => item.username),
+      followers: followers.map(item => item.username),
+      // The very first snapshot has nothing to compare with.
+      ...(latestStored ? { changes: copyChanges(changes) } : {}),
     };
     master.snapshots.push(snapshot);
     confirmationSnapshot = snapshot;

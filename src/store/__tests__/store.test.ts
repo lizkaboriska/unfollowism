@@ -6,7 +6,7 @@ import { resetScope, restoreSession, setAction, setNote, setReviewed, setUnavail
 import {
   selectAccount,
   selectIsDirty,
-  selectPendingIndex,
+  selectActionStats,
   selectScopeStats,
   selectSessionDiff,
   selectVisibleAccountKeys,
@@ -87,12 +87,12 @@ describe("edits", () => {
   test("actions: checking adds a pending action and reviews; unchecking cancels; ineligible is ignored", async () => {
     const t = await importedStore();
     t.store.dispatch(setAction({ username: "bob", type: "unfollow", checked: true }));
-    expect(selectPendingIndex(t.store.getState()).get("bob")?.unfollow?.status).toBe("pending");
+    expect(account(t, "bob").actions.pending).toEqual(["unfollow"]);
+    expect(selectActionStats(t.store.getState()).pending.total).toBe(1);
     expect(account(t, "bob").review.reviewed).toBe(true);
 
     t.store.dispatch(setAction({ username: "bob", type: "unfollow", checked: false }));
-    expect(selectPendingIndex(t.store.getState()).get("bob")).toBeUndefined();
-    expect(t.store.getState().master.master?.actions.at(-1)?.status).toBe("cancelled");
+    expect(account(t, "bob").actions).toEqual({ pending: [], confirmed: [] });
 
     const r = t.store.getState().master.revision;
     t.store.dispatch(setAction({ username: "bob", type: "remove_follower", checked: true })); // bob doesn't follow you

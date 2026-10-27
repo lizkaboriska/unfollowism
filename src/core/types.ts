@@ -7,9 +7,6 @@ export const DEFAULT_TAG_OPTIONS: readonly string[] = ["artist", "fashion", "lif
 export const ACTION_TYPES = ["unfollow", "remove_follower"] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
-export const ACTION_STATUSES = ["pending", "cancelled", "confirmed"] as const;
-export type ActionStatus = (typeof ACTION_STATUSES)[number];
-
 export const REVIEW_SCOPES = ["following", "followers", "mutual", "not_following_back", "follows_you_only", "all_current", "all_accounts"] as const;
 export type ReviewScope = (typeof REVIEW_SCOPES)[number];
 
@@ -21,7 +18,9 @@ export type TagFilter = { kind: "all" } | { kind: "untagged" } | { kind: "tag"; 
 export type Relationship = "mutual" | "not_following_back" | "follows_you_only" | "neither";
 
 export interface Review {
+  /** Whether the account currently counts as reviewed. Resetting it keeps everything else. */
   reviewed: boolean;
+  /** When you last marked it reviewed; null = never reviewed. Kept when `reviewed` is reset. */
   last_reviewed_at: string | null;
   deleted_or_unavailable: boolean;
   tags: string[];
@@ -32,8 +31,18 @@ export interface CurrentRelationship {
   you_follow: boolean;
   follows_you: boolean;
   relationship: Relationship;
+  /** Instagram "since" time in seconds; null when you don't follow them (or the export gave no time). */
   following_since_timestamp: number | null;
+  /** Same for their follow of you. */
   follower_since_timestamp: number | null;
+}
+
+/** Instagram actions you did by hand. Each type appears at most once per list. */
+export interface AccountActions {
+  /** Marked in the app, not yet seen in an imported export. */
+  pending: ActionType[];
+  /** Seen in an imported export: you did this at some point. */
+  confirmed: ActionType[];
 }
 
 export interface Account {
@@ -41,6 +50,7 @@ export interface Account {
   url: string;
   review: Review;
   current: CurrentRelationship;
+  actions: AccountActions;
 }
 
 export interface SnapshotChanges {
@@ -50,41 +60,14 @@ export interface SnapshotChanges {
   lost_followers: string[];
 }
 
-export interface SnapshotCounts {
-  following: number;
-  followers: number;
-  mutual: number;
-  not_following_back: number;
-  followers_you_do_not_follow: number;
-}
-
+/** The follow graph as of one import. A new snapshot is stored only when it differs from the previous one. */
 export interface Snapshot {
-  snapshot_id: string;
-  /** YYYY-MM-DD (UTC). */
-  snapshot_date: string;
-  /** Exact capture time, or null when only the date is known. */
-  captured_at: string | null;
-  source_files: string[];
-  /** Username (original casing) → Instagram "since" timestamp in seconds. */
-  following: Record<string, number | null>;
-  followers: Record<string, number | null>;
-  counts: SnapshotCounts;
+  captured_at: string;
+  /** Usernames (original casing). */
+  following: string[];
+  followers: string[];
   /** Absent on the very first snapshot. */
-  changes_from_previous_snapshot?: SnapshotChanges;
-}
-
-export interface Action {
-  action_id: string;
-  username: string;
-  type: ActionType;
-  status: ActionStatus;
-  marked_at: string | null;
-  confirmed_at: string | null;
-  cancelled_at: string | null;
-  confirmation_snapshot_id: string | null;
-  confirmation_snapshot_date: string | null;
-  /** Relationship when the action was marked, or null when unknown. */
-  relationship_at_mark: { you_follow: boolean; follows_you: boolean } | null;
+  changes?: SnapshotChanges;
 }
 
 /** The saved master file. Only these fields are saved; see parseMaster. */
@@ -94,7 +77,6 @@ export interface Master {
   /** Keyed by lower-cased username (see usernameKey). */
   accounts: Record<string, Account>;
   snapshots: Snapshot[];
-  actions: Action[];
   /** Set when the master is downloaded. */
   last_saved_at?: string;
 }

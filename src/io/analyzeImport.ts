@@ -108,7 +108,6 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     bundle: {
       following: parseFollowingJson(following.data),
       followers: followers.flatMap(f => parseFollowersJson(f.data)),
-      sourceFiles: [following.path, ...followers.map(f => f.path)],
       followerFileCount: followers.length,
     },
     warnings,
