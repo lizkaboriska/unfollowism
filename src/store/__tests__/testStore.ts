@@ -1,3 +1,4 @@
+import type { ValueOf } from "../../core/index.ts";
 import { followersFile, followingFile } from "../../core/__tests__/helpers.ts";
 import { analyzeImport, type PreparedImport } from "../../io/analyzeImport.ts";
 import { memoryLastSaved, type LastSavedStore } from "../../io/lastSaved.ts";
@@ -37,14 +38,16 @@ export function makeTestStore({
   };
 }
 
+export const WRITES = { REPLACE: "replace", UPDATE: "update" } as const;
+
 /** Wraps a tab store and records every write, to assert what gets written when. */
 export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab("tab-1")) {
-  const writes: { kind: "replace" | "update"; accounts: string[] }[] = [];
+  const writes: { kind: ValueOf<typeof WRITES>; accounts: string[] }[] = [];
   const tab: TabStore = {
     durable: inner.durable,
     load: () => inner.load(),
-    replace: (base, meta, changed) => { writes.push({ kind: "replace", accounts: Object.keys(changed) }); return inner.replace(base, meta, changed); },
-    update: (meta, changed) => { writes.push({ kind: "update", accounts: Object.keys(changed) }); return inner.update(meta, changed); },
+    replace: (base, meta, changed) => { writes.push({ kind: WRITES.REPLACE, accounts: Object.keys(changed) }); return inner.replace(base, meta, changed); },
+    update: (meta, changed) => { writes.push({ kind: WRITES.UPDATE, accounts: Object.keys(changed) }); return inner.update(meta, changed); },
   };
   return { tab, writes };
 }

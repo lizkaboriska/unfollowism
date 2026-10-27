@@ -2,7 +2,7 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { strToU8, zipSync } from "fflate";
 import { ImportError, type MasterFile } from "../../core/index.ts";
 import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
-import { analyzeImport } from "../analyzeImport.ts";
+import { IMPORT_WARNINGS, analyzeImport } from "../analyzeImport.ts";
 import { masterFileName } from "../download.ts";
 import { readInputs } from "../readInputs.ts";
 import { localStorageLastSaved } from "../lastSaved.ts";
@@ -53,7 +53,7 @@ describe("analyzeImport", () => {
   const f = (path: string, text: string) => ({ path, text });
 
   test("finds following, follower chunks in numeric order, and the master", () => {
-    const master = { accounts: {}, last_saved_at: "2026-10-01T00:00:00Z" };
+    const master = { accounts: {}, lastSavedAt: "2026-10-01T00:00:00Z" };
     const result = analyzeImport([
       f(`${DIR}/followers_10.json`, followers10),
       f(`${DIR}/followers_2.json`, followers2),
@@ -94,24 +94,24 @@ describe("analyzeImport", () => {
 
   test("warns when the chosen master is older than the last save from this browser", () => {
     const base = [f("following.json", following), f("followers_1.json", followers1)];
-    const old = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, last_saved_at: "2026-10-01T00:00:00Z" }))], "2026-10-20T00:00:00Z");
-    expect(old.warnings).toEqual([{ kind: "master_older_than_last_save", fileSavedAt: "2026-10-01T00:00:00Z", lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
+    const old = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, lastSavedAt: "2026-10-01T00:00:00Z" }))], "2026-10-20T00:00:00Z");
+    expect(old.warnings).toEqual([{ kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE, fileSavedAt: "2026-10-01T00:00:00Z", lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
 
     const neverSaved = analyzeImport([...base, f("m.json", '{"accounts":{}}')], "2026-10-20T00:00:00Z");
-    expect(neverSaved.warnings[0]?.kind).toBe("master_older_than_last_save");
+    expect(neverSaved.warnings[0]?.kind).toBe(IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE);
 
-    const current = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, last_saved_at: "2026-10-20T00:00:00Z" }))], "2026-10-20T00:00:00Z");
+    const current = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, lastSavedAt: "2026-10-20T00:00:00Z" }))], "2026-10-20T00:00:00Z");
     expect(current.warnings).toEqual([]);
 
-    expect(analyzeImport(base, "2026-10-20T00:00:00Z").warnings).toEqual([{ kind: "no_master_but_saved_before", lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
+    expect(analyzeImport(base, "2026-10-20T00:00:00Z").warnings).toEqual([{ kind: IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE, lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
   });
 });
 
 const META: TabMeta = { revision: 2, savedRevision: 0, message: "m", storedAt: "2026-10-27T12:00:00Z" };
 const BASE: MasterFile = {
   version: 1,
-  last_import_at: "2026-10-27T12:00:00Z",
-  tag_options: ["artist"],
+  lastImportAt: "2026-10-27T12:00:00Z",
+  tagOptions: ["artist"],
   accounts: JSON.parse('{"bob":{"username":"bob"},"constructor":{"username":"constructor"}}') as MasterFile["accounts"],
 };
 
@@ -125,15 +125,15 @@ describe.each([
     expect(await tab.load()).toBeNull();
 
     await tab.replace(BASE, META, {});
-    await tab.update({ ...META, revision: 3 }, { bob: { username: "bob", review: { reviewed: true, last_reviewed_at: "t", deleted_or_unavailable: false, tags: [], notes: "" } } });
-    await tab.update({ ...META, revision: 4 }, { constructor: { username: "constructor", follower_since: 5 } });
+    await tab.update({ ...META, revision: 3 }, { bob: { username: "bob", review: { reviewed: true, lastReviewedAt: "t", unavailable: false, tags: [], notes: "" } } });
+    await tab.update({ ...META, revision: 4 }, { constructor: { username: "constructor", followerSince: 5 } });
 
     const loaded = must(await tab.load());
     expect(loaded.base).toEqual(BASE);
     expect(loaded.meta.revision).toBe(4);
     expect(Object.keys(loaded.changed).sort()).toEqual(["bob", "constructor"]);
     const key: string = "constructor";
-    expect(loaded.changed[key]).toEqual({ username: "constructor", follower_since: 5 });
+    expect(loaded.changed[key]).toEqual({ username: "constructor", followerSince: 5 });
 
     expect(await db.forTab("b").load()).toBeNull();
     expect(await db.tabIds()).toEqual(["a"]);

@@ -10,8 +10,8 @@ export interface TabMeta {
   revision: number;
   savedRevision: number;
   message: string;
-  /** The master's last_saved_at, which changes on every save. */
-  last_saved_at?: string;
+  /** The master's lastSavedAt, which changes on every save. */
+  lastSavedAt?: string;
   /** When this tab's data was last written. */
   storedAt: string;
 }

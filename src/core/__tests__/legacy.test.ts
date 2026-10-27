@@ -1,26 +1,34 @@
-// Port of legacy/tests/tracker-core.test.js. Tag filters are structured ({ kind: "tag", tag });
-// the old v3/v5 migration tests were dropped together with the migration code.
+// Port of legacy/tests/tracker-core.test.js, kept to the original intent of each test.
+// The old v3/v5 migration tests were dropped together with the migration code.
 import {
+  ACTION_TYPES,
+  REVIEW_SCOPES,
+  REVIEW_STATUSES,
+  SESSION_CATEGORIES,
+  SESSION_CHANGES,
+  TAG_FILTER_KINDS,
   actionStats,
   buildSessionDiff,
   cancelPending,
   confirmPendingActions,
   dedupeAccounts,
-  markReviewed,
   isPending,
   markPending,
+  markReviewed,
   parseFollowersJson,
   relationshipStats,
   resetReviewedForScope,
   reviewScopeAccounts,
   reviewScopeStats,
   scopeMatches,
-  syncCurrentRelationship,
-  type Master,
+  summarizeSession,
+  type Account,
 } from "../index.ts";
-import { account, changesWith, stateWith } from "./helpers.ts";
+import { account, follows, lossesWith, must, stateWith } from "./helpers.ts";
 
-const tag = (name: string) => ({ kind: "tag", tag: name }) as const;
+const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
+const tag = (name: string) => ({ kind: TAG_FILTER_KINDS.TAG, tag: name });
+const accountsOf = (...items: Account[]) => stateWith(...items).accounts;
 
 test("review state is reusable and keeps the last reviewed timestamp when reset", () => {
   const a = account();
@@ -29,143 +37,115 @@ test("review state is reusable and keeps the last reviewed timestamp when reset"
 
   markReviewed(a, true, "2026-09-05T10:00:00Z");
   expect(a.review.reviewed).toBe(true);
-  expect(a.review.last_reviewed_at).toBe("2026-09-05T10:00:00Z");
+  expect(a.review.lastReviewedAt).toBe("2026-09-05T10:00:00Z");
 
   markReviewed(a, false, "2026-10-01T10:00:00Z");
   expect(a.review.reviewed).toBe(false);
-  expect(a.review.last_reviewed_at).toBe("2026-09-05T10:00:00Z");
+  expect(a.review.lastReviewedAt).toBe("2026-09-05T10:00:00Z");
   expect(a.review.tags).toEqual(["artist"]);
   expect(a.review.notes).toBe("great illustrator");
 });
 
 test("review scopes support overlapping following/follower views", () => {
-  const mutual = account("mutual");
-  syncCurrentRelationship(mutual, { username: "mutual" }, { username: "mutual" });
-  const notBack = account("notback");
-  syncCurrentRelationship(notBack, { username: "notback" }, null);
-  const followerOnly = account("follower");
-  syncCurrentRelationship(followerOnly, null, { username: "follower" });
+  const mutual = follows(account("mutual"), { following: true, followedBy: true });
+  const notBack = follows(account("notback"), { following: true });
+  const followerOnly = follows(account("follower"), { followedBy: true });
 
-  expect(scopeMatches(mutual, "following")).toBe(true);
-  expect(scopeMatches(mutual, "followers")).toBe(true);
-  expect(scopeMatches(mutual, "mutual")).toBe(true);
-  expect(scopeMatches(notBack, "following")).toBe(true);
-  expect(scopeMatches(notBack, "followers")).toBe(false);
-  expect(scopeMatches(followerOnly, "followers")).toBe(true);
-  expect(scopeMatches(followerOnly, "following")).toBe(false);
+  expect(scopeMatches(mutual, REVIEW_SCOPES.FOLLOWING)).toBe(true);
+  expect(scopeMatches(mutual, REVIEW_SCOPES.FOLLOWERS)).toBe(true);
+  expect(scopeMatches(mutual, REVIEW_SCOPES.MUTUAL)).toBe(true);
+  expect(scopeMatches(notBack, REVIEW_SCOPES.FOLLOWING)).toBe(true);
+  expect(scopeMatches(notBack, REVIEW_SCOPES.FOLLOWERS)).toBe(false);
+  expect(scopeMatches(followerOnly, REVIEW_SCOPES.FOLLOWERS)).toBe(true);
+  expect(scopeMatches(followerOnly, REVIEW_SCOPES.FOLLOWING)).toBe(false);
 });
 
 test("reset applies only to the requested scope and tag and preserves metadata", () => {
-  const artistMutual = account("artist_mutual");
+  const artistMutual = follows(account("artist_mutual"), { following: true, followedBy: true });
   artistMutual.review.tags = ["artist", "friend"];
   artistMutual.review.notes = "keep this";
   markReviewed(artistMutual, true, "2026-08-01T10:00:00Z");
-  syncCurrentRelationship(artistMutual, { username: artistMutual.username }, { username: artistMutual.username });
 
-  const artistNotBack = account("artist_notback");
+  const artistNotBack = follows(account("artist_notback"), { following: true });
   artistNotBack.review.tags = ["artist"];
   markReviewed(artistNotBack, true, "2026-08-02T10:00:00Z");
-  syncCurrentRelationship(artistNotBack, { username: artistNotBack.username }, null);
 
-  const friendMutual = account("friend_mutual");
+  const friendMutual = follows(account("friend_mutual"), { following: true, followedBy: true });
   friendMutual.review.tags = ["friend"];
   markReviewed(friendMutual, true, "2026-08-03T10:00:00Z");
-  syncCurrentRelationship(friendMutual, { username: friendMutual.username }, { username: friendMutual.username });
 
   const state = stateWith(artistMutual, artistNotBack, friendMutual);
-  const reset = resetReviewedForScope(state, { scope: "mutual", tag: tag("artist") });
-
-  expect(reset).toBe(1);
-  expect(artistMutual.review.reviewed).toBe(false);
-  expect(artistMutual.review.last_reviewed_at).toBe("2026-08-01T10:00:00Z");
-  expect(artistMutual.review.tags).toEqual(["artist", "friend"]);
-  expect(artistMutual.review.notes).toBe("keep this");
+  expect(resetReviewedForScope(state, { scope: REVIEW_SCOPES.MUTUAL, tag: tag("artist") })).toBe(1);
+  expect(artistMutual.review).toMatchObject({ reviewed: false, lastReviewedAt: "2026-08-01T10:00:00Z", tags: ["artist", "friend"], notes: "keep this" });
   expect(artistNotBack.review.reviewed).toBe(true);
   expect(friendMutual.review.reviewed).toBe(true);
 });
 
 test("scope stats describe whichever audit queue is selected", () => {
-  const mutual = account("mutual");
+  const mutual = follows(account("mutual"), { following: true, followedBy: true });
   markReviewed(mutual, true, "2026-09-01T00:00:00Z");
-  syncCurrentRelationship(mutual, { username: "mutual" }, { username: "mutual" });
-
-  const notBack = account("notback");
-  syncCurrentRelationship(notBack, { username: "notback" }, null);
-
-  const followerOnly = account("follower");
-  syncCurrentRelationship(followerOnly, null, { username: "follower" });
+  const notBack = follows(account("notback"), { following: true });
+  const followerOnly = follows(account("follower"), { followedBy: true });
 
   const state = stateWith(mutual, notBack, followerOnly);
-  expect(relationshipStats(state)).toEqual({
-    following: 2,
-    followers: 2,
-    mutual: 1,
-    notFollowingBack: 1,
-    followsYouOnly: 1,
-    currentAccounts: 3,
-  });
-  expect(reviewScopeStats(state, { scope: "following" })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
-  expect(reviewScopeStats(state, { scope: "followers" })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
+  expect(relationshipStats(state)).toEqual({ following: 2, followers: 2, mutual: 1, notFollowingBack: 1, followsYouOnly: 1, currentAccounts: 3 });
+  expect(reviewScopeStats(state, { scope: REVIEW_SCOPES.FOLLOWING })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
+  expect(reviewScopeStats(state, { scope: REVIEW_SCOPES.FOLLOWERS })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
 });
 
-test("pending unfollow is separate from review state and confirms only from stopped_following", () => {
-  const a = account();
-  syncCurrentRelationship(a, { username: "alice" }, null);
+test("pending unfollow is separate from review state and confirms only from stopped-following", () => {
+  const a = follows(account(), { following: true });
   const state = stateWith(a);
 
-  markPending(a, "unfollow");
-  expect(isPending(a, "unfollow")).toBe(true);
+  markPending(a, UNFOLLOW);
+  expect(isPending(a, UNFOLLOW)).toBe(true);
   expect(a.review.reviewed, "core action creation does not implicitly rewrite review state").toBe(false);
 
-  // Still followed: cannot be confirmed even if a malformed change list mentions the name.
-  const changes = changesWith({ stopped: ["alice"] });
-  expect(confirmPendingActions(state, changes).total).toBe(0);
+  // Still followed: cannot be confirmed even if a malformed loss list mentions the name.
+  const losses = lossesWith({ stopped: ["alice"] });
+  expect(confirmPendingActions(state, losses)).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 });
 
-  syncCurrentRelationship(a, null, null);
-  expect(confirmPendingActions(state, changes)).toEqual({ unfollow: 1, remove_follower: 0, total: 1 });
-  expect(a.actions).toEqual({ pending: [], confirmed: ["unfollow"] });
+  follows(a, {});
+  expect(confirmPendingActions(state, losses)).toEqual({ [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 });
+  expect(a.actions).toEqual({ pending: [], confirmed: [UNFOLLOW] });
 });
 
-test("remove follower is symmetric to unfollow and confirms from lost_followers", () => {
-  const a = account();
-  syncCurrentRelationship(a, null, { username: "alice" });
+test("remove follower is symmetric to unfollow and confirms from lost followers", () => {
+  const a = follows(account(), { followedBy: true });
   const state = stateWith(a);
 
-  markPending(a, "remove_follower");
-  syncCurrentRelationship(a, null, null);
-  expect(confirmPendingActions(state, changesWith({ lost: ["Alice"] }))).toEqual({ unfollow: 0, remove_follower: 1, total: 1 });
-  expect(a.actions).toEqual({ pending: [], confirmed: ["remove_follower"] });
+  markPending(a, REMOVE_FOLLOWER);
+  follows(a, {});
+  expect(confirmPendingActions(state, lossesWith({ lost: ["Alice"] }))).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 1 });
+  expect(a.actions).toEqual({ pending: [], confirmed: [REMOVE_FOLLOWER] });
 });
 
 test("pending action can be cancelled without affecting account review data", () => {
-  const a = account();
+  const a = follows(account(), { following: true, followedBy: true });
   a.review.tags = ["artist"];
-  syncCurrentRelationship(a, { username: "alice" }, { username: "alice" });
-  markPending(a, "unfollow");
+  markPending(a, UNFOLLOW);
 
-  expect(cancelPending(a, "unfollow")).toBe(true);
-  expect(cancelPending(a, "unfollow")).toBe(false);
+  expect(cancelPending(a, UNFOLLOW)).toBe(true);
+  expect(cancelPending(a, UNFOLLOW)).toBe(false);
   expect(a.actions).toEqual({ pending: [], confirmed: [] });
   expect(a.review.tags).toEqual(["artist"]);
 });
 
 test("marking is idempotent and refuses actions the relationship doesn't allow", () => {
-  const a = account();
-  syncCurrentRelationship(a, { username: "alice" }, null);
-  markPending(a, "unfollow");
-  markPending(a, "unfollow");
-  expect(a.actions.pending).toEqual(["unfollow"]);
-  expect(() => { markPending(a, "remove_follower"); }).toThrow("does not follow you");
+  const a = follows(account(), { following: true });
+  markPending(a, UNFOLLOW);
+  markPending(a, UNFOLLOW);
+  expect(a.actions.pending).toEqual([UNFOLLOW]);
+  expect(() => { markPending(a, REMOVE_FOLLOWER); }).toThrow("does not follow you");
 });
 
 test("re-unfollowing after a refollow keeps one confirmed entry", () => {
-  const a = account();
-  a.actions.confirmed = ["unfollow"];
-  syncCurrentRelationship(a, { username: "alice" }, null); // followed again
-  markPending(a, "unfollow");
-  syncCurrentRelationship(a, null, null);
-  confirmPendingActions(stateWith(a), changesWith({ stopped: ["alice"] }));
-  expect(a.actions).toEqual({ pending: [], confirmed: ["unfollow"] });
+  const a = follows(account(), { following: true }); // followed again
+  a.actions.confirmed = [UNFOLLOW];
+  markPending(a, UNFOLLOW);
+  follows(a, {});
+  confirmPendingActions(stateWith(a), lossesWith({ stopped: ["alice"] }));
+  expect(a.actions).toEqual({ pending: [], confirmed: [UNFOLLOW] });
 });
 
 test("multiple follower export chunks can be parsed and deduplicated case-insensitively", () => {
@@ -180,103 +160,100 @@ test("multiple follower export chunks can be parsed and deduplicated case-insens
 
   const merged = dedupeAccounts([...parseFollowersJson(file1), ...parseFollowersJson(file2)]);
   expect(merged).toHaveLength(3);
-  expect(merged.find(x => x.username.toLowerCase() === "alice")?.timestamp).toBe(30);
+  expect(merged.find(x => x.username.toLowerCase() === "alice")?.since).toBe(30);
 });
 
 test("review query can combine scope, tag and status", () => {
-  const a = account("artist_reviewed");
+  const a = follows(account("artist_reviewed"), { following: true, followedBy: true });
   a.review.tags = ["artist"];
   markReviewed(a, true, "2026-09-01T00:00:00Z");
-  syncCurrentRelationship(a, { username: a.username }, { username: a.username });
-
-  const b = account("artist_pending");
+  const b = follows(account("artist_pending"), { following: true });
   b.review.tags = ["artist"];
-  syncCurrentRelationship(b, { username: b.username }, null);
-
-  const c = account("friend_pending");
+  const c = follows(account("friend_pending"), { following: true });
   c.review.tags = ["friend"];
-  syncCurrentRelationship(c, { username: c.username }, null);
 
-  const state = stateWith(a, b, c);
-  const result = reviewScopeAccounts(state, { scope: "following", tag: tag("artist"), reviewStatus: "needs_review" });
+  const result = reviewScopeAccounts(stateWith(a, b, c), { scope: REVIEW_SCOPES.FOLLOWING, tag: tag("artist"), reviewStatus: REVIEW_STATUSES.NEEDS_REVIEW });
   expect(result.map(x => x.username)).toEqual(["artist_pending"]);
 });
 
 test("session diff reports only net review, tag, action and metadata changes", () => {
-  const a = account("alice");
+  const a = follows(account("alice"), { following: true, followedBy: true });
   a.review.tags = ["artist"];
   a.review.notes = "before";
-  syncCurrentRelationship(a, { username: "alice" }, { username: "alice" });
-  const baseline = stateWith(a);
+  const baseline = accountsOf(a);
 
   const current = structuredClone(baseline);
-  const currentAlice = current.accounts.alice;
-  if (!currentAlice) throw new Error("alice missing");
+  const currentAlice = must(current.alice);
   markReviewed(currentAlice, true, "2026-09-05T18:00:00Z");
   currentAlice.review.tags = ["artist", "photography"];
   currentAlice.review.notes = "after";
-  markPending(currentAlice, "unfollow");
+  markPending(currentAlice, UNFOLLOW);
 
   const diff = buildSessionDiff(baseline, current);
-  expect(diff.changedAccounts).toBe(1);
-  expect(diff.changeCount).toBe(4);
-  expect(diff.summary).toEqual({ reviews: 1, tags: 1, actions: 1, other: 1 });
-  expect(diff.tagsAdded).toEqual([{ tag: "photography", count: 1 }]);
-  const changes = diff.accounts[0]?.changes ?? [];
-  expect(changes.some(change => change.type === "reviewed")).toBe(true);
-  expect(changes.some(change => change.type === "tag_added" && change.tag === "photography")).toBe(true);
-  expect(changes.some(change => change.type === "unfollow_pending")).toBe(true);
-  expect(changes.some(change => change.type === "note_edited")).toBe(true);
+  expect(diff).toEqual([{
+    username: "alice",
+    changes: [
+      { type: SESSION_CHANGES.REVIEWED },
+      { type: SESSION_CHANGES.TAG_ADDED, tag: "photography" },
+      { type: SESSION_CHANGES.NOTE_EDITED },
+      { type: SESSION_CHANGES.ACTION_MARKED, action: UNFOLLOW },
+    ],
+  }]);
+  const summary = summarizeSession(diff);
+  expect(summary.changedAccounts).toBe(1);
+  expect(summary.changeCount).toBe(4);
+  expect(summary.byCategory).toEqual({ [SESSION_CATEGORIES.REVIEWS]: 1, [SESSION_CATEGORIES.TAGS]: 1, [SESSION_CATEGORIES.ACTIONS]: 1, [SESSION_CATEGORIES.OTHER]: 1 });
+  expect(summary.tagsAdded).toEqual([{ tag: "photography", count: 1 }]);
 });
 
 test("session diff ignores tag edits that end back at baseline but keeps persistent last-reviewed changes", () => {
-  const a = account("alice");
+  const a = follows(account("alice"), { following: true });
   a.review.tags = ["artist"];
-  syncCurrentRelationship(a, { username: "alice" }, null);
-  const baseline = stateWith(a);
+  const baseline = accountsOf(a);
   const current = structuredClone(baseline);
-  const currentAlice = current.accounts.alice;
-  if (!currentAlice) throw new Error("alice missing");
+  const currentAlice = must(current.alice);
 
   currentAlice.review.tags.push("fashion");
   currentAlice.review.tags = ["artist"];
   markReviewed(currentAlice, true, "2026-09-05T18:00:00Z");
   markReviewed(currentAlice, false, "2026-09-05T18:01:00Z");
 
-  const diff = buildSessionDiff(baseline, current);
-  expect(diff.changedAccounts).toBe(1);
-  expect(diff.changeCount).toBe(1);
-  expect(diff.accounts[0]?.changes[0]?.type).toBe("last_reviewed_updated");
+  expect(buildSessionDiff(baseline, current)).toEqual([{ username: "alice", changes: [{ type: SESSION_CHANGES.LAST_REVIEWED_UPDATED }] }]);
 });
 
-test("session diff groups tag additions across accounts for review", () => {
-  const a = account("alice");
-  const b = account("bob");
-  syncCurrentRelationship(a, { username: "alice" }, null);
-  syncCurrentRelationship(b, { username: "bob" }, null);
-  const baseline: Pick<Master, "accounts"> = stateWith(a, b);
+test("session diff reports a cancelled action", () => {
+  const a = follows(account("alice"), { followedBy: true });
+  markPending(a, REMOVE_FOLLOWER);
+  const baseline = accountsOf(a);
   const current = structuredClone(baseline);
-  if (!current.accounts.alice || !current.accounts.bob) throw new Error("accounts missing");
-  current.accounts.alice.review.tags = ["artist"];
-  current.accounts.bob.review.tags = ["artist", "photography"];
+  cancelPending(must(current.alice), REMOVE_FOLLOWER);
+  expect(buildSessionDiff(baseline, current)[0]?.changes).toEqual([{ type: SESSION_CHANGES.ACTION_CANCELLED, action: REMOVE_FOLLOWER }]);
+});
 
-  const diff = buildSessionDiff(baseline, current);
-  expect(diff.tagsAdded).toEqual([
+test("session summary groups tag additions across accounts", () => {
+  const a = follows(account("alice"), { following: true });
+  const b = follows(account("bob"), { following: true });
+  const baseline = accountsOf(a, b);
+  const current = structuredClone(baseline);
+  must(current.alice).review.tags = ["artist"];
+  must(current.bob).review.tags = ["artist", "photography"];
+
+  const summary = summarizeSession(buildSessionDiff(baseline, current));
+  expect(summary.tagsAdded).toEqual([
     { tag: "artist", count: 2 },
     { tag: "photography", count: 1 },
   ]);
-  expect(diff.summary.tags).toBe(3);
-  expect(diff.changedAccounts).toBe(2);
+  expect(summary.byCategory[SESSION_CATEGORIES.TAGS]).toBe(3);
+  expect(summary.changedAccounts).toBe(2);
 });
 
 test("action stats count pending and confirmed actions per type", () => {
-  const a = account();
-  syncCurrentRelationship(a, { username: "alice" }, { username: "alice" });
-  markPending(a, "unfollow");
-  markPending(a, "remove_follower");
-  a.actions.confirmed = ["unfollow"];
+  const a = follows(account(), { following: true, followedBy: true });
+  markPending(a, UNFOLLOW);
+  markPending(a, REMOVE_FOLLOWER);
+  a.actions.confirmed = [UNFOLLOW];
   expect(actionStats(stateWith(a))).toEqual({
-    pending: { unfollow: 1, remove_follower: 1, total: 2 },
-    confirmed: { unfollow: 1, remove_follower: 0, total: 1 },
+    pending: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 1 },
+    confirmed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
   });
 });

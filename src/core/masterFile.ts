@@ -1,6 +1,5 @@
 import { createActions } from "./actions.ts";
 import { createReview } from "./review.ts";
-import { computeCurrent } from "./scopes.ts";
 import {
   ACTION_TYPES,
   FOLLOWER_CHANGES,
@@ -9,8 +8,10 @@ import {
   type AccountActions,
   type ActionType,
   type DeepReadonly,
-  type Master,
+  type Follow,
   type FollowerChange,
+  type Master,
+  type ReadonlyAccount,
   type Review,
 } from "./types.ts";
 import { createDict, isRecord, usernameKey } from "./util.ts";
@@ -21,9 +22,9 @@ import { createDict, isRecord, usernameKey } from "./util.ts";
  */
 export interface MasterFile {
   version: typeof FORMAT_VERSION;
-  last_saved_at?: string;
-  last_import_at: string;
-  tag_options: string[];
+  lastSavedAt?: string;
+  lastImportAt: string;
+  tagOptions: string[];
   /** Keyed by lower-cased username. */
   accounts: Record<string, AccountRecord>;
 }
@@ -31,15 +32,15 @@ export interface MasterFile {
 export interface AccountRecord {
   username: string;
   /** Present when you follow them; null when the export gave no time. */
-  following_since?: number | null;
+  followingSince?: number | null;
   /** Present when they follow you; null when the export gave no time. */
-  follower_since?: number | null;
+  followerSince?: number | null;
   /** Omitted while it is the default (never reviewed, no tags, no notes). */
   review?: Review;
   /** Omitted while both lists are empty. */
   actions?: AccountActions;
   /** Set by the latest import when they started or stopped following you. */
-  follower_change?: FollowerChange;
+  followerChange?: FollowerChange;
 }
 
 export class MasterFormatError extends Error {
@@ -49,17 +50,17 @@ export class MasterFormatError extends Error {
 // ── Writing ──────────────────────────────────────────────────────────────────
 
 function isDefaultReview(r: DeepReadonly<Review>): boolean {
-  return !r.reviewed && r.last_reviewed_at === null && !r.deleted_or_unavailable && r.tags.length === 0 && r.notes === "";
+  return !r.reviewed && r.lastReviewedAt === null && !r.unavailable && r.tags.length === 0 && r.notes === "";
 }
 
-export function toAccountRecord(account: DeepReadonly<Account>): AccountRecord {
-  const { current, review, actions } = account;
+export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
+  const { following, followedBy, review, actions } = account;
   const out: AccountRecord = { username: account.username };
-  if (current.you_follow) out.following_since = current.following_since_timestamp;
-  if (current.follows_you) out.follower_since = current.follower_since_timestamp;
+  if (following) out.followingSince = following.since;
+  if (followedBy) out.followerSince = followedBy.since;
   if (!isDefaultReview(review)) out.review = { ...review, tags: [...review.tags] };
   if (actions.pending.length || actions.confirmed.length) out.actions = { pending: [...actions.pending], confirmed: [...actions.confirmed] };
-  if (account.follower_change) out.follower_change = account.follower_change;
+  if (account.followerChange) out.followerChange = account.followerChange;
   return out;
 }
 
@@ -68,9 +69,9 @@ export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
   for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account);
   return {
     version: FORMAT_VERSION,
-    ...(master.last_saved_at === undefined ? {} : { last_saved_at: master.last_saved_at }),
-    last_import_at: master.last_import_at,
-    tag_options: [...master.tag_options],
+    ...(master.lastSavedAt === undefined ? {} : { lastSavedAt: master.lastSavedAt }),
+    lastImportAt: master.lastImportAt,
+    tagOptions: [...master.tagOptions],
     accounts,
   };
 }
@@ -120,8 +121,10 @@ function numOrNull(value: unknown, path: string): number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value)) ? value : fail(path, "a number or null");
 }
 
-function oneOf<T extends string>(value: unknown, options: readonly T[], path: string): T {
-  return (options as readonly unknown[]).includes(value) ? (value as T) : fail(path, `one of ${options.join(", ")}`);
+/** One of a constant object's values, e.g. oneOf(value, ACTION_TYPES, path). */
+function oneOf<T extends string>(value: unknown, options: Readonly<Record<string, T>>, path: string): T {
+  const allowed: readonly unknown[] = Object.values(options);
+  return allowed.includes(value) ? (value as T) : fail(path, `one of ${allowed.join(", ")}`);
 }
 
 function strings(value: unknown, path: string): string[] {
@@ -132,8 +135,8 @@ function parseReview(value: unknown, path: string): Review {
   const r = record(value, path);
   return {
     reviewed: bool(r.reviewed, `${path}.reviewed`),
-    last_reviewed_at: strOrNull(r.last_reviewed_at, `${path}.last_reviewed_at`),
-    deleted_or_unavailable: bool(r.deleted_or_unavailable, `${path}.deleted_or_unavailable`),
+    lastReviewedAt: strOrNull(r.lastReviewedAt, `${path}.lastReviewedAt`),
+    unavailable: bool(r.unavailable, `${path}.unavailable`),
     tags: strings(r.tags, `${path}.tags`),
     notes: str(r.notes, `${path}.notes`),
   };
@@ -152,19 +155,22 @@ function parseActions(value: unknown, path: string): AccountActions {
   };
 }
 
+/** A follow is recorded by the presence of its "since" field (null = time unknown). */
+function follow(present: boolean, since: unknown, path: string): Follow | null {
+  return present ? { since: numOrNull(since, path) } : null;
+}
+
 /** Builds the working account from its saved record. */
 export function fromAccountRecord(value: unknown, path: string): Account {
   const r = record(value, path);
   const account: Account = {
     username: nonEmptyStr(r.username, `${path}.username`),
+    following: follow("followingSince" in r, r.followingSince, `${path}.followingSince`),
+    followedBy: follow("followerSince" in r, r.followerSince, `${path}.followerSince`),
     review: r.review === undefined ? createReview() : parseReview(r.review, `${path}.review`),
-    current: computeCurrent(
-      "following_since" in r ? { timestamp: numOrNull(r.following_since, `${path}.following_since`) } : null,
-      "follower_since" in r ? { timestamp: numOrNull(r.follower_since, `${path}.follower_since`) } : null,
-    ),
     actions: r.actions === undefined ? createActions() : parseActions(r.actions, `${path}.actions`),
   };
-  if (r.follower_change !== undefined) account.follower_change = oneOf(r.follower_change, Object.values(FOLLOWER_CHANGES), `${path}.follower_change`);
+  if (r.followerChange !== undefined) account.followerChange = oneOf(r.followerChange, FOLLOWER_CHANGES, `${path}.followerChange`);
   return account;
 }
 
@@ -191,10 +197,10 @@ export function parseMaster(raw: unknown): Master {
 
   const master: Master = {
     version: FORMAT_VERSION,
-    tag_options: strings(raw.tag_options, "tag_options"),
+    tagOptions: strings(raw.tagOptions, "tagOptions"),
     accounts,
-    last_import_at: nonEmptyStr(raw.last_import_at, "last_import_at"),
+    lastImportAt: nonEmptyStr(raw.lastImportAt, "lastImportAt"),
   };
-  if (raw.last_saved_at !== undefined) master.last_saved_at = str(raw.last_saved_at, "last_saved_at");
+  if (raw.lastSavedAt !== undefined) master.lastSavedAt = str(raw.lastSavedAt, "lastSavedAt");
   return master;
 }

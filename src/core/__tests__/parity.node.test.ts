@@ -7,7 +7,25 @@ import { createRequire } from "node:module";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { FOLLOWER_CHANGES, importExport, parseFollowersJson, parseFollowingJson, parseMaster, profileUrl, stringifyMasterFile, toMasterFile, type Master } from "../index.ts";
+import {
+  ACTION_TYPES,
+  FOLLOWER_CHANGES,
+  RELATIONSHIPS,
+  importExport,
+  parseFollowersJson,
+  parseFollowingJson,
+  parseMaster,
+  profileUrl,
+  relationshipOf,
+  stringifyMasterFile,
+  toMasterFile,
+  type Account,
+  type ActionType,
+  type FollowerChange,
+  type Master,
+  type Relationship,
+  type Review,
+} from "../index.ts";
 import { followersFile, followingFile } from "./helpers.ts";
 
 const legacy: any = createRequire(import.meta.url)("../../../legacy/tracker-core.js");
@@ -96,47 +114,72 @@ function legacyImport(oldMaster: any, followingRaw: unknown, followerRaws: unkno
   return { next, isDuplicateSnapshot, confirmed };
 }
 
+// The legacy app used snake_case fields and values; translate our model into its shape.
+const LEGACY_ACTION: Record<ActionType, string> = { [ACTION_TYPES.UNFOLLOW]: "unfollow", [ACTION_TYPES.REMOVE_FOLLOWER]: "remove_follower" };
+const LEGACY_RELATIONSHIP: Record<Relationship, string> = {
+  [RELATIONSHIPS.MUTUAL]: "mutual",
+  [RELATIONSHIPS.NOT_FOLLOWING_BACK]: "not_following_back",
+  [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: "follows_you_only",
+  [RELATIONSHIPS.NEITHER]: "neither",
+};
+
+function legacyCurrent(a: Account) {
+  return {
+    you_follow: a.following !== null,
+    follows_you: a.followedBy !== null,
+    relationship: LEGACY_RELATIONSHIP[relationshipOf(a)],
+    following_since_timestamp: a.following?.since ?? null,
+    follower_since_timestamp: a.followedBy?.since ?? null,
+  };
+}
+
+function legacyReview(r: Review) {
+  return { reviewed: r.reviewed, last_reviewed_at: r.lastReviewedAt, deleted_or_unavailable: r.unavailable, tags: r.tags, notes: r.notes };
+}
+
 /** The same master in the legacy app's format, so the legacy code can read it. */
 function toLegacyMaster(master: Master): unknown {
   const actions: unknown[] = [];
   const accounts: Record<string, unknown> = {};
   const following: Record<string, null> = {};
   const followers: Record<string, null> = {};
-  for (const [key, { actions: own, ...account }] of Object.entries(master.accounts)) {
-    accounts[key] = { ...account, url: profileUrl(account.username) };
-    if (account.current.you_follow) following[account.username] = null;
-    if (account.current.follows_you) followers[account.username] = null;
-    for (const [status, types] of [["pending", own.pending], ["confirmed", own.confirmed]] as const) {
+  for (const [key, account] of Object.entries(master.accounts)) {
+    accounts[key] = { username: account.username, url: profileUrl(account.username), review: legacyReview(account.review), current: legacyCurrent(account) };
+    if (account.following) following[account.username] = null;
+    if (account.followedBy) followers[account.username] = null;
+    for (const [status, types] of [["pending", account.actions.pending], ["confirmed", account.actions.confirmed]] as const) {
       for (const type of types) {
         actions.push({
-          action_id: `${status}_${type}_${key}`, username: account.username, type, status, marked_at: null, confirmed_at: null,
+          action_id: `${status}_${type}_${key}`, username: account.username, type: LEGACY_ACTION[type], status, marked_at: null, confirmed_at: null,
           cancelled_at: null, confirmation_snapshot_id: null, confirmation_snapshot_date: null, relationship_at_mark: null,
         });
       }
     }
   }
+  const marked = (change: FollowerChange) => Object.values(master.accounts).filter(a => a.followerChange === change).map(a => a.username);
   return {
     schema_version: 6,
-    tag_options: master.tag_options,
+    tag_options: master.tagOptions,
     accounts,
     actions,
     snapshots: [{
       snapshot_id: "snapshot_0",
-      snapshot_date: master.last_import_at.slice(0, 10),
-      captured_at: master.last_import_at,
+      snapshot_date: master.lastImportAt.slice(0, 10),
+      captured_at: master.lastImportAt,
       source_files: [],
       following,
       followers,
       changes_from_previous_snapshot: {
         newly_following: [],
         stopped_following: [],
-        new_followers: Object.values(master.accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.NEW).map(a => a.username),
-        lost_followers: Object.values(master.accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.LOST).map(a => a.username),
+        new_followers: marked(FOLLOWER_CHANGES.NEW),
+        lost_followers: marked(FOLLOWER_CHANGES.LOST),
       },
     }],
   };
 }
 
+/** What both implementations must agree on, in the legacy shape. */
 interface Projection {
   tag_options: string[];
   accounts: Record<string, unknown>;
@@ -145,23 +188,23 @@ interface Projection {
 }
 
 const sorted = (items: Iterable<string>) => [...new Set(items)].sort();
-/** Snapshot membership by lower-cased username: legacy kept per-list casing, the new format one username per account. */
+/** Membership by lower-cased username: legacy kept per-list casing, the new format one username per account. */
 const sortedKeys = (names: Iterable<string>) => sorted([...names].map(name => name.toLowerCase()));
 
-/** What both implementations must agree on, in a common shape. */
 function projectNew(master: Master): Projection {
   const accounts = Object.entries(master.accounts);
+  const names = (keep: (a: Account) => boolean) => sortedKeys(accounts.filter(([, a]) => keep(a)).map(([, a]) => a.username));
   return {
-    tag_options: master.tag_options,
+    tag_options: master.tagOptions,
     accounts: Object.fromEntries(accounts.map(([key, a]) => [key, {
-      username: a.username, url: profileUrl(a.username), review: a.review, current: a.current,
-      pending: sorted(a.actions.pending), confirmed: sorted(a.actions.confirmed),
+      username: a.username, url: profileUrl(a.username), review: legacyReview(a.review), current: legacyCurrent(a),
+      pending: sorted(a.actions.pending.map(t => LEGACY_ACTION[t])), confirmed: sorted(a.actions.confirmed.map(t => LEGACY_ACTION[t])),
     }])),
     graph: {
-      following: sortedKeys(accounts.filter(([, a]) => a.current.you_follow).map(([, a]) => a.username)),
-      followers: sortedKeys(accounts.filter(([, a]) => a.current.follows_you).map(([, a]) => a.username)),
-      newFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === FOLLOWER_CHANGES.NEW).map(([, a]) => a.username)),
-      lostFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === FOLLOWER_CHANGES.LOST).map(([, a]) => a.username)),
+      following: names(a => a.following !== null),
+      followers: names(a => a.followedBy !== null),
+      newFollowers: names(a => a.followerChange === FOLLOWER_CHANGES.NEW),
+      lostFollowers: names(a => a.followerChange === FOLLOWER_CHANGES.LOST),
     },
   };
 }
@@ -197,8 +240,11 @@ function expectParity(name: string, raw: unknown, followingRaw: unknown, followe
 
   expect(JSON.stringify(raw), `${name}: input must not be mutated`).toBe(before);
   expect(JSON.parse(JSON.stringify(projectNew(result.master))), `${name}: master`).toEqual(JSON.parse(JSON.stringify(projectLegacy(old.next))));
-  expect(result.exportChanged, `${name}: export changed`).toBe(!old.isDuplicateSnapshot);
-  expect(result.confirmed, `${name}: confirmations`).toEqual(old.confirmed);
+  expect(result.summary.exportChanged, `${name}: export changed`).toBe(!old.isDuplicateSnapshot);
+  expect(result.summary.confirmed, `${name}: confirmations`).toEqual({
+    [ACTION_TYPES.UNFOLLOW]: old.confirmed.unfollow,
+    [ACTION_TYPES.REMOVE_FOLLOWER]: old.confirmed.remove_follower,
+  });
   return result;
 }
 
@@ -210,27 +256,28 @@ describe("synthetic scenarios", () => {
       followers: parseFollowersJson(followersFile(["a", 4], ["d", 5], ["e", 6])),
       followerFileCount: 1,
     }, "2026-10-01T00:00:00.000Z").master;
-    for (const [name, type] of [["b", "unfollow"], ["c", "unfollow"], ["d", "remove_follower"], ["a", "remove_follower"]] as const) {
+    const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
+    for (const [name, type] of [["b", UNFOLLOW], ["c", UNFOLLOW], ["d", REMOVE_FOLLOWER], ["a", REMOVE_FOLLOWER]] as const) {
       first.accounts[name]?.actions.pending.push(type);
     }
-    return JSON.parse(stringifyMasterFile(toMasterFile({ ...first, last_saved_at: "2026-10-01T00:00:00.000Z" }))) as unknown;
+    return JSON.parse(stringifyMasterFile(toMasterFile({ ...first, lastSavedAt: "2026-10-01T00:00:00.000Z" }))) as unknown;
   }
 
   test("pending unfollow + follower removal confirmed, others stay pending; username casing updated", () => {
     // b unfollowed, d removed; c and a still present; "a" now spelled "A".
     const r = expectParity("changes", savedMaster(), followingFile(["A", 1], ["c", 3]), [followersFile(["a", 4], ["e", 6], ["f", 7])]);
-    expect(r.confirmed).toEqual({ unfollow: 1, remove_follower: 1, total: 2 });
+    expect(r.summary.confirmed).toEqual({ [ACTION_TYPES.UNFOLLOW]: 1, [ACTION_TYPES.REMOVE_FOLLOWER]: 1 });
   });
 
   test("identical export changes nothing and confirms nothing", () => {
     const r = expectParity("dup", savedMaster(), followingFile(["a", 1], ["b", 2], ["c", 3]), [followersFile(["a", 4], ["d", 5], ["e", 6])]);
-    expect(r.exportChanged).toBe(false);
-    expect(r.confirmed.total).toBe(0);
+    expect(r.summary.exportChanged).toBe(false);
+    expect(r.summary.confirmed).toEqual({ [ACTION_TYPES.UNFOLLOW]: 0, [ACTION_TYPES.REMOVE_FOLLOWER]: 0 });
   });
 
   test("follower chunks split across several files", () => {
     const r = expectParity("chunks", savedMaster(), followingFile(["a", 1]), [followersFile(["a", 4]), followersFile(["g", 8]), followersFile(["A", 9])]);
-    expect(r.exportChanged).toBe(true);
+    expect(r.summary.exportChanged).toBe(true);
   });
 });
 
@@ -247,14 +294,14 @@ describe.skipIf(!realData)("your real data (local only)", () => {
 
   test("current master + export where every pending unfollow happened and 3 followers left", () => {
     const master = read("instagram_master_tracker.json");
-    const pending = new Set(Object.entries(parseMaster(master).accounts).filter(([, a]) => a.actions.pending.includes("unfollow")).map(([key]) => key));
+    const pending = new Set(Object.entries(parseMaster(master).accounts).filter(([, a]) => a.actions.pending.includes(ACTION_TYPES.UNFOLLOW)).map(([key]) => key));
     expect(pending.size).toBeGreaterThan(0);
     const following = read("connections/following.json") as { relationships_following: { title: string }[] };
     following.relationships_following = following.relationships_following.filter(item => !pending.has(item.title.toLowerCase()));
     const followerRaws = followerNames().map(n => read(`connections/${n}`) as unknown[]);
     followerRaws[0] = (followerRaws[0] ?? []).slice(3);
     const r = expectParity("real+changes", master, following, followerRaws);
-    expect(r.exportChanged).toBe(true);
-    expect(r.confirmed.unfollow).toBe(pending.size);
+    expect(r.summary.exportChanged).toBe(true);
+    expect(r.summary.confirmed[ACTION_TYPES.UNFOLLOW]).toBe(pending.size);
   });
 });

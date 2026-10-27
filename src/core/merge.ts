@@ -1,30 +1,33 @@
-import { confirmPendingActions, createActions, type ActionCounts } from "./actions.ts";
+import { createAccount } from "./account.ts";
+import { confirmPendingActions, type ActionCounts } from "./actions.ts";
 import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
-import { createReview } from "./review.ts";
-import { computeCurrent, syncCurrentRelationship } from "./scopes.ts";
-import { DEFAULT_TAG_OPTIONS, FOLLOWER_CHANGES, FORMAT_VERSION, type Account, type FollowChanges, type Master, type ParsedAccount } from "./types.ts";
+import { setFollows } from "./scopes.ts";
+import { DEFAULT_TAG_OPTIONS, FOLLOWER_CHANGES, FORMAT_VERSION, type Account, type ExportEntry, type Master } from "./types.ts";
 import { createDict, usernameKey } from "./util.ts";
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
 export interface ExportBundle {
-  following: readonly ParsedAccount[];
-  followers: readonly ParsedAccount[];
+  following: readonly ExportEntry[];
+  followers: readonly ExportEntry[];
   followerFileCount: number;
 }
 
-export interface MergeResult {
+/** What an import found, for the status message. */
+export interface ImportSummary {
   /** False when the export has exactly the same following/followers as the previous import. */
   exportChanged: boolean;
-  /** What this export changed; for an unchanged export, the new/lost followers already marked. */
-  changes: FollowChanges;
   followingCount: number;
   followersCount: number;
+  /** Accounts marked as new/lost followers (by this import, or by the previous one if the export is unchanged). */
+  newFollowers: number;
+  lostFollowers: number;
   confirmed: ActionCounts;
 }
 
-export interface ImportResult extends MergeResult {
+export interface ImportResult {
   master: Master;
+  summary: ImportSummary;
   isNewMaster: boolean;
   /** Whether the imported state differs from the master file and should be saved. */
   dirty: boolean;
@@ -41,69 +44,61 @@ function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   return true;
 }
 
+function difference(a: ReadonlySet<string>, b: ReadonlySet<string>): Set<string> {
+  return new Set([...a].filter(key => !b.has(key)));
+}
+
 /**
  * WRITE: applies a fresh export to the accounts (mutated in place). Compares it with
- * the follow flags already on the accounts, marks new and lost followers, and confirms
+ * the follows already on the accounts, marks new and lost followers, and confirms
  * pending actions. `firstImport` means there is nothing to compare with yet.
  */
-export function mergeExports(accounts: Record<string, Account>, bundle: ExportBundle, firstImport: boolean): MergeResult {
-  const following = dedupeAccounts(bundle.following);
-  const followers = dedupeAccounts(bundle.followers);
+export function mergeExports(accounts: Record<string, Account>, bundle: ExportBundle, firstImport: boolean): ImportSummary {
+  const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
+  const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
 
   const previousFollowing = new Set<string>();
   const previousFollowers = new Set<string>();
   for (const [key, account] of Object.entries(accounts)) {
-    if (account.current.you_follow) previousFollowing.add(key);
-    if (account.current.follows_you) previousFollowers.add(key);
+    if (account.following) previousFollowing.add(key);
+    if (account.followedBy) previousFollowers.add(key);
   }
-
-  const followingMap = new Map(following.map(item => [usernameKey(item.username), item]));
-  const followersMap = new Map(followers.map(item => [usernameKey(item.username), item]));
-  const currentFollowing = new Set(followingMap.keys());
-  const currentFollowers = new Set(followersMap.keys());
+  const currentFollowing = new Set(following.keys());
+  const currentFollowers = new Set(followers.keys());
   const exportChanged = firstImport || !sameSet(previousFollowing, currentFollowing) || !sameSet(previousFollowers, currentFollowers);
+  const newFollowers = firstImport ? new Set<string>() : difference(currentFollowers, previousFollowers);
+  const lostFollowers = firstImport ? new Set<string>() : difference(previousFollowers, currentFollowers);
 
   for (const key of new Set([...Object.keys(accounts), ...currentFollowing, ...currentFollowers])) {
-    const followingItem = followingMap.get(key);
-    const followerItem = followersMap.get(key);
-    const source = followingItem ?? followerItem;
+    const followingEntry = following.get(key);
+    const followerEntry = followers.get(key);
+    const source = followingEntry ?? followerEntry;
     let account = accounts[key];
     if (!account) {
       if (!source) continue; // unreachable: every key comes from accounts or an export
-      account = accounts[key] = { username: source.username, review: createReview(), current: computeCurrent(null, null), actions: createActions() };
+      account = accounts[key] = createAccount(source.username);
     }
     if (source) account.username = source.username; // casing follows the newest export
-    syncCurrentRelationship(account, followingItem, followerItem);
+    setFollows(account, followingEntry, followerEntry);
 
     // An unchanged export keeps the markers of the import that produced it.
     if (!exportChanged) continue;
-    delete account.follower_change;
-    if (firstImport) continue;
-    if (currentFollowers.has(key) && !previousFollowers.has(key)) account.follower_change = FOLLOWER_CHANGES.NEW;
-    if (!currentFollowers.has(key) && previousFollowers.has(key)) account.follower_change = FOLLOWER_CHANGES.LOST;
+    delete account.followerChange;
+    if (newFollowers.has(key)) account.followerChange = FOLLOWER_CHANGES.NEW;
+    if (lostFollowers.has(key)) account.followerChange = FOLLOWER_CHANGES.LOST;
   }
 
-  const name = (key: string) => accounts[key]?.username ?? key;
-  const changes: FollowChanges = exportChanged && !firstImport
-    ? {
-        newly_following: [...currentFollowing].filter(key => !previousFollowing.has(key)).map(name),
-        stopped_following: [...previousFollowing].filter(key => !currentFollowing.has(key)).map(name),
-        new_followers: [...currentFollowers].filter(key => !previousFollowers.has(key)).map(name),
-        lost_followers: [...previousFollowers].filter(key => !currentFollowers.has(key)).map(name),
-      }
-    : {
-        newly_following: firstImport ? [...currentFollowing].map(name) : [],
-        stopped_following: [],
-        new_followers: Object.values(accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.NEW).map(a => a.username),
-        lost_followers: Object.values(accounts).filter(a => a.follower_change === FOLLOWER_CHANGES.LOST).map(a => a.username),
-      };
-
+  const marked = Object.values(accounts);
   return {
     exportChanged,
-    changes,
     followingCount: currentFollowing.size,
     followersCount: currentFollowers.size,
-    confirmed: confirmPendingActions({ accounts }, changes),
+    newFollowers: marked.filter(a => a.followerChange === FOLLOWER_CHANGES.NEW).length,
+    lostFollowers: marked.filter(a => a.followerChange === FOLLOWER_CHANGES.LOST).length,
+    confirmed: confirmPendingActions({ accounts }, {
+      stoppedFollowing: exportChanged ? difference(previousFollowing, currentFollowing) : new Set(),
+      lostFollowers,
+    }),
   };
 }
 
@@ -118,22 +113,23 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const merge = mergeExports(accounts, bundle, isNewMaster);
+  const summary = mergeExports(accounts, bundle, isNewMaster);
 
   const master: Master = {
     version: FORMAT_VERSION,
-    tag_options: base ? base.tag_options : [...DEFAULT_TAG_OPTIONS],
+    tagOptions: base ? base.tagOptions : [...DEFAULT_TAG_OPTIONS],
     accounts,
     // Re-importing the same export doesn't make the data any newer.
-    last_import_at: merge.exportChanged || !base ? now : base.last_import_at,
-    ...(base?.last_saved_at === undefined ? {} : { last_saved_at: base.last_saved_at }),
+    lastImportAt: summary.exportChanged || !base ? now : base.lastImportAt,
+    ...(base?.lastSavedAt === undefined ? {} : { lastSavedAt: base.lastSavedAt }),
   };
 
+  const confirmedAny = Object.values(summary.confirmed).some(n => n > 0);
   return {
-    ...merge,
     master,
+    summary,
     isNewMaster,
-    dirty: isNewMaster || merge.exportChanged || merge.confirmed.total > 0,
+    dirty: isNewMaster || summary.exportChanged || confirmedAny,
     followerFileCount: bundle.followerFileCount,
   };
 }

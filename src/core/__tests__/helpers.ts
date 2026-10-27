@@ -1,12 +1,14 @@
-import { computeCurrent, createActions, createDict, createReview, type Account, type FollowChanges, type Master } from "../index.ts";
+import { createAccount, createDict, type Account, type FollowLosses, type Master } from "../index.ts";
 
 export function account(username = "alice"): Account {
-  return {
-    username,
-    review: createReview(),
-    current: computeCurrent(null, null),
-    actions: createActions(),
-  };
+  return createAccount(username);
+}
+
+/** Sets who follows whom on a test account (since = 1_700_000_000 unless given). */
+export function follows(a: Account, { following = false, followedBy = false, since = 1_700_000_000 }: { following?: boolean; followedBy?: boolean; since?: number | null }): Account {
+  a.following = following ? { since } : null;
+  a.followedBy = followedBy ? { since } : null;
+  return a;
 }
 
 export function stateWith(...items: Account[]): Pick<Master, "accounts"> {
@@ -15,9 +17,9 @@ export function stateWith(...items: Account[]): Pick<Master, "accounts"> {
   return { accounts };
 }
 
-/** Import changes listing the given usernames as stopped-following / lost followers. */
-export function changesWith({ stopped = [], lost = [] }: { stopped?: string[]; lost?: string[] }): FollowChanges {
-  return { newly_following: [], stopped_following: stopped, new_followers: [], lost_followers: lost };
+/** Follow losses of an import, for the given (any-case) usernames. */
+export function lossesWith({ stopped = [], lost = [] }: { stopped?: string[]; lost?: string[] }): FollowLosses {
+  return { stoppedFollowing: new Set(stopped.map(u => u.toLowerCase())), lostFollowers: new Set(lost.map(u => u.toLowerCase())) };
 }
 
 /** Non-null assertion for tests that fails with a readable message. */

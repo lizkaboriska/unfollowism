@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Alert, Badge, Box, Button, Checkbox, HStack, Heading, Stack, Text } from "@chakra-ui/react";
-import { analyzeImport, type ImportWarning, type PreparedImport } from "./io/analyzeImport.ts";
+import { RELATIONSHIPS, relationshipOf, type Relationship } from "./core/index.ts";
+import { IMPORT_WARNINGS, analyzeImport, type ImportWarning, type PreparedImport } from "./io/analyzeImport.ts";
 import { readInputs } from "./io/readInputs.ts";
 import type { StoreDeps } from "./store/deps.ts";
+import { IMPORT_STATUSES } from "./store/statuses.ts";
 import { useAppDispatch, useAppSelector } from "./store/hooks.ts";
 import { setReviewed } from "./store/masterSlice.ts";
 import { selectAccount, selectHasProject, selectIsDirty, selectRelationshipStats, selectVisibleAccountKeys } from "./store/selectors.ts";
@@ -12,13 +14,20 @@ import { importPrepared, restoreTab, saveMaster } from "./store/thunks.ts";
 
 const LIST_LIMIT = 100;
 
+const RELATIONSHIP_LABELS: Record<Relationship, string> = {
+  [RELATIONSHIPS.MUTUAL]: "Mutual",
+  [RELATIONSHIPS.NOT_FOLLOWING_BACK]: "Not following back",
+  [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: "Follows you only",
+  [RELATIONSHIPS.NEITHER]: "Neither",
+};
+
 function errorMessage(error: unknown): string {
   return typeof error === "string" ? error : error instanceof Error ? error.message : "Unexpected error";
 }
 
 function describeWarning(warning: ImportWarning): string {
   const when = new Date(warning.lastKnownSavedAt).toLocaleString();
-  return warning.kind === "no_master_but_saved_before"
+  return warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE
     ? `You saved a master from this browser on ${when}, but didn't choose one. Importing without it starts your review history from scratch.`
     : `The chosen master is older than the one you saved from this browser on ${when}. Recent review work may be missing from it.`;
 }
@@ -31,7 +40,7 @@ function AccountRow({ accountKey }: { accountKey: string }) {
     <HStack justify="space-between" borderBottomWidth="1px" py="2">
       <HStack gap="3">
         <Text fontWeight="medium">@{account.username}</Text>
-        <Badge>{account.current.relationship.replaceAll("_", " ")}</Badge>
+        <Badge>{RELATIONSHIP_LABELS[relationshipOf(account)]}</Badge>
       </HStack>
       <Checkbox.Root
         checked={account.review.reviewed}
@@ -50,7 +59,7 @@ export function App({ deps }: { deps: StoreDeps }) {
   const hasProject = useAppSelector(selectHasProject);
   const dirty = useAppSelector(selectIsDirty);
   const message = useAppSelector(s => s.master.message);
-  const importing = useAppSelector(s => s.master.importStatus === "importing");
+  const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const storageFailed = useAppSelector(s => s.master.persistenceFailed) || !deps.tab.durable;
   const stats = useAppSelector(selectRelationshipStats);
   const keys = useAppSelector(selectVisibleAccountKeys);

@@ -1,5 +1,5 @@
 /**
- * The last_saved_at of the newest master downloaded from this browser, kept across days
+ * The lastSavedAt of the newest master downloaded from this browser, kept across days
  * and tabs (localStorage) for the "this master is older than your last save" warning.
  */
 export interface LastSavedStore {

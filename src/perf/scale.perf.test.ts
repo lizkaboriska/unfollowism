@@ -58,9 +58,9 @@ async function run(total: number) {
   const keys = Object.keys(earlier.accounts);
   for (let i = 0; i < keys.length; i += 10) {
     const account = earlier.accounts[keys[i] ?? ""];
-    if (account) account.review = { reviewed: true, last_reviewed_at: "2026-09-02T00:00:00.000Z", deleted_or_unavailable: false, tags: ["artist"], notes: "" };
+    if (account) account.review = { reviewed: true, lastReviewedAt: "2026-09-02T00:00:00.000Z", unavailable: false, tags: ["artist"], notes: "" };
   }
-  const masterText = stringifyMasterFile(toMasterFile({ ...earlier, last_saved_at: "2026-09-02T00:00:00.000Z" }));
+  const masterText = stringifyMasterFile(toMasterFile({ ...earlier, lastSavedAt: "2026-09-02T00:00:00.000Z" }));
 
   // Second import: a newer export plus the saved master (the normal monthly flow).
   const inputs = [...exportTexts(total, 1_000), { path: "instagram_master_tracker.json", text: masterText }];

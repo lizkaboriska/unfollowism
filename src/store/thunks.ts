@@ -18,6 +18,7 @@ import type { PreparedImport } from "../io/analyzeImport.ts";
 import { masterFileName } from "../io/download.ts";
 import type { StoredTab } from "../io/tabStore.ts";
 import type { StoreDeps } from "./deps.ts";
+import { SAVE_STATUSES } from "./statuses.ts";
 import type { AppDispatch, RootState } from "./index.ts";
 
 const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps; rejectValue: string }>();
@@ -55,7 +56,7 @@ export function currentMaster(base: Master, changed: Readonly<Record<string, Acc
 }
 
 export function serializeMaster(master: Master, savedAt: string): string {
-  return stringifyMasterFile(toMasterFile({ ...master, last_saved_at: savedAt }));
+  return stringifyMasterFile(toMasterFile({ ...master, lastSavedAt: savedAt }));
 }
 
 /** Downloads the master. Edits made while the download is in progress stay unsaved. */
@@ -72,7 +73,7 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     extra.lastSaved.set(savedAt);
     return { savedAt, revision, filename };
   },
-  { condition: (_, { getState }) => getState().master.saveStatus !== "saving" },
+  { condition: (_, { getState }) => getState().master.saveStatus !== SAVE_STATUSES.SAVING },
 );
 
 export interface RestoredSession {
@@ -97,7 +98,7 @@ export function reviveTab(stored: StoredTab): RestoredSession | null {
     return {
       base,
       changed,
-      savedAt: meta.last_saved_at ?? base.last_saved_at ?? null,
+      savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
       revision: meta.revision,
       savedRevision: meta.savedRevision,
       message: meta.message,

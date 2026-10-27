@@ -1,55 +1,60 @@
-import type { Account, CurrentRelationship, DeepReadonly, Master, ParsedAccount, ReviewScope, ReviewStatusFilter, TagFilter } from "./types.ts";
+import {
+  RELATIONSHIPS,
+  REVIEW_SCOPES,
+  REVIEW_STATUSES,
+  TAG_FILTER_KINDS,
+  type Account,
+  type DeepReadonly,
+  type ExportEntry,
+  type Master,
+  type ReadonlyAccount,
+  type Relationship,
+  type ReviewScope,
+  type ReviewStatusFilter,
+  type TagFilter,
+} from "./types.ts";
 import { usernameKey } from "./util.ts";
 
-type ReadonlyAccount = DeepReadonly<Account>;
+const ALL_TAGS: TagFilter = { kind: TAG_FILTER_KINDS.ALL };
 
-/** Presence means the relationship exists; only the "since" timestamp is read. */
-export type RelationItem = Readonly<Partial<Pick<ParsedAccount, "username" | "timestamp">>> | null | undefined;
-
-export function computeCurrent(followingItem: RelationItem, followerItem: RelationItem): CurrentRelationship {
-  const youFollow = !!followingItem;
-  const followsYou = !!followerItem;
-  return {
-    you_follow: youFollow,
-    follows_you: followsYou,
-    relationship: youFollow && followsYou ? "mutual" : youFollow ? "not_following_back" : followsYou ? "follows_you_only" : "neither",
-    following_since_timestamp: followingItem?.timestamp ?? null,
-    follower_since_timestamp: followerItem?.timestamp ?? null,
-  };
+export function relationshipOf(account: ReadonlyAccount): Relationship {
+  if (account.following && account.followedBy) return RELATIONSHIPS.MUTUAL;
+  if (account.following) return RELATIONSHIPS.NOT_FOLLOWING_BACK;
+  if (account.followedBy) return RELATIONSHIPS.FOLLOWS_YOU_ONLY;
+  return RELATIONSHIPS.NEITHER;
 }
 
-/** WRITE */
-export function syncCurrentRelationship(account: Account, followingItem: RelationItem, followerItem: RelationItem): CurrentRelationship {
-  account.current = computeCurrent(followingItem, followerItem);
-  return account.current;
+/** WRITE: records the follows found in the latest export (absent entry = no follow). */
+export function setFollows(account: Account, following: ExportEntry | undefined, followedBy: ExportEntry | undefined): void {
+  account.following = following ? { since: following.since } : null;
+  account.followedBy = followedBy ? { since: followedBy.since } : null;
 }
 
 export function scopeMatches(account: ReadonlyAccount, scope: ReviewScope): boolean {
-  const current = account.current;
   switch (scope) {
-    case "following": return current.you_follow;
-    case "followers": return current.follows_you;
-    case "mutual": return current.relationship === "mutual";
-    case "not_following_back": return current.relationship === "not_following_back";
-    case "follows_you_only": return current.relationship === "follows_you_only";
-    case "all_current": return current.you_follow || current.follows_you;
-    case "all_accounts": return true;
+    case REVIEW_SCOPES.FOLLOWING: return account.following !== null;
+    case REVIEW_SCOPES.FOLLOWERS: return account.followedBy !== null;
+    case REVIEW_SCOPES.MUTUAL: return relationshipOf(account) === RELATIONSHIPS.MUTUAL;
+    case REVIEW_SCOPES.NOT_FOLLOWING_BACK: return relationshipOf(account) === RELATIONSHIPS.NOT_FOLLOWING_BACK;
+    case REVIEW_SCOPES.FOLLOWS_YOU_ONLY: return relationshipOf(account) === RELATIONSHIPS.FOLLOWS_YOU_ONLY;
+    case REVIEW_SCOPES.ALL_CURRENT: return account.following !== null || account.followedBy !== null;
+    case REVIEW_SCOPES.ALL_ACCOUNTS: return true;
   }
 }
 
 export function tagMatches(account: ReadonlyAccount, tag: TagFilter): boolean {
   switch (tag.kind) {
-    case "all": return true;
-    case "untagged": return account.review.tags.length === 0;
-    case "tag": return account.review.tags.includes(tag.tag);
+    case TAG_FILTER_KINDS.ALL: return true;
+    case TAG_FILTER_KINDS.UNTAGGED: return account.review.tags.length === 0;
+    case TAG_FILTER_KINDS.TAG: return account.review.tags.includes(tag.tag);
   }
 }
 
 export function reviewStatusMatches(account: ReadonlyAccount, status: ReviewStatusFilter): boolean {
   switch (status) {
-    case "all": return true;
-    case "reviewed": return account.review.reviewed;
-    case "needs_review": return !account.review.reviewed;
+    case REVIEW_STATUSES.ALL: return true;
+    case REVIEW_STATUSES.REVIEWED: return account.review.reviewed;
+    case REVIEW_STATUSES.NEEDS_REVIEW: return !account.review.reviewed;
   }
 }
 
@@ -68,7 +73,7 @@ export interface ScopeQuery {
 /** Generic so it returns mutable accounts when given mutable ones (reducers) and readonly ones otherwise. */
 export function reviewScopeAccounts<A extends ReadonlyAccount>(
   source: { readonly accounts: Readonly<Record<string, A>> },
-  { scope, tag = { kind: "all" }, reviewStatus = "all", query = "" }: ScopeQuery,
+  { scope, tag = ALL_TAGS, reviewStatus = REVIEW_STATUSES.ALL, query = "" }: ScopeQuery,
 ): A[] {
   return Object.values(source.accounts).filter(account =>
     scopeMatches(account, scope) &&
@@ -78,9 +83,9 @@ export function reviewScopeAccounts<A extends ReadonlyAccount>(
   );
 }
 
-/** WRITE: only `reviewed` changes; last_reviewed_at, tags, notes, flags and actions are kept. Returns the count reset. */
-export function resetReviewedForScope(source: Pick<Master, "accounts">, { scope, tag = { kind: "all" } }: { scope: ReviewScope; tag?: TagFilter }): number {
-  const targets = reviewScopeAccounts(source, { scope, tag, reviewStatus: "reviewed" });
+/** WRITE: only `reviewed` changes; lastReviewedAt, tags, notes, flags and actions are kept. Returns the count reset. */
+export function resetReviewedForScope(source: Pick<Master, "accounts">, { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter }): number {
+  const targets = reviewScopeAccounts(source, { scope, tag, reviewStatus: REVIEW_STATUSES.REVIEWED });
   for (const account of targets) account.review.reviewed = false;
   return targets.length;
 }
@@ -96,13 +101,16 @@ export interface RelationshipStats {
 
 export function relationshipStats(source: DeepReadonly<Pick<Master, "accounts">>): RelationshipStats {
   const stats: RelationshipStats = { following: 0, followers: 0, mutual: 0, notFollowingBack: 0, followsYouOnly: 0, currentAccounts: 0 };
-  for (const { current } of Object.values(source.accounts)) {
-    if (current.you_follow) stats.following += 1;
-    if (current.follows_you) stats.followers += 1;
-    if (current.relationship === "mutual") stats.mutual += 1;
-    if (current.relationship === "not_following_back") stats.notFollowingBack += 1;
-    if (current.relationship === "follows_you_only") stats.followsYouOnly += 1;
-    if (current.you_follow || current.follows_you) stats.currentAccounts += 1;
+  for (const account of Object.values(source.accounts)) {
+    if (account.following) stats.following += 1;
+    if (account.followedBy) stats.followers += 1;
+    if (account.following || account.followedBy) stats.currentAccounts += 1;
+    switch (relationshipOf(account)) {
+      case RELATIONSHIPS.MUTUAL: stats.mutual += 1; break;
+      case RELATIONSHIPS.NOT_FOLLOWING_BACK: stats.notFollowingBack += 1; break;
+      case RELATIONSHIPS.FOLLOWS_YOU_ONLY: stats.followsYouOnly += 1; break;
+      case RELATIONSHIPS.NEITHER: break;
+    }
   }
   return stats;
 }
@@ -114,13 +122,13 @@ export interface ScopeStats {
   unavailable: number;
 }
 
-export function reviewScopeStats(source: DeepReadonly<Pick<Master, "accounts">>, { scope, tag = { kind: "all" } }: { scope: ReviewScope; tag?: TagFilter }): ScopeStats {
+export function reviewScopeStats(source: DeepReadonly<Pick<Master, "accounts">>, { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter }): ScopeStats {
   const scoped = reviewScopeAccounts(source, { scope, tag });
   const reviewed = scoped.filter(a => a.review.reviewed).length;
   return {
     total: scoped.length,
     reviewed,
     needsReview: scoped.length - reviewed,
-    unavailable: scoped.filter(a => a.review.deleted_or_unavailable).length,
+    unavailable: scoped.filter(a => a.review.unavailable).length,
   };
 }

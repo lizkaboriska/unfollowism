@@ -7,6 +7,7 @@ import {
   createDict,
   markPending,
   markReviewed,
+  REVIEW_STATUSES,
   reviewStatusMatches,
   scopeMatches,
   tagMatches,
@@ -17,6 +18,7 @@ import {
   type ReviewScope,
   type TagFilter,
 } from "../core/index.ts";
+import { IMPORT_STATUSES, SAVE_STATUSES, type ImportStatus, type SaveStatus } from "./statuses.ts";
 import { importPrepared, restoreTab, saveMaster } from "./thunks.ts";
 
 /**
@@ -28,13 +30,13 @@ export interface MasterState {
   base: Master | null;
   /** Account key → current version of every account edited since the import. */
   changed: Record<string, Account>;
-  /** last_saved_at of the master (from the imported file, then from each save). */
+  /** lastSavedAt of the master (from the imported file, then from each save). */
   savedAt: string | null;
   /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
   revision: number;
   savedRevision: number;
-  importStatus: "idle" | "importing";
-  saveStatus: "idle" | "saving";
+  importStatus: ImportStatus;
+  saveStatus: SaveStatus;
   message: string;
   /** Browser storage failed: unsaved work won't survive closing the tab. */
   persistenceFailed: boolean;
@@ -46,8 +48,8 @@ const initialState: MasterState = {
   savedAt: null,
   revision: 0,
   savedRevision: 0,
-  importStatus: "idle",
-  saveStatus: "idle",
+  importStatus: IMPORT_STATUSES.IDLE,
+  saveStatus: SAVE_STATUSES.IDLE,
   message: "",
   persistenceFailed: false,
 };
@@ -94,7 +96,7 @@ export const masterSlice = createSlice({
     setUnavailable: {
       reducer(state, { payload }: Stamped<{ username: string; unavailable: boolean }>) {
         editAccount(state, payload.username, account => {
-          account.review.deleted_or_unavailable = payload.unavailable;
+          account.review.unavailable = payload.unavailable;
           if (payload.unavailable) markReviewed(account, true, payload.at);
         });
       },
@@ -133,7 +135,7 @@ export const masterSlice = createSlice({
       let count = 0;
       for (const key of Object.keys(before.base.accounts)) {
         const account = accountOf(before.base.accounts, before.changed, key);
-        if (!account || !scopeMatches(account, payload.scope) || !tagMatches(account, payload.tag) || !reviewStatusMatches(account, "reviewed")) continue;
+        if (!account || !scopeMatches(account, payload.scope) || !tagMatches(account, payload.tag) || !reviewStatusMatches(account, REVIEW_STATUSES.REVIEWED)) continue;
         if (editOne(state, key, a => { a.review.reviewed = false; })) count += 1;
       }
       if (count > 0) state.revision += 1;
@@ -154,25 +156,25 @@ export const masterSlice = createSlice({
         state.message = payload.message;
       })
       .addCase(importPrepared.pending, state => {
-        state.importStatus = "importing";
+        state.importStatus = IMPORT_STATUSES.IMPORTING;
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
-        state.importStatus = "idle";
+        state.importStatus = IMPORT_STATUSES.IDLE;
         state.base = payload.result.master;
         state.changed = createDict<Account>();
-        state.savedAt = payload.result.master.last_saved_at ?? null;
+        state.savedAt = payload.result.master.lastSavedAt ?? null;
         state.revision = 0;
         state.savedRevision = payload.result.dirty ? -1 : 0;
         state.message = payload.message;
       })
       .addCase(importPrepared.rejected, state => {
-        state.importStatus = "idle";
+        state.importStatus = IMPORT_STATUSES.IDLE;
       })
       .addCase(saveMaster.pending, state => {
-        state.saveStatus = "saving";
+        state.saveStatus = SAVE_STATUSES.SAVING;
       })
       .addCase(saveMaster.fulfilled, (state, { payload }) => {
-        state.saveStatus = "idle";
+        state.saveStatus = SAVE_STATUSES.IDLE;
         state.savedRevision = payload.revision;
         state.savedAt = payload.savedAt;
         state.message = state.revision === payload.revision
@@ -181,7 +183,7 @@ export const masterSlice = createSlice({
       })
       .addCase(saveMaster.rejected, (state, { payload, meta }) => {
         if (meta.condition) return; // a save was already running
-        state.saveStatus = "idle";
+        state.saveStatus = SAVE_STATUSES.IDLE;
         state.message = `Could not save master: ${payload ?? "unexpected error"}`;
       });
   },

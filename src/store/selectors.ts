@@ -3,6 +3,7 @@ import {
   accountOf,
   actionStats,
   buildSessionDiff,
+  summarizeSession,
   createDict,
   queryMatches,
   relationshipStats,
@@ -13,6 +14,8 @@ import {
   type Account,
   type ActionStats,
   type DeepReadonly,
+  type ReadonlyAccount,
+  type ReadonlyAccounts,
   type Master,
   type ScopeStats,
 } from "../core/index.ts";
@@ -20,8 +23,8 @@ import { CHANGE_VIEWS } from "./filtersSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
-type RAccount = DeepReadonly<Account>;
-type RAccounts = DeepReadonly<Record<string, Account>>;
+type RAccount = ReadonlyAccount;
+type RAccounts = ReadonlyAccounts;
 
 // Per-edit work below only looks at the edited accounts (`changed`); anything that needs
 // all accounts is computed once per import from `base`, which edits never touch.
@@ -36,7 +39,7 @@ export const selectHasProject = (s: RootState): boolean => s.master.base !== nul
 export const selectIsDirty = (s: RootState): boolean => s.master.base !== null && s.master.revision !== s.master.savedRevision;
 export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
   s.master.base ? accountOf<RAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
-export const selectTagOptions = (s: RootState): readonly string[] => s.master.base?.tag_options ?? EMPTY_TAGS;
+export const selectTagOptions = (s: RootState): readonly string[] => s.master.base?.tagOptions ?? EMPTY_TAGS;
 export const selectFilters = (s: RootState) => s.filters;
 const selectBaseAccounts = (s: RootState): RAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
@@ -65,7 +68,7 @@ export const selectScopeStats = createSelector(
       if (!account || !scopeMatches(account, scope) || !tagMatches(account, tag)) return;
       stats.total += sign;
       if (account.review.reviewed) stats.reviewed += sign;
-      if (account.review.deleted_or_unavailable) stats.unavailable += sign;
+      if (account.review.unavailable) stats.unavailable += sign;
     };
     for (const [key, account] of Object.entries(changed)) {
       count(base[key], -1);
@@ -85,8 +88,8 @@ export const selectActionStats = createSelector([selectBaseActionStats, selectBa
     const before = base[key];
     for (const [list, sign] of [[before?.actions, -1], [account.actions, 1]] as const) {
       if (!list) continue;
-      for (const type of list.pending) { stats.pending[type] += sign; stats.pending.total += sign; }
-      for (const type of list.confirmed) { stats.confirmed[type] += sign; stats.confirmed.total += sign; }
+      for (const type of list.pending) stats.pending[type] += sign;
+      for (const type of list.confirmed) stats.confirmed[type] += sign;
     }
   }
   return stats;
@@ -107,7 +110,7 @@ export const selectVisibleAccountKeys = createSelector(
     keys.filter(key => {
       const account = accountOf(base, changed, key);
       return !!account &&
-        (filters.changeView === CHANGE_VIEWS.CURRENT ? scopeMatches(account, filters.scope) : account.follower_change === filters.changeView) &&
+        (filters.changeView === CHANGE_VIEWS.CURRENT ? scopeMatches(account, filters.scope) : account.followerChange === filters.changeView) &&
         reviewStatusMatches(account, filters.reviewStatus) &&
         tagMatches(account, filters.tag) &&
         queryMatches(account, filters.query);
@@ -122,5 +125,7 @@ export const selectSessionDiff = createSelector([selectBaseAccounts, selectChang
     const account = base[key];
     if (account) before[key] = account;
   }
-  return buildSessionDiff({ accounts: before }, { accounts: changed });
+  return buildSessionDiff(before, changed);
 });
+
+export const selectSessionSummary = createSelector([selectSessionDiff], summarizeSession);

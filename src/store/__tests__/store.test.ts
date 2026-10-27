@@ -1,4 +1,6 @@
-import { parseMaster, toMasterFile } from "../../core/index.ts";
+import { ACTION_TYPES, REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
+
+const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
 import type { TabStore } from "../../io/tabStore.ts";
 import { CHANGE_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
@@ -12,7 +14,7 @@ import {
   selectVisibleAccountKeys,
 } from "../selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../thunks.ts";
-import { deferred, flushPersistence, makeTestStore, prepared, recordingTab } from "./testStore.ts";
+import { WRITES, deferred, flushPersistence, makeTestStore, prepared, recordingTab } from "./testStore.ts";
 
 async function importedStore(options: Parameters<typeof makeTestStore>[0] = {}) {
   const t = makeTestStore(options);
@@ -26,7 +28,7 @@ describe("import", () => {
   test("first import starts a dirty master whose baseline is the imported state", async () => {
     const { store } = await importedStore();
     const s = store.getState();
-    expect(s.master.base?.last_import_at).toBe("2026-10-27T12:00:00.000Z");
+    expect(s.master.base?.lastImportAt).toBe("2026-10-27T12:00:00.000Z");
     expect(Object.keys(s.master.changed)).toEqual([]); // the imported master is the session baseline
     expect(selectIsDirty(s)).toBe(true);
     expect(s.master.message).toMatch(/^Started a new master/);
@@ -53,21 +55,21 @@ describe("import", () => {
 
   test("a tag filter that no longer exists falls back to all tags", async () => {
     const t = makeTestStore();
-    t.store.dispatch(setTagFilter({ kind: "tag", tag: "nonexistent" }));
+    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: "nonexistent" }));
     await t.store.dispatch(importPrepared(prepared())).unwrap();
-    expect(t.store.getState().filters.tag).toEqual({ kind: "all" });
+    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL });
   });
 });
 
 describe("edits", () => {
-  test("reviewed: stamps last_reviewed_at; un-reviewing keeps it; unknown accounts are a no-op", async () => {
+  test("reviewed: stamps lastReviewedAt; un-reviewing keeps it; unknown accounts are a no-op", async () => {
     const t = await importedStore();
     const r0 = t.store.getState().master.revision;
     t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
-    const stamped = account(t, "bob").review.last_reviewed_at;
+    const stamped = account(t, "bob").review.lastReviewedAt;
     expect(stamped).not.toBeNull();
     t.store.dispatch(setReviewed({ username: "bob", reviewed: false }));
-    expect(account(t, "bob").review).toMatchObject({ reviewed: false, last_reviewed_at: stamped });
+    expect(account(t, "bob").review).toMatchObject({ reviewed: false, lastReviewedAt: stamped });
     expect(t.store.getState().master.revision).toBe(r0 + 2);
 
     t.store.dispatch(setReviewed({ username: "nobody", reviewed: true }));
@@ -77,23 +79,23 @@ describe("edits", () => {
   test("unavailable: marking also reviews; clearing does not un-review", async () => {
     const t = await importedStore();
     t.store.dispatch(setUnavailable({ username: "bob", unavailable: true }));
-    expect(account(t, "bob").review).toMatchObject({ deleted_or_unavailable: true, reviewed: true });
+    expect(account(t, "bob").review).toMatchObject({ unavailable: true, reviewed: true });
     t.store.dispatch(setUnavailable({ username: "bob", unavailable: false }));
-    expect(account(t, "bob").review).toMatchObject({ deleted_or_unavailable: false, reviewed: true });
+    expect(account(t, "bob").review).toMatchObject({ unavailable: false, reviewed: true });
   });
 
   test("actions: checking adds a pending action and reviews; unchecking cancels; ineligible is ignored", async () => {
     const t = await importedStore();
-    t.store.dispatch(setAction({ username: "bob", type: "unfollow", checked: true }));
-    expect(account(t, "bob").actions.pending).toEqual(["unfollow"]);
-    expect(selectActionStats(t.store.getState()).pending.total).toBe(1);
+    t.store.dispatch(setAction({ username: "bob", type: UNFOLLOW, checked: true }));
+    expect(account(t, "bob").actions.pending).toEqual([UNFOLLOW]);
+    expect(selectActionStats(t.store.getState()).pending[UNFOLLOW]).toBe(1);
     expect(account(t, "bob").review.reviewed).toBe(true);
 
-    t.store.dispatch(setAction({ username: "bob", type: "unfollow", checked: false }));
+    t.store.dispatch(setAction({ username: "bob", type: UNFOLLOW, checked: false }));
     expect(account(t, "bob").actions).toEqual({ pending: [], confirmed: [] });
 
     const r = t.store.getState().master.revision;
-    t.store.dispatch(setAction({ username: "bob", type: "remove_follower", checked: true })); // bob doesn't follow you
+    t.store.dispatch(setAction({ username: "bob", type: REMOVE_FOLLOWER, checked: true })); // bob doesn't follow you
     expect(t.store.getState().master.revision).toBe(r);
     expect(account(t, "bob").review.reviewed).toBe(true);
   });
@@ -118,11 +120,11 @@ describe("edits", () => {
     t.store.dispatch(toggleTag({ username: "alice", tag: "artist" }));
     t.store.dispatch(setQuery("zzz")); // ignored by reset
 
-    t.store.dispatch(resetScope({ scope: "mutual", tag: { kind: "all" } }));
+    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.MUTUAL, tag: { kind: TAG_FILTER_KINDS.ALL } }));
     expect(account(t, "alice").review).toMatchObject({ reviewed: false, tags: ["artist"] });
-    expect(account(t, "alice").review.last_reviewed_at).not.toBeNull();
+    expect(account(t, "alice").review.lastReviewedAt).not.toBeNull();
     expect(account(t, "bob").review.reviewed).toBe(true);
-    expect(t.store.getState().filters.reviewStatus).toBe("needs_review");
+    expect(t.store.getState().filters.reviewStatus).toBe(REVIEW_STATUSES.NEEDS_REVIEW);
   });
 });
 
@@ -135,13 +137,13 @@ describe("save", () => {
 
     const file = must(t.downloads[0]);
     expect(file.filename).toMatch(/^instagram_master_tracker_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
-    const saved = JSON.parse(file.text) as { last_saved_at: string };
-    expect(saved.last_saved_at).toBe("2026-10-27T14:05:09.000Z");
+    const saved = JSON.parse(file.text) as { lastSavedAt: string };
+    expect(saved.lastSavedAt).toBe("2026-10-27T14:05:09.000Z");
     expect(toMasterFile(parseMaster(saved))).toEqual(saved); // the file is exactly the saved format
 
     const s = t.store.getState();
     expect(selectIsDirty(s)).toBe(false);
-    expect(selectSessionDiff(s).changedAccounts).toBe(1);
+    expect(selectSessionDiff(s)).toHaveLength(1);
     expect(t.lastSaved.get()).toBe("2026-10-27T14:05:09.000Z");
   });
 
@@ -209,23 +211,23 @@ describe("reload safety net", () => {
     const t = makeTestStore({ tab });
     await t.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
-    expect(writes).toEqual([{ kind: "replace", accounts: [] }]);
+    expect(writes).toEqual([{ kind: WRITES.REPLACE, accounts: [] }]);
 
     t.store.dispatch(setNote({ username: "bob", note: "x" }));
     await flushPersistence();
-    t.store.dispatch(resetScope({ scope: "following", tag: { kind: "all" } })); // nothing reviewed: no change
+    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.FOLLOWING, tag: { kind: TAG_FILTER_KINDS.ALL } })); // nothing reviewed: no change
     t.store.dispatch(setReviewed({ username: "alice", reviewed: true }));
     t.store.dispatch(setReviewed({ username: "carol", reviewed: true }));
     await flushPersistence();
     expect(writes.slice(1)).toEqual([
-      { kind: "update", accounts: ["bob"] },
-      { kind: "update", accounts: ["alice"] }, // carol arrived during this write…
-      { kind: "update", accounts: ["carol"] }, // …and was folded into one follow-up
+      { kind: WRITES.UPDATE, accounts: ["bob"] },
+      { kind: WRITES.UPDATE, accounts: ["alice"] }, // carol arrived during this write…
+      { kind: WRITES.UPDATE, accounts: ["carol"] }, // …and was folded into one follow-up
     ]);
 
     await t.store.dispatch(saveMaster()).unwrap();
     await flushPersistence();
-    expect(writes.at(-1)).toEqual({ kind: "update", accounts: [] }); // saving only touches metadata
+    expect(writes.at(-1)).toEqual({ kind: WRITES.UPDATE, accounts: [] }); // saving only touches metadata
   });
 
   test("restoring after a reload writes nothing", async () => {
@@ -241,7 +243,7 @@ describe("reload safety net", () => {
 
     reloaded.store.dispatch(setNote({ username: "bob", note: "after reload" }));
     await flushPersistence();
-    expect(writes).toEqual([{ kind: "update", accounts: ["bob"] }]);
+    expect(writes).toEqual([{ kind: WRITES.UPDATE, accounts: ["bob"] }]);
   });
 
   test("a new import replaces what was stored for the tab", async () => {
@@ -258,7 +260,7 @@ describe("reload safety net", () => {
 
   test("unusable stored data is ignored", async () => {
     const t = makeTestStore();
-    await t.tab.replace({ version: 1, last_import_at: "x", tag_options: [], accounts: { bob: { username: "" } } }, {
+    await t.tab.replace({ version: 1, lastImportAt: "x", tagOptions: [], accounts: { bob: { username: "" } } }, {
       revision: 1, savedRevision: 0, message: "", storedAt: "x",
     }, {});
     expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
@@ -285,15 +287,15 @@ describe("selectors", () => {
     const keys = () => selectVisibleAccountKeys(t.store.getState());
     expect(keys()).toEqual(["alice", "bob", "carol"]); // I follow
 
-    t.store.dispatch(setScope("followers"));
+    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS));
     expect(keys()).toEqual(["alice", "dave"]);
-    t.store.dispatch(setScope("all_current"));
+    t.store.dispatch(setScope(REVIEW_SCOPES.ALL_CURRENT));
     t.store.dispatch(toggleTag({ username: "dave", tag: "artist" }));
-    t.store.dispatch(setTagFilter({ kind: "tag", tag: "artist" }));
+    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: "artist" }));
     expect(keys()).toEqual(["dave"]);
-    t.store.dispatch(setTagFilter({ kind: "untagged" }));
+    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
     t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
-    t.store.dispatch(setReviewStatus("needs_review"));
+    t.store.dispatch(setReviewStatus(REVIEW_STATUSES.NEEDS_REVIEW));
     expect(keys()).toEqual(["alice", "carol"]);
     t.store.dispatch(setQuery(" CAR "));
     expect(keys()).toEqual(["carol"]);
@@ -305,7 +307,7 @@ describe("selectors", () => {
     const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
     await t.store.dispatch(importPrepared(prepared({ master: saved, following: [["alice"], ["erin"]], followers: [["alice"], ["erin"]] }))).unwrap();
 
-    t.store.dispatch(setScope("following"));
+    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWING));
     t.store.dispatch(setChangeView(CHANGE_VIEWS.LOST_FOLLOWERS));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["dave"]);
     t.store.dispatch(setChangeView(CHANGE_VIEWS.NEW_FOLLOWERS));

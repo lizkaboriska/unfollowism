@@ -1,11 +1,16 @@
 import { ImportError, isRecord, parseFollowersJson, parseFollowingJson, type ExportBundle } from "../core/index.ts";
 import type { InputText } from "./readInputs.ts";
 
+export const IMPORT_WARNINGS = {
+  MASTER_OLDER_THAN_LAST_SAVE: "masterOlderThanLastSave",
+  NO_MASTER_BUT_SAVED_BEFORE: "noMasterButSavedBefore",
+} as const;
+
 export type ImportWarning =
   /** The chosen master was saved before the last save made in this browser. */
-  | { kind: "master_older_than_last_save"; fileSavedAt: string | null; lastKnownSavedAt: string }
+  | { kind: typeof IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE; fileSavedAt: string | null; lastKnownSavedAt: string }
   /** No master chosen, but this browser has saved one before: review history would start over. */
-  | { kind: "no_master_but_saved_before"; lastKnownSavedAt: string };
+  | { kind: typeof IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE; lastKnownSavedAt: string };
 
 /** Everything needed to run importExport(), produced before anything touches the store. */
 export interface PreparedImport {
@@ -93,11 +98,11 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
   const warnings: ImportWarning[] = [];
   if (lastKnownSavedAt) {
     if (!master) {
-      warnings.push({ kind: "no_master_but_saved_before", lastKnownSavedAt });
+      warnings.push({ kind: IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE, lastKnownSavedAt });
     } else {
-      const fileSavedAt = typeof master.data.last_saved_at === "string" ? master.data.last_saved_at : null;
+      const fileSavedAt = typeof master.data.lastSavedAt === "string" ? master.data.lastSavedAt : null;
       if (!fileSavedAt || Date.parse(fileSavedAt) < Date.parse(lastKnownSavedAt)) {
-        warnings.push({ kind: "master_older_than_last_save", fileSavedAt, lastKnownSavedAt });
+        warnings.push({ kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE, fileSavedAt, lastKnownSavedAt });
       }
     }
   }

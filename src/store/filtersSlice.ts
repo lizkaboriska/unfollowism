@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { FOLLOWER_CHANGES, type Master, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
+import { FOLLOWER_CHANGES, REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type Master, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
 import { resetScope } from "./masterSlice.ts";
 import { importPrepared, restoreTab } from "./thunks.ts";
 
@@ -12,20 +12,20 @@ export interface FiltersState {
   reviewStatus: ReviewStatusFilter;
   tag: TagFilter;
   query: string;
-  /** "current" = review queue; the others list who started/stopped following you in the latest import. */
+  /** CURRENT = review queue; the others list who started/stopped following you in the latest import. */
   changeView: ChangeView;
 }
 
 const initialState: FiltersState = {
-  scope: "following",
-  reviewStatus: "all",
-  tag: { kind: "all" },
+  scope: REVIEW_SCOPES.FOLLOWING,
+  reviewStatus: REVIEW_STATUSES.ALL,
+  tag: { kind: TAG_FILTER_KINDS.ALL },
   query: "",
   changeView: CHANGE_VIEWS.CURRENT,
 };
 
 function dropUnknownTag(state: FiltersState, master: Master): void {
-  if (state.tag.kind === "tag" && !master.tag_options.includes(state.tag.tag)) state.tag = { kind: "all" };
+  if (state.tag.kind === TAG_FILTER_KINDS.TAG && !master.tagOptions.includes(state.tag.tag)) state.tag = { kind: TAG_FILTER_KINDS.ALL };
 }
 
 export const filtersSlice = createSlice({
@@ -52,7 +52,7 @@ export const filtersSlice = createSlice({
     builder
       // After a reset, show what now needs review.
       .addCase(resetScope, state => {
-        state.reviewStatus = "needs_review";
+        state.reviewStatus = REVIEW_STATUSES.NEEDS_REVIEW;
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         dropUnknownTag(state, payload.result.master);
