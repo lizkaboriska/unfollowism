@@ -4,27 +4,30 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { Provider } from "react-redux";
 import { App } from "./App.tsx";
 import { followersFile, followingFile } from "./core/__tests__/helpers.ts";
-import { createMemorySessionStore } from "./io/sessionStore.ts";
+import { memoryLastSaved } from "./io/lastSaved.ts";
+import { openIndexedDbTabDatabase } from "./io/tabStore.ts";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { StoreDeps } from "./store/deps.ts";
 import { makeStore } from "./store/index.ts";
 import { system } from "./theme.ts";
 
-function renderApp() {
+function renderApp(tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab("tab-1")) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now: () => new Date("2026-10-27T12:00:00.000Z"),
     download: (filename, text) => { downloads.push({ filename, text }); },
-    sessionStore: createMemorySessionStore(),
+    tab,
+    lastSaved: memoryLastSaved(),
   };
   const store = makeStore(deps);
-  render(
+  const view = render(
     <ChakraProvider value={system}>
       <Provider store={store}>
         <App deps={deps} />
       </Provider>
     </ChakraProvider>,
   );
-  return { downloads, user: userEvent.setup() };
+  return { downloads, user: userEvent.setup(), unmount: view.unmount, tab };
 }
 
 const exportFiles = () => [
@@ -65,4 +68,21 @@ test("a broken selection shows a readable error", async () => {
   const { user } = renderApp();
   await user.upload(screen.getByTestId("file-input"), [new File(["[]"], "liked_posts.json", { type: "application/json" })]);
   expect(await screen.findByText(/No Instagram followers\/following files found/)).toBeInTheDocument();
+});
+
+test("a reload silently continues where the tab left off", async () => {
+  const first = renderApp();
+  await first.user.upload(screen.getByTestId("file-input"), exportFiles());
+  const bobRow = (await screen.findByText("@bob")).closest("div")?.parentElement;
+  if (!bobRow) throw new Error("row not found");
+  await first.user.click(within(bobRow).getByText("Reviewed"));
+  await new Promise(resolve => setTimeout(resolve, 20)); // let the storage write finish
+  first.unmount();
+
+  renderApp(first.tab); // same tab storage, fresh page
+  expect(await screen.findByText("@bob")).toBeInTheDocument();
+  expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  const restoredRow = screen.getByText("@bob").closest("div")?.parentElement;
+  if (!restoredRow) throw new Error("row not found");
+  expect(within(restoredRow).getByRole("checkbox")).toBeChecked();
 });

@@ -4,7 +4,9 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { Provider } from "react-redux";
 import { App } from "./App.tsx";
 import { downloadText } from "./io/download.ts";
-import { createIndexedDbSessionStore, createMemorySessionStore } from "./io/sessionStore.ts";
+import { localStorageLastSaved } from "./io/lastSaved.ts";
+import { browserTabEnvironment, claimTab } from "./io/tabIdentity.ts";
+import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from "./io/tabStore.ts";
 import type { StoreDeps } from "./store/deps.ts";
 import { makeStore } from "./store/index.ts";
 import { system } from "./theme.ts";
@@ -12,11 +14,22 @@ import { system } from "./theme.ts";
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
 
+/** This tab's reload safety net; falls back to memory (no reload survival) if browser storage is unavailable. */
+async function openTabStore(): Promise<TabStore> {
+  try {
+    if (typeof indexedDB === "undefined") throw new Error("IndexedDB unavailable");
+    const database = openIndexedDbTabDatabase();
+    return database.forTab(await claimTab(database, browserTabEnvironment()));
+  } catch {
+    return createMemoryTabDatabase().forTab("memory");
+  }
+}
+
 const deps: StoreDeps = {
   now: () => new Date(),
   download: downloadText,
-  // Some private-browsing modes have no IndexedDB; the app still works, just without resume.
-  sessionStore: typeof indexedDB === "undefined" ? createMemorySessionStore() : createIndexedDbSessionStore(),
+  tab: await openTabStore(),
+  lastSaved: localStorageLastSaved(),
 };
 const store = makeStore(deps);
 

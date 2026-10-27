@@ -2,17 +2,20 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   ImportError,
   MasterFormatError,
+  createDict,
+  fromAccountRecord,
   buildImportMessage,
   importExport,
   parseMaster,
   stringifyMasterFile,
   toMasterFile,
+  type Account,
   type ImportResult,
   type Master,
 } from "../core/index.ts";
 import type { PreparedImport } from "../io/analyzeImport.ts";
 import { masterFileName } from "../io/download.ts";
-import type { StoredSession } from "../io/sessionStore.ts";
+import type { StoredTab } from "../io/tabStore.ts";
 import type { StoreDeps } from "./deps.ts";
 import type { AppDispatch, RootState } from "./index.ts";
 
@@ -54,7 +57,7 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     const savedAt = now.toISOString();
     const filename = masterFileName(now);
     await extra.download(filename, serializeMaster(master, savedAt));
-    await extra.sessionStore.setLastSavedAt(savedAt).catch(() => undefined); // best effort
+    extra.lastSaved.set(savedAt);
     return { savedAt, revision, filename };
   },
   { condition: (_, { getState }) => getState().master.saveStatus !== "saving" },
@@ -67,28 +70,38 @@ export interface RestoredSession {
   savedRevision: number;
   pendingSnapshot: boolean;
   message: string;
-  storedAt: string;
 }
 
-/** Re-validates a stored draft through the single parseMaster entry point. Null if unusable. */
-export function reviveSession(stored: StoredSession): RestoredSession | null {
+/**
+ * Rebuilds the working state from what this tab stored: the imported master (= baseline)
+ * with the changed accounts applied on top. Everything goes through the strict readers.
+ * Null if the stored data is unusable.
+ */
+export function reviveTab(stored: StoredTab): RestoredSession | null {
   try {
+    const baseline = parseMaster(stored.base);
+    const accounts = createDict<Account>();
+    for (const [key, account] of Object.entries(baseline.accounts)) accounts[key] = account; // unchanged accounts are shared
+    for (const [key, record] of Object.entries(stored.changed)) accounts[key] = fromAccountRecord(record, `changed.${key}`);
+    const { meta } = stored;
+    const master: Master = { ...baseline, accounts, tag_options: [...meta.tag_options] };
+    if (meta.last_saved_at === undefined) delete master.last_saved_at;
+    else master.last_saved_at = meta.last_saved_at;
     return {
-      master: parseMaster(stored.master),
-      baseline: parseMaster(stored.baseline),
-      revision: stored.revision,
-      savedRevision: stored.savedRevision,
-      pendingSnapshot: stored.pendingSnapshot,
-      message: stored.message,
-      storedAt: stored.storedAt,
+      master,
+      baseline,
+      revision: meta.revision,
+      savedRevision: meta.savedRevision,
+      pendingSnapshot: meta.pendingSnapshot,
+      message: meta.message,
     };
   } catch {
     return null;
   }
 }
 
-/** Reads the stored draft (if any) without applying it; the UI asks before resuming. */
-export const loadStoredSession = createAppThunk<RestoredSession | null, undefined>("master/loadStored", async (_, { extra }) => {
-  const stored = await extra.sessionStore.loadSession().catch(() => null);
-  return stored ? reviveSession(stored) : null;
+/** After a reload: puts back whatever this tab was working on (nothing if it's a new tab). */
+export const restoreTab = createAppThunk<RestoredSession | null, undefined>("master/restoreTab", async (_, { extra }) => {
+  const stored = await extra.tab.load().catch(() => null);
+  return stored ? reviveTab(stored) : null;
 });

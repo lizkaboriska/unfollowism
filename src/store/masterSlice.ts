@@ -12,7 +12,7 @@ import {
   type ReviewScope,
   type TagFilter,
 } from "../core/index.ts";
-import { importPrepared, saveMaster, type RestoredSession } from "./thunks.ts";
+import { importPrepared, restoreTab, saveMaster } from "./thunks.ts";
 
 export interface MasterState {
   master: Master | null;
@@ -108,20 +108,21 @@ export const masterSlice = createSlice({
       if (!state.master) return;
       if (resetReviewedForScope(state.master, payload) > 0) state.revision += 1;
     },
-    restoreSession(state, { payload }: PayloadAction<RestoredSession>) {
-      state.master = payload.master;
-      state.baseline = payload.baseline;
-      state.revision = payload.revision;
-      state.savedRevision = payload.savedRevision;
-      state.pendingSnapshot = payload.pendingSnapshot;
-      state.message = payload.message;
-    },
     persistenceFailed(state) {
       state.persistenceFailed = true;
     },
   },
   extraReducers: builder => {
     builder
+      .addCase(restoreTab.fulfilled, (state, { payload }) => {
+        if (!payload || state.master) return; // nothing stored, or the user already imported meanwhile
+        state.master = payload.master;
+        state.baseline = payload.baseline;
+        state.revision = payload.revision;
+        state.savedRevision = payload.savedRevision;
+        state.pendingSnapshot = payload.pendingSnapshot;
+        state.message = payload.message;
+      })
       .addCase(importPrepared.pending, state => {
         state.importStatus = "importing";
       })
@@ -157,4 +158,4 @@ export const masterSlice = createSlice({
   },
 });
 
-export const { setReviewed, setUnavailable, toggleTag, setNote, setAction, resetScope, restoreSession, persistenceFailed } = masterSlice.actions;
+export const { setReviewed, setUnavailable, toggleTag, setNote, setAction, resetScope, persistenceFailed } = masterSlice.actions;

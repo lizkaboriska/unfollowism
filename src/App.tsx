@@ -4,9 +4,9 @@ import { analyzeImport, type ImportWarning, type PreparedImport } from "./io/ana
 import { readInputs } from "./io/readInputs.ts";
 import type { StoreDeps } from "./store/deps.ts";
 import { useAppDispatch, useAppSelector } from "./store/hooks.ts";
-import { restoreSession, setReviewed } from "./store/masterSlice.ts";
+import { setReviewed } from "./store/masterSlice.ts";
 import { selectAccount, selectHasProject, selectIsDirty, selectRelationshipStats, selectVisibleAccountKeys } from "./store/selectors.ts";
-import { importPrepared, loadStoredSession, saveMaster, type RestoredSession } from "./store/thunks.ts";
+import { importPrepared, restoreTab, saveMaster } from "./store/thunks.ts";
 
 // MVP shell: proves import → review → save works end to end. The real UI comes next.
 
@@ -51,22 +51,21 @@ export function App({ deps }: { deps: StoreDeps }) {
   const dirty = useAppSelector(selectIsDirty);
   const message = useAppSelector(s => s.master.message);
   const importing = useAppSelector(s => s.master.importStatus === "importing");
-  const storageFailed = useAppSelector(s => s.master.persistenceFailed);
+  const storageFailed = useAppSelector(s => s.master.persistenceFailed) || !deps.tab.durable;
   const stats = useAppSelector(selectRelationshipStats);
   const keys = useAppSelector(selectVisibleAccountKeys);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [awaitingConfirm, setAwaitingConfirm] = useState<PreparedImport | null>(null);
-  const [stored, setStored] = useState<RestoredSession | null>(null);
 
+  // After a reload, silently continue where this tab left off.
   useEffect(() => {
-    void dispatch(loadStoredSession()).unwrap().then(setStored);
+    void dispatch(restoreTab());
   }, [dispatch]);
 
   async function apply(prepared: PreparedImport) {
     setAwaitingConfirm(null);
-    setStored(null);
     try {
       await dispatch(importPrepared(prepared)).unwrap();
     } catch (e) {
@@ -80,7 +79,7 @@ export function App({ deps }: { deps: StoreDeps }) {
     if (!files.length) return;
     setError(null);
     try {
-      const prepared = analyzeImport(await readInputs(files), await deps.sessionStore.getLastSavedAt().catch(() => null));
+      const prepared = analyzeImport(await readInputs(files), deps.lastSaved.get());
       if (prepared.warnings.length) setAwaitingConfirm(prepared);
       else await apply(prepared);
     } catch (e) {
@@ -112,21 +111,6 @@ export function App({ deps }: { deps: StoreDeps }) {
           Nothing leaves your browser.
         </Text>
 
-        {stored && !hasProject && (
-          <Alert.Root status="info">
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Title>Unfinished session from {new Date(stored.storedAt).toLocaleString()}</Alert.Title>
-              <Alert.Description>
-                <HStack mt="2">
-                  <Button size="sm" onClick={() => { dispatch(restoreSession(stored)); setStored(null); }}>Resume</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setStored(null); }}>Dismiss</Button>
-                </HStack>
-              </Alert.Description>
-            </Alert.Content>
-          </Alert.Root>
-        )}
-
         {awaitingConfirm && (
           <Alert.Root status="warning">
             <Alert.Indicator />
@@ -143,10 +127,10 @@ export function App({ deps }: { deps: StoreDeps }) {
           </Alert.Root>
         )}
 
-        {storageFailed && (
+        {storageFailed && hasProject && (
           <Alert.Root status="warning">
             <Alert.Indicator />
-            <Alert.Title>This browser isn't keeping your work. Save master before closing the tab.</Alert.Title>
+            <Alert.Title>This browser isn't keeping your work: a reload would lose it. Save master to be safe.</Alert.Title>
           </Alert.Root>
         )}
 

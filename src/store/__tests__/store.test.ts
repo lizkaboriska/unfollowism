@@ -1,8 +1,8 @@
 import { parseMaster, toMasterFile } from "../../core/index.ts";
 import { must } from "../../core/__tests__/helpers.ts";
-import { createMemorySessionStore, type SessionStore, type StoredSession } from "../../io/sessionStore.ts";
+import type { TabStore } from "../../io/tabStore.ts";
 import { setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
-import { resetScope, restoreSession, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
+import { resetScope, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
   selectAccount,
   selectIsDirty,
@@ -11,8 +11,8 @@ import {
   selectSessionDiff,
   selectVisibleAccountKeys,
 } from "../selectors.ts";
-import { importPrepared, loadStoredSession, saveMaster } from "../thunks.ts";
-import { deferred, flushPersistence, makeTestStore, prepared } from "./testStore.ts";
+import { importPrepared, restoreTab, saveMaster } from "../thunks.ts";
+import { deferred, flushPersistence, makeTestStore, prepared, recordingTab } from "./testStore.ts";
 
 async function importedStore(options: Parameters<typeof makeTestStore>[0] = {}) {
   const t = makeTestStore(options);
@@ -145,7 +145,7 @@ describe("save", () => {
     expect(selectIsDirty(s)).toBe(false);
     expect(s.master.pendingSnapshot).toBe(false);
     expect(selectSessionDiff(s).changedAccounts).toBe(1);
-    expect(await t.sessionStore.getLastSavedAt()).toBe("2026-10-27T14:05:09.000Z");
+    expect(t.lastSaved.get()).toBe("2026-10-27T14:05:09.000Z");
   });
 
   test("edits made while saving stay unsaved", async () => {
@@ -182,76 +182,102 @@ describe("save", () => {
   });
 });
 
-describe("browser storage", () => {
-  test("unsaved work is stored and can be resumed with its baseline", async () => {
+describe("reload safety net", () => {
+  test("a reload puts back the work, including the session baseline", async () => {
     const t = await importedStore();
     t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
     t.store.dispatch(toggleTag({ username: "bob", tag: "artist" }));
     await flushPersistence();
 
-    const t2 = makeTestStore({ sessionStore: t.sessionStore });
-    const restored = must(await t2.store.dispatch(loadStoredSession()).unwrap());
-    t2.store.dispatch(restoreSession(restored));
-    const s = t2.store.getState();
+    const reloaded = makeTestStore({ tab: t.tab });
+    await reloaded.store.dispatch(restoreTab());
+    const before = t.store.getState();
+    const after = reloaded.store.getState();
 
-    expect(selectIsDirty(s)).toBe(true);
-    expect(selectSessionDiff(s).summary).toEqual(selectSessionDiff(t.store.getState()).summary);
-    expect(selectVisibleAccountKeys(s)).toEqual(selectVisibleAccountKeys(t.store.getState()));
+    expect(selectIsDirty(after)).toBe(true);
+    expect(after.master.revision).toBe(before.master.revision);
+    expect(JSON.parse(JSON.stringify(after.master.master))).toEqual(JSON.parse(JSON.stringify(before.master.master)));
+    expect(selectSessionDiff(after)).toEqual(selectSessionDiff(before));
   });
 
-  test("every change is written right away; changes during a write are coalesced into one follow-up write", async () => {
-    const memory = createMemorySessionStore();
-    const writes: StoredSession[] = [];
-    let gate = deferred();
-    const slowStore: SessionStore = {
-      ...memory,
-      saveSession: async session => {
-        writes.push(structuredClone(session));
-        await gate.promise;
-        await memory.saveSession(session);
-      },
-    };
-    const t = makeTestStore({ sessionStore: slowStore });
+  test("a new tab (nothing stored) starts empty", async () => {
+    const { store } = makeTestStore();
+    expect(await store.dispatch(restoreTab()).unwrap()).toBeNull();
+    expect(store.getState().master.master).toBeNull();
+  });
+
+  test("import stores the master once; each edit stores only the accounts it changed", async () => {
+    const { tab, writes } = recordingTab();
+    const t = makeTestStore({ tab });
     await t.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
-    expect(writes).toHaveLength(1); // the import, started immediately
+    expect(writes).toEqual([{ kind: "replace", accounts: [] }]);
 
-    // Three edits while that write is still in progress…
-    t.store.dispatch(setNote({ username: "bob", note: "a" }));
-    t.store.dispatch(setNote({ username: "bob", note: "ab" }));
-    t.store.dispatch(setNote({ username: "bob", note: "abc" }));
-    const first = gate;
-    gate = deferred();
-    first.resolve();
+    t.store.dispatch(setNote({ username: "bob", note: "x" }));
     await flushPersistence();
-    gate.resolve();
+    t.store.dispatch(resetScope({ scope: "following", tag: { kind: "all" } })); // nothing reviewed: no change
+    t.store.dispatch(setReviewed({ username: "alice", reviewed: true }));
+    t.store.dispatch(setReviewed({ username: "carol", reviewed: true }));
     await flushPersistence();
+    expect(writes.slice(1)).toEqual([
+      { kind: "update", accounts: ["bob"] },
+      { kind: "update", accounts: ["alice"] }, // carol arrived during this write…
+      { kind: "update", accounts: ["carol"] }, // …and was folded into one follow-up
+    ]);
 
-    // …become exactly one more write, holding the latest state.
-    expect(writes).toHaveLength(2);
-    const stored = must(await memory.loadSession());
-    expect((stored.master as { accounts: Record<string, { review: { notes: string } }> }).accounts.bob?.review.notes).toBe("abc");
+    await t.store.dispatch(saveMaster()).unwrap();
+    await flushPersistence();
+    expect(writes.at(-1)).toEqual({ kind: "update", accounts: [] }); // saving only touches metadata
   });
 
-  test("a corrupt stored draft is ignored", async () => {
+  test("restoring after a reload writes nothing", async () => {
+    const first = await importedStore();
+    first.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    await flushPersistence();
+
+    const { tab, writes } = recordingTab(first.tab);
+    const reloaded = makeTestStore({ tab });
+    await reloaded.store.dispatch(restoreTab());
+    await flushPersistence();
+    expect(writes).toEqual([]);
+
+    reloaded.store.dispatch(setNote({ username: "bob", note: "after reload" }));
+    await flushPersistence();
+    expect(writes).toEqual([{ kind: "update", accounts: ["bob"] }]);
+  });
+
+  test("a new import replaces what was stored for the tab", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setNote({ username: "bob", note: "old session" }));
+    await flushPersistence();
+    await t.store.dispatch(importPrepared(prepared({ following: [["zed"]], followers: [["zed"]] }))).unwrap();
+    await flushPersistence();
+
+    const stored = must(await t.tab.load());
+    expect(Object.keys(stored.changed)).toEqual([]);
+    expect(Object.keys((stored.base as { accounts: object }).accounts)).toEqual(["zed"]);
+  });
+
+  test("unusable stored data is ignored", async () => {
     const t = makeTestStore();
-    await t.sessionStore.saveSession({ master: { nope: 1 }, baseline: {}, revision: 1, savedRevision: 0, pendingSnapshot: false, message: "", storedAt: "x" });
-    expect(await t.store.dispatch(loadStoredSession()).unwrap()).toBeNull();
+    await t.tab.replace({ version: 1, tag_options: [], snapshot: { captured_at: "x" }, accounts: { bob: { username: "" } } }, {
+      revision: 1, savedRevision: 0, pendingSnapshot: false, message: "", tag_options: [], storedAt: "x",
+    }, {});
+    expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
   });
 
-  test("storage failures are surfaced, not swallowed", async () => {
-    const failing: SessionStore = {
-      loadSession: () => Promise.reject(new Error("no idb")),
-      saveSession: () => Promise.reject(new Error("quota")),
-      clearSession: () => Promise.resolve(),
-      getLastSavedAt: () => Promise.resolve(null),
-      setLastSavedAt: () => Promise.reject(new Error("quota")),
+  test("storage failures are surfaced, not swallowed, and saving still works", async () => {
+    const failing: TabStore = {
+      durable: true,
+      load: () => Promise.reject(new Error("no idb")),
+      replace: () => Promise.reject(new Error("quota")),
+      update: () => Promise.reject(new Error("quota")),
     };
-    const t = await importedStore({ sessionStore: failing });
+    const t = await importedStore({ tab: failing });
     await flushPersistence();
     expect(t.store.getState().master.persistenceFailed).toBe(true);
-    expect(await t.store.dispatch(loadStoredSession()).unwrap()).toBeNull();
-    await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy(); // download still works
+    expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
+    await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
   });
 });
 

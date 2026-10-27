@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { Master, ReviewScope, ReviewStatusFilter, TagFilter } from "../core/index.ts";
-import { resetScope, restoreSession } from "./masterSlice.ts";
-import { importPrepared } from "./thunks.ts";
+import { resetScope } from "./masterSlice.ts";
+import { importPrepared, restoreTab } from "./thunks.ts";
 
 export const CHANGE_VIEWS = ["current", "followed_since", "unfollowed_since", "new_followers", "new_unfollowers"] as const;
 export type ChangeView = (typeof CHANGE_VIEWS)[number];
@@ -56,8 +56,8 @@ export const filtersSlice = createSlice({
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         dropUnknownTag(state, payload.result.master);
       })
-      .addCase(restoreSession, (state, { payload }) => {
-        dropUnknownTag(state, payload.master);
+      .addCase(restoreTab.fulfilled, (state, { payload }) => {
+        if (payload) dropUnknownTag(state, payload.master);
       });
   },
 });
