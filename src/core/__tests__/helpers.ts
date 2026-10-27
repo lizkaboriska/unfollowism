@@ -1,9 +1,8 @@
-import { computeCurrent, createActions, createDict, createReview, profileUrl, type Account, type Master, type Snapshot } from "../index.ts";
+import { computeCurrent, createActions, createDict, createReview, type Account, type Master, type Snapshot } from "../index.ts";
 
 export function account(username = "alice"): Account {
   return {
     username,
-    url: profileUrl(username),
     review: createReview(),
     current: computeCurrent(null, null),
     actions: createActions(),
@@ -24,8 +23,6 @@ export function snapshotWith({ capturedAt = "2026-09-02T10:00:00.000Z", stopped 
 }): Snapshot {
   return {
     captured_at: capturedAt,
-    following: [],
-    followers: [],
     changes: { newly_following: [], stopped_following: stopped, new_followers: [], lost_followers: lost },
   };
 }

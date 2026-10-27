@@ -1,10 +1,10 @@
 import { confirmPendingActions, createActions, type ActionCounts } from "./actions.ts";
-import { emptyMaster, parseMaster } from "./parseMaster.ts";
+import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { createReview } from "./review.ts";
 import { computeCurrent, syncCurrentRelationship } from "./scopes.ts";
-import type { Master, ParsedAccount, Snapshot, SnapshotChanges } from "./types.ts";
-import { profileUrl, usernameKey } from "./util.ts";
+import { DEFAULT_TAG_OPTIONS, FORMAT_VERSION, type Account, type Master, type ParsedAccount, type Snapshot, type SnapshotChanges } from "./types.ts";
+import { createDict, usernameKey } from "./util.ts";
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
 export interface ExportBundle {
@@ -14,8 +14,9 @@ export interface ExportBundle {
 }
 
 export interface MergeResult {
+  /** False when the export has exactly the same following/followers as the previous import. */
   snapshotCreated: boolean;
-  /** Change set of the new snapshot, or of the latest stored snapshot if the export was identical. */
+  /** Changes since the import before; for an identical export, the changes already stored. */
   changes: SnapshotChanges;
   followingCount: number;
   followersCount: number;
@@ -34,17 +35,12 @@ export class ImportError extends Error {
   override name = "ImportError";
 }
 
-function sameUsernameSet(snapshotUsers: readonly string[], current: ReadonlySet<string>): boolean {
-  const keys = snapshotUsers.map(usernameKey);
-  if (keys.length !== current.size) return false;
-  const keySet = new Set(keys);
-  for (const username of current) {
-    if (!keySet.has(username)) return false;
-  }
+function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const key of a) if (!b.has(key)) return false;
   return true;
 }
 
-/** Copy (or empty set for the first snapshot), so the result never aliases master data. */
 function copyChanges(changes: SnapshotChanges | undefined): SnapshotChanges {
   return {
     newly_following: [...(changes?.newly_following ?? [])],
@@ -55,80 +51,67 @@ function copyChanges(changes: SnapshotChanges | undefined): SnapshotChanges {
 }
 
 /**
- * WRITE: applies a fresh export to a parsed master (mutated in place):
- * syncs every account's current relationship, appends a snapshot when either
- * username set differs from the latest one, and confirms pending actions.
+ * WRITE: applies a fresh export to the accounts (mutated in place) and returns the
+ * new snapshot plus what happened. `previous` is null for the very first import.
  */
-export function mergeExports(master: Master, bundle: ExportBundle, now: string): MergeResult {
+export function mergeExports(
+  accounts: Record<string, Account>,
+  previous: Snapshot | null,
+  bundle: ExportBundle,
+  now: string,
+): MergeResult & { snapshot: Snapshot } {
   const following = dedupeAccounts(bundle.following);
   const followers = dedupeAccounts(bundle.followers);
 
-  const latestStored = master.snapshots.at(-1) ?? null;
-  const previousFollowing = new Set((latestStored?.following ?? []).map(usernameKey));
-  const previousFollowers = new Set((latestStored?.followers ?? []).map(usernameKey));
+  // Who you followed / who followed you as of the previous import is recorded on the accounts.
+  const previousFollowing = new Set<string>();
+  const previousFollowers = new Set<string>();
+  for (const [key, account] of Object.entries(accounts)) {
+    if (account.current.you_follow) previousFollowing.add(key);
+    if (account.current.follows_you) previousFollowers.add(key);
+  }
 
   const followingMap = new Map(following.map(item => [usernameKey(item.username), item]));
   const followersMap = new Map(followers.map(item => [usernameKey(item.username), item]));
   const currentFollowing = new Set(followingMap.keys());
   const currentFollowers = new Set(followersMap.keys());
-  const allKeys = new Set([...Object.keys(master.accounts).map(usernameKey), ...currentFollowing, ...currentFollowers]);
 
-  for (const key of allKeys) {
+  for (const key of new Set([...Object.keys(accounts), ...currentFollowing, ...currentFollowers])) {
     const followingItem = followingMap.get(key);
     const followerItem = followersMap.get(key);
-    let account = master.accounts[key];
-
+    const source = followingItem ?? followerItem;
+    let account = accounts[key];
     if (!account) {
-      const source = followingItem ?? followerItem;
       if (!source) continue; // unreachable: every key comes from accounts or an export
-      account = master.accounts[key] = {
-        username: source.username,
-        url: source.url || profileUrl(source.username),
-        review: createReview(),
-        current: computeCurrent(null, null), // overwritten below
-        actions: createActions(),
-      };
+      account = accounts[key] = { username: source.username, review: createReview(), current: computeCurrent(null, null), actions: createActions() };
     }
-
-    const sourceItem = followingItem ?? followerItem;
-    if (sourceItem) {
-      account.username = sourceItem.username;
-      account.url = sourceItem.url || account.url;
-    }
-
+    if (source) account.username = source.username; // casing follows the newest export
     syncCurrentRelationship(account, followingItem, followerItem);
   }
 
-  const isDuplicate = !!latestStored &&
-    sameUsernameSet(latestStored.following, currentFollowing) &&
-    sameUsernameSet(latestStored.followers, currentFollowers);
+  const isDuplicate = previous !== null && sameSet(previousFollowing, currentFollowing) && sameSet(previousFollowers, currentFollowers);
+  let snapshot: Snapshot;
+  let changes: SnapshotChanges;
 
-  let confirmationSnapshot: Snapshot | null = latestStored;
-  let changes = copyChanges(latestStored?.changes);
-
-  if (!isDuplicate) {
-    const displayName = (key: string) => master.accounts[key]?.username ?? key;
+  if (isDuplicate) {
+    snapshot = previous;
+    changes = copyChanges(previous.changes);
+  } else {
+    const displayName = (key: string) => accounts[key]?.username ?? key;
     changes = {
       newly_following: [...currentFollowing].filter(key => !previousFollowing.has(key)).map(displayName),
       stopped_following: [...previousFollowing].filter(key => !currentFollowing.has(key)).map(displayName),
       new_followers: [...currentFollowers].filter(key => !previousFollowers.has(key)).map(displayName),
       lost_followers: [...previousFollowers].filter(key => !currentFollowers.has(key)).map(displayName),
     };
-
-    const snapshot: Snapshot = {
-      captured_at: now,
-      following: following.map(item => item.username),
-      followers: followers.map(item => item.username),
-      // The very first snapshot has nothing to compare with.
-      ...(latestStored ? { changes: copyChanges(changes) } : {}),
-    };
-    master.snapshots.push(snapshot);
-    confirmationSnapshot = snapshot;
+    // The very first import has nothing to compare with.
+    snapshot = previous ? { captured_at: now, changes: copyChanges(changes) } : { captured_at: now };
   }
 
-  const confirmed = confirmPendingActions(master, confirmationSnapshot);
+  const confirmed = confirmPendingActions({ accounts }, snapshot);
 
   return {
+    snapshot,
     snapshotCreated: !isDuplicate,
     changes,
     followingCount: currentFollowing.size,
@@ -146,8 +129,17 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   if (!bundle.followers.length) throw new ImportError("No accounts found in the Followers files of this export.");
 
   const isNewMaster = rawMaster == null;
-  const master = isNewMaster ? emptyMaster() : parseMaster(rawMaster);
-  const merge = mergeExports(master, bundle, now);
+  const base = isNewMaster ? null : parseMaster(rawMaster);
+  const accounts = base?.accounts ?? createDict<Account>();
+  const { snapshot, ...merge } = mergeExports(accounts, base?.snapshot ?? null, bundle, now);
+
+  const master: Master = {
+    version: FORMAT_VERSION,
+    tag_options: base ? base.tag_options : [...DEFAULT_TAG_OPTIONS],
+    accounts,
+    snapshot,
+    ...(base?.last_saved_at === undefined ? {} : { last_saved_at: base.last_saved_at }),
+  };
 
   return {
     ...merge,

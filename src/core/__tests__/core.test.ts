@@ -7,7 +7,10 @@ import {
   buildImportMessage,
   buildSessionDiff,
   importExport,
+  createReview,
   parseMaster,
+  stringifyMasterFile,
+  toMasterFile,
   parseFollowersJson,
   parseFollowingJson,
   isPending,
@@ -61,13 +64,47 @@ describe("read functions never write (safe on frozen Redux state)", () => {
   });
 });
 
-describe("parseMaster", () => {
-  /** A saved master as it comes out of JSON.parse. */
-  const saved = (): Record<string, unknown> => JSON.parse(JSON.stringify({ ...freshMaster(), last_saved_at: T2 })) as Record<string, unknown>;
+describe("master file", () => {
+  /** A saved master file as it comes out of JSON.parse, with one reviewed account and a pending action. */
+  function saved(): Record<string, unknown> & { accounts: Record<string, Record<string, unknown>> } {
+    const master = freshMaster();
+    must(master.accounts.bob).review = { reviewed: true, last_reviewed_at: T1, deleted_or_unavailable: false, tags: ["artist"], notes: "" };
+    must(master.accounts.bob).actions.pending.push("unfollow");
+    return JSON.parse(stringifyMasterFile(toMasterFile({ ...master, last_saved_at: T2 }))) as ReturnType<typeof saved>;
+  }
 
-  test("a saved master parses back to the same data", () => {
-    const raw = saved();
-    expect(JSON.parse(JSON.stringify(parseMaster(raw)))).toEqual(raw);
+  test("is compact: defaults and derivable fields are left out", () => {
+    const file = saved();
+    expect(file.accounts).toEqual({
+      alice: { username: "Alice", following_since: 1_700_000_000, follower_since: 1_700_000_000 },
+      bob: {
+        username: "bob", following_since: 1_700_000_000,
+        review: { reviewed: true, last_reviewed_at: T1, deleted_or_unavailable: false, tags: ["artist"], notes: "" },
+        actions: { pending: ["unfollow"], confirmed: [] },
+      },
+      carol: { username: "carol", follower_since: 1_700_000_000 },
+    });
+    expect(file.snapshot).toEqual({ captured_at: T1 });
+  });
+
+  test("round-trips: parse then save gives the same file", () => {
+    const file = saved();
+    expect(JSON.parse(stringifyMasterFile(toMasterFile(parseMaster(file))))).toEqual(file);
+  });
+
+  test("reading restores the derived relationship", () => {
+    const master = parseMaster(saved());
+    expect(master.accounts.alice?.current).toEqual({
+      you_follow: true, follows_you: true, relationship: "mutual", following_since_timestamp: 1_700_000_000, follower_since_timestamp: 1_700_000_000,
+    });
+    expect(master.accounts.carol?.current.relationship).toBe("follows_you_only");
+    expect(master.accounts.alice?.review).toEqual(createReview());
+  });
+
+  test("a follow without a known time is kept as null, not dropped", () => {
+    const file = saved();
+    must(file.accounts.carol).following_since = null;
+    expect(parseMaster(file).accounts.carol?.current).toMatchObject({ you_follow: true, following_since_timestamp: null });
   });
 
   test("rejects input that is not a master", () => {
@@ -83,22 +120,25 @@ describe("parseMaster", () => {
 
   test("names the exact field that is wrong instead of silently repairing it", () => {
     const raw = saved();
-    must((raw.accounts as Record<string, { review: { tags: unknown } } | undefined>).bob).review.tags = "artist";
+    (must(raw.accounts.bob).review as { tags: unknown }).tags = "artist";
     expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.review.tags should be a list.");
 
     const raw2 = saved();
-    must((raw2.accounts as Record<string, { actions: { pending: unknown[] } } | undefined>).bob).actions.pending.push("block");
-    expect(() => parseMaster(raw2)).toThrow("accounts.bob.actions.pending[0] should be one of unfollow, remove_follower");
+    (must(raw2.accounts.bob).actions as { pending: unknown[] }).pending.push("block");
+    expect(() => parseMaster(raw2)).toThrow("accounts.bob.actions.pending[1] should be one of unfollow, remove_follower");
 
     const raw3 = saved();
-    must((raw3.accounts as Record<string, { actions: { confirmed: unknown[] } } | undefined>).bob).actions.confirmed.push("unfollow", "unfollow");
-    expect(() => parseMaster(raw3)).toThrow("accounts.bob.actions.confirmed should be a list without duplicates");
+    (must(raw3.accounts.bob).actions as { pending: unknown[] }).pending.push("unfollow");
+    expect(() => parseMaster(raw3)).toThrow("accounts.bob.actions.pending should be a list without duplicates");
+
+    const raw4 = saved();
+    must(raw4.accounts.alice).following_since = "yesterday";
+    expect(() => parseMaster(raw4)).toThrow("accounts.alice.following_since should be a number or null");
   });
 
   test("drops fields the app does not use", () => {
-    const raw = { ...saved(), notes_from_elsewhere: "x", extra: [1] };
-    const parsed = parseMaster(raw) as unknown as Record<string, unknown>;
-    expect(Object.keys(parsed)).toEqual(["version", "tag_options", "accounts", "snapshots", "last_saved_at"]);
+    const parsed = parseMaster({ ...saved(), notes_from_elsewhere: "x" });
+    expect(Object.keys(toMasterFile(parsed))).toEqual(["version", "last_saved_at", "tag_options", "snapshot", "accounts"]);
   });
 
   test("does not mutate its input", () => {
@@ -110,9 +150,8 @@ describe("parseMaster", () => {
 
   test("usernames that collide with Object.prototype members are ordinary accounts", () => {
     const raw = saved();
-    const template = (raw.accounts as Record<string, Record<string, unknown>>).bob;
     const accounts = JSON.parse("{}") as Record<string, unknown>;
-    for (const name of ["constructor", "__proto__", "toString"]) Object.defineProperty(accounts, name, { value: { ...template, username: name }, enumerable: true });
+    for (const name of ["constructor", "__proto__", "toString"]) Object.defineProperty(accounts, name, { value: { username: name }, enumerable: true });
     const parsed = parseMaster({ ...raw, accounts });
     expect(Object.keys(parsed.accounts).sort()).toEqual(["__proto__", "constructor", "tostring"]);
     const key: string = "constructor";
@@ -121,8 +160,7 @@ describe("parseMaster", () => {
 
   test("rejects an account listed twice under different casing", () => {
     const raw = saved();
-    const accounts = raw.accounts as Record<string, Record<string, unknown>>;
-    accounts.BOB = { ...accounts.bob, username: "BOB" };
+    raw.accounts.BOB = { ...raw.accounts.bob, username: "BOB" };
     expect(() => parseMaster(raw)).toThrow('account "BOB" appears twice');
   });
 });
@@ -133,37 +171,34 @@ describe("importExport", () => {
     expect(result.isNewMaster).toBe(true);
     expect(result.dirty).toBe(true);
     expect(result.snapshotCreated).toBe(true);
-    expect(result.master.snapshots).toHaveLength(1);
     expect(result.master.tag_options).toEqual(DEFAULT_TAG_OPTIONS);
-    expect(result.master.snapshots[0]).toEqual({ captured_at: T1, following: ["Alice", "bob"], followers: ["alice", "carol"] }); // first: no changes
+    expect(result.master.snapshot).toEqual({ captured_at: T1 }); // first import: nothing to compare with
     expect(result.master.accounts.alice?.current).toEqual({
       you_follow: true, follows_you: true, relationship: "mutual", following_since_timestamp: 100, follower_since_timestamp: 300,
     });
-    expect(result.master.accounts.alice?.url).toBe("https://www.instagram.com/Alice");
     expect(result.master.accounts.carol?.current.relationship).toBe("follows_you_only");
     expect(result.changes.newly_following).toEqual(["Alice", "bob"]);
   });
 
   test("re-importing the same export is not dirty and adds no snapshot", () => {
-    const saved = JSON.parse(JSON.stringify(freshMaster())) as unknown;
+    const saved = JSON.parse(stringifyMasterFile(toMasterFile(freshMaster()))) as unknown;
     const result = importExport(saved, bundle(followingFile(["Alice"], ["bob"]), followersFile(["alice"], ["carol"])), T2);
     expect(result.snapshotCreated).toBe(false);
     expect(result.dirty).toBe(false);
-    expect(result.master.snapshots).toHaveLength(1);
+    expect(result.master.snapshot.captured_at).toBe(T1);
   });
 
   test("a later export updates relationships, keeps history and review data", () => {
     const saved = freshMaster();
     must(saved.accounts.bob).review = { reviewed: true, last_reviewed_at: T1, deleted_or_unavailable: false, tags: ["artist"], notes: "hi" };
-    const result = importExport(JSON.parse(JSON.stringify(saved)), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave"])), T2);
+    const result = importExport(JSON.parse(stringifyMasterFile(toMasterFile(saved))), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave"])), T2);
 
     expect(result.snapshotCreated).toBe(true);
     expect(result.changes).toEqual({ newly_following: [], stopped_following: ["bob"], new_followers: ["dave"], lost_followers: ["carol"] });
     expect(result.master.accounts.bob?.current.relationship).toBe("neither");
     expect(result.master.accounts.bob?.review.notes).toBe("hi");
     expect(result.master.accounts.alice?.username).toBe("alice"); // casing follows the newest export
-    expect(result.master.snapshots.map(s => s.captured_at)).toEqual([T1, T2]);
-    expect(result.master.snapshots[1]?.changes).toEqual(result.changes);
+    expect(result.master.snapshot).toEqual({ captured_at: T2, changes: result.changes }); // only the latest is kept
   });
 
   test("rejects exports with an empty side", () => {
@@ -173,9 +208,9 @@ describe("importExport", () => {
 });
 
 describe("parsing", () => {
-  test("following: username from title, /_u/ links normalized, missing timestamp → null", () => {
+  test("following: username from title, missing timestamp → null", () => {
     expect(parseFollowingJson({ relationships_following: [{ title: "x", string_list_data: [{ href: "https://www.instagram.com/_u/x" }] }, { title: "" }, null] }))
-      .toEqual([{ username: "x", url: "https://www.instagram.com/x", timestamp: null }]);
+      .toEqual([{ username: "x", timestamp: null }]);
   });
 
   test("followers: username from value, falls back to title", () => {

@@ -31,7 +31,7 @@ export const selectAccount = (s: RootState, key: string): RAccount | undefined =
 export const selectTagOptions = (s: RootState): readonly string[] => s.master.master?.tag_options ?? EMPTY_TAGS;
 export const selectFilters = (s: RootState) => s.filters;
 
-export const selectLatestSnapshot = (s: RootState): DeepReadonly<Snapshot> | null => s.master.master?.snapshots.at(-1) ?? null;
+export const selectLatestSnapshot = (s: RootState): DeepReadonly<Snapshot> | null => s.master.master?.snapshot ?? null;
 
 export const selectRelationshipStats = createSelector([selectAccounts], accounts => relationshipStats({ accounts }));
 

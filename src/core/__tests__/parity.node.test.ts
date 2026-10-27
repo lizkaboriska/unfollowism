@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { importExport, parseFollowersJson, parseFollowingJson, parseMaster, type Master } from "../index.ts";
+import { importExport, parseFollowersJson, parseFollowingJson, parseMaster, profileUrl, stringifyMasterFile, toMasterFile, type Master } from "../index.ts";
 import { followersFile, followingFile } from "./helpers.ts";
 
 const legacy: any = createRequire(import.meta.url)("../../../legacy/tracker-core.js");
@@ -100,8 +100,12 @@ function legacyImport(oldMaster: any, followingRaw: unknown, followerRaws: unkno
 function toLegacyMaster(master: Master): unknown {
   const actions: unknown[] = [];
   const accounts: Record<string, unknown> = {};
+  const following: Record<string, null> = {};
+  const followers: Record<string, null> = {};
   for (const [key, { actions: own, ...account }] of Object.entries(master.accounts)) {
-    accounts[key] = account;
+    accounts[key] = { ...account, url: profileUrl(account.username) };
+    if (account.current.you_follow) following[account.username] = null;
+    if (account.current.follows_you) followers[account.username] = null;
     for (const [status, types] of [["pending", own.pending], ["confirmed", own.confirmed]] as const) {
       for (const type of types) {
         actions.push({
@@ -116,50 +120,60 @@ function toLegacyMaster(master: Master): unknown {
     tag_options: master.tag_options,
     accounts,
     actions,
-    snapshots: master.snapshots.map((snap, i) => ({
-      snapshot_id: `snapshot_${i}`,
-      snapshot_date: snap.captured_at.slice(0, 10),
-      captured_at: snap.captured_at,
+    snapshots: [{
+      snapshot_id: "snapshot_0",
+      snapshot_date: master.snapshot.captured_at.slice(0, 10),
+      captured_at: master.snapshot.captured_at,
       source_files: [],
-      following: Object.fromEntries(snap.following.map(name => [name, null])),
-      followers: Object.fromEntries(snap.followers.map(name => [name, null])),
-      ...(snap.changes ? { changes_from_previous_snapshot: snap.changes } : {}),
-    })),
+      following,
+      followers,
+      ...(master.snapshot.changes ? { changes_from_previous_snapshot: master.snapshot.changes } : {}),
+    }],
   };
 }
 
 interface Projection {
   tag_options: string[];
   accounts: Record<string, unknown>;
-  snapshots: { following: string[]; followers: string[]; changes: unknown }[];
+  snapshot: { following: string[]; followers: string[]; changes: unknown };
 }
 
-const sortedTypes = (types: Iterable<string>) => [...new Set(types)].sort();
+const sorted = (items: Iterable<string>) => [...new Set(items)].sort();
+/** Snapshot membership by lower-cased username: legacy kept per-list casing, the new format one username per account. */
+const sortedKeys = (names: Iterable<string>) => sorted([...names].map(name => name.toLowerCase()));
 
 /** What both implementations must agree on, in a common shape. */
 function projectNew(master: Master): Projection {
+  const accounts = Object.entries(master.accounts);
   return {
     tag_options: master.tag_options,
-    accounts: Object.fromEntries(Object.entries(master.accounts).map(([key, a]) => [key, {
-      username: a.username, url: a.url, review: a.review, current: a.current,
-      pending: sortedTypes(a.actions.pending), confirmed: sortedTypes(a.actions.confirmed),
+    accounts: Object.fromEntries(accounts.map(([key, a]) => [key, {
+      username: a.username, url: profileUrl(a.username), review: a.review, current: a.current,
+      pending: sorted(a.actions.pending), confirmed: sorted(a.actions.confirmed),
     }])),
-    snapshots: master.snapshots.map(s => ({ following: s.following, followers: s.followers, changes: s.changes ?? null })),
+    snapshot: {
+      following: sortedKeys(accounts.filter(([, a]) => a.current.you_follow).map(([, a]) => a.username)),
+      followers: sortedKeys(accounts.filter(([, a]) => a.current.follows_you).map(([, a]) => a.username)),
+      changes: master.snapshot.changes ?? null,
+    },
   };
 }
 
 function projectLegacy(master: any): Projection {
   const actionsOf = (key: string, status: string) =>
-    sortedTypes((master.actions as any[]).filter(a => a.username.toLowerCase() === key && a.status === status).map(a => a.type as string));
+    sorted((master.actions as any[]).filter(a => a.username.toLowerCase() === key && a.status === status).map(a => a.type as string));
+  const latest = (master.snapshots as any[]).at(-1);
   return {
     tag_options: master.tag_options,
     accounts: Object.fromEntries(Object.entries(master.accounts as Record<string, any>).map(([key, a]) => [key, {
       username: a.username, url: a.url, review: a.review, current: a.current,
       pending: actionsOf(key, "pending"), confirmed: actionsOf(key, "confirmed"),
     }])),
-    snapshots: (master.snapshots as any[]).map(s => ({
-      following: Object.keys(s.following), followers: Object.keys(s.followers), changes: s.changes_from_previous_snapshot ?? null,
-    })),
+    snapshot: {
+      following: sortedKeys(Object.keys(latest.following)),
+      followers: sortedKeys(Object.keys(latest.followers)),
+      changes: latest.changes_from_previous_snapshot ?? null,
+    },
   };
 }
 
@@ -188,11 +202,10 @@ describe("synthetic scenarios", () => {
       followers: parseFollowersJson(followersFile(["a", 4], ["d", 5], ["e", 6])),
       followerFileCount: 1,
     }, "2026-10-01T00:00:00.000Z").master;
-    const saved = JSON.parse(JSON.stringify({ ...first, last_saved_at: "2026-10-01T00:00:00.000Z" })) as typeof first;
     for (const [name, type] of [["b", "unfollow"], ["c", "unfollow"], ["d", "remove_follower"], ["a", "remove_follower"]] as const) {
-      saved.accounts[name]?.actions.pending.push(type);
+      first.accounts[name]?.actions.pending.push(type);
     }
-    return saved;
+    return JSON.parse(stringifyMasterFile(toMasterFile({ ...first, last_saved_at: "2026-10-01T00:00:00.000Z" }))) as unknown;
   }
 
   test("pending unfollow + follower removal confirmed, others stay pending; username casing updated", () => {

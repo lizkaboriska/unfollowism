@@ -5,6 +5,8 @@ import {
   buildImportMessage,
   importExport,
   parseMaster,
+  stringifyMasterFile,
+  toMasterFile,
   type ImportResult,
   type Master,
 } from "../core/index.ts";
@@ -39,7 +41,7 @@ export interface SaveFulfilled {
 }
 
 export function serializeMaster(master: Master, savedAt: string): string {
-  return `${JSON.stringify({ ...master, last_saved_at: savedAt }, null, 2)}\n`;
+  return stringifyMasterFile(toMasterFile({ ...master, last_saved_at: savedAt }));
 }
 
 /** Downloads the master. Edits made while the download is in progress stay unsaved. */

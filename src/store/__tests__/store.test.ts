@@ -1,4 +1,4 @@
-import { parseMaster } from "../../core/index.ts";
+import { parseMaster, toMasterFile } from "../../core/index.ts";
 import { must } from "../../core/__tests__/helpers.ts";
 import { createMemorySessionStore, type SessionStore, type StoredSession } from "../../io/sessionStore.ts";
 import { setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
@@ -26,7 +26,7 @@ describe("import", () => {
   test("first import starts a dirty master whose baseline is the imported state", async () => {
     const { store } = await importedStore();
     const s = store.getState();
-    expect(s.master.master?.snapshots).toHaveLength(1);
+    expect(s.master.master?.snapshot.captured_at).toBe("2026-10-27T12:00:00.000Z");
     expect(s.master.baseline).toBe(s.master.master);
     expect(s.master.pendingSnapshot).toBe(true);
     expect(selectIsDirty(s)).toBe(true);
@@ -139,7 +139,7 @@ describe("save", () => {
     expect(file.filename).toMatch(/^instagram_master_tracker_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
     const saved = JSON.parse(file.text) as { last_saved_at: string };
     expect(saved.last_saved_at).toBe("2026-10-27T14:05:09.000Z");
-    expect(JSON.parse(JSON.stringify(parseMaster(saved)))).toEqual(saved); // the file is exactly the saved format
+    expect(toMasterFile(parseMaster(saved))).toEqual(saved); // the file is exactly the saved format
 
     const s = t.store.getState();
     expect(selectIsDirty(s)).toBe(false);

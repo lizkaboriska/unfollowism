@@ -1,4 +1,5 @@
 import type { ListenerMiddlewareInstance } from "@reduxjs/toolkit";
+import { toMasterFile } from "../core/index.ts";
 import type { StoredSession } from "../io/sessionStore.ts";
 import type { StoreDeps } from "./deps.ts";
 import { persistenceFailed } from "./masterSlice.ts";
@@ -8,8 +9,8 @@ import type { AppDispatch, RootState } from "./index.ts";
 export function toStoredSession(state: MasterState, storedAt: string): StoredSession | null {
   if (!state.master || !state.baseline) return null;
   return {
-    master: state.master,
-    baseline: state.baseline,
+    master: toMasterFile(state.master),
+    baseline: toMasterFile(state.baseline),
     revision: state.revision,
     savedRevision: state.savedRevision,
     pendingSnapshot: state.pendingSnapshot,

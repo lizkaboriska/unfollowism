@@ -1,6 +1,6 @@
 import { IDBFactory } from "fake-indexeddb";
 import { strToU8, zipSync } from "fflate";
-import { ImportError, computeCurrent, createActions, createReview, emptyMaster, parseMaster, profileUrl } from "../../core/index.ts";
+import { ImportError, parseMaster, type MasterFile } from "../../core/index.ts";
 import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
 import { analyzeImport } from "../analyzeImport.ts";
 import { masterFileName } from "../download.ts";
@@ -111,9 +111,12 @@ describe("IndexedDB session store", () => {
     expect(await store.loadSession()).toBeNull();
     expect(await store.getLastSavedAt()).toBeNull();
 
-    const master = emptyMaster();
-    const constructorKey: string = "constructor";
-    master.accounts[constructorKey] = { username: "constructor", url: profileUrl("constructor"), review: createReview(), current: computeCurrent(null, null), actions: createActions() };
+    const master: MasterFile = {
+      version: 1,
+      tag_options: [],
+      snapshot: { captured_at: "2026-10-27T12:00:00Z" },
+      accounts: JSON.parse('{"constructor":{"username":"constructor"}}') as MasterFile["accounts"],
+    };
     const session: StoredSession = {
       master: Object.freeze(master), baseline: master, revision: 3, savedRevision: 1, pendingSnapshot: true, message: "m", storedAt: "2026-10-27T12:00:00Z",
     };

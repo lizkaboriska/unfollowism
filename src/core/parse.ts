@@ -1,5 +1,5 @@
 import type { ParsedAccount } from "./types.ts";
-import { isRecord, numberOrNull, profileUrl, usernameKey } from "./util.ts";
+import { isRecord, numberOrNull, usernameKey } from "./util.ts";
 
 function firstEntry(item: Record<string, unknown>): Record<string, unknown> {
   const list = item.string_list_data;
@@ -8,12 +8,7 @@ function firstEntry(item: Record<string, unknown>): Record<string, unknown> {
 }
 
 function toParsed(username: string, first: Record<string, unknown>): ParsedAccount {
-  const href = typeof first.href === "string" && first.href ? first.href : profileUrl(username);
-  return {
-    username,
-    url: href.replace("/_u/", "/"),
-    timestamp: numberOrNull(first.timestamp),
-  };
+  return { username, timestamp: numberOrNull(first.timestamp) };
 }
 
 function nonEmptyString(value: unknown): string | null {

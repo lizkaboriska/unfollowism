@@ -47,7 +47,6 @@ export interface AccountActions {
 
 export interface Account {
   username: string;
-  url: string;
   review: Review;
   current: CurrentRelationship;
   actions: AccountActions;
@@ -60,23 +59,20 @@ export interface SnapshotChanges {
   lost_followers: string[];
 }
 
-/** The follow graph as of one import. A new snapshot is stored only when it differs from the previous one. */
+/** The latest import. Who follows whom is recorded on the accounts themselves. */
 export interface Snapshot {
   captured_at: string;
-  /** Usernames (original casing). */
-  following: string[];
-  followers: string[];
-  /** Absent on the very first snapshot. */
+  /** What changed compared with the import before it; absent after the very first import. */
   changes?: SnapshotChanges;
 }
 
-/** The saved master file. Only these fields are saved; see parseMaster. */
+/** The working master in memory. See masterFile.ts for the compact saved form. */
 export interface Master {
   version: typeof FORMAT_VERSION;
   tag_options: string[];
   /** Keyed by lower-cased username (see usernameKey). */
   accounts: Record<string, Account>;
-  snapshots: Snapshot[];
+  snapshot: Snapshot;
   /** Set when the master is downloaded. */
   last_saved_at?: string;
 }
@@ -84,7 +80,7 @@ export interface Master {
 /** One account parsed from an Instagram export file. */
 export interface ParsedAccount {
   username: string;
-  url: string;
+  /** Instagram "since" time in seconds; null if the export gave none. */
   timestamp: number | null;
 }
 
