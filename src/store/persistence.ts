@@ -17,24 +17,33 @@ function toMeta(state: MasterState, storedAt: string): TabMeta {
   };
 }
 
-/** Edited accounts whose object differs from what was last stored. Only looks at edited accounts. */
-function newlyChanged(stored: Accounts | null, changed: Accounts): Record<string, AccountRecord> {
+/** Accounts whose object differs from what was last stored. Only looks at edited accounts. */
+function newlyChanged(stored: Accounts | null, current: Accounts): Record<string, AccountRecord> {
   const records: Record<string, AccountRecord> = {};
-  for (const [key, account] of Object.entries(changed)) {
+  if (stored === current) return records;
+  for (const [key, account] of Object.entries(current)) {
     if (stored?.[key] !== account) records[key] = toAccountRecord(account);
   }
   return records;
+}
+
+/** Accounts stored as changed that no longer are (after Reset changes). */
+function noLongerChanged(stored: Accounts | null, current: Accounts): string[] {
+  if (!stored || stored === current) return [];
+  return Object.keys(stored).filter(key => !Object.hasOwn(current, key));
 }
 
 /**
  * Keeps this tab's reload safety net up to date on every change:
  * - a new import stores the whole master once (it is also the session baseline);
  * - an edit stores only the edited account (~1 KB), however large the master;
+ * - a save stores the edited accounts as written to the file, for Reset changes after a reload;
  * - a change arriving while a write is running is folded into one follow-up write.
  */
 export function startPersistence(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>): void {
   let storedBase: DeepReadonly<Master> | null = null;
   let storedChanged: Accounts | null = null;
+  let storedSaved: Accounts | null = null;
   let changes = 0;
   let writing = false;
 
@@ -42,25 +51,31 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
   listener.startListening({
     actionCreator: restoreTab.fulfilled,
     effect: (_action, api) => {
-      const { base, changed } = api.getState().master;
+      const { base, changed, savedChanged } = api.getState().master;
       storedBase = base;
       storedChanged = base ? changed : null;
+      storedSaved = base ? savedChanged : null;
     },
   });
 
   async function writeLatest(api: { getState: () => RootState; extra: StoreDeps; dispatch: AppDispatch }): Promise<void> {
     const state = api.getState().master;
-    const { base, changed } = state;
+    const { base, changed, savedChanged } = state;
     if (!base) return;
     const meta = toMeta(state, api.extra.now().toISOString());
     try {
       if (base !== storedBase) {
-        await api.extra.tab.replace(toMasterFile(base), meta, newlyChanged(null, changed));
+        await api.extra.tab.replace(toMasterFile(base), meta, { changed: newlyChanged(null, changed), saved: newlyChanged(null, savedChanged) });
       } else {
-        await api.extra.tab.update(meta, newlyChanged(storedChanged, changed));
+        await api.extra.tab.update(meta, {
+          changed: newlyChanged(storedChanged, changed),
+          removed: noLongerChanged(storedChanged, changed),
+          saved: newlyChanged(storedSaved, savedChanged),
+        });
       }
       storedBase = base;
       storedChanged = changed;
+      storedSaved = savedChanged;
     } catch {
       // Keep the old references so the next write retries everything changed since the last success.
       if (!api.getState().master.persistenceFailed) api.dispatch(persistenceFailed());
@@ -72,6 +87,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       !restoreTab.fulfilled.match(action) &&
       (current.master.base !== previous.master.base ||
         current.master.changed !== previous.master.changed ||
+        current.master.savedChanged !== previous.master.savedChanged ||
         current.master.savedRevision !== previous.master.savedRevision),
     effect: async (_action, api) => {
       changes += 1;

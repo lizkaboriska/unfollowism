@@ -7,7 +7,7 @@ import { masterFileName } from "../download.ts";
 import { readInputs } from "../readInputs.ts";
 import { localStorageLastSaved } from "../lastSaved.ts";
 import { claimTab, type TabEnvironment } from "../tabIdentity.ts";
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabMeta } from "../tabStore.ts";
+import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabMeta, type TabWrites } from "../tabStore.ts";
 
 const following = JSON.stringify(followingFile(["alice"], ["bob"]));
 const followers1 = JSON.stringify(followersFile(["alice"]));
@@ -108,6 +108,8 @@ describe("analyzeImport", () => {
 });
 
 const META: TabMeta = { revision: 2, savedRevision: 0, storedAt: "2026-10-27T12:00:00Z" };
+const NOTHING: TabWrites = { changed: {}, saved: {} };
+const edited = (changed: TabWrites["changed"]) => ({ changed, removed: [], saved: {} });
 const BASE: MasterFile = {
   version: 1,
   lastImportAt: "2026-10-27T12:00:00Z",
@@ -124,9 +126,9 @@ describe.each([
     const tab = db.forTab("a");
     expect(await tab.load()).toBeNull();
 
-    await tab.replace(BASE, META, {});
-    await tab.update({ ...META, revision: 3 }, { bob: { username: "bob", review: { reviewed: true, lastReviewedAt: "t", unavailable: false, tags: [], notes: "" } } });
-    await tab.update({ ...META, revision: 4 }, { constructor: { username: "constructor", followerSince: 5 } });
+    await tab.replace(BASE, META, NOTHING);
+    await tab.update({ ...META, revision: 3 }, edited({ bob: { username: "bob", review: { reviewed: true, lastReviewedAt: "t", unavailable: false, tags: [], notes: "" } } }));
+    await tab.update({ ...META, revision: 4 }, edited({ constructor: { username: "constructor", followerSince: 5 } }));
 
     const loaded = must(await tab.load());
     expect(loaded.base).toEqual(BASE);
@@ -134,6 +136,7 @@ describe.each([
     expect(Object.keys(loaded.changed).sort()).toEqual(["bob", "constructor"]);
     const key: string = "constructor";
     expect(loaded.changed[key]).toEqual({ username: "constructor", followerSince: 5 });
+    expect(loaded.saved).toEqual({});
 
     expect(await db.forTab("b").load()).toBeNull();
     expect(await db.tabIds()).toEqual(["a"]);
@@ -141,24 +144,42 @@ describe.each([
 
   test("replace drops the tab's earlier changes", async () => {
     const tab = open().forTab("a");
-    await tab.replace(BASE, META, {});
-    await tab.update(META, { bob: { username: "bob" } });
-    await tab.replace(BASE, META, {});
-    expect(must(await tab.load()).changed).toEqual({});
+    await tab.replace(BASE, META, NOTHING);
+    await tab.update(META, { changed: { bob: { username: "bob" } }, removed: [], saved: { bob: { username: "bob" } } });
+    await tab.replace(BASE, META, NOTHING);
+    const loaded = must(await tab.load());
+    expect(loaded.changed).toEqual({});
+    expect(loaded.saved).toEqual({});
+  });
+
+  test("keeps saved versions next to changed ones; a reset removes accounts that are no longer changed", async () => {
+    const tab = open().forTab("a");
+    await tab.replace(BASE, META, NOTHING);
+    await tab.update(META, edited({ bob: { username: "bob", followerSince: 1 } }));
+    await tab.update(META, { changed: {}, removed: [], saved: { bob: { username: "bob", followerSince: 1 } } }); // save
+    await tab.update(META, edited({ bob: { username: "bob", followerSince: 2 }, constructor: { username: "constructor" } }));
+    await tab.update(META, { changed: { bob: { username: "bob", followerSince: 1 } }, removed: ["constructor"], saved: {} }); // reset
+
+    const loaded = must(await tab.load());
+    expect(loaded.changed).toEqual({ bob: { username: "bob", followerSince: 1 } });
+    expect(loaded.saved).toEqual({ bob: { username: "bob", followerSince: 1 } });
   });
 
   test("an update with nothing stored yet fails instead of writing a partial tab", async () => {
-    await expect(open().forTab("a").update(META, {})).rejects.toThrow();
+    await expect(open().forTab("a").update(META, edited({}))).rejects.toThrow();
   });
 
   test("copy and delete work per tab", async () => {
     const db = open();
-    await db.forTab("a").replace(BASE, META, {});
-    await db.forTab("a").update(META, { bob: { username: "bob" } });
+    await db.forTab("a").replace(BASE, META, NOTHING);
+    await db.forTab("a").update(META, { changed: { bob: { username: "bob" } }, removed: [], saved: { alice: { username: "alice" } } });
     await db.copyTab("a", "b");
     await db.deleteTab("a");
     expect(await db.tabIds()).toEqual(["b"]);
-    expect(Object.keys(must(await db.forTab("b").load()).changed)).toEqual(["bob"]);
+    const copy = must(await db.forTab("b").load());
+    expect(Object.keys(copy.changed)).toEqual(["bob"]);
+    expect(Object.keys(copy.saved)).toEqual(["alice"]);
+    expect(await db.forTab("a").load()).toBeNull();
   });
 });
 
@@ -191,7 +212,7 @@ describe("tab identity", () => {
     const env = browser.tab();
 
     const id = await claimTab(db, env);
-    await db.forTab(id).replace(BASE, META, {});
+    await db.forTab(id).replace(BASE, META, NOTHING);
 
     browser.close(id); // reload: the old page releases its lock…
     expect(await claimTab(db, env)).toBe(id); // …and the new page gets the same id back
@@ -208,7 +229,7 @@ describe("tab identity", () => {
     const browser = fakeBrowser();
     const original = browser.tab();
     const id = await claimTab(db, original);
-    await db.forTab(id).replace(BASE, META, {});
+    await db.forTab(id).replace(BASE, META, NOTHING);
 
     const duplicate = browser.tab(new Map(original.session)); // "Duplicate tab" copies sessionStorage
     const copyId = await claimTab(db, duplicate);
@@ -219,7 +240,7 @@ describe("tab identity", () => {
 
   test("without Web Locks it still works, it just can't clean up", async () => {
     const db = createMemoryTabDatabase();
-    await db.forTab("old").replace(BASE, META, {});
+    await db.forTab("old").replace(BASE, META, NOTHING);
     const env = { ...fakeBrowser().tab(), locks: null };
     const id = await claimTab(db, env);
     expect(await claimTab(db, env)).toBe(id);

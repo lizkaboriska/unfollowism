@@ -9,6 +9,7 @@ import {
   relationshipStats,
   reviewScopeStats,
   reviewStatusMatches,
+  sameAccountRecord,
   scopeMatches,
   tagMatches,
   type Account,
@@ -35,6 +36,7 @@ const EMPTY_TAGS: readonly string[] = Object.freeze([]);
 
 export const selectBase = (s: RootState): DeepReadonly<Master> | null => s.master.base;
 export const selectChanged = (s: RootState): RAccounts => s.master.changed;
+const selectSavedChanged = (s: RootState): RAccounts => s.master.savedChanged;
 export const selectHasProject = (s: RootState): boolean => s.master.base !== null;
 export const selectIsDirty = (s: RootState): boolean => s.master.base !== null && s.master.revision !== s.master.savedRevision;
 export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
@@ -129,3 +131,30 @@ export const selectSessionDiff = createSelector([selectBaseAccounts, selectChang
 });
 
 export const selectSessionSummary = createSelector([selectSessionDiff], summarizeSession);
+
+/** Per current account object: the saved version it was compared with, and whether they match. */
+const savedComparisons = new WeakMap<RAccount, { saved: RAccount | undefined; same: boolean }>();
+
+function sameAsSaved(current: RAccount | undefined, saved: RAccount | undefined): boolean {
+  if (current === saved) return true;
+  if (!current || !saved) return false;
+  const cached = savedComparisons.get(current);
+  if (cached?.saved === saved) return cached.same;
+  const same = sameAccountRecord(current, saved);
+  savedComparisons.set(current, { saved, same });
+  return same;
+}
+
+/**
+ * How many accounts differ from the last downloaded file (or from the import, if not
+ * saved since): what Reset changes would undo. Only edited accounts can differ; each
+ * edited account is compared once, not on every edit.
+ */
+export const selectUnsavedAccountCount = createSelector([selectBaseAccounts, selectChanged, selectSavedChanged], (base, changed, saved) => {
+  if (changed === saved) return 0;
+  let count = 0;
+  for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
+    if (!sameAsSaved(accountOf(base, changed, key), accountOf(base, saved, key))) count += 1;
+  }
+  return count;
+});

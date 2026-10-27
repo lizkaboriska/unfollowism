@@ -36,6 +36,8 @@ export interface SaveFulfilled {
   savedAt: string;
   revision: number;
   filename: string;
+  /** The edited accounts as written to the file. */
+  changed: Record<string, Account>;
 }
 
 /** The full master: imported accounts with the edited ones applied. */
@@ -64,7 +66,7 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     const filename = masterFileName(now);
     await extra.download(filename, serializeMaster(master, savedAt));
     extra.lastSaved.set(savedAt);
-    return { savedAt, revision, filename };
+    return { savedAt, revision, filename, changed };
   },
   { condition: (_, { getState }) => getState().master.saveStatus !== SAVE_STATUSES.SAVING },
 );
@@ -72,24 +74,33 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
 export interface RestoredSession {
   base: Master;
   changed: Record<string, Account>;
+  savedChanged: Record<string, Account>;
   savedAt: string | null;
   revision: number;
   savedRevision: number;
 }
 
+function reviveAccounts(records: Record<string, unknown>, path: string): Record<string, Account> {
+  const accounts = createDict<Account>();
+  for (const [key, record] of Object.entries(records)) accounts[key] = fromAccountRecord(record, `${path}.${key}`);
+  return accounts;
+}
+
 /**
- * Reads back what this tab stored: the imported master and the accounts changed since.
+ * Reads back what this tab stored: the imported master and the accounts changed since
+ * (current versions, and versions as in the last downloaded file).
  * Everything goes through the strict readers. Null if the stored data is unusable.
  */
 export function reviveTab(stored: StoredTab): RestoredSession | null {
   try {
     const base = parseMaster(stored.base);
-    const changed = createDict<Account>();
-    for (const [key, record] of Object.entries(stored.changed)) changed[key] = fromAccountRecord(record, `changed.${key}`);
+    const changed = reviveAccounts(stored.changed, "changed");
+    const savedChanged = reviveAccounts(stored.saved, "saved");
     const { meta } = stored;
     return {
       base,
       changed,
+      savedChanged,
       savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
       revision: meta.revision,
       savedRevision: meta.savedRevision,

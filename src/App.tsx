@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Alert, Badge, Box, Button, Checkbox, HStack, Heading, Stack, Text } from "@chakra-ui/react";
+import { Alert, Badge, Box, Button, Checkbox, HStack, Stack, Text } from "@chakra-ui/react";
 import { RELATIONSHIPS, relationshipOf, type Relationship } from "./core/index.ts";
 import { IMPORT_WARNINGS, analyzeImport, type ImportWarning, type PreparedImport } from "./io/analyzeImport.ts";
 import { readInputs } from "./io/readInputs.ts";
 import type { StoreDeps } from "./store/deps.ts";
 import { IMPORT_STATUSES } from "./store/statuses.ts";
-import { statusText } from "./ui/statusText.ts";
 import { useAppDispatch, useAppSelector } from "./store/hooks.ts";
 import { setReviewed } from "./store/masterSlice.ts";
-import { selectAccount, selectHasProject, selectIsDirty, selectRelationshipStats, selectVisibleAccountKeys } from "./store/selectors.ts";
-import { importPrepared, restoreTab, saveMaster } from "./store/thunks.ts";
+import { selectAccount, selectHasProject, selectVisibleAccountKeys } from "./store/selectors.ts";
+import { importPrepared, restoreTab } from "./store/thunks.ts";
+import { Header } from "./ui/Header.tsx";
+import { RelationshipCounts } from "./ui/RelationshipCounts.tsx";
+import { StatusLine } from "./ui/StatusLine.tsx";
+import { StorageWarning } from "./ui/StorageWarning.tsx";
 
-// MVP shell: proves import → review → save works end to end. The real UI comes next.
+// The import controls and the account list are still the MVP versions (replaced in phases 4b and 4c).
 
 const LIST_LIMIT = 100;
 
@@ -58,11 +61,7 @@ function AccountRow({ accountKey }: { accountKey: string }) {
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
-  const dirty = useAppSelector(selectIsDirty);
-  const message = statusText(useAppSelector(s => s.master.status));
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
-  const storageFailed = useAppSelector(s => s.master.persistenceFailed) || !deps.tab.durable;
-  const stats = useAppSelector(selectRelationshipStats);
   const keys = useAppSelector(selectVisibleAccountKeys);
 
   const fileInput = useRef<HTMLInputElement>(null);
@@ -100,20 +99,13 @@ export function App({ deps }: { deps: StoreDeps }) {
   return (
     <Box maxW="4xl" mx="auto" px="4" py="8">
       <Stack gap="5">
-        <Box>
-          <Heading size="2xl">Instagram Review</Heading>
-          <Text color="fg.muted">Keep your feed fun. Keep your people intentional.</Text>
-        </Box>
+        <Header />
 
         <HStack gap="3" wrap="wrap">
           <input ref={fileInput} type="file" multiple accept=".zip,.json,.html" hidden onChange={e => void onFiles(e)} data-testid="file-input" />
           <Button colorPalette="pink" loading={importing} onClick={() => fileInput.current?.click()}>
             Import files
           </Button>
-          <Button variant="outline" disabled={!hasProject || !dirty} onClick={() => void dispatch(saveMaster())}>
-            Save master
-          </Button>
-          {hasProject && <Text color={dirty ? "yellow.700" : "green.700"}>{dirty ? "Unsaved changes" : "Saved"}</Text>}
         </HStack>
 
         <Text fontSize="sm" color="fg.muted">
@@ -137,31 +129,12 @@ export function App({ deps }: { deps: StoreDeps }) {
           </Alert.Root>
         )}
 
-        {storageFailed && hasProject && (
-          <Alert.Root status="warning">
-            <Alert.Indicator />
-            <Alert.Title>This browser isn't keeping your work: a reload would lose it. Save master to be safe.</Alert.Title>
-          </Alert.Root>
-        )}
-
-        {error && (
-          <Alert.Root status="error">
-            <Alert.Indicator />
-            <Alert.Title>{error}</Alert.Title>
-          </Alert.Root>
-        )}
-
-        {message && <Text>{message}</Text>}
+        <StorageWarning durable={deps.tab.durable} />
+        <StatusLine error={error} />
 
         {hasProject && (
           <>
-            <HStack gap="2" wrap="wrap">
-              <Badge colorPalette="purple">Following {stats.following}</Badge>
-              <Badge colorPalette="blue">Followers {stats.followers}</Badge>
-              <Badge colorPalette="green">Mutual {stats.mutual}</Badge>
-              <Badge colorPalette="red">Not back {stats.notFollowingBack}</Badge>
-              <Badge colorPalette="blue">Followers only {stats.followsYouOnly}</Badge>
-            </HStack>
+            <RelationshipCounts />
             <Box>
               <Text fontSize="sm" color="fg.muted" mb="2">
                 I follow · showing {Math.min(keys.length, LIST_LIMIT)} of {keys.length}

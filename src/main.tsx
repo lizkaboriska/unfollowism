@@ -10,6 +10,7 @@ import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from
 import type { StoreDeps } from "./store/deps.ts";
 import { makeStore } from "./store/index.ts";
 import { system } from "./theme.ts";
+import { DialogProvider } from "./ui/dialogs.tsx";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
@@ -37,7 +38,9 @@ createRoot(rootElement).render(
   <StrictMode>
     <ChakraProvider value={system}>
       <Provider store={store}>
-        <App deps={deps} />
+        <DialogProvider>
+          <App deps={deps} />
+        </DialogProvider>
       </Provider>
     </ChakraProvider>
   </StrictMode>,

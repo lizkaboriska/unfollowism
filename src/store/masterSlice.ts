@@ -32,6 +32,8 @@ export interface MasterState {
   base: Master | null;
   /** Account key → current version of every account edited since the import. */
   changed: Record<string, Account>;
+  /** `changed` as written to the last downloaded file (empty if not saved since the import). Reset changes goes back to it. */
+  savedChanged: Record<string, Account>;
   /** lastSavedAt of the master (from the imported file, then from each save). */
   savedAt: string | null;
   /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
@@ -41,6 +43,8 @@ export interface MasterState {
   saveStatus: SaveStatus;
   /** What last happened (import, save…), for the status bar. The UI words it. */
   status: StatusEvent | null;
+  /** `status` as it was right after the last save (or the import): Reset changes puts it back. Not restored after a reload, like `status`. */
+  savedStatus: StatusEvent | null;
   /** Browser storage failed: unsaved work won't survive a reload. */
   persistenceFailed: boolean;
 }
@@ -48,14 +52,19 @@ export interface MasterState {
 const initialState: MasterState = {
   base: null,
   changed: createDict<Account>(),
+  savedChanged: createDict<Account>(),
   savedAt: null,
   revision: 0,
   savedRevision: 0,
   importStatus: IMPORT_STATUSES.IDLE,
   saveStatus: SAVE_STATUSES.IDLE,
   status: null,
+  savedStatus: null,
   persistenceFailed: false,
 };
+
+/** savedRevision of an import that differs from its file and hasn't been saved since. */
+const UNSAVED_IMPORT = -1;
 
 /** Edit payloads carry the timestamp so reducers stay pure. */
 function stamped<P>(payload: P) {
@@ -153,6 +162,15 @@ export const masterSlice = createSlice({
       for (const key of targets) applyEdit(state, key, account => { account.review.reviewed = false; });
       if (targets.length) state.revision += 1;
     },
+    /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
+    resetChanges(state) {
+      const before = original(state);
+      if (!before.base || before.changed === before.savedChanged) return;
+      state.changed = before.savedChanged;
+      state.revision += 1;
+      if (state.savedRevision !== UNSAVED_IMPORT) state.savedRevision = state.revision;
+      state.status = before.savedStatus;
+    },
     persistenceFailed(state) {
       state.persistenceFailed = true;
     },
@@ -163,6 +181,7 @@ export const masterSlice = createSlice({
         if (!payload || state.base) return; // nothing stored, or the user already imported meanwhile
         state.base = payload.base;
         state.changed = payload.changed;
+        state.savedChanged = payload.savedChanged;
         state.savedAt = payload.savedAt;
         state.revision = payload.revision;
         state.savedRevision = payload.savedRevision;
@@ -174,15 +193,17 @@ export const masterSlice = createSlice({
         state.importStatus = IMPORT_STATUSES.IDLE;
         state.base = payload.master;
         state.changed = createDict<Account>();
+        state.savedChanged = state.changed;
         state.savedAt = payload.master.lastSavedAt ?? null;
         state.revision = 0;
-        state.savedRevision = payload.dirty ? -1 : 0;
+        state.savedRevision = payload.dirty ? UNSAVED_IMPORT : 0;
         state.status = {
           type: STATUS_EVENTS.IMPORTED,
           isNewMaster: payload.isNewMaster,
           followerFileCount: payload.followerFileCount,
           summary: payload.summary,
         };
+        state.savedStatus = state.status;
       })
       .addCase(importPrepared.rejected, state => {
         state.importStatus = IMPORT_STATUSES.IDLE;
@@ -194,7 +215,9 @@ export const masterSlice = createSlice({
         state.saveStatus = SAVE_STATUSES.IDLE;
         state.savedRevision = payload.revision;
         state.savedAt = payload.savedAt;
+        state.savedChanged = payload.changed;
         state.status = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: state.revision !== payload.revision };
+        state.savedStatus = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: false };
       })
       .addCase(saveMaster.rejected, (state, { payload, meta }) => {
         if (meta.condition) return; // a save was already running
@@ -204,4 +227,4 @@ export const masterSlice = createSlice({
   },
 });
 
-export const { setReviewed, setUnavailable, toggleTag, setNote, setAction, resetScope, persistenceFailed } = masterSlice.actions;
+export const { setReviewed, setUnavailable, toggleTag, setNote, setAction, resetScope, resetChanges, persistenceFailed } = masterSlice.actions;

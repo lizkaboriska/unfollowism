@@ -40,14 +40,27 @@ export function makeTestStore({
 
 export const WRITES = { REPLACE: "replace", UPDATE: "update" } as const;
 
-/** Wraps a tab store and records every write, to assert what gets written when. */
+export interface RecordedWrite {
+  kind: ValueOf<typeof WRITES>;
+  accounts: string[];
+  saved: string[];
+  removed: string[];
+}
+
+/** Wraps a tab store and records every write (account keys only), to assert what gets written when. */
 export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab("tab-1")) {
-  const writes: { kind: ValueOf<typeof WRITES>; accounts: string[] }[] = [];
+  const writes: RecordedWrite[] = [];
   const tab: TabStore = {
     durable: inner.durable,
     load: () => inner.load(),
-    replace: (base, meta, changed) => { writes.push({ kind: WRITES.REPLACE, accounts: Object.keys(changed) }); return inner.replace(base, meta, changed); },
-    update: (meta, changed) => { writes.push({ kind: WRITES.UPDATE, accounts: Object.keys(changed) }); return inner.update(meta, changed); },
+    replace: (base, meta, w) => {
+      writes.push({ kind: WRITES.REPLACE, accounts: Object.keys(w.changed), saved: Object.keys(w.saved), removed: [] });
+      return inner.replace(base, meta, w);
+    },
+    update: (meta, w) => {
+      writes.push({ kind: WRITES.UPDATE, accounts: Object.keys(w.changed), saved: Object.keys(w.saved), removed: w.removed });
+      return inner.update(meta, w);
+    },
   };
   return { tab, writes };
 }

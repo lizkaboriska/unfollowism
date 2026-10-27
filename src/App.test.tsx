@@ -3,13 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { ChakraProvider } from "@chakra-ui/react";
 import { Provider } from "react-redux";
 import { App } from "./App.tsx";
-import { followersFile, followingFile } from "./core/__tests__/helpers.ts";
+import { followersFile, followingFile, must } from "./core/__tests__/helpers.ts";
 import { memoryLastSaved } from "./io/lastSaved.ts";
 import { openIndexedDbTabDatabase } from "./io/tabStore.ts";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { StoreDeps } from "./store/deps.ts";
 import { makeStore } from "./store/index.ts";
 import { system } from "./theme.ts";
+import { DialogProvider } from "./ui/dialogs.tsx";
 
 function renderApp(tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab("tab-1")) {
   const downloads: { filename: string; text: string }[] = [];
@@ -23,7 +24,9 @@ function renderApp(tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange)
   const view = render(
     <ChakraProvider value={system}>
       <Provider store={store}>
-        <App deps={deps} />
+        <DialogProvider>
+          <App deps={deps} />
+        </DialogProvider>
       </Provider>
     </ChakraProvider>,
   );
@@ -85,4 +88,29 @@ test("a reload silently continues where the tab left off", async () => {
   const restoredRow = screen.getByText("@bob").closest("div")?.parentElement;
   if (!restoredRow) throw new Error("row not found");
   expect(within(restoredRow).getByRole("checkbox")).toBeChecked();
+});
+
+test("Reset changes asks first, then undoes unsaved work", async () => {
+  const { user } = renderApp();
+  await user.upload(screen.getByTestId("file-input"), exportFiles());
+  const reset = await screen.findByRole("button", { name: "Reset changes" });
+  expect(reset).toBeDisabled();
+
+  const bobRow = () => must(screen.getByText("@bob").closest("div")?.parentElement, "bob's row");
+  const bobCheckbox = () => within(bobRow()).getByRole("checkbox");
+  await user.click(within(bobRow()).getByText("Reviewed"));
+  expect(bobCheckbox()).toBeChecked();
+  expect(reset).toBeEnabled();
+
+  await user.click(reset);
+  const dialog = await screen.findByRole("alertdialog");
+  expect(within(dialog).getByText(/Changes to 1 account since your last save/)).toBeInTheDocument();
+  await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => { expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(); });
+  expect(bobCheckbox()).toBeChecked();
+
+  await user.click(reset);
+  await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }));
+  await waitFor(() => { expect(bobCheckbox()).not.toBeChecked(); });
+  expect(reset).toBeDisabled();
 });

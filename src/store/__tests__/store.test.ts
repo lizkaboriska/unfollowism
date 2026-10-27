@@ -4,18 +4,22 @@ const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
 import type { TabStore } from "../../io/tabStore.ts";
 import { CHANGE_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setChangeView } from "../filtersSlice.ts";
-import { resetScope, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
+import { resetChanges, resetScope, setAction, setNote, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
   selectAccount,
   selectIsDirty,
   selectActionStats,
   selectScopeStats,
   selectSessionDiff,
+  selectUnsavedAccountCount,
   selectVisibleAccountKeys,
 } from "../selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../thunks.ts";
 import { STATUS_EVENTS } from "../statuses.ts";
-import { WRITES, deferred, flushPersistence, makeTestStore, prepared, recordingTab } from "./testStore.ts";
+import { WRITES, deferred, flushPersistence, makeTestStore, prepared, recordingTab, type RecordedWrite } from "./testStore.ts";
+
+const write = (kind: RecordedWrite["kind"], keys: Partial<Omit<RecordedWrite, "kind">> = {}): RecordedWrite =>
+  ({ kind, accounts: [], saved: [], removed: [], ...keys });
 
 async function importedStore(options: Parameters<typeof makeTestStore>[0] = {}) {
   const t = makeTestStore(options);
@@ -182,6 +186,102 @@ describe("save", () => {
   });
 });
 
+describe("reset changes", () => {
+  const review = (t: Awaited<ReturnType<typeof importedStore>>, key: string) => account(t, key).review;
+
+  test("goes back to the last save, with that save's status", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    const savedStatus = t.store.getState().master.status;
+
+    t.store.dispatch(setNote({ username: "bob", note: "after save" }));
+    t.store.dispatch(setReviewed({ username: "carol", reviewed: true }));
+    expect(selectUnsavedAccountCount(t.store.getState())).toBe(2);
+
+    t.store.dispatch(resetChanges());
+    const s = t.store.getState();
+    expect(review(t, "bob")).toMatchObject({ reviewed: true, notes: "" });
+    expect(review(t, "carol").reviewed).toBe(false);
+    expect(selectIsDirty(s)).toBe(false);
+    expect(selectUnsavedAccountCount(s)).toBe(0);
+    expect(s.master.status).toEqual(savedStatus);
+    expect(selectSessionDiff(s)).toHaveLength(1); // Session changes still compares with the import
+  });
+
+  test("without a save since the import, goes back to the import", async () => {
+    const t = makeTestStore();
+    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    await t.store.dispatch(saveMaster()).unwrap();
+    const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
+
+    const t2 = makeTestStore();
+    await t2.store.dispatch(importPrepared(prepared({ master: saved }))).unwrap(); // clean import
+    const importStatus = t2.store.getState().master.status;
+    t2.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    t2.store.dispatch(resetChanges());
+
+    const s = t2.store.getState();
+    expect(review(t2, "bob").reviewed).toBe(false);
+    expect(Object.keys(s.master.changed)).toEqual([]);
+    expect(selectIsDirty(s)).toBe(false);
+    expect(s.master.status).toEqual(importStatus);
+  });
+
+  test("an import that was never saved stays unsaved after a reset", async () => {
+    const t = await importedStore(); // a new master: not in any file yet
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    t.store.dispatch(resetChanges());
+    expect(review(t, "bob").reviewed).toBe(false);
+    expect(selectIsDirty(t.store.getState())).toBe(true);
+  });
+
+  test("the save message drops the 'changed while saving' note, since those changes are undone", async () => {
+    const gate = deferred();
+    const t = makeTestStore({ download: () => gate.promise });
+    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    const saving = t.store.dispatch(saveMaster());
+    t.store.dispatch(setNote({ username: "bob", note: "typed during save" }));
+    gate.resolve();
+    await saving;
+
+    t.store.dispatch(resetChanges());
+    expect(t.store.getState().master.status).toMatchObject({ type: STATUS_EVENTS.SAVED, changedWhileSaving: false });
+    expect(review(t, "bob").notes).toBe("");
+  });
+
+  test("accounts changed back to their saved state are not counted", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    t.store.dispatch(setNote({ username: "carol", note: "x" }));
+    t.store.dispatch(setNote({ username: "carol", note: "" }));
+    expect(selectUnsavedAccountCount(t.store.getState())).toBe(1);
+  });
+
+  test("works after a reload", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    t.store.dispatch(setNote({ username: "bob", note: "after save" }));
+    t.store.dispatch(setNote({ username: "carol", note: "after save" }));
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ tab: t.tab });
+    await reloaded.store.dispatch(restoreTab());
+    expect(selectUnsavedAccountCount(reloaded.store.getState())).toBe(2);
+    reloaded.store.dispatch(resetChanges());
+    expect(review(reloaded, "bob")).toMatchObject({ reviewed: true, notes: "" });
+    expect(review(reloaded, "carol").notes).toBe("");
+    expect(selectIsDirty(reloaded.store.getState())).toBe(false);
+    await flushPersistence();
+
+    const again = makeTestStore({ tab: t.tab }); // and the reset itself survives a reload
+    await again.store.dispatch(restoreTab());
+    expect(review(again, "carol").notes).toBe("");
+    expect(selectIsDirty(again.store.getState())).toBe(false);
+  });
+});
+
 describe("reload safety net", () => {
   test("a reload puts back the work, including the session baseline", async () => {
     const t = await importedStore();
@@ -212,7 +312,7 @@ describe("reload safety net", () => {
     const t = makeTestStore({ tab });
     await t.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
-    expect(writes).toEqual([{ kind: WRITES.REPLACE, accounts: [] }]);
+    expect(writes).toEqual([write(WRITES.REPLACE)]);
 
     t.store.dispatch(setNote({ username: "bob", note: "x" }));
     await flushPersistence();
@@ -221,14 +321,23 @@ describe("reload safety net", () => {
     t.store.dispatch(setReviewed({ username: "carol", reviewed: true }));
     await flushPersistence();
     expect(writes.slice(1)).toEqual([
-      { kind: WRITES.UPDATE, accounts: ["bob"] },
-      { kind: WRITES.UPDATE, accounts: ["alice"] }, // carol arrived during this write…
-      { kind: WRITES.UPDATE, accounts: ["carol"] }, // …and was folded into one follow-up
+      write(WRITES.UPDATE, { accounts: ["bob"] }),
+      write(WRITES.UPDATE, { accounts: ["alice"] }), // carol arrived during this write…
+      write(WRITES.UPDATE, { accounts: ["carol"] }), // …and was folded into one follow-up
     ]);
 
     await t.store.dispatch(saveMaster()).unwrap();
     await flushPersistence();
-    expect(writes.at(-1)).toEqual({ kind: WRITES.UPDATE, accounts: [] }); // saving only touches metadata
+    expect(writes.at(-1)).toEqual(write(WRITES.UPDATE, { saved: ["bob", "alice", "carol"] })); // the saved versions, for Reset after a reload
+
+    t.store.dispatch(setNote({ username: "dave", note: "y" }));
+    await flushPersistence();
+    t.store.dispatch(resetChanges());
+    await flushPersistence();
+    expect(writes.slice(-2)).toEqual([
+      write(WRITES.UPDATE, { accounts: ["dave"] }),
+      write(WRITES.UPDATE, { removed: ["dave"] }),
+    ]);
   });
 
   test("restoring after a reload writes nothing", async () => {
@@ -244,7 +353,7 @@ describe("reload safety net", () => {
 
     reloaded.store.dispatch(setNote({ username: "bob", note: "after reload" }));
     await flushPersistence();
-    expect(writes).toEqual([{ kind: WRITES.UPDATE, accounts: ["bob"] }]);
+    expect(writes).toEqual([write(WRITES.UPDATE, { accounts: ["bob"] })]);
   });
 
   test("a new import replaces what was stored for the tab", async () => {
@@ -263,7 +372,7 @@ describe("reload safety net", () => {
     const t = makeTestStore();
     await t.tab.replace({ version: 1, lastImportAt: "x", tagOptions: [], accounts: { bob: { username: "" } } }, {
       revision: 1, savedRevision: 0, storedAt: "x",
-    }, {});
+    }, { changed: {}, saved: {} });
     expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
   });
 

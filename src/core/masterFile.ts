@@ -64,6 +64,11 @@ export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
   return out;
 }
 
+/** Whether two accounts would be written to the master file identically. */
+export function sameAccountRecord(a: ReadonlyAccount, b: ReadonlyAccount): boolean {
+  return a === b || JSON.stringify(toAccountRecord(a)) === JSON.stringify(toAccountRecord(b));
+}
+
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
   const accounts: Record<string, AccountRecord> = {};
   for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account);

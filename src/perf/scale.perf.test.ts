@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
-import { selectAccount, selectRelationshipStats, selectScopeStats, selectSessionDiff, selectVisibleAccountKeys } from "../store/selectors.ts";
+import { selectAccount, selectRelationshipStats, selectScopeStats, selectSessionDiff, selectUnsavedAccountCount, selectVisibleAccountKeys } from "../store/selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../store/thunks.ts";
 import { setNote } from "../store/masterSlice.ts";
 import { importExport, stringifyMasterFile, toMasterFile } from "../core/index.ts";
@@ -73,6 +73,7 @@ async function run(total: number) {
     selectVisibleAccountKeys(store.getState());
     selectRelationshipStats(store.getState());
     selectScopeStats(store.getState());
+    selectUnsavedAccountCount(store.getState());
     selectSessionDiff(store.getState());
   });
 
@@ -82,7 +83,7 @@ async function run(total: number) {
   store.dispatch(setNote({ username: someone, note: "typing…" }));
   const editMs = keystrokes.sort((a, b) => a - b)[10] ?? 0;
   const [, listMs] = time(() => selectVisibleAccountKeys(store.getState()));
-  const [, statsMs] = time(() => { selectRelationshipStats(store.getState()); selectScopeStats(store.getState()); });
+  const [, statsMs] = time(() => { selectRelationshipStats(store.getState()); selectScopeStats(store.getState()); selectUnsavedAccountCount(store.getState()); });
   const [, diffMs] = time(() => selectSessionDiff(store.getState()));
   const [, persistMs] = await timeAsync(flush);
 
