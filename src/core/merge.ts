@@ -1,0 +1,173 @@
+import { confirmPendingActions, type ConfirmedCounts } from "./actions.ts";
+import { normalizeMaster } from "./migrate.ts";
+import { dedupeAccounts } from "./parse.ts";
+import { createReview } from "./review.ts";
+import { computeCurrent, syncCurrentRelationship } from "./scopes.ts";
+import type { Master, ParsedAccount, Snapshot, SnapshotChanges } from "./types.ts";
+import { profileUrl, usernameKey } from "./util.ts";
+
+/** Parsed contents of one Instagram export (possibly several follower chunk files). */
+export interface ExportBundle {
+  following: readonly ParsedAccount[];
+  followers: readonly ParsedAccount[];
+  /** Display names of the files the data came from, stored in the snapshot. */
+  sourceFiles: readonly string[];
+  followerFileCount: number;
+}
+
+export interface MergeResult {
+  snapshotCreated: boolean;
+  /** Change set of the new snapshot, or of the latest stored snapshot if the export was identical. */
+  changes: SnapshotChanges;
+  followingCount: number;
+  followersCount: number;
+  confirmed: ConfirmedCounts;
+}
+
+export interface ImportResult extends MergeResult {
+  master: Master;
+  isNewMaster: boolean;
+  migrated: boolean;
+  /** Whether the imported state differs from the master file and should be saved. */
+  dirty: boolean;
+  followerFileCount: number;
+}
+
+export class ImportError extends Error {
+  override name = "ImportError";
+}
+
+function sameUsernameSet(snapshotUsers: Readonly<Record<string, unknown>>, current: ReadonlySet<string>): boolean {
+  const keys = Object.keys(snapshotUsers).map(usernameKey);
+  if (keys.length !== current.size) return false;
+  const keySet = new Set(keys);
+  for (const username of current) {
+    if (!keySet.has(username)) return false;
+  }
+  return true;
+}
+
+function fullChanges(changes: Partial<SnapshotChanges> | undefined): SnapshotChanges {
+  return {
+    newly_following: [...(changes?.newly_following ?? [])],
+    stopped_following: [...(changes?.stopped_following ?? [])],
+    new_followers: [...(changes?.new_followers ?? [])],
+    lost_followers: [...(changes?.lost_followers ?? [])],
+  };
+}
+
+/**
+ * WRITE: applies a fresh export to a normalized master (mutated in place):
+ * syncs every account's current relationship, appends a snapshot when either
+ * username set differs from the latest one, and confirms pending actions.
+ */
+export function mergeExports(master: Master, bundle: ExportBundle, now: string): MergeResult {
+  const following = dedupeAccounts(bundle.following);
+  const followers = dedupeAccounts(bundle.followers);
+
+  const latestStored = master.snapshots.at(-1) ?? null;
+  const previousFollowing = new Set(latestStored ? Object.keys(latestStored.following).map(usernameKey) : []);
+  const previousFollowers = new Set(latestStored ? Object.keys(latestStored.followers).map(usernameKey) : []);
+
+  const followingMap = new Map(following.map(item => [usernameKey(item.username), item]));
+  const followersMap = new Map(followers.map(item => [usernameKey(item.username), item]));
+  const currentFollowing = new Set(followingMap.keys());
+  const currentFollowers = new Set(followersMap.keys());
+  const allKeys = new Set([...Object.keys(master.accounts).map(usernameKey), ...currentFollowing, ...currentFollowers]);
+
+  for (const key of allKeys) {
+    const followingItem = followingMap.get(key);
+    const followerItem = followersMap.get(key);
+    let account = master.accounts[key];
+
+    if (!account) {
+      const source = followingItem ?? followerItem;
+      if (!source) continue; // unreachable: every key comes from accounts or an export
+      account = master.accounts[key] = {
+        username: source.username,
+        url: source.url || profileUrl(source.username),
+        review: createReview(),
+        current: computeCurrent(null, null), // overwritten below
+      };
+    }
+
+    const sourceItem = followingItem ?? followerItem;
+    if (sourceItem) {
+      account.username = sourceItem.username;
+      account.url = sourceItem.url || account.url;
+    }
+
+    syncCurrentRelationship(account, followingItem, followerItem);
+  }
+
+  const isDuplicate = !!latestStored &&
+    sameUsernameSet(latestStored.following, currentFollowing) &&
+    sameUsernameSet(latestStored.followers, currentFollowers);
+
+  let confirmationSnapshot: Snapshot | null = latestStored;
+  let changes = fullChanges(latestStored?.changes_from_previous_snapshot);
+
+  if (!isDuplicate) {
+    const displayName = (key: string) => master.accounts[key]?.username ?? key;
+    const mutual = [...currentFollowing].filter(key => currentFollowers.has(key));
+    const notBack = [...currentFollowing].filter(key => !currentFollowers.has(key));
+    const followerOnly = [...currentFollowers].filter(key => !currentFollowing.has(key));
+    changes = {
+      newly_following: [...currentFollowing].filter(key => !previousFollowing.has(key)).map(displayName),
+      stopped_following: [...previousFollowing].filter(key => !currentFollowing.has(key)).map(displayName),
+      new_followers: [...currentFollowers].filter(key => !previousFollowers.has(key)).map(displayName),
+      lost_followers: [...previousFollowers].filter(key => !currentFollowers.has(key)).map(displayName),
+    };
+
+    const snapshot: Snapshot = {
+      snapshot_id: `snapshot_${now}`,
+      snapshot_date: now.slice(0, 10),
+      captured_at: now,
+      source_files: [...bundle.sourceFiles],
+      following: Object.fromEntries(following.map(item => [item.username, item.timestamp])),
+      followers: Object.fromEntries(followers.map(item => [item.username, item.timestamp])),
+      counts: {
+        following: currentFollowing.size,
+        followers: currentFollowers.size,
+        mutual: mutual.length,
+        not_following_back: notBack.length,
+        followers_you_do_not_follow: followerOnly.length,
+      },
+      changes_from_previous_snapshot: fullChanges(changes),
+    };
+    master.snapshots.push(snapshot);
+    confirmationSnapshot = snapshot;
+  }
+
+  const confirmed = confirmPendingActions(master, confirmationSnapshot, now);
+
+  return {
+    snapshotCreated: !isDuplicate,
+    changes,
+    followingCount: currentFollowing.size,
+    followersCount: currentFollowers.size,
+    confirmed,
+  };
+}
+
+/**
+ * Pure: raw master (or null for a first-time user) + parsed export → new master.
+ * normalizeMaster → mergeExports → confirmPendingActions, with an injected clock.
+ */
+export function importExport(rawMaster: unknown, bundle: ExportBundle, now: string): ImportResult {
+  if (!bundle.following.length) throw new ImportError("No accounts found in the Following file of this export.");
+  if (!bundle.followers.length) throw new ImportError("No accounts found in the Followers files of this export.");
+
+  const isNewMaster = rawMaster == null;
+  const { next: master, changed } = normalizeMaster(isNewMaster ? { accounts: {} } : rawMaster);
+  const merge = mergeExports(master, bundle, now);
+
+  return {
+    ...merge,
+    master,
+    isNewMaster,
+    migrated: !isNewMaster && changed,
+    dirty: isNewMaster || changed || merge.snapshotCreated || merge.confirmed.total > 0,
+    followerFileCount: bundle.followerFileCount,
+  };
+}
