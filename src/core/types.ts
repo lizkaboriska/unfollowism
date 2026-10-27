@@ -45,25 +45,24 @@ export interface AccountActions {
   confirmed: ActionType[];
 }
 
+/** What the latest import revealed about this account's follow of you. */
+export type FollowerChange = "new" | "lost";
+
 export interface Account {
   username: string;
   review: Review;
   current: CurrentRelationship;
   actions: AccountActions;
+  /** Set by the latest import when they started or stopped following you; absent otherwise. */
+  follower_change?: FollowerChange;
 }
 
-export interface SnapshotChanges {
+/** What changed between two imports. Computed during an import; only new/lost followers are kept (on the accounts). */
+export interface FollowChanges {
   newly_following: string[];
   stopped_following: string[];
   new_followers: string[];
   lost_followers: string[];
-}
-
-/** The latest import. Who follows whom is recorded on the accounts themselves. */
-export interface Snapshot {
-  captured_at: string;
-  /** What changed compared with the import before it; absent after the very first import. */
-  changes?: SnapshotChanges;
 }
 
 /** The working master in memory. See masterFile.ts for the compact saved form. */
@@ -72,7 +71,8 @@ export interface Master {
   tag_options: string[];
   /** Keyed by lower-cased username (see usernameKey). */
   accounts: Record<string, Account>;
-  snapshot: Snapshot;
+  /** When the latest Instagram export was imported. */
+  last_import_at: string;
   /** Set when the master is downloaded. */
   last_saved_at?: string;
 }

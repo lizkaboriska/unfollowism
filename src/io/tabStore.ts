@@ -9,7 +9,6 @@ import type { AccountRecord, MasterFile } from "../core/index.ts";
 export interface TabMeta {
   revision: number;
   savedRevision: number;
-  pendingSnapshot: boolean;
   message: string;
   /** Master fields outside `accounts` that can change after import. */
   tag_options: string[];

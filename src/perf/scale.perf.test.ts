@@ -84,7 +84,7 @@ async function run(total: number) {
 
   rows.push(
     ["read + classify export and master", analyzeMs, 0],
-    ["import (merge, snapshot, confirm)", importMs, 0],
+    ["import (merge, markers, confirm)", importMs, 0],
     ["one edit: reducer", editMs, 0],
     ["one edit: visible list (filter + sort)", listMs, 0],
     ["one edit: stats", statsMs, 0],
@@ -104,7 +104,7 @@ test("100k accounts: fast", { timeout: 120_000 }, async () => {
   const t = await run(100_000);
   expect(t["one edit: reducer"]).toBeLessThan(50);
   expect(t["one edit: storage write"]).toBeLessThan(50);
-  expect(t["import (merge, snapshot, confirm)"]).toBeLessThan(5_000);
+  expect(t["import (merge, markers, confirm)"]).toBeLessThan(5_000);
   expect(t["save (serialize master)"]).toBeLessThan(2_000);
   expect(t["reload restore"]).toBeLessThan(3_000);
 });
@@ -112,5 +112,5 @@ test("100k accounts: fast", { timeout: 120_000 }, async () => {
 test("500k accounts: still works", { timeout: 600_000 }, async () => {
   const t = await run(500_000);
   expect(t["one edit: reducer"]).toBeLessThan(250);
-  expect(t["import (merge, snapshot, confirm)"]).toBeLessThan(30_000);
+  expect(t["import (merge, markers, confirm)"]).toBeLessThan(30_000);
 });

@@ -1,17 +1,20 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { Master, ReviewScope, ReviewStatusFilter, TagFilter } from "../core/index.ts";
+import type { FollowerChange, Master, ReviewScope, ReviewStatusFilter, TagFilter } from "../core/index.ts";
 import { resetScope } from "./masterSlice.ts";
 import { importPrepared, restoreTab } from "./thunks.ts";
 
-export const CHANGE_VIEWS = ["current", "followed_since", "unfollowed_since", "new_followers", "new_unfollowers"] as const;
+export const CHANGE_VIEWS = ["current", "new_followers", "lost_followers"] as const;
 export type ChangeView = (typeof CHANGE_VIEWS)[number];
+
+/** Which account marker each change tab lists. */
+export const CHANGE_VIEW_MARKER = { new_followers: "new", lost_followers: "lost" } as const satisfies Record<Exclude<ChangeView, "current">, FollowerChange>;
 
 export interface FiltersState {
   scope: ReviewScope;
   reviewStatus: ReviewStatusFilter;
   tag: TagFilter;
   query: string;
-  /** "current" = review queue; the others list the latest snapshot's change set. */
+  /** "current" = review queue; the others list who started/stopped following you in the latest import. */
   changeView: ChangeView;
 }
 

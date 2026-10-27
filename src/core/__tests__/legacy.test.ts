@@ -18,7 +18,7 @@ import {
   syncCurrentRelationship,
   type Master,
 } from "../index.ts";
-import { account, snapshotWith, stateWith } from "./helpers.ts";
+import { account, changesWith, stateWith } from "./helpers.ts";
 
 const tag = (name: string) => ({ kind: "tag", tag: name }) as const;
 
@@ -117,12 +117,12 @@ test("pending unfollow is separate from review state and confirms only from stop
   expect(isPending(a, "unfollow")).toBe(true);
   expect(a.review.reviewed, "core action creation does not implicitly rewrite review state").toBe(false);
 
-  // Still followed: cannot be confirmed even if a malformed snapshot mentions the name.
-  const snapshot = snapshotWith({ stopped: ["alice"] });
-  expect(confirmPendingActions(state, snapshot).total).toBe(0);
+  // Still followed: cannot be confirmed even if a malformed change list mentions the name.
+  const changes = changesWith({ stopped: ["alice"] });
+  expect(confirmPendingActions(state, changes).total).toBe(0);
 
   syncCurrentRelationship(a, null, null);
-  expect(confirmPendingActions(state, snapshot)).toEqual({ unfollow: 1, remove_follower: 0, total: 1 });
+  expect(confirmPendingActions(state, changes)).toEqual({ unfollow: 1, remove_follower: 0, total: 1 });
   expect(a.actions).toEqual({ pending: [], confirmed: ["unfollow"] });
 });
 
@@ -133,7 +133,7 @@ test("remove follower is symmetric to unfollow and confirms from lost_followers"
 
   markPending(a, "remove_follower");
   syncCurrentRelationship(a, null, null);
-  expect(confirmPendingActions(state, snapshotWith({ lost: ["Alice"] }))).toEqual({ unfollow: 0, remove_follower: 1, total: 1 });
+  expect(confirmPendingActions(state, changesWith({ lost: ["Alice"] }))).toEqual({ unfollow: 0, remove_follower: 1, total: 1 });
   expect(a.actions).toEqual({ pending: [], confirmed: ["remove_follower"] });
 });
 
@@ -164,7 +164,7 @@ test("re-unfollowing after a refollow keeps one confirmed entry", () => {
   syncCurrentRelationship(a, { username: "alice" }, null); // followed again
   markPending(a, "unfollow");
   syncCurrentRelationship(a, null, null);
-  confirmPendingActions(stateWith(a), snapshotWith({ stopped: ["alice"] }));
+  confirmPendingActions(stateWith(a), changesWith({ stopped: ["alice"] }));
   expect(a.actions).toEqual({ pending: [], confirmed: ["unfollow"] });
 });
 

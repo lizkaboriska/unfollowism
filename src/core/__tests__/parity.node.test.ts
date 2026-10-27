@@ -122,12 +122,17 @@ function toLegacyMaster(master: Master): unknown {
     actions,
     snapshots: [{
       snapshot_id: "snapshot_0",
-      snapshot_date: master.snapshot.captured_at.slice(0, 10),
-      captured_at: master.snapshot.captured_at,
+      snapshot_date: master.last_import_at.slice(0, 10),
+      captured_at: master.last_import_at,
       source_files: [],
       following,
       followers,
-      ...(master.snapshot.changes ? { changes_from_previous_snapshot: master.snapshot.changes } : {}),
+      changes_from_previous_snapshot: {
+        newly_following: [],
+        stopped_following: [],
+        new_followers: Object.values(master.accounts).filter(a => a.follower_change === "new").map(a => a.username),
+        lost_followers: Object.values(master.accounts).filter(a => a.follower_change === "lost").map(a => a.username),
+      },
     }],
   };
 }
@@ -135,7 +140,8 @@ function toLegacyMaster(master: Master): unknown {
 interface Projection {
   tag_options: string[];
   accounts: Record<string, unknown>;
-  snapshot: { following: string[]; followers: string[]; changes: unknown };
+  /** Follow graph and new/lost followers of the latest import. */
+  graph: { following: string[]; followers: string[]; newFollowers: string[]; lostFollowers: string[] };
 }
 
 const sorted = (items: Iterable<string>) => [...new Set(items)].sort();
@@ -151,10 +157,11 @@ function projectNew(master: Master): Projection {
       username: a.username, url: profileUrl(a.username), review: a.review, current: a.current,
       pending: sorted(a.actions.pending), confirmed: sorted(a.actions.confirmed),
     }])),
-    snapshot: {
+    graph: {
       following: sortedKeys(accounts.filter(([, a]) => a.current.you_follow).map(([, a]) => a.username)),
       followers: sortedKeys(accounts.filter(([, a]) => a.current.follows_you).map(([, a]) => a.username)),
-      changes: master.snapshot.changes ?? null,
+      newFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === "new").map(([, a]) => a.username)),
+      lostFollowers: sortedKeys(accounts.filter(([, a]) => a.follower_change === "lost").map(([, a]) => a.username)),
     },
   };
 }
@@ -169,10 +176,11 @@ function projectLegacy(master: any): Projection {
       username: a.username, url: a.url, review: a.review, current: a.current,
       pending: actionsOf(key, "pending"), confirmed: actionsOf(key, "confirmed"),
     }])),
-    snapshot: {
+    graph: {
       following: sortedKeys(Object.keys(latest.following)),
       followers: sortedKeys(Object.keys(latest.followers)),
-      changes: latest.changes_from_previous_snapshot ?? null,
+      newFollowers: sortedKeys(latest.changes_from_previous_snapshot?.new_followers ?? []),
+      lostFollowers: sortedKeys(latest.changes_from_previous_snapshot?.lost_followers ?? []),
     },
   };
 }
@@ -189,7 +197,7 @@ function expectParity(name: string, raw: unknown, followingRaw: unknown, followe
 
   expect(JSON.stringify(raw), `${name}: input must not be mutated`).toBe(before);
   expect(JSON.parse(JSON.stringify(projectNew(result.master))), `${name}: master`).toEqual(JSON.parse(JSON.stringify(projectLegacy(old.next))));
-  expect(result.snapshotCreated, `${name}: snapshot`).toBe(!old.isDuplicateSnapshot);
+  expect(result.exportChanged, `${name}: export changed`).toBe(!old.isDuplicateSnapshot);
   expect(result.confirmed, `${name}: confirmations`).toEqual(old.confirmed);
   return result;
 }
@@ -214,15 +222,15 @@ describe("synthetic scenarios", () => {
     expect(r.confirmed).toEqual({ unfollow: 1, remove_follower: 1, total: 2 });
   });
 
-  test("identical export creates no snapshot and confirms nothing", () => {
+  test("identical export changes nothing and confirms nothing", () => {
     const r = expectParity("dup", savedMaster(), followingFile(["a", 1], ["b", 2], ["c", 3]), [followersFile(["a", 4], ["d", 5], ["e", 6])]);
-    expect(r.snapshotCreated).toBe(false);
+    expect(r.exportChanged).toBe(false);
     expect(r.confirmed.total).toBe(0);
   });
 
   test("follower chunks split across several files", () => {
     const r = expectParity("chunks", savedMaster(), followingFile(["a", 1]), [followersFile(["a", 4]), followersFile(["g", 8]), followersFile(["A", 9])]);
-    expect(r.snapshotCreated).toBe(true);
+    expect(r.exportChanged).toBe(true);
   });
 });
 
@@ -246,7 +254,7 @@ describe.skipIf(!realData)("your real data (local only)", () => {
     const followerRaws = followerNames().map(n => read(`connections/${n}`) as unknown[]);
     followerRaws[0] = (followerRaws[0] ?? []).slice(3);
     const r = expectParity("real+changes", master, following, followerRaws);
-    expect(r.snapshotCreated).toBe(true);
+    expect(r.exportChanged).toBe(true);
     expect(r.confirmed.unfollow).toBe(pending.size);
   });
 });

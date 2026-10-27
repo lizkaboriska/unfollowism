@@ -21,8 +21,6 @@ export interface MasterState {
   /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
   revision: number;
   savedRevision: number;
-  /** The last import created a snapshot that hasn't been saved yet. */
-  pendingSnapshot: boolean;
   importStatus: "idle" | "importing";
   saveStatus: "idle" | "saving";
   message: string;
@@ -35,7 +33,6 @@ const initialState: MasterState = {
   baseline: null,
   revision: 0,
   savedRevision: 0,
-  pendingSnapshot: false,
   importStatus: "idle",
   saveStatus: "idle",
   message: "",
@@ -120,7 +117,6 @@ export const masterSlice = createSlice({
         state.baseline = payload.baseline;
         state.revision = payload.revision;
         state.savedRevision = payload.savedRevision;
-        state.pendingSnapshot = payload.pendingSnapshot;
         state.message = payload.message;
       })
       .addCase(importPrepared.pending, state => {
@@ -132,7 +128,6 @@ export const masterSlice = createSlice({
         state.baseline = payload.result.master; // immutable state: sharing is safe
         state.revision = 0;
         state.savedRevision = payload.result.dirty ? -1 : 0;
-        state.pendingSnapshot = payload.result.snapshotCreated;
         state.message = payload.message;
       })
       .addCase(importPrepared.rejected, state => {
@@ -144,7 +139,6 @@ export const masterSlice = createSlice({
       .addCase(saveMaster.fulfilled, (state, { payload }) => {
         state.saveStatus = "idle";
         state.savedRevision = payload.revision;
-        state.pendingSnapshot = false;
         if (state.master) state.master.last_saved_at = payload.savedAt;
         state.message = state.revision === payload.revision
           ? `Master saved as ${payload.filename}. Keep this file: import it next time.`

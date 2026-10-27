@@ -1,4 +1,4 @@
-import { computeCurrent, createActions, createDict, createReview, type Account, type Master, type Snapshot } from "../index.ts";
+import { computeCurrent, createActions, createDict, createReview, type Account, type FollowChanges, type Master } from "../index.ts";
 
 export function account(username = "alice"): Account {
   return {
@@ -15,16 +15,9 @@ export function stateWith(...items: Account[]): Pick<Master, "accounts"> {
   return { accounts };
 }
 
-/** A snapshot whose change set lists the given usernames. */
-export function snapshotWith({ capturedAt = "2026-09-02T10:00:00.000Z", stopped = [], lost = [] }: {
-  capturedAt?: string;
-  stopped?: string[];
-  lost?: string[];
-}): Snapshot {
-  return {
-    captured_at: capturedAt,
-    changes: { newly_following: [], stopped_following: stopped, new_followers: [], lost_followers: lost },
-  };
+/** Import changes listing the given usernames as stopped-following / lost followers. */
+export function changesWith({ stopped = [], lost = [] }: { stopped?: string[]; lost?: string[] }): FollowChanges {
+  return { newly_following: [], stopped_following: stopped, new_followers: [], lost_followers: lost };
 }
 
 /** Non-null assertion for tests that fails with a readable message. */

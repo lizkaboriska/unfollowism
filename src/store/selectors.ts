@@ -8,13 +8,12 @@ import {
   reviewStatusMatches,
   scopeMatches,
   tagMatches,
-  usernameKey,
   type Account,
   type DeepReadonly,
   type Master,
-  type Snapshot,
 } from "../core/index.ts";
 import type { RootState } from "./index.ts";
+import { CHANGE_VIEW_MARKER } from "./filtersSlice.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
 type RAccount = DeepReadonly<Account>;
@@ -31,8 +30,6 @@ export const selectAccount = (s: RootState, key: string): RAccount | undefined =
 export const selectTagOptions = (s: RootState): readonly string[] => s.master.master?.tag_options ?? EMPTY_TAGS;
 export const selectFilters = (s: RootState) => s.filters;
 
-export const selectLatestSnapshot = (s: RootState): DeepReadonly<Snapshot> | null => s.master.master?.snapshot ?? null;
-
 export const selectRelationshipStats = createSelector([selectAccounts], accounts => relationshipStats({ accounts }));
 
 export const selectScopeStats = createSelector(
@@ -41,22 +38,6 @@ export const selectScopeStats = createSelector(
 );
 
 export const selectActionStats = createSelector([selectAccounts], accounts => actionStats({ accounts }));
-
-/** Lower-cased usernames in the latest snapshot's change list for the active change tab; null on "current". */
-export const selectChangedKeys = createSelector(
-  [selectLatestSnapshot, (s: RootState) => s.filters.changeView],
-  (snapshot, view): ReadonlySet<string> | null => {
-    if (view === "current") return null;
-    const changes = snapshot?.changes;
-    const list = {
-      followed_since: changes?.newly_following,
-      unfollowed_since: changes?.stopped_following,
-      new_followers: changes?.new_followers,
-      new_unfollowers: changes?.lost_followers,
-    }[view] ?? [];
-    return new Set(list.map(usernameKey));
-  },
-);
 
 function sameKeys(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((key, i) => key === b[i]);
@@ -67,11 +48,11 @@ function sameKeys(a: readonly string[], b: readonly string[]): boolean {
  * result is unchanged, so typing a note doesn't re-render the list.
  */
 export const selectVisibleAccountKeys = createSelector(
-  [selectAccounts, selectFilters, selectChangedKeys],
-  (accounts, filters, changedKeys): readonly string[] =>
+  [selectAccounts, selectFilters],
+  (accounts, filters): readonly string[] =>
     Object.entries(accounts)
-      .filter(([key, account]) =>
-        (changedKeys ? changedKeys.has(key) : scopeMatches(account, filters.scope)) &&
+      .filter(([, account]) =>
+        (filters.changeView === "current" ? scopeMatches(account, filters.scope) : account.follower_change === CHANGE_VIEW_MARKER[filters.changeView]) &&
         reviewStatusMatches(account, filters.reviewStatus) &&
         tagMatches(account, filters.tag) &&
         queryMatches(account, filters.query),

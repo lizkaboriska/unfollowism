@@ -12,7 +12,6 @@ function toMeta(state: MasterState, master: DeepReadonly<Master>, storedAt: stri
   return {
     revision: state.revision,
     savedRevision: state.savedRevision,
-    pendingSnapshot: state.pendingSnapshot,
     message: state.message,
     tag_options: [...master.tag_options],
     ...(master.last_saved_at === undefined ? {} : { last_saved_at: master.last_saved_at }),
@@ -73,9 +72,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
   listener.startListening({
     predicate: (action, current, previous) =>
       !restoreTab.fulfilled.match(action) &&
-      (current.master.master !== previous.master.master ||
-        current.master.savedRevision !== previous.master.savedRevision ||
-        current.master.pendingSnapshot !== previous.master.pendingSnapshot),
+      (current.master.master !== previous.master.master || current.master.savedRevision !== previous.master.savedRevision),
     effect: async (_action, api) => {
       changes += 1;
       if (writing) return; // the running loop below will pick this change up

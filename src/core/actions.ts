@@ -1,4 +1,4 @@
-import { ACTION_TYPES, type Account, type AccountActions, type ActionType, type DeepReadonly, type Master, type Snapshot } from "./types.ts";
+import { ACTION_TYPES, type Account, type AccountActions, type ActionType, type DeepReadonly, type FollowChanges, type Master } from "./types.ts";
 import { usernameKey } from "./util.ts";
 
 type ReadonlyAccount = DeepReadonly<Account>;
@@ -40,13 +40,14 @@ export function cancelPending(account: Account, type: ActionType): boolean {
 export type ActionCounts = Record<ActionType, number> & { total: number };
 
 /**
- * WRITE: a pending action is confirmed only when the snapshot's change set lists the
+ * WRITE: a pending action is confirmed only when the import's changes list the
  * username AND the current relationship really is gone.
  */
-export function confirmPendingActions(source: Pick<Master, "accounts">, snapshot: DeepReadonly<Snapshot> | null): ActionCounts {
+export function confirmPendingActions(
+  source: Pick<Master, "accounts">,
+  changes: Pick<FollowChanges, "stopped_following" | "lost_followers">,
+): ActionCounts {
   const confirmed: ActionCounts = { unfollow: 0, remove_follower: 0, total: 0 };
-  const changes = snapshot?.changes;
-  if (!changes) return confirmed;
 
   const changed: Record<ActionType, ReadonlySet<string>> = {
     unfollow: new Set(changes.stopped_following.map(usernameKey)),

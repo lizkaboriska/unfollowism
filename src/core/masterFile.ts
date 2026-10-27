@@ -9,9 +9,8 @@ import {
   type ActionType,
   type DeepReadonly,
   type Master,
+  type FollowerChange,
   type Review,
-  type Snapshot,
-  type SnapshotChanges,
 } from "./types.ts";
 import { createDict, isRecord, usernameKey } from "./util.ts";
 
@@ -22,8 +21,8 @@ import { createDict, isRecord, usernameKey } from "./util.ts";
 export interface MasterFile {
   version: typeof FORMAT_VERSION;
   last_saved_at?: string;
+  last_import_at: string;
   tag_options: string[];
-  snapshot: Snapshot;
   /** Keyed by lower-cased username. */
   accounts: Record<string, AccountRecord>;
 }
@@ -38,6 +37,8 @@ export interface AccountRecord {
   review?: Review;
   /** Omitted while both lists are empty. */
   actions?: AccountActions;
+  /** Set by the latest import when they started or stopped following you. */
+  follower_change?: FollowerChange;
 }
 
 export class MasterFormatError extends Error {
@@ -57,27 +58,18 @@ export function toAccountRecord(account: DeepReadonly<Account>): AccountRecord {
   if (current.follows_you) out.follower_since = current.follower_since_timestamp;
   if (!isDefaultReview(review)) out.review = { ...review, tags: [...review.tags] };
   if (actions.pending.length || actions.confirmed.length) out.actions = { pending: [...actions.pending], confirmed: [...actions.confirmed] };
+  if (account.follower_change) out.follower_change = account.follower_change;
   return out;
 }
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
   const accounts: Record<string, AccountRecord> = {};
   for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account);
-  const snapshot: Snapshot = { captured_at: master.snapshot.captured_at };
-  const changes = master.snapshot.changes;
-  if (changes) {
-    snapshot.changes = {
-      newly_following: [...changes.newly_following],
-      stopped_following: [...changes.stopped_following],
-      new_followers: [...changes.new_followers],
-      lost_followers: [...changes.lost_followers],
-    };
-  }
   return {
     version: FORMAT_VERSION,
     ...(master.last_saved_at === undefined ? {} : { last_saved_at: master.last_saved_at }),
+    last_import_at: master.last_import_at,
     tag_options: [...master.tag_options],
-    snapshot,
     accounts,
   };
 }
@@ -159,10 +151,12 @@ function parseActions(value: unknown, path: string): AccountActions {
   };
 }
 
+const FOLLOWER_CHANGES: readonly FollowerChange[] = ["new", "lost"];
+
 /** Builds the working account from its saved record. */
 export function fromAccountRecord(value: unknown, path: string): Account {
   const r = record(value, path);
-  return {
+  const account: Account = {
     username: nonEmptyStr(r.username, `${path}.username`),
     review: r.review === undefined ? createReview() : parseReview(r.review, `${path}.review`),
     current: computeCurrent(
@@ -171,23 +165,8 @@ export function fromAccountRecord(value: unknown, path: string): Account {
     ),
     actions: r.actions === undefined ? createActions() : parseActions(r.actions, `${path}.actions`),
   };
-}
-
-function parseChanges(value: unknown, path: string): SnapshotChanges {
-  const c = record(value, path);
-  return {
-    newly_following: strings(c.newly_following, `${path}.newly_following`),
-    stopped_following: strings(c.stopped_following, `${path}.stopped_following`),
-    new_followers: strings(c.new_followers, `${path}.new_followers`),
-    lost_followers: strings(c.lost_followers, `${path}.lost_followers`),
-  };
-}
-
-function parseSnapshot(value: unknown, path: string): Snapshot {
-  const s = record(value, path);
-  const snapshot: Snapshot = { captured_at: nonEmptyStr(s.captured_at, `${path}.captured_at`) };
-  if (s.changes !== undefined) snapshot.changes = parseChanges(s.changes, `${path}.changes`);
-  return snapshot;
+  if (r.follower_change !== undefined) account.follower_change = oneOf(r.follower_change, FOLLOWER_CHANGES, `${path}.follower_change`);
+  return account;
 }
 
 /**
@@ -215,7 +194,7 @@ export function parseMaster(raw: unknown): Master {
     version: FORMAT_VERSION,
     tag_options: strings(raw.tag_options, "tag_options"),
     accounts,
-    snapshot: parseSnapshot(raw.snapshot, "snapshot"),
+    last_import_at: nonEmptyStr(raw.last_import_at, "last_import_at"),
   };
   if (raw.last_saved_at !== undefined) master.last_saved_at = str(raw.last_saved_at, "last_saved_at");
   return master;

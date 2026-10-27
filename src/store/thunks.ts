@@ -68,7 +68,6 @@ export interface RestoredSession {
   baseline: Master;
   revision: number;
   savedRevision: number;
-  pendingSnapshot: boolean;
   message: string;
 }
 
@@ -92,7 +91,6 @@ export function reviveTab(stored: StoredTab): RestoredSession | null {
       baseline,
       revision: meta.revision,
       savedRevision: meta.savedRevision,
-      pendingSnapshot: meta.pendingSnapshot,
       message: meta.message,
     };
   } catch {

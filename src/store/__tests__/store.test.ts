@@ -26,9 +26,8 @@ describe("import", () => {
   test("first import starts a dirty master whose baseline is the imported state", async () => {
     const { store } = await importedStore();
     const s = store.getState();
-    expect(s.master.master?.snapshot.captured_at).toBe("2026-10-27T12:00:00.000Z");
+    expect(s.master.master?.last_import_at).toBe("2026-10-27T12:00:00.000Z");
     expect(s.master.baseline).toBe(s.master.master);
-    expect(s.master.pendingSnapshot).toBe(true);
     expect(selectIsDirty(s)).toBe(true);
     expect(s.master.message).toMatch(/^Started a new master/);
   });
@@ -41,7 +40,6 @@ describe("import", () => {
     const t2 = makeTestStore();
     await t2.store.dispatch(importPrepared(prepared({ master: saved }))).unwrap();
     expect(selectIsDirty(t2.store.getState())).toBe(false);
-    expect(t2.store.getState().master.pendingSnapshot).toBe(false);
   });
 
   test("an invalid master is rejected with a readable message and leaves state alone", async () => {
@@ -143,7 +141,6 @@ describe("save", () => {
 
     const s = t.store.getState();
     expect(selectIsDirty(s)).toBe(false);
-    expect(s.master.pendingSnapshot).toBe(false);
     expect(selectSessionDiff(s).changedAccounts).toBe(1);
     expect(t.lastSaved.get()).toBe("2026-10-27T14:05:09.000Z");
   });
@@ -260,8 +257,8 @@ describe("reload safety net", () => {
 
   test("unusable stored data is ignored", async () => {
     const t = makeTestStore();
-    await t.tab.replace({ version: 1, tag_options: [], snapshot: { captured_at: "x" }, accounts: { bob: { username: "" } } }, {
-      revision: 1, savedRevision: 0, pendingSnapshot: false, message: "", tag_options: [], storedAt: "x",
+    await t.tab.replace({ version: 1, last_import_at: "x", tag_options: [], accounts: { bob: { username: "" } } }, {
+      revision: 1, savedRevision: 0, message: "", tag_options: [], storedAt: "x",
     }, {});
     expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
   });
@@ -301,18 +298,16 @@ describe("selectors", () => {
     expect(keys()).toEqual(["carol"]);
   });
 
-  test("change tabs list the latest snapshot's changes regardless of scope", async () => {
+  test("change tabs list who started/stopped following you in the latest import, regardless of scope", async () => {
     const t = await importedStore();
     await t.store.dispatch(saveMaster()).unwrap();
     const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
-    await t.store.dispatch(importPrepared(prepared({ master: saved, following: [["alice"], ["erin"]], followers: [["alice"]] }))).unwrap();
+    await t.store.dispatch(importPrepared(prepared({ master: saved, following: [["alice"], ["erin"]], followers: [["alice"], ["erin"]] }))).unwrap();
 
-    t.store.dispatch(setScope("followers"));
-    t.store.dispatch(setChangeView("unfollowed_since"));
-    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["bob", "carol"]);
-    t.store.dispatch(setChangeView("new_unfollowers"));
+    t.store.dispatch(setScope("following"));
+    t.store.dispatch(setChangeView("lost_followers"));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["dave"]);
-    t.store.dispatch(setChangeView("followed_since"));
+    t.store.dispatch(setChangeView("new_followers"));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(["erin"]);
   });
 

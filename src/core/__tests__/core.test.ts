@@ -84,7 +84,7 @@ describe("master file", () => {
       },
       carol: { username: "carol", follower_since: 1_700_000_000 },
     });
-    expect(file.snapshot).toEqual({ captured_at: T1 });
+    expect(file.last_import_at).toBe(T1);
   });
 
   test("round-trips: parse then save gives the same file", () => {
@@ -138,7 +138,7 @@ describe("master file", () => {
 
   test("drops fields the app does not use", () => {
     const parsed = parseMaster({ ...saved(), notes_from_elsewhere: "x" });
-    expect(Object.keys(toMasterFile(parsed))).toEqual(["version", "last_saved_at", "tag_options", "snapshot", "accounts"]);
+    expect(Object.keys(toMasterFile(parsed))).toEqual(["version", "last_saved_at", "last_import_at", "tag_options", "accounts"]);
   });
 
   test("does not mutate its input", () => {
@@ -166,39 +166,50 @@ describe("master file", () => {
 });
 
 describe("importExport", () => {
-  test("first-time user: new master with snapshot #1", () => {
+  test("first-time user: new master, nothing to compare with yet", () => {
     const result = importExport(null, bundle(followingFile(["Alice", 100], ["bob", 200]), followersFile(["alice", 300]), followersFile(["carol", 400])), T1);
     expect(result.isNewMaster).toBe(true);
     expect(result.dirty).toBe(true);
-    expect(result.snapshotCreated).toBe(true);
     expect(result.master.tag_options).toEqual(DEFAULT_TAG_OPTIONS);
-    expect(result.master.snapshot).toEqual({ captured_at: T1 }); // first import: nothing to compare with
+    expect(result.master.last_import_at).toBe(T1);
     expect(result.master.accounts.alice?.current).toEqual({
       you_follow: true, follows_you: true, relationship: "mutual", following_since_timestamp: 100, follower_since_timestamp: 300,
     });
     expect(result.master.accounts.carol?.current.relationship).toBe("follows_you_only");
-    expect(result.changes.newly_following).toEqual(["Alice", "bob"]);
+    expect(Object.values(result.master.accounts).some(a => a.follower_change)).toBe(false); // no "new followers" on day one
   });
 
-  test("re-importing the same export is not dirty and adds no snapshot", () => {
-    const saved = JSON.parse(stringifyMasterFile(toMasterFile(freshMaster()))) as unknown;
-    const result = importExport(saved, bundle(followingFile(["Alice"], ["bob"]), followersFile(["alice"], ["carol"])), T2);
-    expect(result.snapshotCreated).toBe(false);
+  test("re-importing the same export is not dirty and keeps the last import's markers and time", () => {
+    const earlier = importExport(JSON.parse(stringifyMasterFile(toMasterFile(freshMaster()))), bundle(followingFile(["Alice"]), followersFile(["alice"], ["dave"])), T1).master;
+    const saved = JSON.parse(stringifyMasterFile(toMasterFile(earlier))) as unknown;
+    const result = importExport(saved, bundle(followingFile(["Alice"]), followersFile(["alice"], ["dave"])), T2);
+    expect(result.exportChanged).toBe(false);
     expect(result.dirty).toBe(false);
-    expect(result.master.snapshot.captured_at).toBe(T1);
+    expect(result.master.last_import_at).toBe(T1);
+    expect(result.master.accounts.dave?.follower_change).toBe("new");
+    expect(result.changes.new_followers).toEqual(["dave"]);
   });
 
-  test("a later export updates relationships, keeps history and review data", () => {
+  test("a later export updates relationships, marks new/lost followers and keeps review data", () => {
     const saved = freshMaster();
     must(saved.accounts.bob).review = { reviewed: true, last_reviewed_at: T1, deleted_or_unavailable: false, tags: ["artist"], notes: "hi" };
     const result = importExport(JSON.parse(stringifyMasterFile(toMasterFile(saved))), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave"])), T2);
 
-    expect(result.snapshotCreated).toBe(true);
+    expect(result.exportChanged).toBe(true);
     expect(result.changes).toEqual({ newly_following: [], stopped_following: ["bob"], new_followers: ["dave"], lost_followers: ["carol"] });
+    expect(result.master.accounts.dave?.follower_change).toBe("new");
+    expect(result.master.accounts.carol?.follower_change).toBe("lost");
+    expect(result.master.accounts.alice?.follower_change).toBeUndefined();
     expect(result.master.accounts.bob?.current.relationship).toBe("neither");
     expect(result.master.accounts.bob?.review.notes).toBe("hi");
     expect(result.master.accounts.alice?.username).toBe("alice"); // casing follows the newest export
-    expect(result.master.snapshot).toEqual({ captured_at: T2, changes: result.changes }); // only the latest is kept
+    expect(result.master.last_import_at).toBe(T2);
+  });
+
+  test("the next changed export replaces the markers", () => {
+    const second = importExport(JSON.parse(stringifyMasterFile(toMasterFile(freshMaster()))), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave"])), T2).master;
+    const third = importExport(JSON.parse(stringifyMasterFile(toMasterFile(second))), bundle(followingFile(["alice"]), followersFile(["dave"], ["erin"])), T2).master;
+    expect(Object.entries(third.accounts).filter(([, a]) => a.follower_change).map(([k, a]) => [k, a.follower_change])).toEqual([["alice", "lost"], ["erin", "new"]]);
   });
 
   test("rejects exports with an empty side", () => {
@@ -235,15 +246,14 @@ describe("tag filter", () => {
 
 describe("buildImportMessage", () => {
   const base = importExport(null, bundle(followingFile(["a"]), followersFile(["a"])), T1);
+  const changed = { ...base, isNewMaster: false, exportChanged: true, changes: { ...base.changes, new_followers: ["x", "y"], lost_followers: ["z"] } };
 
   test.each([
     ["new master", base, "Started a new master from 1 follower file. 1 following, 1 followers. Save master to keep it."],
-    ["new snapshot", { ...base, isNewMaster: false, confirmed: { unfollow: 2, remove_follower: 1, total: 3 } },
-      "New snapshot detected — not saved. Loaded 1 follower file. 1 following, 1 followers. Changes: +1 following, -0 following, +1 followers, -0 followers. Confirmed 2 unfollows and 1 follower removal."],
-    ["confirmations only", { ...base, isNewMaster: false, snapshotCreated: false, confirmed: { unfollow: 1, remove_follower: 0, total: 1 } },
-      "Loaded 1 follower file. The export matches the latest snapshot. Confirmed 1 unfollow and 0 follower removals. Save master to keep the updated action history."],
-    ["up to date", { ...base, isNewMaster: false, snapshotCreated: false },
-      "Loaded 1 follower file; up to date. Latest saved changes: +1 following, -0 following, +1 followers, -0 followers."],
+    ["changed export", { ...changed, confirmed: { unfollow: 2, remove_follower: 1, total: 3 } },
+      "New export loaded from 1 follower file — not saved yet. 1 following, 1 followers. Since the last import: 2 new followers, 1 lost follower. Confirmed 2 unfollows and 1 follower removal."],
+    ["same export", { ...changed, exportChanged: false },
+      "Loaded 1 follower file: same as the last import. 1 following, 1 followers. From that import: 2 new followers, 1 lost follower."],
   ])("%s", (_, result, expected) => {
     expect(buildImportMessage(result)).toBe(expected);
   });
