@@ -2,6 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   ImportError,
   MasterFormatError,
+  accountOf,
   createDict,
   fromAccountRecord,
   buildImportMessage,
@@ -43,6 +44,16 @@ export interface SaveFulfilled {
   filename: string;
 }
 
+/** The full master: imported accounts with the edited ones applied. */
+export function currentMaster(base: Master, changed: Readonly<Record<string, Account>>): Master {
+  const accounts = createDict<Account>();
+  for (const key of Object.keys(base.accounts)) {
+    const account = accountOf(base.accounts, changed, key);
+    if (account) accounts[key] = account;
+  }
+  return { ...base, accounts };
+}
+
 export function serializeMaster(master: Master, savedAt: string): string {
   return stringifyMasterFile(toMasterFile({ ...master, last_saved_at: savedAt }));
 }
@@ -51,8 +62,9 @@ export function serializeMaster(master: Master, savedAt: string): string {
 export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
   "master/save",
   async (_, { getState, extra, rejectWithValue }) => {
-    const { master, revision } = getState().master;
-    if (!master) return rejectWithValue("Nothing to save yet. Import your Instagram export first.");
+    const { base, changed, revision } = getState().master;
+    if (!base) return rejectWithValue("Nothing to save yet. Import your Instagram export first.");
+    const master = currentMaster(base, changed);
     const now = extra.now();
     const savedAt = now.toISOString();
     const filename = masterFileName(now);
@@ -64,31 +76,28 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
 );
 
 export interface RestoredSession {
-  master: Master;
-  baseline: Master;
+  base: Master;
+  changed: Record<string, Account>;
+  savedAt: string | null;
   revision: number;
   savedRevision: number;
   message: string;
 }
 
 /**
- * Rebuilds the working state from what this tab stored: the imported master (= baseline)
- * with the changed accounts applied on top. Everything goes through the strict readers.
- * Null if the stored data is unusable.
+ * Reads back what this tab stored: the imported master and the accounts changed since.
+ * Everything goes through the strict readers. Null if the stored data is unusable.
  */
 export function reviveTab(stored: StoredTab): RestoredSession | null {
   try {
-    const baseline = parseMaster(stored.base);
-    const accounts = createDict<Account>();
-    for (const [key, account] of Object.entries(baseline.accounts)) accounts[key] = account; // unchanged accounts are shared
-    for (const [key, record] of Object.entries(stored.changed)) accounts[key] = fromAccountRecord(record, `changed.${key}`);
+    const base = parseMaster(stored.base);
+    const changed = createDict<Account>();
+    for (const [key, record] of Object.entries(stored.changed)) changed[key] = fromAccountRecord(record, `changed.${key}`);
     const { meta } = stored;
-    const master: Master = { ...baseline, accounts, tag_options: [...meta.tag_options] };
-    if (meta.last_saved_at === undefined) delete master.last_saved_at;
-    else master.last_saved_at = meta.last_saved_at;
     return {
-      master,
-      baseline,
+      base,
+      changed,
+      savedAt: meta.last_saved_at ?? base.last_saved_at ?? null,
       revision: meta.revision,
       savedRevision: meta.savedRevision,
       message: meta.message,

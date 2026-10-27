@@ -26,8 +26,8 @@ describe("import", () => {
   test("first import starts a dirty master whose baseline is the imported state", async () => {
     const { store } = await importedStore();
     const s = store.getState();
-    expect(s.master.master?.last_import_at).toBe("2026-10-27T12:00:00.000Z");
-    expect(s.master.baseline).toBe(s.master.master);
+    expect(s.master.base?.last_import_at).toBe("2026-10-27T12:00:00.000Z");
+    expect(Object.keys(s.master.changed)).toEqual([]); // the imported master is the session baseline
     expect(selectIsDirty(s)).toBe(true);
     expect(s.master.message).toMatch(/^Started a new master/);
   });
@@ -47,7 +47,7 @@ describe("import", () => {
     const bad = prepared();
     const result = await store.dispatch(importPrepared({ ...bad, rawMaster: { accounts: [] } }));
     expect(result.payload).toBe("This file is not an Instagram Review master.");
-    expect(store.getState().master.master).toBeNull();
+    expect(store.getState().master.base).toBeNull();
     expect(store.getState().master.importStatus).toBe("idle");
   });
 
@@ -193,14 +193,15 @@ describe("reload safety net", () => {
 
     expect(selectIsDirty(after)).toBe(true);
     expect(after.master.revision).toBe(before.master.revision);
-    expect(JSON.parse(JSON.stringify(after.master.master))).toEqual(JSON.parse(JSON.stringify(before.master.master)));
+    expect(JSON.parse(JSON.stringify(after.master.base))).toEqual(JSON.parse(JSON.stringify(before.master.base)));
+    expect(JSON.parse(JSON.stringify(after.master.changed))).toEqual(JSON.parse(JSON.stringify(before.master.changed)));
     expect(selectSessionDiff(after)).toEqual(selectSessionDiff(before));
   });
 
   test("a new tab (nothing stored) starts empty", async () => {
     const { store } = makeTestStore();
     expect(await store.dispatch(restoreTab()).unwrap()).toBeNull();
-    expect(store.getState().master.master).toBeNull();
+    expect(store.getState().master.base).toBeNull();
   });
 
   test("import stores the master once; each edit stores only the accounts it changed", async () => {
@@ -258,7 +259,7 @@ describe("reload safety net", () => {
   test("unusable stored data is ignored", async () => {
     const t = makeTestStore();
     await t.tab.replace({ version: 1, last_import_at: "x", tag_options: [], accounts: { bob: { username: "" } } }, {
-      revision: 1, savedRevision: 0, message: "", tag_options: [], storedAt: "x",
+      revision: 1, savedRevision: 0, message: "", storedAt: "x",
     }, {});
     expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
   });

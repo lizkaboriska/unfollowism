@@ -10,8 +10,7 @@ export interface TabMeta {
   revision: number;
   savedRevision: number;
   message: string;
-  /** Master fields outside `accounts` that can change after import. */
-  tag_options: string[];
+  /** The master's last_saved_at, which changes on every save. */
   last_saved_at?: string;
   /** When this tab's data was last written. */
   storedAt: string;

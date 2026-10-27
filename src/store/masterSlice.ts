@@ -1,10 +1,15 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, original, type PayloadAction } from "@reduxjs/toolkit";
 import {
+  accountOf,
   actionIneligibility,
   cancelPending,
+  copyAccount,
+  createDict,
   markPending,
   markReviewed,
-  resetReviewedForScope,
+  reviewStatusMatches,
+  scopeMatches,
+  tagMatches,
   usernameKey,
   type Account,
   type ActionType,
@@ -14,10 +19,17 @@ import {
 } from "../core/index.ts";
 import { importPrepared, restoreTab, saveMaster } from "./thunks.ts";
 
+/**
+ * The imported master is kept as-is in `base`, and accounts edited since then live in
+ * `changed`. Edits therefore copy only the accounts being edited, never all of them.
+ * `base` is also the session baseline the Session changes drawer compares against.
+ */
 export interface MasterState {
-  master: Master | null;
-  /** State right after import/restore; the Session changes drawer diffs against it. Saving does not move it. */
-  baseline: Master | null;
+  base: Master | null;
+  /** Account key → current version of every account edited since the import. */
+  changed: Record<string, Account>;
+  /** last_saved_at of the master (from the imported file, then from each save). */
+  savedAt: string | null;
   /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
   revision: number;
   savedRevision: number;
@@ -29,8 +41,9 @@ export interface MasterState {
 }
 
 const initialState: MasterState = {
-  master: null,
-  baseline: null,
+  base: null,
+  changed: createDict<Account>(),
+  savedAt: null,
   revision: 0,
   savedRevision: 0,
   importStatus: "idle",
@@ -46,12 +59,25 @@ function stamped<P>(payload: P) {
 
 type Stamped<P> = PayloadAction<P & { at: string }>;
 
-/** Runs an edit against one account; bumps the revision unless the account is missing or the edit returns false. */
+/**
+ * Runs an edit against one account, copying it into `changed` on its first edit.
+ * The edit returns false when nothing changed. Returns whether anything changed.
+ */
+function editOne(state: MasterState, key: string, edit: (account: Account) => boolean | undefined): boolean {
+  const existing = state.changed[key];
+  if (existing) return edit(existing) !== false;
+  // Read the untouched original (not a draft) so `base` is never copied.
+  const source = original(state).base?.accounts[key];
+  if (!source) return false;
+  const copy = copyAccount(source);
+  if (edit(copy) === false) return false;
+  state.changed[key] = copy;
+  return true;
+}
+
+/** Edits one account; bumps the revision if it changed. */
 function editAccount(state: MasterState, username: string, edit: (account: Account) => boolean | undefined): void {
-  const account = state.master?.accounts[usernameKey(username)];
-  if (!account) return;
-  if (edit(account) === false) return;
-  state.revision += 1;
+  if (editOne(state, usernameKey(username), edit)) state.revision += 1;
 }
 
 export const masterSlice = createSlice({
@@ -102,8 +128,15 @@ export const masterSlice = createSlice({
     },
     /** Only `reviewed` is reset; search and review-status filters are deliberately ignored. */
     resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {
-      if (!state.master) return;
-      if (resetReviewedForScope(state.master, payload) > 0) state.revision += 1;
+      const before = original(state);
+      if (!before.base) return;
+      let count = 0;
+      for (const key of Object.keys(before.base.accounts)) {
+        const account = accountOf(before.base.accounts, before.changed, key);
+        if (!account || !scopeMatches(account, payload.scope) || !tagMatches(account, payload.tag) || !reviewStatusMatches(account, "reviewed")) continue;
+        if (editOne(state, key, a => { a.review.reviewed = false; })) count += 1;
+      }
+      if (count > 0) state.revision += 1;
     },
     persistenceFailed(state) {
       state.persistenceFailed = true;
@@ -112,9 +145,10 @@ export const masterSlice = createSlice({
   extraReducers: builder => {
     builder
       .addCase(restoreTab.fulfilled, (state, { payload }) => {
-        if (!payload || state.master) return; // nothing stored, or the user already imported meanwhile
-        state.master = payload.master;
-        state.baseline = payload.baseline;
+        if (!payload || state.base) return; // nothing stored, or the user already imported meanwhile
+        state.base = payload.base;
+        state.changed = payload.changed;
+        state.savedAt = payload.savedAt;
         state.revision = payload.revision;
         state.savedRevision = payload.savedRevision;
         state.message = payload.message;
@@ -124,8 +158,9 @@ export const masterSlice = createSlice({
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         state.importStatus = "idle";
-        state.master = payload.result.master;
-        state.baseline = payload.result.master; // immutable state: sharing is safe
+        state.base = payload.result.master;
+        state.changed = createDict<Account>();
+        state.savedAt = payload.result.master.last_saved_at ?? null;
         state.revision = 0;
         state.savedRevision = payload.result.dirty ? -1 : 0;
         state.message = payload.message;
@@ -139,7 +174,7 @@ export const masterSlice = createSlice({
       .addCase(saveMaster.fulfilled, (state, { payload }) => {
         state.saveStatus = "idle";
         state.savedRevision = payload.revision;
-        if (state.master) state.master.last_saved_at = payload.savedAt;
+        state.savedAt = payload.savedAt;
         state.message = state.revision === payload.revision
           ? `Master saved as ${payload.filename}. Keep this file: import it next time.`
           : `Master saved as ${payload.filename}. Changes made while saving are not in that file yet.`;

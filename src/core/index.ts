@@ -1,6 +1,7 @@
 export * from "./types.ts";
 export * from "./util.ts";
 export * from "./review.ts";
+export * from "./account.ts";
 export * from "./parse.ts";
 export * from "./scopes.ts";
 export * from "./actions.ts";

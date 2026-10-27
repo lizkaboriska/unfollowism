@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
-// Prints a timing table; the limits below are the agreed targets (per-edit limits currently fail: see PLAN).
-import { selectRelationshipStats, selectScopeStats, selectSessionDiff, selectVisibleAccountKeys } from "../store/selectors.ts";
+// Prints a timing table; the limits below are the agreed targets.
+import { selectAccount, selectRelationshipStats, selectScopeStats, selectSessionDiff, selectVisibleAccountKeys } from "../store/selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../store/thunks.ts";
 import { setNote } from "../store/masterSlice.ts";
 import { importExport, stringifyMasterFile, toMasterFile } from "../core/index.ts";
@@ -68,6 +68,14 @@ async function run(total: number) {
   const [, importMs] = await timeAsync(() => store.dispatch(importPrepared(prepared)).unwrap());
   await flush();
 
+  // Once per import: sort order and imported counts (what the screen computes right after an import).
+  const [, firstRenderMs] = time(() => {
+    selectVisibleAccountKeys(store.getState());
+    selectRelationshipStats(store.getState());
+    selectScopeStats(store.getState());
+    selectSessionDiff(store.getState());
+  });
+
   // One edit, as when typing a note: reducer + the selectors the screen uses. Median of 20 keystrokes.
   const someone = keys[Math.floor(keys.length / 2)] ?? "";
   const keystrokes = Array.from({ length: 20 }, (_, i) => time(() => store.dispatch(setNote({ username: someone, note: "typing…".slice(0, i % 8) })))[1]);
@@ -85,8 +93,9 @@ async function run(total: number) {
   rows.push(
     ["read + classify export and master", analyzeMs, 0],
     ["import (merge, markers, confirm)", importMs, 0],
+    ["first screen after import (sort + counts)", firstRenderMs, 0],
     ["one edit: reducer", editMs, 0],
-    ["one edit: visible list (filter + sort)", listMs, 0],
+    ["one edit: visible list (filter)", listMs, 0],
     ["one edit: stats", statsMs, 0],
     ["one edit: session changes", diffMs, 0],
     ["one edit: storage write", persistMs, 0],
@@ -96,14 +105,17 @@ async function run(total: number) {
   console.log(`\n${total.toLocaleString()} accounts — master file ${mb(masterText.length)}`);
   for (const [label, ms] of rows) console.log(`  ${label.padEnd(42)} ${ms.toFixed(1).padStart(9)} ms`);
 
-  expect(reloaded.getState().master.master?.accounts[someone]?.review.notes).toBe("typing…");
+  expect(selectAccount(reloaded.getState(), someone)?.review.notes).toBe("typing…");
   return Object.fromEntries(rows.map(([label, ms]) => [label, ms]));
 }
 
 test("100k accounts: fast", { timeout: 120_000 }, async () => {
   const t = await run(100_000);
-  expect(t["one edit: reducer"]).toBeLessThan(50);
+  expect(t["one edit: reducer"]).toBeLessThan(5);
+  expect(t["one edit: stats"]).toBeLessThan(5);
+  expect(t["one edit: session changes"]).toBeLessThan(5);
   expect(t["one edit: storage write"]).toBeLessThan(50);
+  expect(t["one edit: visible list (filter)"]).toBeLessThan(50); // phase 4: skip when the edit can't change the list
   expect(t["import (merge, markers, confirm)"]).toBeLessThan(5_000);
   expect(t["save (serialize master)"]).toBeLessThan(2_000);
   expect(t["reload restore"]).toBeLessThan(3_000);
@@ -111,6 +123,7 @@ test("100k accounts: fast", { timeout: 120_000 }, async () => {
 
 test("500k accounts: still works", { timeout: 600_000 }, async () => {
   const t = await run(500_000);
-  expect(t["one edit: reducer"]).toBeLessThan(250);
+  expect(t["one edit: reducer"]).toBeLessThan(25);
+  expect(t["one edit: stats"]).toBeLessThan(25);
   expect(t["import (merge, markers, confirm)"]).toBeLessThan(30_000);
 });

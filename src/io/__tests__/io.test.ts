@@ -107,7 +107,7 @@ describe("analyzeImport", () => {
   });
 });
 
-const META: TabMeta = { revision: 2, savedRevision: 0, message: "m", tag_options: ["artist"], storedAt: "2026-10-27T12:00:00Z" };
+const META: TabMeta = { revision: 2, savedRevision: 0, message: "m", storedAt: "2026-10-27T12:00:00Z" };
 const BASE: MasterFile = {
   version: 1,
   last_import_at: "2026-10-27T12:00:00Z",

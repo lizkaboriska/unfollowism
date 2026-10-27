@@ -60,7 +60,7 @@ export const filtersSlice = createSlice({
         dropUnknownTag(state, payload.result.master);
       })
       .addCase(restoreTab.fulfilled, (state, { payload }) => {
-        if (payload) dropUnknownTag(state, payload.master);
+        if (payload) dropUnknownTag(state, payload.base);
       });
   },
 });
