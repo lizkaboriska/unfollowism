@@ -1,4 +1,5 @@
-export const SCHEMA_VERSION = 6;
+/** Version of the saved master file format. Bump it (and handle the old value) when the format changes. */
+export const FORMAT_VERSION = 1;
 
 /** Tag choices for a brand-new master (the UI has no tag management yet). */
 export const DEFAULT_TAG_OPTIONS: readonly string[] = ["artist", "fashion", "lifestyle", "aesthetics", "acquaintance", "home", "dog"];
@@ -61,7 +62,7 @@ export interface Snapshot {
   snapshot_id: string;
   /** YYYY-MM-DD (UTC). */
   snapshot_date: string;
-  /** Exact capture time; null on old date-only snapshots, whose confirmations then get no exact time. */
+  /** Exact capture time, or null when only the date is known. */
   captured_at: string | null;
   source_files: string[];
   /** Username (original casing) → Instagram "since" timestamp in seconds. */
@@ -82,13 +83,13 @@ export interface Action {
   cancelled_at: string | null;
   confirmation_snapshot_id: string | null;
   confirmation_snapshot_date: string | null;
-  /** Relationship when the action was marked; null on some older actions. */
+  /** Relationship when the action was marked, or null when unknown. */
   relationship_at_mark: { you_follow: boolean; follows_you: boolean } | null;
 }
 
-/** The persisted master document (schema v6). Only these fields are saved; see parseMaster. */
+/** The saved master file. Only these fields are saved; see parseMaster. */
 export interface Master {
-  schema_version: typeof SCHEMA_VERSION;
+  version: typeof FORMAT_VERSION;
   tag_options: string[];
   /** Keyed by lower-cased username (see usernameKey). */
   accounts: Record<string, Account>;

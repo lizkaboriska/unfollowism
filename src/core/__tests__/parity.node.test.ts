@@ -93,16 +93,16 @@ function legacyImport(oldMaster: any, followingRaw: unknown, followerRaws: unkno
   }
 
   const confirmed = legacy.confirmPendingActions(next, confirmationSnapshot, NOW);
-  return { next, changed: normalized.changed as boolean, isDuplicateSnapshot, confirmed };
+  return { next, isDuplicateSnapshot, confirmed };
 }
 
-/** Fields the legacy app wrote that the new format no longer keeps (see parseMaster). */
-const DROPPED_FIELDS = ["purpose", "status_semantics", "legacy_review_history", "exported_at", "last_updated_at"];
+/** Bookkeeping fields where the two implementations' file formats differ; everything else must match. */
+const FORMAT_FIELDS = ["version", "schema_version", "purpose", "status_semantics", "legacy_review_history", "exported_at", "last_updated_at"];
 
-/** Order-insensitive comparison form: plain JSON without the dropped top-level fields. */
+/** Order-insensitive comparison form: plain JSON without the format bookkeeping fields. */
 function comparable(master: unknown): unknown {
   const plain = JSON.parse(JSON.stringify(master)) as Record<string, unknown>;
-  return Object.fromEntries(Object.entries(plain).filter(([field]) => !DROPPED_FIELDS.includes(field)));
+  return Object.fromEntries(Object.entries(plain).filter(([field]) => !FORMAT_FIELDS.includes(field)));
 }
 
 function expectParity(name: string, master: unknown, followingRaw: unknown, followerRaws: unknown[]) {
@@ -117,7 +117,6 @@ function expectParity(name: string, master: unknown, followingRaw: unknown, foll
   }, NOW);
 
   expect(JSON.stringify(master), `${name}: input must not be mutated`).toBe(before);
-  expect(old.changed, `${name}: legacy saw no migration work (input is v6)`).toBe(typeof (master as { status_semantics?: unknown }).status_semantics !== "object");
   expect(comparable(result.master), `${name}: master`).toEqual(comparable(old.next));
   expect(result.snapshotCreated, `${name}: snapshot`).toBe(!old.isDuplicateSnapshot);
   expect(result.confirmed, `${name}: confirmations`).toEqual(old.confirmed);

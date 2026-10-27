@@ -129,7 +129,7 @@ describe("edits", () => {
 });
 
 describe("save", () => {
-  test("downloads a v6 master that re-imports unchanged; the session baseline is kept", async () => {
+  test("downloads a master that re-imports unchanged; the session baseline is kept", async () => {
     const t = await importedStore();
     t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
     t.setNow("2026-10-27T14:05:09.000Z");
@@ -139,7 +139,7 @@ describe("save", () => {
     expect(file.filename).toMatch(/^instagram_master_tracker_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
     const saved = JSON.parse(file.text) as { last_saved_at: string };
     expect(saved.last_saved_at).toBe("2026-10-27T14:05:09.000Z");
-    expect(JSON.parse(JSON.stringify(parseMaster(saved)))).toEqual(saved); // the file is exactly the v6 format
+    expect(JSON.parse(JSON.stringify(parseMaster(saved)))).toEqual(saved); // the file is exactly the saved format
 
     const s = t.store.getState();
     expect(selectIsDirty(s)).toBe(false);

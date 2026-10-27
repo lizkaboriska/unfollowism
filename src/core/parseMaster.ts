@@ -2,7 +2,7 @@ import {
   ACTION_STATUSES,
   ACTION_TYPES,
   DEFAULT_TAG_OPTIONS,
-  SCHEMA_VERSION,
+  FORMAT_VERSION,
   type Account,
   type Action,
   type CurrentRelationship,
@@ -163,21 +163,20 @@ function parseAction(value: unknown, path: string): Action {
 }
 
 export function emptyMaster(): Master {
-  return { schema_version: SCHEMA_VERSION, tag_options: [...DEFAULT_TAG_OPTIONS], accounts: createDict<Account>(), snapshots: [], actions: [] };
+  return { version: FORMAT_VERSION, tag_options: [...DEFAULT_TAG_OPTIONS], accounts: createDict<Account>(), snapshots: [], actions: [] };
 }
 
 /**
  * The single entry point for a master coming from outside (file import, browser
- * storage). Accepts only a schema v6 master and returns a fresh object holding
+ * storage). Accepts only the current format and returns a fresh object holding
  * just the known fields; anything else in the file is dropped. Never mutates `raw`.
  */
 export function parseMaster(raw: unknown): Master {
   if (!isRecord(raw) || !isRecord(raw.accounts)) {
     throw new MasterFormatError("This file is not an Instagram Review master.");
   }
-  if (raw.schema_version !== SCHEMA_VERSION) {
-    const version = typeof raw.schema_version === "number" ? `v${raw.schema_version}` : "an unknown version";
-    throw new MasterFormatError(`This master uses ${version} of the format; only v${SCHEMA_VERSION} is supported.`);
+  if (raw.version !== FORMAT_VERSION) {
+    throw new MasterFormatError("This file wasn't saved by a compatible version of Instagram Review.");
   }
 
   const accounts = createDict<Account>();
@@ -189,7 +188,7 @@ export function parseMaster(raw: unknown): Master {
   }
 
   const master: Master = {
-    schema_version: SCHEMA_VERSION,
+    version: FORMAT_VERSION,
     tag_options: strings(raw.tag_options, "tag_options"),
     accounts,
     snapshots: array(raw.snapshots, "snapshots").map((s, i) => parseSnapshot(s, `snapshots[${i}]`)),

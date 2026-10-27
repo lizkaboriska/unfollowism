@@ -80,7 +80,7 @@ export interface ConfirmedCounts {
 /**
  * WRITE: a pending action is confirmed only when the snapshot's change set lists the
  * username AND the current relationship really is gone. The confirmation time is the
- * snapshot's capture time (null for old date-only snapshots: no exact time is invented).
+ * snapshot's capture time (null when only its date is known: no exact time is invented).
  */
 export function confirmPendingActions(source: Pick<Master, "accounts" | "actions">, snapshot: DeepReadonly<Snapshot> | null): ConfirmedCounts {
   const confirmed: ConfirmedCounts = { unfollow: 0, remove_follower: 0, total: 0 };
@@ -132,7 +132,7 @@ export function latestConfirmedActions(source: ReadonlyActions): Map<string, Par
     if (action.status !== "confirmed") continue;
     const key = usernameKey(action.username);
     const entry = index.get(key) ?? {};
-    entry[action.type] = action; // later entries win, matching the legacy reverse().find()
+    entry[action.type] = action; // later entries win: the most recent confirmation
     index.set(key, entry);
   }
   return index;

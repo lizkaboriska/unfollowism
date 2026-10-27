@@ -96,8 +96,8 @@ describe("analyzeImport", () => {
     const old = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, last_saved_at: "2026-10-01T00:00:00Z" }))], "2026-10-20T00:00:00Z");
     expect(old.warnings).toEqual([{ kind: "master_older_than_last_save", fileSavedAt: "2026-10-01T00:00:00Z", lastKnownSavedAt: "2026-10-20T00:00:00Z" }]);
 
-    const legacyNeverSaved = analyzeImport([...base, f("m.json", '{"accounts":{}}')], "2026-10-20T00:00:00Z");
-    expect(legacyNeverSaved.warnings[0]?.kind).toBe("master_older_than_last_save");
+    const neverSaved = analyzeImport([...base, f("m.json", '{"accounts":{}}')], "2026-10-20T00:00:00Z");
+    expect(neverSaved.warnings[0]?.kind).toBe("master_older_than_last_save");
 
     const current = analyzeImport([...base, f("m.json", JSON.stringify({ accounts: {}, last_saved_at: "2026-10-20T00:00:00Z" }))], "2026-10-20T00:00:00Z");
     expect(current.warnings).toEqual([]);

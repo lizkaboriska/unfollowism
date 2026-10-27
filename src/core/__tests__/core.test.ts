@@ -82,9 +82,9 @@ describe("parseMaster", () => {
     expect(() => parseMaster({ following: [] })).toThrow(MasterFormatError);
   });
 
-  test("rejects older formats with a clear message", () => {
-    expect(() => parseMaster({ ...saved(), schema_version: 3 })).toThrow("This master uses v3 of the format; only v6 is supported.");
-    expect(() => parseMaster({ ...saved(), schema_version: undefined })).toThrow("an unknown version");
+  test("rejects other format versions with a clear message", () => {
+    expect(() => parseMaster({ ...saved(), version: 2 })).toThrow("This file wasn't saved by a compatible version of Instagram Review.");
+    expect(() => parseMaster({ ...saved(), version: undefined })).toThrow(MasterFormatError);
   });
 
   test("names the exact field that is wrong instead of silently repairing it", () => {
@@ -97,10 +97,10 @@ describe("parseMaster", () => {
     expect(() => parseMaster(raw2)).toThrow("actions[0].type should be one of unfollow, remove_follower");
   });
 
-  test("drops fields the app does not use (old-app leftovers)", () => {
-    const raw = { ...saved(), purpose: "x", status_semantics: {}, legacy_review_history: [1], exported_at: T1, last_updated_at: T1 };
+  test("drops fields the app does not use", () => {
+    const raw = { ...saved(), notes_from_elsewhere: "x", extra: [1] };
     const parsed = parseMaster(raw) as unknown as Record<string, unknown>;
-    expect(Object.keys(parsed)).toEqual(["schema_version", "tag_options", "accounts", "snapshots", "actions", "last_saved_at"]);
+    expect(Object.keys(parsed)).toEqual(["version", "tag_options", "accounts", "snapshots", "actions", "last_saved_at"]);
   });
 
   test("does not mutate its input", () => {
