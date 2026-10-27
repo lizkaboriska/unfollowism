@@ -16,7 +16,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../store/masterSlice.ts";
 import { selectAccount, selectChangesSince, selectTagOptions } from "../store/selectors.ts";
-import { formatDate, formatSince } from "./dates.ts";
+import { formatSince } from "./dates.ts";
 import { openProfilePopup } from "./instagramLink.ts";
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from "./labels.ts";
 
@@ -85,9 +85,6 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
           </HStack>
           <Text fontSize="sm" color="fg.muted">
             {dates.length ? dates.join(" · ") : "No relationship date in export"}
-          </Text>
-          <Text fontSize="sm" color="fg.muted">
-            Last reviewed: {review.lastReviewedAt ? formatDate(review.lastReviewedAt) : "Never"}
           </Text>
         </Stack>
 

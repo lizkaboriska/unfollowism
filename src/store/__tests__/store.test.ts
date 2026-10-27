@@ -1,4 +1,4 @@
-import { ACTION_TYPES, FOLLOW_CHANGES, PLAN_STATES, REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
+import { ACTION_TYPES, FOLLOW_CHANGES, PLAN_STATES, REVIEW_SCOPES, SESSION_CHANGES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
@@ -11,7 +11,7 @@ import {
   selectFollowChangeCounts,
   selectPlanStats,
   selectScopeStats,
-  selectSessionDiff,
+  selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectVisibleAccountKeys,
 } from "../selectors.ts";
@@ -69,14 +69,14 @@ describe("import", () => {
 });
 
 describe("edits", () => {
-  test("reviewed: stamps lastReviewedAt; un-reviewing keeps it; unknown accounts are a no-op", async () => {
+  test("reviewed: ticks and unticks; repeating the same value or unknown accounts are a no-op", async () => {
     const t = await importedStore();
     const r0 = t.store.getState().master.revision;
     t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
-    const stamped = account(t, "bob").review.lastReviewedAt;
-    expect(stamped).not.toBeNull();
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    expect(account(t, "bob").review.reviewed).toBe(true);
     t.store.dispatch(setReviewed({ username: "bob", reviewed: false }));
-    expect(account(t, "bob").review).toMatchObject({ reviewed: false, lastReviewedAt: stamped });
+    expect(account(t, "bob").review.reviewed).toBe(false);
     expect(t.store.getState().master.revision).toBe(r0 + 2);
 
     t.store.dispatch(setReviewed({ username: "nobody", reviewed: true }));
@@ -138,7 +138,6 @@ describe("edits", () => {
 
     t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.MUTUAL, tag: { kind: TAG_FILTER_KINDS.ALL } }));
     expect(account(t, "alice").review).toMatchObject({ reviewed: false, tags: ["artist"] });
-    expect(account(t, "alice").review.lastReviewedAt).not.toBeNull();
     expect(account(t, "bob").review.reviewed).toBe(true);
     expect(t.store.getState().filters.reviewStatus).toBe(REVIEW_STATUSES.NEEDS_REVIEW);
   });
@@ -159,8 +158,20 @@ describe("save", () => {
 
     const s = t.store.getState();
     expect(selectIsDirty(s)).toBe(false);
-    expect(selectSessionDiff(s)).toHaveLength(1);
+    expect(selectUnsavedDiff(s)).toEqual([]); // saved: nothing left to list
     expect(t.lastSaved.get()).toBe("2026-10-27T14:05:09.000Z");
+  });
+
+  test("the unsaved changes list covers only what came after the last save", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    t.store.dispatch(setNote({ username: "carol", note: "x" }));
+    expect(selectUnsavedDiff(t.store.getState()).map(a => [a.username, a.changes.map(c => c.type)])).toEqual([
+      ["bob", [SESSION_CHANGES.TAG_ADDED]],
+      ["carol", [SESSION_CHANGES.NOTE_EDITED]],
+    ]);
   });
 
   test("edits made while saving stay unsaved", async () => {
@@ -217,7 +228,7 @@ describe("reset changes", () => {
     expect(selectIsDirty(s)).toBe(false);
     expect(selectUnsavedAccountCount(s)).toBe(0);
     expect(s.master.status).toEqual(savedStatus);
-    expect(selectSessionDiff(s)).toHaveLength(1); // Session changes still compares with the import
+    expect(selectUnsavedDiff(s)).toEqual([]); // back to the save: nothing unsaved
   });
 
   test("without a save since the import, goes back to the import", async () => {
@@ -339,7 +350,7 @@ describe("reload safety net", () => {
     expect(after.master.revision).toBe(before.master.revision);
     expect(JSON.parse(JSON.stringify(after.master.base))).toEqual(JSON.parse(JSON.stringify(before.master.base)));
     expect(JSON.parse(JSON.stringify(after.master.changed))).toEqual(JSON.parse(JSON.stringify(before.master.changed)));
-    expect(selectSessionDiff(after)).toEqual(selectSessionDiff(before));
+    expect(selectUnsavedDiff(after)).toEqual(selectUnsavedDiff(before));
   });
 
   test("a new tab (nothing stored) starts empty", async () => {

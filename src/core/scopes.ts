@@ -128,7 +128,7 @@ export function reviewScopeAccounts<A extends ReadonlyAccount>(
   );
 }
 
-/** WRITE: only `reviewed` changes; lastReviewedAt, tags, notes, flags and actions are kept. Returns the count reset. */
+/** WRITE: only `reviewed` changes; tags, notes, flags and plans are kept. Returns the count reset. */
 export function resetReviewedForScope(source: Pick<Master, "accounts">, { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter }): number {
   const targets = reviewScopeAccounts(source, { scope, tag, reviewStatus: REVIEW_STATUSES.REVIEWED });
   for (const account of targets) account.review.reviewed = false;

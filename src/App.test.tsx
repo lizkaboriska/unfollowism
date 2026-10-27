@@ -223,7 +223,7 @@ test("a reload silently continues where the tab left off", async () => {
 
   renderApp({ tab: first.tab }); // same tab storage, fresh page
   expect(await findRow("bob")).toBeInTheDocument();
-  expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Unsaved changes (1)" })).toBeInTheDocument();
   expect(reviewedBox("bob")).toBeChecked();
 });
 
@@ -361,5 +361,52 @@ describe("main view", () => {
     await user.keyboard("{/Meta}");
     expect(open).not.toHaveBeenCalled();
     open.mockRestore();
+  });
+});
+
+describe("unsaved changes drawer", () => {
+  async function imported() {
+    const t = renderApp();
+    await importFiles(t.user, exportFiles());
+    await findRow("bob");
+    return t;
+  }
+  const drawer = () => screen.getByRole("dialog", { name: "Unsaved changes" });
+
+  test("lists net changes per account, by category, and only what isn't saved", async () => {
+    const { user, downloads } = await imported();
+    await user.click(reviewedBox("alice"));
+    await user.click(within(row("bob")).getByRole("button", { name: "dog" }));
+    await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" }));
+    await user.click(within(row("alice")).getByRole("button", { name: "home" }));
+    await user.click(within(row("alice")).getByRole("button", { name: "home" })); // back again: no net change
+
+    await user.click(screen.getByRole("button", { name: "Unsaved changes (2)" }));
+    const d = await waitFor(drawer);
+    expect(within(d).getByText("2 accounts · 4 changes")).toBeInTheDocument(); // alice ✓; bob ✓ + dog + to unfollow
+    expect(within(d).getByText("Added tag dog")).toBeInTheDocument();
+    expect(within(d).getByText("Marked to unfollow")).toBeInTheDocument();
+    expect(within(d).queryByText("Added tag home")).not.toBeInTheDocument();
+
+    await user.click(within(d).getByRole("button", { name: "Actions" }));
+    expect(within(d).queryByText("Marked reviewed")).not.toBeInTheDocument();
+    expect(within(d).getByText("Marked to unfollow")).toBeInTheDocument();
+
+    await user.click(within(d).getByRole("button", { name: "Tags" }));
+    await user.click(within(d).getByRole("button", { name: /^dog\s*\+1$/ }));
+    expect(within(d).getAllByRole("link").map(link => link.textContent)).toEqual(["@bob ↗"]);
+
+    await user.click(within(d).getByRole("button", { name: "Save master" }));
+    await waitFor(() => { expect(downloads).toHaveLength(1); });
+    expect(await within(d).findByText(/No edits since your last save/)).toBeInTheDocument();
+  });
+
+  test("Reset changes in the drawer undoes what's listed", async () => {
+    const { user } = await imported();
+    await user.click(reviewedBox("bob"));
+    await user.click(screen.getByRole("button", { name: "Unsaved changes (1)" }));
+    await user.click(within(await waitFor(drawer)).getByRole("button", { name: "Reset changes" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }));
+    expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
   });
 });

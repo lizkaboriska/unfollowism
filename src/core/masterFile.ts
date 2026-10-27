@@ -49,7 +49,7 @@ export class MasterFormatError extends Error {
 // ── Writing ──────────────────────────────────────────────────────────────────
 
 function isDefaultReview(r: DeepReadonly<Review>): boolean {
-  return !r.reviewed && r.lastReviewedAt === null && !r.unavailable && r.tags.length === 0 && r.notes === "";
+  return !r.reviewed && !r.unavailable && r.tags.length === 0 && r.notes === "";
 }
 
 export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
@@ -115,10 +115,6 @@ function nonEmptyStr(value: unknown, path: string): string {
   return typeof value === "string" && value ? value : fail(path, "non-empty text");
 }
 
-function strOrNull(value: unknown, path: string): string | null {
-  return value === null || typeof value === "string" ? value : fail(path, "text or null");
-}
-
 function bool(value: unknown, path: string): boolean {
   return typeof value === "boolean" ? value : fail(path, "true or false");
 }
@@ -133,15 +129,24 @@ function oneOf<T extends string>(value: unknown, options: Readonly<Record<string
   return allowed.includes(value) ? (value as T) : fail(path, `one of ${allowed.join(", ")}`);
 }
 
+/** Rejected rather than dropped: losing a field silently could lose your work. */
+function rejectUnknownFields(r: Record<string, unknown>, known: ReadonlySet<string>, path: string): void {
+  for (const key of Object.keys(r)) {
+    if (!known.has(key)) throw new MasterFormatError(`Invalid master file: ${path}.${key} is not a known field.`);
+  }
+}
+
 function strings(value: unknown, path: string): string[] {
   return array(value, path).map((item, i) => str(item, `${path}[${i}]`));
 }
 
+const REVIEW_FIELDS: ReadonlySet<string> = new Set(["reviewed", "unavailable", "tags", "notes"] satisfies (keyof Review)[]);
+
 function parseReview(value: unknown, path: string): Review {
   const r = record(value, path);
+  rejectUnknownFields(r, REVIEW_FIELDS, path);
   return {
     reviewed: bool(r.reviewed, `${path}.reviewed`),
-    lastReviewedAt: strOrNull(r.lastReviewedAt, `${path}.lastReviewedAt`),
     unavailable: bool(r.unavailable, `${path}.unavailable`),
     tags: strings(r.tags, `${path}.tags`),
     notes: str(r.notes, `${path}.notes`),
@@ -164,10 +169,7 @@ const ACCOUNT_FIELDS: ReadonlySet<string> = new Set([
 /** Builds the working account from its saved record. */
 export function fromAccountRecord(value: unknown, path: string): Account {
   const r = record(value, path);
-  // Rejected rather than dropped: losing a field silently could lose your work.
-  for (const key of Object.keys(r)) {
-    if (!ACCOUNT_FIELDS.has(key)) throw new MasterFormatError(`Invalid master file: ${path}.${key} is not a known field.`);
-  }
+  rejectUnknownFields(r, ACCOUNT_FIELDS, path);
   const account: Account = {
     username: nonEmptyStr(r.username, `${path}.username`),
     following: follow("followingSince" in r, r.followingSince, `${path}.followingSince`),

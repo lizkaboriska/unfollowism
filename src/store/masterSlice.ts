@@ -5,7 +5,6 @@ import {
   actionIneligibility,
   copyAccount,
   createDict,
-  markReviewed,
   planOf,
   reviewStatusMatches,
   scopeMatches,
@@ -66,13 +65,6 @@ const initialState: MasterState = {
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
 const UNSAVED_IMPORT = -1;
 
-/** Edit payloads carry the timestamp so reducers stay pure. */
-function stamped<P>(payload: P) {
-  return { payload: { ...payload, at: new Date().toISOString() } };
-}
-
-type Stamped<P> = PayloadAction<P & { at: string }>;
-
 /** `state` null = not marked (cancels the plan). */
 interface PlanPayload {
   username: string;
@@ -111,21 +103,17 @@ export const masterSlice = createSlice({
   name: "master",
   initialState,
   reducers: {
-    setReviewed: {
-      reducer(state, { payload }: Stamped<{ username: string; reviewed: boolean }>) {
-        editAccount(state, payload.username, account => { markReviewed(account, payload.reviewed, payload.at); });
-      },
-      prepare: (p: { username: string; reviewed: boolean }) => stamped(p),
+    setReviewed(state, { payload }: PayloadAction<{ username: string; reviewed: boolean }>) {
+      if (accountBefore(state, payload.username)?.review.reviewed === payload.reviewed) return;
+      editAccount(state, payload.username, account => { account.review.reviewed = payload.reviewed; });
     },
     /** Marking unavailable also marks the account reviewed; clearing it does not un-review. */
-    setUnavailable: {
-      reducer(state, { payload }: Stamped<{ username: string; unavailable: boolean }>) {
-        editAccount(state, payload.username, account => {
-          account.review.unavailable = payload.unavailable;
-          if (payload.unavailable) markReviewed(account, true, payload.at);
-        });
-      },
-      prepare: (p: { username: string; unavailable: boolean }) => stamped(p),
+    setUnavailable(state, { payload }: PayloadAction<{ username: string; unavailable: boolean }>) {
+      if (accountBefore(state, payload.username)?.review.unavailable === payload.unavailable) return;
+      editAccount(state, payload.username, account => {
+        account.review.unavailable = payload.unavailable;
+        if (payload.unavailable) account.review.reviewed = true;
+      });
     },
     toggleTag(state, { payload }: PayloadAction<{ username: string; tag: string }>) {
       editAccount(state, payload.username, account => {
@@ -143,20 +131,17 @@ export const masterSlice = createSlice({
      * Plans an Instagram action (planned → done after doing it by hand), or cancels it with
      * `state: null`. A new plan also marks the account reviewed.
      */
-    setPlan: {
-      reducer(state, { payload }: Stamped<PlanPayload>) {
-        const before = accountBefore(state, payload.username);
-        if (!before) return;
-        const current = planOf(before, payload.type);
-        const next = payload.state ?? undefined;
-        if (current === next) return;
-        if (current === undefined && actionIneligibility(before, payload.type)) return; // the UI only offers eligible actions
-        editAccount(state, payload.username, account => {
-          applyPlan(account, payload.type, next);
-          if (current === undefined) markReviewed(account, true, payload.at);
-        });
-      },
-      prepare: (p: PlanPayload) => stamped(p),
+    setPlan(state, { payload }: PayloadAction<PlanPayload>) {
+      const before = accountBefore(state, payload.username);
+      if (!before) return;
+      const current = planOf(before, payload.type);
+      const next = payload.state ?? undefined;
+      if (current === next) return;
+      if (current === undefined && actionIneligibility(before, payload.type)) return; // the UI only offers eligible actions
+      editAccount(state, payload.username, account => {
+        applyPlan(account, payload.type, next);
+        if (current === undefined) account.review.reviewed = true;
+      });
     },
     /** Only `reviewed` is reset; search and review-status filters are deliberately ignored. */
     resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {

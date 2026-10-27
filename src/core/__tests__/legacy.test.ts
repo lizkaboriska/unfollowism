@@ -10,7 +10,6 @@ import {
   TAG_FILTER_KINDS,
   buildSessionDiff,
   dedupeAccounts,
-  markReviewed,
   planOf,
   planStats,
   parseFollowersJson,
@@ -32,18 +31,14 @@ const none = { [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 };
 const tag = (name: string) => ({ kind: TAG_FILTER_KINDS.TAG, tag: name });
 const accountsOf = (...items: Account[]) => stateWith(...items).accounts;
 
-test("review state is reusable and keeps the last reviewed timestamp when reset", () => {
+test("review state is reusable: resetting reviewed keeps tags and notes", () => {
   const a = account();
   a.review.tags = ["artist"];
   a.review.notes = "great illustrator";
+  a.review.reviewed = true;
 
-  markReviewed(a, true, "2026-09-05T10:00:00Z");
-  expect(a.review.reviewed).toBe(true);
-  expect(a.review.lastReviewedAt).toBe("2026-09-05T10:00:00Z");
-
-  markReviewed(a, false, "2026-10-01T10:00:00Z");
+  expect(resetReviewedForScope(stateWith(follows(a, { following: true })), { scope: REVIEW_SCOPES.FOLLOWING })).toBe(1);
   expect(a.review.reviewed).toBe(false);
-  expect(a.review.lastReviewedAt).toBe("2026-09-05T10:00:00Z");
   expect(a.review.tags).toEqual(["artist"]);
   expect(a.review.notes).toBe("great illustrator");
 });
@@ -66,26 +61,26 @@ test("reset applies only to the requested scope and tag and preserves metadata",
   const artistMutual = follows(account("artist_mutual"), { following: true, followedBy: true });
   artistMutual.review.tags = ["artist", "friend"];
   artistMutual.review.notes = "keep this";
-  markReviewed(artistMutual, true, "2026-08-01T10:00:00Z");
+  artistMutual.review.reviewed = true;
 
   const artistNotBack = follows(account("artist_notback"), { following: true });
   artistNotBack.review.tags = ["artist"];
-  markReviewed(artistNotBack, true, "2026-08-02T10:00:00Z");
+  artistNotBack.review.reviewed = true;
 
   const friendMutual = follows(account("friend_mutual"), { following: true, followedBy: true });
   friendMutual.review.tags = ["friend"];
-  markReviewed(friendMutual, true, "2026-08-03T10:00:00Z");
+  friendMutual.review.reviewed = true;
 
   const state = stateWith(artistMutual, artistNotBack, friendMutual);
   expect(resetReviewedForScope(state, { scope: REVIEW_SCOPES.MUTUAL, tag: tag("artist") })).toBe(1);
-  expect(artistMutual.review).toMatchObject({ reviewed: false, lastReviewedAt: "2026-08-01T10:00:00Z", tags: ["artist", "friend"], notes: "keep this" });
+  expect(artistMutual.review).toMatchObject({ reviewed: false, tags: ["artist", "friend"], notes: "keep this" });
   expect(artistNotBack.review.reviewed).toBe(true);
   expect(friendMutual.review.reviewed).toBe(true);
 });
 
 test("scope stats describe whichever audit queue is selected", () => {
   const mutual = follows(account("mutual"), { following: true, followedBy: true });
-  markReviewed(mutual, true, "2026-09-01T00:00:00Z");
+  mutual.review.reviewed = true;
   const notBack = follows(account("notback"), { following: true });
   const followerOnly = follows(account("follower"), { followedBy: true });
 
@@ -163,7 +158,7 @@ test("multiple follower export chunks can be parsed and deduplicated case-insens
 test("review query can combine scope, tag and status", () => {
   const a = follows(account("artist_reviewed"), { following: true, followedBy: true });
   a.review.tags = ["artist"];
-  markReviewed(a, true, "2026-09-01T00:00:00Z");
+  a.review.reviewed = true;
   const b = follows(account("artist_pending"), { following: true });
   b.review.tags = ["artist"];
   const c = follows(account("friend_pending"), { following: true });
@@ -181,7 +176,7 @@ test("session diff reports only net review, tag, action and metadata changes", (
 
   const current = structuredClone(baseline);
   const currentAlice = must(current.alice);
-  markReviewed(currentAlice, true, "2026-09-05T18:00:00Z");
+  currentAlice.review.reviewed = true;
   currentAlice.review.tags = ["artist", "photography"];
   currentAlice.review.notes = "after";
   setPlan(currentAlice, UNFOLLOW, PLANNED);
@@ -203,7 +198,7 @@ test("session diff reports only net review, tag, action and metadata changes", (
   expect(summary.tagsAdded).toEqual([{ tag: "photography", count: 1 }]);
 });
 
-test("session diff ignores tag edits that end back at baseline but keeps persistent last-reviewed changes", () => {
+test("session diff ignores edits that end back at baseline", () => {
   const a = follows(account("alice"), { following: true });
   a.review.tags = ["artist"];
   const baseline = accountsOf(a);
@@ -212,10 +207,10 @@ test("session diff ignores tag edits that end back at baseline but keeps persist
 
   currentAlice.review.tags.push("fashion");
   currentAlice.review.tags = ["artist"];
-  markReviewed(currentAlice, true, "2026-09-05T18:00:00Z");
-  markReviewed(currentAlice, false, "2026-09-05T18:01:00Z");
+  currentAlice.review.reviewed = true;
+  currentAlice.review.reviewed = false;
 
-  expect(buildSessionDiff(baseline, current)).toEqual([{ username: "alice", changes: [{ type: SESSION_CHANGES.LAST_REVIEWED_UPDATED }] }]);
+  expect(buildSessionDiff(baseline, current)).toEqual([]);
 });
 
 test("session diff reports a cancelled, a done and an undone plan", () => {

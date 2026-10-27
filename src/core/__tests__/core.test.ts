@@ -86,7 +86,7 @@ describe("master file", () => {
   /** A saved master file as it comes out of JSON.parse, with one reviewed account, a plan and a stopped follow. */
   function saved(): Record<string, unknown> & { accounts: Record<string, Record<string, unknown>> } {
     const master = freshMaster();
-    must(master.accounts.bob).review = { reviewed: true, lastReviewedAt: T1, unavailable: false, tags: ["artist"], notes: "" };
+    must(master.accounts.bob).review = { reviewed: true, unavailable: false, tags: ["artist"], notes: "" };
     must(master.accounts.bob).toUnfollow = PLAN_STATES.PLANNED;
     must(master.accounts.carol).unfollowedSeenAt = T1;
     return asFile({ ...master, lastSavedAt: T2 }) as ReturnType<typeof saved>;
@@ -98,7 +98,7 @@ describe("master file", () => {
       alice: { username: "Alice", followingSince: 1_700_000_000, followerSince: 1_700_000_000 },
       bob: {
         username: "bob", followingSince: 1_700_000_000,
-        review: { reviewed: true, lastReviewedAt: T1, unavailable: false, tags: ["artist"], notes: "" },
+        review: { reviewed: true, unavailable: false, tags: ["artist"], notes: "" },
         toUnfollow: PLAN_STATES.PLANNED,
       },
       carol: { username: "carol", followerSince: 1_700_000_000, unfollowedSeenAt: T1 },
@@ -157,10 +157,13 @@ describe("master file", () => {
 
   });
 
-  test("rejects an account field it doesn't know instead of silently dropping it", () => {
+  test("rejects an account or review field it doesn't know instead of silently dropping it", () => {
     const raw = saved();
     must(raw.accounts.bob).plans = ["unfollow"];
     expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.plans is not a known field.");
+    const raw2 = saved();
+    (must(raw2.accounts.bob).review as Record<string, unknown>).rating = 5;
+    expect(() => parseMaster(raw2)).toThrow("Invalid master file: accounts.bob.review.rating is not a known field.");
   });
 
   test("drops fields the app does not use", () => {
@@ -228,7 +231,7 @@ describe("importExport", () => {
 
   test("a later export dates stopped follows and keeps review data", () => {
     const saved = freshMaster();
-    must(saved.accounts.bob).review = { reviewed: true, lastReviewedAt: T1, unavailable: false, tags: ["artist"], notes: "hi" };
+    must(saved.accounts.bob).review = { reviewed: true, unavailable: false, tags: ["artist"], notes: "hi" };
     const result = importExport(savedAtT1(saved), bundle(followingFile(["alice"]), followersFile(["alice"], ["dave", AFTER_T1])), T2);
 
     expect(result.summary).toMatchObject({ exportChanged: true, changes: changes(0, 1, 1, 1) });

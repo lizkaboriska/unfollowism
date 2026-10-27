@@ -135,8 +135,9 @@ function legacyCurrent(a: Account) {
   };
 }
 
+/** Our review in the legacy shape (the legacy app also stored a last-reviewed date, which we don't). */
 function legacyReview(r: Review) {
-  return { reviewed: r.reviewed, last_reviewed_at: r.lastReviewedAt, deleted_or_unavailable: r.unavailable, tags: r.tags, notes: r.notes };
+  return { reviewed: r.reviewed, last_reviewed_at: null, deleted_or_unavailable: r.unavailable, tags: r.tags, notes: r.notes };
 }
 
 /** The same master in the legacy app's format, so the legacy code can read it. */
@@ -211,7 +212,7 @@ function projectLegacy(master: any): Projection {
   return {
     tag_options: master.tag_options,
     accounts: Object.fromEntries(Object.entries(master.accounts as Record<string, any>).map(([key, a]) => [key, {
-      username: a.username, url: a.url, review: a.review, current: a.current,
+      username: a.username, url: a.url, review: { ...a.review, last_reviewed_at: null }, current: a.current,
       pending: actionsOf(key, "pending"),
     }])),
     graph: {

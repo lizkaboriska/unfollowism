@@ -146,17 +146,24 @@ export const selectVisibleAccountKeys = createSelector(
   { memoizeOptions: { resultEqualityCheck: sameKeys } },
 );
 
-/** Net changes since import. Only edited accounts can differ, so only they are compared. */
-export const selectSessionDiff = createSelector([selectBaseAccounts, selectChanged], (base, changed) => {
+/**
+ * Net changes not in the downloaded file yet: each edited account as last saved (or as
+ * imported, if not saved since) against now. Only edited accounts can differ, so only they are compared.
+ */
+export const selectUnsavedDiff = createSelector([selectBaseAccounts, selectChanged, selectSavedChanged], (base, changed, saved) => {
   const before = createDict<RAccount>();
-  for (const key of Object.keys(changed)) {
-    const account = base[key];
-    if (account) before[key] = account;
+  const after = createDict<RAccount>();
+  for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
+    const then = accountOf(base, saved, key);
+    const now = accountOf(base, changed, key);
+    if (then === now) continue; // untouched since the save
+    if (then) before[key] = then;
+    if (now) after[key] = now;
   }
-  return buildSessionDiff(before, changed);
+  return buildSessionDiff(before, after);
 });
 
-export const selectSessionSummary = createSelector([selectSessionDiff], summarizeSession);
+export const selectUnsavedSummary = createSelector([selectUnsavedDiff], summarizeSession);
 
 /** Per current account object: the saved version it was compared with, and whether they match. */
 const savedComparisons = new WeakMap<RAccount, { saved: RAccount | undefined; same: boolean }>();

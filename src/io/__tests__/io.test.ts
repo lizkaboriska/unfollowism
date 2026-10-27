@@ -141,7 +141,7 @@ describe.each([
     expect(await tab.load()).toBeNull();
 
     await tab.replace(BASE, META, NOTHING);
-    await tab.update({ ...META, revision: 3 }, edited({ bob: { username: "bob", review: { reviewed: true, lastReviewedAt: "t", unavailable: false, tags: [], notes: "" } } }));
+    await tab.update({ ...META, revision: 3 }, edited({ bob: { username: "bob", review: { reviewed: true, unavailable: false, tags: [], notes: "" } } }));
     await tab.update({ ...META, revision: 4 }, edited({ constructor: { username: "constructor", followerSince: 5 } }));
 
     const loaded = must(await tab.load());

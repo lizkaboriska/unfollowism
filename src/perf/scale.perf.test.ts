@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
-import { selectAccount, selectRelationshipStats, selectScopeStats, selectSessionDiff, selectUnsavedAccountCount, selectVisibleAccountKeys } from "../store/selectors.ts";
+import { selectAccount, selectRelationshipStats, selectScopeStats, selectUnsavedDiff, selectUnsavedAccountCount, selectVisibleAccountKeys } from "../store/selectors.ts";
 import { importPrepared, restoreTab, saveMaster } from "../store/thunks.ts";
 import { setNote } from "../store/masterSlice.ts";
 import { setQuery } from "../store/filtersSlice.ts";
@@ -60,7 +60,7 @@ async function run(total: number) {
   const keys = Object.keys(earlier.accounts);
   for (let i = 0; i < keys.length; i += 10) {
     const account = earlier.accounts[keys[i] ?? ""];
-    if (account) account.review = { reviewed: true, lastReviewedAt: "2026-09-02T00:00:00.000Z", unavailable: false, tags: ["artist"], notes: "" };
+    if (account) account.review = { reviewed: true, unavailable: false, tags: ["artist"], notes: "" };
   }
   const masterText = stringifyMasterFile(toMasterFile({ ...earlier, lastSavedAt: "2026-09-02T00:00:00.000Z" }));
 
@@ -76,7 +76,7 @@ async function run(total: number) {
     selectRelationshipStats(store.getState());
     selectScopeStats(store.getState());
     selectUnsavedAccountCount(store.getState());
-    selectSessionDiff(store.getState());
+    selectUnsavedDiff(store.getState());
   });
 
   // One edit, as when typing a note: reducer + the selectors the screen uses. Median of 20 keystrokes.
@@ -86,7 +86,7 @@ async function run(total: number) {
   const editMs = keystrokes.sort((a, b) => a - b)[10] ?? 0;
   const [, listMs] = time(() => store.dispatch(setQuery("a"))); // the list refreshes only on filter changes like this
   const [, statsMs] = time(() => { selectRelationshipStats(store.getState()); selectScopeStats(store.getState()); selectUnsavedAccountCount(store.getState()); });
-  const [, diffMs] = time(() => selectSessionDiff(store.getState()));
+  const [, diffMs] = time(() => selectUnsavedDiff(store.getState()));
   const [, persistMs] = await timeAsync(flush);
 
   const [, saveMs] = await timeAsync(() => store.dispatch(saveMaster()).unwrap());
@@ -100,7 +100,7 @@ async function run(total: number) {
     ["one edit: reducer", editMs, 0],
     ["filter change: refresh list", listMs, 0],
     ["one edit: stats", statsMs, 0],
-    ["one edit: session changes", diffMs, 0],
+    ["one edit: unsaved changes list", diffMs, 0],
     ["one edit: storage write", persistMs, 0],
     ["save (serialize master)", saveMs, 0],
     ["reload restore", restoreMs, 0],
@@ -116,7 +116,7 @@ test("100k accounts: fast", { timeout: 120_000 }, async () => {
   const t = await run(100_000);
   expect(t["one edit: reducer"]).toBeLessThan(5);
   expect(t["one edit: stats"]).toBeLessThan(5);
-  expect(t["one edit: session changes"]).toBeLessThan(5);
+  expect(t["one edit: unsaved changes list"]).toBeLessThan(5);
   expect(t["one edit: storage write"]).toBeLessThan(50);
   expect(t["filter change: refresh list"]).toBeLessThan(50);
   expect(t["import (merge, markers, confirm)"]).toBeLessThan(5_000);

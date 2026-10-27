@@ -60,8 +60,6 @@ export type FollowChange = ValueOf<typeof FOLLOW_CHANGES>;
 export interface Review {
   /** Whether the account currently counts as reviewed. Resetting it keeps everything else. */
   reviewed: boolean;
-  /** When you last marked it reviewed; null = never reviewed. Kept when `reviewed` is reset. */
-  lastReviewedAt: string | null;
   /** The account seems deleted, disabled or otherwise unavailable. */
   unavailable: boolean;
   tags: string[];
