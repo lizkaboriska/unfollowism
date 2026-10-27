@@ -1,5 +1,4 @@
-// Port of legacy/tests/tracker-core.test.js, kept to the original intent of each test.
-// The old v3/v5 migration tests were dropped together with the migration code.
+// Review rules: scopes, Reset scope, plans and session changes.
 import {
   ACTION_TYPES,
   PLAN_STATES,
@@ -90,8 +89,8 @@ test("scope stats describe whichever audit queue is selected", () => {
   expect(reviewScopeStats(state, { scope: REVIEW_SCOPES.FOLLOWERS })).toEqual({ total: 2, reviewed: 1, needsReview: 1, unavailable: 0 });
 });
 
-// Changed with the plan model: a plan is cleared once the export no longer has the follow (no "confirmed" history),
-// and a plan marked done that the export contradicts goes back to planned.
+// A plan is cleared once the export no longer has the follow; a plan marked done that the
+// export contradicts goes back to planned.
 test("a planned unfollow is separate from review state and is completed only once the follow is gone", () => {
   const a = follows(account(), { following: true });
   const state = stateWith(a);

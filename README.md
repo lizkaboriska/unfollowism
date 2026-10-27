@@ -65,5 +65,4 @@ src/
   store/       Redux Toolkit store, thunks, selectors
   ui/          React components and all user-facing wording
   App.tsx      the screens
-legacy/        the previous version of the app, kept for comparison tests
 ```
