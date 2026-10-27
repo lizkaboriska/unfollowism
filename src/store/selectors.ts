@@ -18,7 +18,7 @@ import {
   relationshipStats,
   reviewScopeStats,
   reviewStatusMatches,
-  sameAccountRecord,
+  sameAccountData,
   scopeMatches,
   tagMatches,
   type Account,
@@ -175,7 +175,7 @@ function sameAsSaved(current: RAccount | undefined, saved: RAccount | undefined)
   if (!current || !saved) return false;
   const cached = savedComparisons.get(current);
   if (cached?.saved === saved) return cached.same;
-  const same = sameAccountRecord(current, saved);
+  const same = sameAccountData(current, saved);
   savedComparisons.set(current, { saved, same });
   return same;
 }

@@ -282,6 +282,18 @@ describe("reset changes", () => {
     expect(selectUnsavedAccountCount(t.store.getState())).toBe(1);
   });
 
+  test("a tag taken off and put back is not counted, though it is now last", async () => {
+    const t = await importedStore();
+    t.store.dispatch(toggleTag({ username: "bob", tag: "a" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "b" }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    t.store.dispatch(toggleTag({ username: "bob", tag: "a" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "a" }));
+    expect(account(t, "bob").review.tags).toEqual(["b", "a"]);
+    expect(selectUnsavedAccountCount(t.store.getState())).toBe(0);
+    expect(selectUnsavedDiff(t.store.getState())).toEqual([]);
+  });
+
   test("works after a reload", async () => {
     const t = await importedStore();
     t.store.dispatch(setReviewed({ username: "bob", reviewed: true }));

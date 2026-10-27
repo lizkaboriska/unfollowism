@@ -64,9 +64,16 @@ export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
   return out;
 }
 
-/** Whether two accounts would be written to the master file identically. */
-export function sameAccountRecord(a: ReadonlyAccount, b: ReadonlyAccount): boolean {
-  return a === b || JSON.stringify(toAccountRecord(a)) === JSON.stringify(toAccountRecord(b));
+/** The saved record as text, with tags sorted (toAccountRecord copies them, so the account is untouched). */
+function comparableRecord(account: ReadonlyAccount): string {
+  const record = toAccountRecord(account);
+  record.review?.tags.sort();
+  return JSON.stringify(record);
+}
+
+/** Whether two accounts hold the same data. Tag order doesn't matter, as in the Unsaved changes list. */
+export function sameAccountData(a: ReadonlyAccount, b: ReadonlyAccount): boolean {
+  return a === b || comparableRecord(a) === comparableRecord(b);
 }
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
