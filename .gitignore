@@ -1,0 +1,17 @@
+# Personal Instagram data — never commit
+instagram_master_tracker*.json
+connections/
+archive/
+*.zip
+
+# Build / tooling
+node_modules/
+dist/
+coverage/
+__pycache__/
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
