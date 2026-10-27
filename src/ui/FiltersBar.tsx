@@ -26,10 +26,10 @@ function tagFilterOf(value: string, tagOptions: readonly string[]): TagFilter {
   return tag === undefined ? { kind: TAG_FILTER_KINDS.ALL } : { kind: TAG_FILTER_KINDS.TAG, tag };
 }
 
-function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
+function Select({ name, label, value, onChange, children }: { name: string; label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
   return (
     <NativeSelect.Root size="sm" width={{ base: "full", md: "auto" }}>
-      <NativeSelect.Field aria-label={label} value={value} onChange={e => { onChange(e.currentTarget.value); }}>
+      <NativeSelect.Field name={name} aria-label={label} value={value} onChange={e => { onChange(e.currentTarget.value); }}>
         {children}
       </NativeSelect.Field>
       <NativeSelect.Indicator />
@@ -60,6 +60,8 @@ export function FiltersBar() {
     <Stack direction={{ base: "column", md: "row" }} gap="2" align={{ base: "stretch", md: "center" }} wrap="wrap">
       <Input
         size="sm"
+        name="search"
+        autoComplete="off"
         width={{ base: "full", md: "48" }}
         placeholder="Search username"
         aria-label="Search username"
@@ -67,16 +69,16 @@ export function FiltersBar() {
         onChange={e => dispatch(setQuery(e.currentTarget.value))}
       />
       {inReview && (
-        <Select label="Scope" value={filters.scope} onChange={value => dispatch(setScope(value as ReviewScope))}>
+        <Select name="scope" label="Scope" value={filters.scope} onChange={value => dispatch(setScope(value as ReviewScope))}>
           {Object.values(REVIEW_SCOPES).map(scope => <option key={scope} value={scope}>{SCOPE_LABELS[scope]}</option>)}
         </Select>
       )}
       {!isPlanView(filters.view) && (
-        <Select label="Status" value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value as ReviewStatusFilter))}>
+        <Select name="status" label="Status" value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value as ReviewStatusFilter))}>
           {Object.values(REVIEW_STATUSES).map(status => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
         </Select>
       )}
-      <Select label="Tag" value={tagFilterValue(filters.tag, tagOptions)} onChange={value => dispatch(setTagFilter(tagFilterOf(value, tagOptions)))}>
+      <Select name="tag" label="Tag" value={tagFilterValue(filters.tag, tagOptions)} onChange={value => dispatch(setTagFilter(tagFilterOf(value, tagOptions)))}>
         <option value={ALL_TAGS_VALUE}>All tags</option>
         <option value={UNTAGGED_VALUE}>Untagged</option>
         {tagOptions.map((tag, i) => <option key={tag} value={tagValue(i)}>{tag}</option>)}

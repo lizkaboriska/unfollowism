@@ -167,7 +167,7 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
           <Text fontWeight="medium">Drop your Instagram export here</Text>
           <Text fontSize="sm" color="fg.muted">The .zip (or its following.json + followers_*.json), plus your saved master if you have one</Text>
           <HStack>
-            <input ref={fileInput} type="file" multiple accept=".zip,.json,.html" hidden onChange={onInput} data-testid="file-input" />
+            <input ref={fileInput} name="files" type="file" multiple accept=".zip,.json,.html" hidden onChange={onInput} data-testid="file-input" />
             <Button variant="outline" loading={reading > 0} onClick={() => fileInput.current?.click()}>Choose files</Button>
             <IconButton variant="ghost" aria-label="How to get your Instagram export" onClick={() => void alert({ title: "Getting your Instagram export", body: HELP })}>
               ?

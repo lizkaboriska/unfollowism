@@ -3,6 +3,7 @@ import { Badge, Box, Button, Checkbox, HStack, Input, Link, Stack, Text } from "
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
+  PLAN_FIELDS,
   PLAN_STATES,
   followChangeMatches,
   planOf,
@@ -20,9 +21,10 @@ import { formatSince } from "./dates.ts";
 import { openProfilePopup } from "./instagramLink.ts";
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from "./labels.ts";
 
-function CheckboxField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+/** `name` identifies the field to the browser (e.g. "reviewed-bob"); the app itself doesn't read it. */
+function CheckboxField({ name, label, checked, onChange }: { name: string; label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <Checkbox.Root size="sm" checked={checked} onCheckedChange={e => { onChange(e.checked === true); }}>
+    <Checkbox.Root size="sm" name={name} checked={checked} onCheckedChange={e => { onChange(e.checked === true); }}>
       <Checkbox.HiddenInput />
       <Checkbox.Control />
       <Checkbox.Label>{label}</Checkbox.Label>
@@ -44,9 +46,9 @@ function PlanControls({ account, type }: { account: ReadonlyAccount; type: Actio
   const set = (state: PlanState | null) => dispatch(setPlan({ username: account.username, type, state }));
   return (
     <HStack gap="3">
-      <CheckboxField label={PLAN_LABELS[type].checkbox} checked={plan !== undefined} onChange={checked => set(checked ? PLAN_STATES.PLANNED : null)} />
+      <CheckboxField name={`${PLAN_FIELDS[type]}-${account.username}`} label={PLAN_LABELS[type].checkbox} checked={plan !== undefined} onChange={checked => set(checked ? PLAN_STATES.PLANNED : null)} />
       {plan !== undefined && (
-        <CheckboxField label="Done" checked={plan === PLAN_STATES.DONE} onChange={checked => set(checked ? PLAN_STATES.DONE : PLAN_STATES.PLANNED)} />
+        <CheckboxField name={`${PLAN_FIELDS[type]}Done-${account.username}`} label="Done" checked={plan === PLAN_STATES.DONE} onChange={checked => set(checked ? PLAN_STATES.DONE : PLAN_STATES.PLANNED)} />
       )}
     </HStack>
   );
@@ -90,8 +92,8 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
 
         <Stack gap="3" flex="2" minW="0">
           <HStack gap="4" wrap="wrap">
-            <CheckboxField label="Reviewed" checked={review.reviewed} onChange={reviewed => dispatch(setReviewed({ username, reviewed }))} />
-            <CheckboxField label="Unavailable" checked={review.unavailable} onChange={unavailable => dispatch(setUnavailable({ username, unavailable }))} />
+            <CheckboxField name={`reviewed-${username}`} label="Reviewed" checked={review.reviewed} onChange={reviewed => dispatch(setReviewed({ username, reviewed }))} />
+            <CheckboxField name={`unavailable-${username}`} label="Unavailable" checked={review.unavailable} onChange={unavailable => dispatch(setUnavailable({ username, unavailable }))} />
             {Object.values(ACTION_TYPES).map(type => <PlanControls key={type} account={account} type={type} />)}
           </HStack>
           <HStack gap="1" wrap="wrap" aria-label={`Tags for @${username}`}>
@@ -113,6 +115,8 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
           </HStack>
           <Input
             size="sm"
+            name={`note-${username}`}
+            autoComplete="off"
             placeholder="Add note…"
             aria-label={`Note for @${username}`}
             value={review.notes}

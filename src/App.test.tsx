@@ -442,3 +442,14 @@ describe("unsaved changes drawer", () => {
     expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
   });
 });
+
+test("every form field has a name (browsers flag unnamed fields)", async () => {
+  const unnamed = () => [...document.querySelectorAll("input, select, textarea")].filter(field => !field.getAttribute("name")).map(field => field.outerHTML);
+  const { user } = await renderApp();
+  expect(unnamed()).toEqual([]); // import screen
+
+  await importFiles(user, exportFiles());
+  await findRow("bob");
+  await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" })); // shows Done too
+  expect(unnamed()).toEqual([]); // main view
+});
