@@ -12,7 +12,6 @@ import {
   relationshipOf,
   type ActionType,
   type Follow,
-  type PlanState,
   type ReadonlyAccount,
 } from "../core/index.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
@@ -73,20 +72,22 @@ function NewTag({ username, tags, has }: { username: string; tags: readonly stri
   );
 }
 
-/** "To unfollow" (+ "Done" once marked). Offered only while the follow exists, or when already marked. */
-function PlanControls({ account, type }: { account: ReadonlyAccount; type: ActionType }) {
+/**
+ * "To unfollow" / "To remove" as a plain tick; unticking cancels the plan. Offered only while
+ * the follow exists, or when already marked. Marking it done happens in the To do list.
+ */
+function PlanControl({ account, type }: { account: ReadonlyAccount; type: ActionType }) {
   const dispatch = useAppDispatch();
   const plan = planOf(account, type);
   const followExists = type === ACTION_TYPES.UNFOLLOW ? account.following !== null : account.followedBy !== null;
   if (plan === undefined && !followExists) return null;
-  const set = (state: PlanState | null) => dispatch(setPlan({ username: account.username, type, state }));
   return (
-    <HStack gap="3">
-      <CheckboxField name={`${PLAN_FIELDS[type]}-${account.username}`} label={PLAN_LABELS[type].checkbox} checked={plan !== undefined} onChange={checked => set(checked ? PLAN_STATES.PLANNED : null)} />
-      {plan !== undefined && (
-        <CheckboxField name={`${PLAN_FIELDS[type]}Done-${account.username}`} label="Done" checked={plan === PLAN_STATES.DONE} onChange={checked => set(checked ? PLAN_STATES.DONE : PLAN_STATES.PLANNED)} />
-      )}
-    </HStack>
+    <CheckboxField
+      name={`${PLAN_FIELDS[type]}-${account.username}`}
+      label={PLAN_LABELS[type].checkbox}
+      checked={plan !== undefined}
+      onChange={checked => dispatch(setPlan({ username: account.username, type, state: checked ? PLAN_STATES.PLANNED : null }))}
+    />
   );
 }
 
@@ -130,7 +131,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
           <HStack gap="4" wrap="wrap">
             <CheckboxField name={`reviewed-${username}`} label="Reviewed" checked={review.reviewed} onChange={reviewed => dispatch(setReviewed({ username, reviewed }))} />
             <CheckboxField name={`unavailable-${username}`} label="Unavailable" checked={review.unavailable} onChange={unavailable => dispatch(setUnavailable({ username, unavailable }))} />
-            {Object.values(ACTION_TYPES).map(type => <PlanControls key={type} account={account} type={type} />)}
+            {Object.values(ACTION_TYPES).map(type => <PlanControl key={type} account={account} type={type} />)}
           </HStack>
           <HStack gap="1" wrap="wrap" aria-label={`Tags for @${username}`}>
             {tags.map(tag => {

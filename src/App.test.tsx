@@ -346,7 +346,7 @@ describe("main view", () => {
     expect(shown()).toEqual(["@alice"]);
   });
 
-  test("plans: offered only when the follow exists; To do → Done leaves the list on refresh", async () => {
+  test("plans: offered only when the follow exists; To do → Mark done leaves the list on refresh", async () => {
     const { user } = await imported();
     await choose(user, "Scope", "All current accounts");
     expect(within(row("bob")).queryByRole("checkbox", { name: "To remove" })).not.toBeInTheDocument(); // bob doesn't follow me
@@ -361,11 +361,42 @@ describe("main view", () => {
     expect(screen.queryByRole("combobox", { name: "Status" })).not.toBeInTheDocument(); // …so it's hidden there
     expect(screen.getByText("1 to unfollow")).toBeInTheDocument();
 
-    await user.click(within(row("bob")).getByRole("checkbox", { name: "Done" }));
+    expect(within(row("bob")).queryByRole("button", { name: "dog" })).not.toBeInTheDocument(); // a compact row: no tags…
+    expect(within(row("bob")).queryByRole("textbox")).not.toBeInTheDocument(); // …and no note
+    await user.click(within(row("bob")).getByRole("button", { name: "Mark done" }));
+    expect(within(row("bob")).getByText("✓ Done")).toBeInTheDocument();
     expect(screen.getByText("0 to unfollow · 1 done, waiting for the next import")).toBeInTheDocument();
     expect(shown()).toEqual(["@bob"]); // stays until the list refreshes
+
+    await user.click(within(row("bob")).getByRole("button", { name: "Undo" }));
+    expect(screen.getByText("1 to unfollow")).toBeInTheDocument();
+    await user.click(within(row("bob")).getByRole("button", { name: "Mark done" }));
     await user.click(tab(/^Review$/));
     expect(tab(/^To do \(0\)$/)).toBeDisabled();
+    await choose(user, "Status", "All");
+    expect(within(row("bob")).getByRole("checkbox", { name: "To unfollow" })).toBeChecked(); // full card: a plain tick…
+    expect(within(row("bob")).queryByRole("checkbox", { name: "Done" })).not.toBeInTheDocument(); // …no Done
+  });
+
+  test("To do → Keep removes the plan; Undo brings it back", async () => {
+    const { user } = await imported();
+    await newTag(user, "alice", "artist");
+    await user.click(within(row("alice")).getByRole("checkbox", { name: "To unfollow" }));
+    await user.click(within(row("bob")).getByRole("checkbox", { name: "To unfollow" }));
+    await user.click(tab(/^To do \(2\)$/));
+    expect(within(row("alice")).getByText("artist")).toBeInTheDocument(); // its tags, read-only
+    expect(within(row("alice")).queryByRole("button", { name: "artist" })).not.toBeInTheDocument();
+
+    await user.click(within(row("alice")).getByRole("button", { name: "Keep" }));
+    expect(within(row("alice")).getByText("Kept")).toBeInTheDocument();
+    expect(tab(/^To do \(1\)$/)).toBeInTheDocument();
+    await user.click(within(row("alice")).getByRole("button", { name: "Undo" }));
+    expect(tab(/^To do \(2\)$/)).toBeInTheDocument();
+
+    await user.click(within(row("alice")).getByRole("button", { name: "Keep" }));
+    await user.click(tab(/^Review$/)); // refresh the list
+    await user.click(tab(/^To do \(1\)$/));
+    expect(shown()).toEqual(["@bob"]);
   });
 
   test("tags and notes end up in the saved master", async () => {

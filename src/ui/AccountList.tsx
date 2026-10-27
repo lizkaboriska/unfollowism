@@ -2,11 +2,21 @@ import { useState } from "react";
 import { Box, Text } from "@chakra-ui/react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useAppSelector } from "../store/hooks.ts";
+import { ACTION_TYPES, type ActionType } from "../core/index.ts";
+import { LIST_VIEWS, type ListView } from "../store/filtersSlice.ts";
 import { selectListKeys } from "../store/listSlice.ts";
 import { AccountCard } from "./AccountCard.tsx";
+import { TodoRow } from "./TodoRow.tsx";
 
-/** Rough card height before it is measured; real heights are measured as cards render. */
+/** The To do lists show compact rows for their action; every other view shows full cards. */
+const TODO_ACTIONS: Partial<Record<ListView, ActionType>> = {
+  [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
+  [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
+};
+
+/** Rough heights before measuring; real heights are measured as items render. */
 const ESTIMATED_CARD_HEIGHT = 190;
+const ESTIMATED_ROW_HEIGHT = 72;
 const CARD_GAP = 12;
 
 /**
@@ -15,10 +25,11 @@ const CARD_GAP = 12;
  */
 export function AccountList() {
   const keys = useAppSelector(selectListKeys);
+  const todoAction = useAppSelector(s => TODO_ACTIONS[s.filters.view]);
   const [scrollMargin, setScrollMargin] = useState(0);
   const virtualizer = useWindowVirtualizer({
     count: keys.length,
-    estimateSize: () => ESTIMATED_CARD_HEIGHT,
+    estimateSize: () => (todoAction ? ESTIMATED_ROW_HEIGHT : ESTIMATED_CARD_HEIGHT),
     gap: CARD_GAP,
     overscan: 6,
     scrollMargin,
@@ -44,7 +55,9 @@ export function AccountList() {
           width="100%"
           transform={`translateY(${item.start - scrollMargin}px)`}
         >
-          <AccountCard accountKey={keys[item.index] ?? ""} />
+          {todoAction
+            ? <TodoRow accountKey={keys[item.index] ?? ""} type={todoAction} />
+            : <AccountCard accountKey={keys[item.index] ?? ""} />}
         </Box>
       ))}
     </Box>
