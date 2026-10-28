@@ -1,18 +1,18 @@
 import {
   ACTION_TYPES,
+  FIELD_TYPES,
   FOLLOW_CHANGES,
-  ImportError,
-  MasterFormatError,
+  IMPORT_PROBLEMS,
   PLAN_STATES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
   REVIEW_STATUSES,
   TAG_FILTER_KINDS,
-  actionIneligibility,
   buildSessionDiff,
   createReview,
   followChangeCounts,
   followChangeMatches,
+  followExists,
   importExport,
   planOf,
   planStats,
@@ -29,9 +29,10 @@ import {
   tagMatches,
   toMasterFile,
   type ExportBundle,
+  type FieldType,
   type Master,
 } from "../index.ts";
-import { deepFreeze, followersFile, followingFile, must } from "./helpers.ts";
+import { deepFreeze, followersFile, followingFile, must, problemOf } from "./helpers.ts";
 
 const T1 = "2026-10-01T10:00:00.000Z";
 const T2 = "2026-10-20T10:00:00.000Z";
@@ -75,7 +76,7 @@ describe("read functions never write (safe on frozen Redux state)", () => {
       planOf(alice, UNFOLLOW);
       followChangeMatches(alice, FOLLOW_CHANGES.NEW_FOLLOWS, T1);
       followChangeCounts(frozen, null);
-      actionIneligibility(alice, REMOVE_FOLLOWER);
+      followExists(alice, REMOVE_FOLLOWER);
       buildSessionDiff(frozen.accounts, frozen.accounts);
     }).not.toThrow();
   });
@@ -127,47 +128,49 @@ describe("master file", () => {
   });
 
   test("rejects input that is not a master", () => {
-    expect(() => parseMaster(null)).toThrow("not an Instagram Review master");
-    expect(() => parseMaster([])).toThrow(MasterFormatError);
-    expect(() => parseMaster({ following: [] })).toThrow(MasterFormatError);
+    const notAMaster = { kind: IMPORT_PROBLEMS.NOT_A_MASTER };
+    expect(problemOf(() => parseMaster(null))).toEqual(notAMaster);
+    expect(problemOf(() => parseMaster([]))).toEqual(notAMaster);
+    expect(problemOf(() => parseMaster({ following: [] }))).toEqual(notAMaster);
   });
 
-  test("rejects other format versions with a clear message", () => {
-    expect(() => parseMaster({ ...saved(), version: 2 })).toThrow("This file wasn't saved by a compatible version of Instagram Review.");
-    expect(() => parseMaster({ ...saved(), version: undefined })).toThrow(MasterFormatError);
+  test("rejects other format versions", () => {
+    expect(problemOf(() => parseMaster({ ...saved(), version: 2 }))).toEqual({ kind: IMPORT_PROBLEMS.INCOMPATIBLE_VERSION });
+    expect(problemOf(() => parseMaster({ ...saved(), version: undefined }))).toEqual({ kind: IMPORT_PROBLEMS.INCOMPATIBLE_VERSION });
   });
+
+  const invalid = (path: string, expected: FieldType) => ({ kind: IMPORT_PROBLEMS.INVALID_FIELD, path, expected });
 
   test("rejects a save or import time that isn't a date, since the change lists count from it", () => {
-    expect(() => parseMaster({ ...saved(), lastSavedAt: "yesterday" })).toThrow("Invalid master file: lastSavedAt should be a date.");
-    expect(() => parseMaster({ ...saved(), lastImportAt: "x" })).toThrow("Invalid master file: lastImportAt should be a date.");
+    expect(problemOf(() => parseMaster({ ...saved(), lastSavedAt: "yesterday" }))).toEqual(invalid("lastSavedAt", FIELD_TYPES.DATE));
+    expect(problemOf(() => parseMaster({ ...saved(), lastImportAt: "x" }))).toEqual(invalid("lastImportAt", FIELD_TYPES.DATE));
   });
 
   test("names the exact field that is wrong instead of silently repairing it", () => {
     const raw = saved();
     (must(raw.accounts.bob).review as { tags: unknown }).tags = "artist";
-    expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.review.tags should be a list.");
+    expect(problemOf(() => parseMaster(raw))).toEqual(invalid("accounts.bob.review.tags", FIELD_TYPES.LIST));
 
     const raw2 = saved();
     must(raw2.accounts.bob).toUnfollow = true;
-    expect(() => parseMaster(raw2)).toThrow("accounts.bob.toUnfollow should be one of planned, done");
+    expect(problemOf(() => parseMaster(raw2))).toEqual({ ...invalid("accounts.bob.toUnfollow", FIELD_TYPES.ONE_OF), options: ["planned", "done"] });
 
     const raw3 = saved();
     must(raw3.accounts.carol).unfollowedSeenAt = "last week";
-    expect(() => parseMaster(raw3)).toThrow("accounts.carol.unfollowedSeenAt should be a date");
+    expect(problemOf(() => parseMaster(raw3))).toEqual(invalid("accounts.carol.unfollowedSeenAt", FIELD_TYPES.DATE));
 
     const raw4 = saved();
     must(raw4.accounts.alice).followingSince = "yesterday";
-    expect(() => parseMaster(raw4)).toThrow("accounts.alice.followingSince should be a number or null");
-
+    expect(problemOf(() => parseMaster(raw4))).toEqual(invalid("accounts.alice.followingSince", FIELD_TYPES.NUMBER_OR_NULL));
   });
 
   test("rejects an account or review field it doesn't know instead of silently dropping it", () => {
     const raw = saved();
     must(raw.accounts.bob).plans = ["unfollow"];
-    expect(() => parseMaster(raw)).toThrow("Invalid master file: accounts.bob.plans is not a known field.");
+    expect(problemOf(() => parseMaster(raw))).toEqual({ kind: IMPORT_PROBLEMS.UNKNOWN_FIELD, path: "accounts.bob.plans" });
     const raw2 = saved();
     (must(raw2.accounts.bob).review as Record<string, unknown>).rating = 5;
-    expect(() => parseMaster(raw2)).toThrow("Invalid master file: accounts.bob.review.rating is not a known field.");
+    expect(problemOf(() => parseMaster(raw2))).toEqual({ kind: IMPORT_PROBLEMS.UNKNOWN_FIELD, path: "accounts.bob.review.rating" });
   });
 
   test("drops fields the app does not use", () => {
@@ -198,7 +201,7 @@ describe("master file", () => {
   test("rejects an account listed twice under different casing", () => {
     const raw = saved();
     raw.accounts.BOB = { ...raw.accounts.bob, username: "BOB" };
-    expect(() => parseMaster(raw)).toThrow('account "BOB" appears twice');
+    expect(problemOf(() => parseMaster(raw))).toEqual({ kind: IMPORT_PROBLEMS.DUPLICATE_ACCOUNT, username: "BOB" });
   });
 });
 
@@ -291,8 +294,8 @@ describe("importExport", () => {
   });
 
   test("rejects exports with an empty side", () => {
-    expect(() => importExport(null, bundle(followingFile(), followersFile(["a"])), T1)).toThrow(ImportError);
-    expect(() => importExport(null, bundle(followingFile(["a"])), T1)).toThrow(ImportError);
+    expect(problemOf(() => importExport(null, bundle(followingFile(), followersFile(["a"])), T1))).toEqual({ kind: IMPORT_PROBLEMS.NO_FOLLOWING });
+    expect(problemOf(() => importExport(null, bundle(followingFile(["a"])), T1))).toEqual({ kind: IMPORT_PROBLEMS.NO_FOLLOWERS });
   });
 });
 

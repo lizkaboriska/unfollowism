@@ -136,7 +136,7 @@ test("marking is idempotent and refuses actions the relationship doesn't allow",
   setPlan(a, UNFOLLOW, PLANNED);
   setPlan(a, UNFOLLOW, PLANNED);
   expect(a.toUnfollow).toBe(PLANNED);
-  expect(() => { setPlan(a, REMOVE_FOLLOWER, PLANNED); }).toThrow("does not follow you");
+  expect(() => { setPlan(a, REMOVE_FOLLOWER, PLANNED); }).toThrow("setPlan: no follow");
 });
 
 test("multiple follower export chunks can be parsed and deduplicated case-insensitively", () => {

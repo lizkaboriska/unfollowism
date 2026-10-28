@@ -1,7 +1,7 @@
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { strToU8, zipSync } from "fflate";
-import { ImportError, type MasterFile } from "../../core/index.ts";
-import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
+import { IMPORT_PROBLEMS, type MasterFile } from "../../core/index.ts";
+import { followersFile, followingFile, must, problemOf } from "../../core/__tests__/helpers.ts";
 import { IMPORT_WARNINGS, analyzeImport } from "../analyzeImport.ts";
 import { masterFileName } from "../download.ts";
 import { readInputs } from "../readInputs.ts";
@@ -97,13 +97,16 @@ describe("analyzeImport", () => {
   });
 
   test.each([
-    ["HTML export", [f("connections/following.html", "<html>"), f("connections/followers_1.html", "<html>")], /HTML format/],
-    ["two exports", [f("a/following.json", following), f("b/following.json", following), f("followers_1.json", followers1)], /more than one Following file/],
-    ["same chunk twice", [f("following.json", following), f("a/followers_1.json", followers1), f("b/followers_1.json", followers1)], /followers_1\.json twice/],
-    ["two masters", [f("following.json", following), f("followers_1.json", followers1), f("m1.json", '{"accounts":{}}'), f("m2.json", '{"accounts":{}}')], /2 master files/],
-  ])("rejects: %s", (_, inputs, message) => {
-    expect(() => analyzeImport(inputs, null)).toThrow(ImportError);
-    expect(() => analyzeImport(inputs, null)).toThrow(message);
+    ["HTML export", [f("connections/following.html", "<html>"), f("connections/followers_1.html", "<html>")],
+      { kind: IMPORT_PROBLEMS.HTML_EXPORT }],
+    ["two exports", [f("a/following.json", following), f("b/following.json", following), f("followers_1.json", followers1)],
+      { kind: IMPORT_PROBLEMS.SEVERAL_FOLLOWING_FILES, paths: ["a/following.json", "b/following.json"] }],
+    ["same chunk twice", [f("following.json", following), f("a/followers_1.json", followers1), f("b/followers_1.json", followers1)],
+      { kind: IMPORT_PROBLEMS.DUPLICATE_FOLLOWER_FILE, name: "followers_1.json" }],
+    ["two masters", [f("following.json", following), f("followers_1.json", followers1), f("m1.json", '{"accounts":{}}'), f("m2.json", '{"accounts":{}}')],
+      { kind: IMPORT_PROBLEMS.SEVERAL_MASTERS, names: ["m1.json", "m2.json"] }],
+  ])("rejects: %s", (_, inputs, problem) => {
+    expect(problemOf(() => analyzeImport(inputs, null))).toEqual(problem);
   });
 
   test("warns when the chosen master is older than the last save from this browser", () => {

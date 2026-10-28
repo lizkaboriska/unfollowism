@@ -1,3 +1,4 @@
+import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from "./importProblems.ts";
 import { createReview } from "./review.ts";
 import {
   FORMAT_VERSION,
@@ -39,10 +40,6 @@ export interface AccountRecord {
   unfollowedSeenAt?: string;
   /** Present only after they stopped following you (and until they follow again). */
   unfollowedMeSeenAt?: string;
-}
-
-export class MasterFormatError extends Error {
-  override name = "MasterFormatError";
 }
 
 // ── Writing ──────────────────────────────────────────────────────────────────
@@ -100,44 +97,45 @@ export function stringifyMasterFile(file: MasterFile): string {
 
 // ── Reading: strict, each reader names the offending field ──────────────────
 
-function fail(path: string, expected: string): never {
-  throw new MasterFormatError(`Invalid master file: ${path} should be ${expected}.`);
+function fail(path: string, expected: Exclude<FieldType, typeof FIELD_TYPES.ONE_OF>): never {
+  throw new ImportError({ kind: IMPORT_PROBLEMS.INVALID_FIELD, path, expected });
 }
 
 function record(value: unknown, path: string): Record<string, unknown> {
-  return isRecord(value) ? value : fail(path, "an object");
+  return isRecord(value) ? value : fail(path, FIELD_TYPES.OBJECT);
 }
 
 function array(value: unknown, path: string): unknown[] {
-  return Array.isArray(value) ? value : fail(path, "a list");
+  return Array.isArray(value) ? value : fail(path, FIELD_TYPES.LIST);
 }
 
 function str(value: unknown, path: string): string {
-  return typeof value === "string" ? value : fail(path, "text");
+  return typeof value === "string" ? value : fail(path, FIELD_TYPES.TEXT);
 }
 
 function nonEmptyStr(value: unknown, path: string): string {
-  return typeof value === "string" && value ? value : fail(path, "non-empty text");
+  return typeof value === "string" && value ? value : fail(path, FIELD_TYPES.NON_EMPTY_TEXT);
 }
 
 function bool(value: unknown, path: string): boolean {
-  return typeof value === "boolean" ? value : fail(path, "true or false");
+  return typeof value === "boolean" ? value : fail(path, FIELD_TYPES.BOOLEAN);
 }
 
 function numOrNull(value: unknown, path: string): number | null {
-  return value === null || (typeof value === "number" && Number.isFinite(value)) ? value : fail(path, "a number or null");
+  return value === null || (typeof value === "number" && Number.isFinite(value)) ? value : fail(path, FIELD_TYPES.NUMBER_OR_NULL);
 }
 
 /** One of a constant object's values, e.g. oneOf(value, PLAN_STATES, path). */
 function oneOf<T extends string>(value: unknown, options: Readonly<Record<string, T>>, path: string): T {
-  const allowed: readonly unknown[] = Object.values(options);
-  return allowed.includes(value) ? (value as T) : fail(path, `one of ${allowed.join(", ")}`);
+  const allowed: readonly string[] = Object.values(options);
+  if (typeof value === "string" && allowed.includes(value)) return value as T;
+  throw new ImportError({ kind: IMPORT_PROBLEMS.INVALID_FIELD, path, expected: FIELD_TYPES.ONE_OF, options: [...allowed] });
 }
 
 /** Rejected rather than dropped: losing a field silently could lose your work. */
 function rejectUnknownFields(r: Record<string, unknown>, known: ReadonlySet<string>, path: string): void {
   for (const key of Object.keys(r)) {
-    if (!known.has(key)) throw new MasterFormatError(`Invalid master file: ${path}.${key} is not a known field.`);
+    if (!known.has(key)) throw new ImportError({ kind: IMPORT_PROBLEMS.UNKNOWN_FIELD, path: `${path}.${key}` });
   }
 }
 
@@ -159,7 +157,7 @@ function parseReview(value: unknown, path: string): Review {
 }
 
 function date(value: unknown, path: string): string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : fail(path, "a date");
+  return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : fail(path, FIELD_TYPES.DATE);
 }
 
 /** A follow is recorded by the presence of its "since" field (null = time unknown). */
@@ -194,18 +192,14 @@ export function fromAccountRecord(value: unknown, path: string): Account {
  * Unknown top-level fields are dropped; unknown account fields are rejected. Never mutates `raw`.
  */
 export function parseMaster(raw: unknown): Master {
-  if (!isRecord(raw) || !isRecord(raw.accounts)) {
-    throw new MasterFormatError("This file is not an Instagram Review master.");
-  }
-  if (raw.version !== FORMAT_VERSION) {
-    throw new MasterFormatError("This file wasn't saved by a compatible version of Instagram Review.");
-  }
+  if (!isRecord(raw) || !isRecord(raw.accounts)) throw new ImportError({ kind: IMPORT_PROBLEMS.NOT_A_MASTER });
+  if (raw.version !== FORMAT_VERSION) throw new ImportError({ kind: IMPORT_PROBLEMS.INCOMPATIBLE_VERSION });
 
   const accounts = createDict<Account>();
   for (const [rawKey, value] of Object.entries(raw.accounts)) {
     const account = fromAccountRecord(value, `accounts.${rawKey}`);
     const key = usernameKey(account.username);
-    if (Object.hasOwn(accounts, key)) throw new MasterFormatError(`Invalid master file: account "${account.username}" appears twice.`);
+    if (Object.hasOwn(accounts, key)) throw new ImportError({ kind: IMPORT_PROBLEMS.DUPLICATE_ACCOUNT, username: account.username });
     accounts[key] = account;
   }
 

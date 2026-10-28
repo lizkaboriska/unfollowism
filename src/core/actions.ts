@@ -8,19 +8,12 @@ export function planOf(account: ReadonlyAccount, type: ActionType): PlanState | 
   return account[PLAN_FIELDS[type]];
 }
 
-/** Whether the follow the action ends still exists. */
-function followExists(account: ReadonlyAccount, type: ActionType): boolean {
+/** Whether the follow the action ends still exists (as of the latest export). A new plan needs it. */
+export function followExists(account: ReadonlyAccount, type: ActionType): boolean {
   return type === ACTION_TYPES.UNFOLLOW ? account.following !== null : account.followedBy !== null;
 }
 
-/** Why an action can't be marked right now, or null when it can. */
-export function actionIneligibility(account: ReadonlyAccount, type: ActionType): string | null {
-  if (type === ACTION_TYPES.UNFOLLOW && !account.following) return "Cannot mark unfollow: the latest export says you do not follow this account.";
-  if (type === ACTION_TYPES.REMOVE_FOLLOWER && !account.followedBy) return "Cannot mark follower removal: the latest export says this account does not follow you.";
-  return null;
-}
-
-/** WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise. */
+/** WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise (a caller bug). */
 export function setPlan(account: Account, type: ActionType, state: PlanState | undefined): void {
   const field = PLAN_FIELDS[type];
   if (state === undefined) {
@@ -28,10 +21,7 @@ export function setPlan(account: Account, type: ActionType, state: PlanState | u
     else delete account.toRemove;
     return;
   }
-  if (account[field] === undefined) {
-    const reason = actionIneligibility(account, type);
-    if (reason) throw new Error(reason);
-  }
+  if (account[field] === undefined && !followExists(account, type)) throw new Error(`setPlan: no follow for ${type}`);
   account[field] = state;
 }
 

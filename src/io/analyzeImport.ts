@@ -1,4 +1,4 @@
-import { ImportError, isRecord, parseFollowersJson, parseFollowingJson, type ExportBundle } from "../core/index.ts";
+import { IMPORT_PROBLEMS, ImportError, isRecord, parseFollowersJson, parseFollowingJson, type ExportBundle } from "../core/index.ts";
 import type { InputText } from "./readInputs.ts";
 
 export const IMPORT_WARNINGS = {
@@ -78,7 +78,7 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     const data = parseJson(input.text);
 
     if (isRecord(data) && Array.isArray(data.relationships_following)) {
-      if (following) throw new ImportError(`Found more than one Following file (${following.path} and ${input.path}). Choose files from a single Instagram export.`);
+      if (following) throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_FOLLOWING_FILES, paths: [following.path, input.path] });
       following = { path: input.path, data };
     } else if (Array.isArray(data) && FOLLOWERS_NAME.test(input.path)) {
       followers.push({ path: input.path, data });
@@ -92,16 +92,12 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
   const seenChunks = new Set<string>();
   for (const { path } of followers) {
     const name = baseName(path).toLowerCase();
-    if (seenChunks.has(name)) throw new ImportError(`Found ${name} twice. Choose files from a single Instagram export.`);
+    if (seenChunks.has(name)) throw new ImportError({ kind: IMPORT_PROBLEMS.DUPLICATE_FOLLOWER_FILE, name });
     seenChunks.add(name);
   }
-  if (masters.length > 1) {
-    throw new ImportError(`Found ${masters.length} master files (${masters.map(m => baseName(m.path)).join(", ")}). Choose only the newest one.`);
-  }
+  if (masters.length > 1) throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_MASTERS, names: masters.map(m => baseName(m.path)) });
 
-  if ((!following || !followers.length) && htmlCount) {
-    throw new ImportError("This export is in HTML format. In Instagram, request “Download your information” again and choose the JSON format.");
-  }
+  if ((!following || !followers.length) && htmlCount) throw new ImportError({ kind: IMPORT_PROBLEMS.HTML_EXPORT });
 
   const master = masters[0] ?? null;
   const masterSavedAt = typeof master?.data.lastSavedAt === "string" ? master.data.lastSavedAt : null;

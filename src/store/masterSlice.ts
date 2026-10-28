@@ -2,9 +2,9 @@ import { createSlice, original, type PayloadAction } from "@reduxjs/toolkit";
 import {
   REVIEW_STATUSES,
   accountOf,
-  actionIneligibility,
   copyAccount,
   createDict,
+  followExists,
   planOf,
   removeTagFrom,
   renameTagOn,
@@ -152,7 +152,7 @@ export const masterSlice = createSlice({
       const current = planOf(before, payload.type);
       const next = payload.state ?? undefined;
       if (current === next) return;
-      if (current === undefined && actionIneligibility(before, payload.type)) return; // the UI only offers eligible actions
+      if (current === undefined && !followExists(before, payload.type)) return; // the UI only offers eligible actions
       editAccount(state, payload.username, account => {
         applyPlan(account, payload.type, next);
         if (current === undefined) account.review.reviewed = true;
@@ -240,10 +240,10 @@ export const masterSlice = createSlice({
         state.status = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: state.revision !== payload.revision };
         state.savedStatus = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: false };
       })
-      .addCase(saveMaster.rejected, (state, { payload, error, meta }) => {
-        if (meta.condition) return; // a save was already running
+      .addCase(saveMaster.rejected, (state, { error, meta }) => {
+        if (meta.condition) return; // skipped: a save was already running, or nothing is loaded
         state.saveStatus = SAVE_STATUSES.IDLE;
-        state.status = { type: STATUS_EVENTS.SAVE_FAILED, reason: payload ?? error.message ?? null };
+        state.status = { type: STATUS_EVENTS.SAVE_FAILED, reason: error.message ?? null };
       });
   },
 });

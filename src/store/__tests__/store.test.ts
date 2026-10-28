@@ -1,4 +1,4 @@
-import { ACTION_TYPES, FOLLOW_CHANGES, PLAN_STATES, REVIEW_SCOPES, SESSION_CHANGES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
+import { ACTION_TYPES, FOLLOW_CHANGES, IMPORT_PROBLEMS, PLAN_STATES, REVIEW_SCOPES, SESSION_CHANGES, REVIEW_STATUSES, TAG_FILTER_KINDS, parseMaster, toMasterFile } from "../../core/index.ts";
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
@@ -53,11 +53,11 @@ describe("import", () => {
     expect(selectIsDirty(t2.store.getState())).toBe(false);
   });
 
-  test("an invalid master is rejected with a readable message and leaves state alone", async () => {
+  test("an invalid master is rejected with its problem and leaves state alone", async () => {
     const { store } = makeTestStore();
     const bad = prepared();
     const result = await store.dispatch(importPrepared({ ...bad, rawMaster: { accounts: [] } }));
-    expect(result.payload).toBe("This file is not an Instagram Review master.");
+    expect(result.payload).toEqual({ kind: IMPORT_PROBLEMS.NOT_A_MASTER });
     expect(store.getState().master.base).toBeNull();
     expect(store.getState().master.importStatus).toBe("idle");
   });
@@ -217,10 +217,12 @@ describe("save", () => {
     expect(selectIsDirty(t.store.getState())).toBe(false);
   });
 
-  test("saving with nothing loaded is rejected", async () => {
-    const { store } = makeTestStore();
+  test("saving with nothing loaded does nothing", async () => {
+    const { store, downloads } = makeTestStore();
     const result = await store.dispatch(saveMaster());
-    expect(result.payload).toMatch(/Nothing to save/);
+    expect(result.meta).toMatchObject({ condition: true });
+    expect(downloads).toEqual([]);
+    expect(store.getState().master.status).toBeNull();
   });
 });
 

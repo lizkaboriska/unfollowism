@@ -1,4 +1,15 @@
-import { createAccount, createDict, type Account, type Master } from "../index.ts";
+import { ImportError, createAccount, createDict, type Account, type ImportProblem, type Master } from "../index.ts";
+
+/** The problem `run` throws as an ImportError; fails the test if it throws anything else or nothing. */
+export function problemOf(run: () => unknown): ImportProblem {
+  try {
+    run();
+  } catch (error) {
+    if (error instanceof ImportError) return error.problem;
+    throw error;
+  }
+  throw new Error("Expected an ImportError");
+}
 
 export function account(username = "alice"): Account {
   return createAccount(username);

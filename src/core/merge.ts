@@ -1,5 +1,6 @@
 import { createAccount } from "./account.ts";
 import { settlePlans, totalOf, type PlanOutcomes } from "./actions.ts";
+import { IMPORT_PROBLEMS, ImportError } from "./importProblems.ts";
 import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { followChangeCounts, setFollows, type FollowChangeCounts } from "./scopes.ts";
@@ -31,10 +32,6 @@ export interface ImportResult {
   /** Whether the imported state differs from the master file and should be saved. */
   dirty: boolean;
   followerFileCount: number;
-}
-
-export class ImportError extends Error {
-  override name = "ImportError";
 }
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
@@ -80,8 +77,8 @@ export function mergeExports(accounts: Record<string, Account>, bundle: ExportBu
  * parseMaster → mergeExports (incl. settlePlans), with an injected clock.
  */
 export function importExport(rawMaster: unknown, bundle: ExportBundle, now: string): ImportResult {
-  if (!bundle.following.length) throw new ImportError("No accounts found in the Following file of this export.");
-  if (!bundle.followers.length) throw new ImportError("No accounts found in the Followers files of this export.");
+  if (!bundle.following.length) throw new ImportError({ kind: IMPORT_PROBLEMS.NO_FOLLOWING });
+  if (!bundle.followers.length) throw new ImportError({ kind: IMPORT_PROBLEMS.NO_FOLLOWERS });
 
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);

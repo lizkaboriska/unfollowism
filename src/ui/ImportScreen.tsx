@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Alert, Box, Button, HStack, IconButton, List, Stack, Text } from "@chakra-ui/react";
+import { ImportError } from "../core/index.ts";
 import { IMPORT_WARNINGS, analyzeImport, type ImportSelection } from "../io/analyzeImport.ts";
 import type { LastSavedStore } from "../io/lastSaved.ts";
 import { readInputs, type InputText } from "../io/readInputs.ts";
@@ -8,6 +9,7 @@ import { selectIsDirty } from "../store/selectors.ts";
 import { IMPORT_STATUSES } from "../store/statuses.ts";
 import { importPrepared } from "../store/thunks.ts";
 import { useAlert, useConfirm } from "./dialogs.tsx";
+import { importProblemText } from "./importProblemText.ts";
 import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from "./importText.ts";
 import { errorMessage } from "./statusText.ts";
 
@@ -80,7 +82,7 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
     try {
       return { selection: analyzeImport(chosen.flatMap(c => c.inputs), lastSaved.get()), selectionError: null };
     } catch (e) {
-      return { selection: null, selectionError: errorMessage(e) };
+      return { selection: null, selectionError: e instanceof ImportError ? importProblemText(e.problem) : errorMessage(e) };
     }
   }, [chosen, lastSaved]);
 
@@ -140,12 +142,9 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
       if (!discard) return;
     }
     setImportError(null);
-    try {
-      await dispatch(importPrepared(prepared)).unwrap();
-      onImported();
-    } catch (e) {
-      setImportError(errorMessage(e));
-    }
+    const result = await dispatch(importPrepared(prepared));
+    if (importPrepared.fulfilled.match(result)) onImported();
+    else setImportError(result.payload ? importProblemText(result.payload) : errorMessage(result.error));
   }
 
   const missing = selection && missingText(selection.recognized);

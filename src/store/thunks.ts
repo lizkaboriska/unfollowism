@@ -1,7 +1,6 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   ImportError,
-  MasterFormatError,
   accountOf,
   createDict,
   fromAccountRecord,
@@ -10,6 +9,7 @@ import {
   stringifyMasterFile,
   toMasterFile,
   type Account,
+  type ImportProblem,
   type ImportResult,
   type Master,
 } from "../core/index.ts";
@@ -21,15 +21,15 @@ import type { StoreDeps } from "./deps.ts";
 import { SAVE_STATUSES } from "./statuses.ts";
 import type { AppDispatch, RootState } from "./index.ts";
 
-const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps; rejectValue: string }>();
+const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps; rejectValue: ImportProblem }>();
 
-/** Applies an analyzed import (see io/analyzeImport) to the store. */
+/** Applies an analyzed import (see io/analyzeImport) to the store. Rejects with the problem when the files can't be imported. */
 export const importPrepared = createAppThunk<ImportResult, PreparedImport>("master/import", async (prepared, { extra, rejectWithValue }) => {
   await nextPaint(); // let "Importing…" show before the merge, which can take seconds for large accounts
   try {
     return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
   } catch (error) {
-    if (error instanceof ImportError || error instanceof MasterFormatError) return rejectWithValue(error.message);
+    if (error instanceof ImportError) return rejectWithValue(error.problem);
     throw error;
   }
 });
@@ -56,12 +56,15 @@ export function serializeMaster(master: Master, savedAt: string): string {
   return stringifyMasterFile(toMasterFile({ ...master, lastSavedAt: savedAt }));
 }
 
-/** Downloads the master. Edits made while the download is in progress stay unsaved. */
+/**
+ * Downloads the master. Edits made while the download is in progress stay unsaved.
+ * Skipped (like a second save while one runs) when nothing is loaded; the Save button is disabled then.
+ */
 export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
   "master/save",
-  async (_, { getState, extra, rejectWithValue }) => {
+  async (_, { getState, extra }) => {
     const { base, changed, revision } = getState().master;
-    if (!base) return rejectWithValue("Nothing to save yet. Import your Instagram export first.");
+    if (!base) throw new Error("saveMaster: nothing loaded"); // unreachable: see condition
     const master = currentMaster(base, changed);
     const now = extra.now();
     const savedAt = now.toISOString();
@@ -70,7 +73,7 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     extra.lastSaved.set(savedAt);
     return { savedAt, revision, filename, changed };
   },
-  { condition: (_, { getState }) => getState().master.saveStatus !== SAVE_STATUSES.SAVING },
+  { condition: (_, { getState }) => getState().master.base !== null && getState().master.saveStatus !== SAVE_STATUSES.SAVING },
 );
 
 export interface RestoredSession {
