@@ -18,7 +18,7 @@ export const SESSION_CHANGES = {
 } as const;
 export type SessionChangeType = ValueOf<typeof SESSION_CHANGES>;
 
-type TagChangeType = typeof SESSION_CHANGES.TAG_ADDED | typeof SESSION_CHANGES.TAG_REMOVED;
+export type TagChangeType = typeof SESSION_CHANGES.TAG_ADDED | typeof SESSION_CHANGES.TAG_REMOVED;
 type ActionChangeType =
   | typeof SESSION_CHANGES.ACTION_MARKED
   | typeof SESSION_CHANGES.ACTION_DONE

@@ -143,6 +143,20 @@ describe("edits", () => {
     expect(account(t, "bob").review.reviewed).toBe(true);
     expect(t.store.getState().filters.reviewStatus).toBe(REVIEW_STATUSES.NEEDS_REVIEW);
   });
+
+  test("reset scope follows the tag and keeps tags, notes and plans", async () => {
+    const t = await importedStore();
+    for (const username of ["alice", "bob", "carol"]) t.store.dispatch(setReviewed({ username, reviewed: true }));
+    t.store.dispatch(toggleTag({ username: "alice", tag: "artist" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "artist" }));
+    t.store.dispatch(setNote({ username: "alice", note: "keep this" }));
+    t.store.dispatch(setPlan({ username: "bob", type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+
+    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.FOLLOWING, tag: { kind: TAG_FILTER_KINDS.TAG, tag: "artist" } }));
+    expect(account(t, "alice").review).toEqual({ reviewed: false, unavailable: false, tags: ["artist"], notes: "keep this" });
+    expect(account(t, "bob")).toMatchObject({ review: { reviewed: false, tags: ["artist"] }, toUnfollow: PLAN_STATES.PLANNED });
+    expect(account(t, "carol").review.reviewed).toBe(true); // no artist tag
+  });
 });
 
 describe("save", () => {

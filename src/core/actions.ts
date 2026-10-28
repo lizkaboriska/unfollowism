@@ -1,4 +1,4 @@
-import { ACTION_TYPES, PLAN_STATES, type Account, type ActionType, type DeepReadonly, type Master, type PlanState, type ReadonlyAccount } from "./types.ts";
+import { ACTION_TYPES, PLAN_STATES, type Account, type ActionType, type DeepReadonly, type Follow, type Master, type PlanState, type ReadonlyAccount } from "./types.ts";
 
 /** The account field that holds each action's plan. */
 export const PLAN_FIELDS = { [ACTION_TYPES.UNFOLLOW]: "toUnfollow", [ACTION_TYPES.REMOVE_FOLLOWER]: "toRemove" } as const satisfies Record<ActionType, keyof Account>;
@@ -8,9 +8,14 @@ export function planOf(account: ReadonlyAccount, type: ActionType): PlanState | 
   return account[PLAN_FIELDS[type]];
 }
 
-/** Whether the follow the action ends still exists (as of the latest export). A new plan needs it. */
+/** The follow the action ends (you follow them / they follow you), as of the latest export; null when there is none. */
+export function followOf(account: ReadonlyAccount, type: ActionType): DeepReadonly<Follow> | null {
+  return type === ACTION_TYPES.UNFOLLOW ? account.following : account.followedBy;
+}
+
+/** Whether the follow the action ends still exists. A new plan needs it. */
 export function followExists(account: ReadonlyAccount, type: ActionType): boolean {
-  return type === ACTION_TYPES.UNFOLLOW ? account.following !== null : account.followedBy !== null;
+  return followOf(account, type) !== null;
 }
 
 /** WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise (a caller bug). */

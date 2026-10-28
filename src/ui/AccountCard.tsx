@@ -1,5 +1,5 @@
 import { memo, useState, type KeyboardEvent } from "react";
-import { Badge, Box, Button, Checkbox, HStack, Input, Link, Stack, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from "@chakra-ui/react";
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -7,8 +7,8 @@ import {
   PLAN_STATES,
   findTag,
   followChangeMatches,
+  followExists,
   planOf,
-  profileUrl,
   relationshipOf,
   type ActionType,
   type Follow,
@@ -18,8 +18,8 @@ import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../store/masterSlice.ts";
 import { selectAccount, selectChangesSince, selectTags } from "../store/selectors.ts";
 import { formatSince } from "./dates.ts";
-import { openProfilePopup } from "./instagramLink.ts";
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from "./labels.ts";
+import { ProfileLink } from "./ProfileLink.tsx";
 
 /** `name` identifies the field to the browser (e.g. "reviewed-bob"); the app itself doesn't read it. */
 function CheckboxField({ name, label, checked, onChange }: { name: string; label: string; checked: boolean; onChange: (checked: boolean) => void }) {
@@ -79,8 +79,7 @@ function NewTag({ username, tags, has }: { username: string; tags: readonly stri
 function PlanControl({ account, type }: { account: ReadonlyAccount; type: ActionType }) {
   const dispatch = useAppDispatch();
   const plan = planOf(account, type);
-  const followExists = type === ACTION_TYPES.UNFOLLOW ? account.following !== null : account.followedBy !== null;
-  if (plan === undefined && !followExists) return null;
+  if (plan === undefined && !followExists(account, type)) return null;
   return (
     <CheckboxField
       name={`${PLAN_FIELDS[type]}-${account.username}`}
@@ -114,9 +113,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
     >
       <Stack direction={{ base: "column", md: "row" }} gap="4">
         <Stack gap="1" flex="1" minW="0">
-          <Link href={profileUrl(username)} target="_blank" rel="noopener noreferrer" fontWeight="semibold" onClick={openProfilePopup} wordBreak="break-all">
-            @{username} ↗
-          </Link>
+          <ProfileLink username={username} />
           <HStack gap="1" wrap="wrap">
             <Badge>{RELATIONSHIP_LABELS[relationshipOf(account)]}</Badge>
             {review.unavailable && <Badge colorPalette="gray">Unavailable</Badge>}

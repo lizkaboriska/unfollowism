@@ -9,11 +9,11 @@ import {
   TAG_FILTER_KINDS,
   buildSessionDiff,
   dedupeAccounts,
+  inResetScope,
   planOf,
   planStats,
   parseFollowersJson,
   relationshipStats,
-  resetReviewedForScope,
   reviewScopeAccounts,
   reviewScopeStats,
   scopeMatches,
@@ -30,18 +30,6 @@ const none = { [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 };
 const tag = (name: string) => ({ kind: TAG_FILTER_KINDS.TAG, tag: name });
 const accountsOf = (...items: Account[]) => stateWith(...items).accounts;
 
-test("review state is reusable: resetting reviewed keeps tags and notes", () => {
-  const a = account();
-  a.review.tags = ["artist"];
-  a.review.notes = "great illustrator";
-  a.review.reviewed = true;
-
-  expect(resetReviewedForScope(stateWith(follows(a, { following: true })), { scope: REVIEW_SCOPES.FOLLOWING })).toBe(1);
-  expect(a.review.reviewed).toBe(false);
-  expect(a.review.tags).toEqual(["artist"]);
-  expect(a.review.notes).toBe("great illustrator");
-});
-
 test("review scopes support overlapping following/follower views", () => {
   const mutual = follows(account("mutual"), { following: true, followedBy: true });
   const notBack = follows(account("notback"), { following: true });
@@ -56,10 +44,9 @@ test("review scopes support overlapping following/follower views", () => {
   expect(scopeMatches(followerOnly, REVIEW_SCOPES.FOLLOWING)).toBe(false);
 });
 
-test("reset applies only to the requested scope and tag and preserves metadata", () => {
+test("Reset scope picks reviewed accounts in the requested scope and tag only", () => {
   const artistMutual = follows(account("artist_mutual"), { following: true, followedBy: true });
   artistMutual.review.tags = ["artist", "friend"];
-  artistMutual.review.notes = "keep this";
   artistMutual.review.reviewed = true;
 
   const artistNotBack = follows(account("artist_notback"), { following: true });
@@ -70,11 +57,15 @@ test("reset applies only to the requested scope and tag and preserves metadata",
   friendMutual.review.tags = ["friend"];
   friendMutual.review.reviewed = true;
 
-  const state = stateWith(artistMutual, artistNotBack, friendMutual);
-  expect(resetReviewedForScope(state, { scope: REVIEW_SCOPES.MUTUAL, tag: tag("artist") })).toBe(1);
-  expect(artistMutual.review).toMatchObject({ reviewed: false, tags: ["artist", "friend"], notes: "keep this" });
-  expect(artistNotBack.review.reviewed).toBe(true);
-  expect(friendMutual.review.reviewed).toBe(true);
+  const unreviewedArtistMutual = follows(account("new_artist"), { following: true, followedBy: true });
+  unreviewedArtistMutual.review.tags = ["artist"];
+
+  const query = { scope: REVIEW_SCOPES.MUTUAL, tag: tag("artist") };
+  expect(inResetScope(artistMutual, query)).toBe(true);
+  expect(inResetScope(artistNotBack, query)).toBe(false);
+  expect(inResetScope(friendMutual, query)).toBe(false);
+  expect(inResetScope(unreviewedArtistMutual, query)).toBe(false);
+  expect(inResetScope(friendMutual, { scope: REVIEW_SCOPES.MUTUAL, tag: { kind: TAG_FILTER_KINDS.ALL } })).toBe(true);
 });
 
 test("scope stats describe whichever audit queue is selected", () => {

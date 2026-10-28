@@ -2,17 +2,10 @@ import { useState } from "react";
 import { Box, Text } from "@chakra-ui/react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useAppSelector } from "../store/hooks.ts";
-import { ACTION_TYPES, type ActionType } from "../core/index.ts";
-import { LIST_VIEWS, type ListView } from "../store/filtersSlice.ts";
+import { PLAN_VIEW_ACTIONS, isPlanView } from "../store/filtersSlice.ts";
 import { selectListKeys } from "../store/listSlice.ts";
 import { AccountCard } from "./AccountCard.tsx";
 import { TodoRow } from "./TodoRow.tsx";
-
-/** The To do lists show compact rows for their action; every other view shows full cards. */
-const TODO_ACTIONS: Partial<Record<ListView, ActionType>> = {
-  [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
-  [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
-};
 
 /** Rough heights before measuring; real heights are measured as items render. */
 const ESTIMATED_CARD_HEIGHT = 190;
@@ -22,10 +15,11 @@ const CARD_GAP = 12;
 /**
  * Only the cards near the screen are rendered, so 100k accounts scroll like 100. Uses the
  * page's own scrollbar; `scrollMargin` is where the list starts on the page.
+ * The To do lists show compact rows for their action; every other view shows full cards.
  */
 export function AccountList() {
   const keys = useAppSelector(selectListKeys);
-  const todoAction = useAppSelector(s => TODO_ACTIONS[s.filters.view]);
+  const todoAction = useAppSelector(s => (isPlanView(s.filters.view) ? PLAN_VIEW_ACTIONS[s.filters.view] : undefined));
   const [scrollMargin, setScrollMargin] = useState(0);
   const virtualizer = useWindowVirtualizer({
     count: keys.length,

@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { Box, Button, CloseButton, Drawer, HStack, Link, Portal, SimpleGrid, Stack, Text } from "@chakra-ui/react";
+import { Box, Button, CloseButton, Drawer, HStack, Portal, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import {
   SESSION_CATEGORIES,
   SESSION_CHANGE_CATEGORY,
   SESSION_CHANGES,
-  profileUrl,
   type SessionCategory,
   type SessionChange,
+  type TagChangeType,
 } from "../core/index.ts";
 import { useAppSelector } from "../store/hooks.ts";
 import { selectUnsavedDiff, selectUnsavedSummary } from "../store/selectors.ts";
-import { openProfilePopup } from "./instagramLink.ts";
+import { ProfileLink } from "./ProfileLink.tsx";
 import { ResetButton, SaveButton } from "./saveAndReset.tsx";
 import { CATEGORY_LABELS, changeLine } from "./sessionText.ts";
 import { plural } from "./statusText.ts";
@@ -21,7 +21,6 @@ const MAX_ACCOUNTS = 200;
 /** Drawer tabs; "Other" changes (notes, unavailable) show under All. */
 const TAB_CATEGORIES: readonly SessionCategory[] = [SESSION_CATEGORIES.REVIEWS, SESSION_CATEGORIES.TAGS, SESSION_CATEGORIES.ACTIONS];
 
-type TagChangeType = typeof SESSION_CHANGES.TAG_ADDED | typeof SESSION_CHANGES.TAG_REMOVED;
 interface TagFocus {
   tag: string;
   type: TagChangeType;
@@ -98,9 +97,7 @@ function UnsavedChanges() {
       <Stack gap="3">
         {visible.slice(0, MAX_ACCOUNTS).map(entry => (
           <Box key={entry.username}>
-            <Link href={profileUrl(entry.username)} target="_blank" rel="noopener noreferrer" fontWeight="semibold" onClick={openProfilePopup} wordBreak="break-all">
-              @{entry.username} ↗
-            </Link>
+            <ProfileLink username={entry.username} />
             {entry.changes.map((change, i) => {
               const line = changeLine(change);
               return (

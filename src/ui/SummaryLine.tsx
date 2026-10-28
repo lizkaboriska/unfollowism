@@ -1,6 +1,6 @@
 import { Text } from "@chakra-ui/react";
-import { ACTION_TYPES, PLAN_STATES } from "../core/index.ts";
-import { LIST_VIEWS, isFollowChangeView } from "../store/filtersSlice.ts";
+import { PLAN_STATES } from "../core/index.ts";
+import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView } from "../store/filtersSlice.ts";
 import { useAppSelector } from "../store/hooks.ts";
 import { selectListKeys } from "../store/listSlice.ts";
 import { selectChangesSince, selectPlanStats, selectScopeStats } from "../store/selectors.ts";
@@ -23,7 +23,7 @@ export function SummaryLine() {
   } else if (isFollowChangeView(view)) {
     text = `${plural(shown, "account")} ${CHANGE_SUMMARY_PHRASES[view]} ${since ? `since your last save (${formatDate(since)})` : "since you started"}`;
   } else {
-    const type = view === LIST_VIEWS.TO_UNFOLLOW ? ACTION_TYPES.UNFOLLOW : ACTION_TYPES.REMOVE_FOLLOWER;
+    const type = PLAN_VIEW_ACTIONS[view];
     const done = plans[PLAN_STATES.DONE][type];
     text = `${plans[PLAN_STATES.PLANNED][type]} ${PLAN_LABELS[type].summary}${done ? ` · ${done} done, waiting for the next import` : ""}`;
   }

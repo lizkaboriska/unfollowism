@@ -1,17 +1,14 @@
 import { createSlice, original, type PayloadAction } from "@reduxjs/toolkit";
 import {
-  REVIEW_STATUSES,
   accountOf,
   copyAccount,
   createDict,
   followExists,
+  inResetScope,
   planOf,
   removeTagFrom,
   renameTagOn,
-  reviewStatusMatches,
-  scopeMatches,
   setPlan as applyPlan,
-  tagMatches,
   usernameKey,
   type Account,
   type ActionType,
@@ -158,14 +155,14 @@ export const masterSlice = createSlice({
         if (current === undefined) account.review.reviewed = true;
       });
     },
-    /** Only `reviewed` is reset; search and review-status filters are deliberately ignored. */
+    /** Un-reviews the accounts inResetScope picks; everything else on them is kept. */
     resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {
       const before = original(state);
       const base = before.base;
       if (!base) return;
       const targets = Object.keys(base.accounts).filter(key => {
         const account = accountOf<ReadonlyAccount>(base.accounts, before.changed, key);
-        return !!account && scopeMatches(account, payload.scope) && tagMatches(account, payload.tag) && reviewStatusMatches(account, REVIEW_STATUSES.REVIEWED);
+        return !!account && inResetScope(account, payload);
       });
       for (const key of targets) applyEdit(state, key, account => { account.review.reviewed = false; });
       if (targets.length) state.revision += 1;

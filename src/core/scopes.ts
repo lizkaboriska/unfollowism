@@ -128,11 +128,12 @@ export function reviewScopeAccounts<A extends ReadonlyAccount>(
   );
 }
 
-/** WRITE: only `reviewed` changes; tags, notes, flags and plans are kept. Returns the count reset. */
-export function resetReviewedForScope(source: Pick<Master, "accounts">, { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter }): number {
-  const targets = reviewScopeAccounts(source, { scope, tag, reviewStatus: REVIEW_STATUSES.REVIEWED });
-  for (const account of targets) account.review.reviewed = false;
-  return targets.length;
+/**
+ * Whether Reset scope un-reviews this account: reviewed, in the scope and matching the tag.
+ * Search and the review-status filter don't apply. The reset changes only `reviewed`.
+ */
+export function inResetScope(account: ReadonlyAccount, { scope, tag }: { scope: ReviewScope; tag: TagFilter }): boolean {
+  return account.review.reviewed && scopeMatches(account, scope) && tagMatches(account, tag);
 }
 
 export interface RelationshipStats {

@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { Button, HStack, Stack } from "@chakra-ui/react";
 import { ACTION_TYPES, FOLLOW_CHANGES, type ActionType, type FollowChange } from "../core/index.ts";
-import { LIST_VIEWS, isPlanView, setView } from "../store/filtersSlice.ts";
+import { ACTION_PLAN_VIEWS, LIST_VIEWS, isPlanView, setView } from "../store/filtersSlice.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { selectChangesSince, selectFollowChangeCounts, selectPlanStats } from "../store/selectors.ts";
 import { formatDate } from "./dates.ts";
 import { CHANGE_TAB_LABELS, PLAN_LABELS } from "./labels.ts";
-
-/** The To do tab groups the two plan views behind a switch. */
-const TODO_VIEWS = { [ACTION_TYPES.UNFOLLOW]: LIST_VIEWS.TO_UNFOLLOW, [ACTION_TYPES.REMOVE_FOLLOWER]: LIST_VIEWS.TO_REMOVE } as const;
 
 /** Change tabs in display order, around the To do tab. */
 const BEFORE_TODO: readonly FollowChange[] = [FOLLOW_CHANGES.NEW_FOLLOWS];
@@ -44,7 +41,7 @@ export function ViewTabs() {
 
   function openTodo(type: ActionType) {
     setLastTodo(type);
-    dispatch(setView(TODO_VIEWS[type]));
+    dispatch(setView(ACTION_PLAN_VIEWS[type]));
   }
 
   function openTodoTab() {
@@ -63,6 +60,7 @@ export function ViewTabs() {
     />
   );
 
+  // The To do tab groups the two plan views behind a switch.
   return (
     <Stack gap="2">
       <HStack gap="2" wrap="wrap">
@@ -78,7 +76,7 @@ export function ViewTabs() {
               key={type}
               label={PLAN_LABELS[type].todo}
               count={planned[type]}
-              active={view === TODO_VIEWS[type]}
+              active={view === ACTION_PLAN_VIEWS[type]}
               onClick={() => { openTodo(type); }}
             />
           ))}

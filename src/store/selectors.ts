@@ -1,6 +1,5 @@
 import { createSelector } from "@reduxjs/toolkit";
 import {
-  ACTION_TYPES,
   PLAN_STATES,
   accountOf,
   buildSessionDiff,
@@ -22,7 +21,6 @@ import {
   scopeMatches,
   tagMatches,
   type Account,
-  type ActionType,
   type DeepReadonly,
   type FollowChangeCounts,
   type PlanStats,
@@ -32,7 +30,7 @@ import {
   type ScopeStats,
   type TagCounts,
 } from "../core/index.ts";
-import { LIST_VIEWS, isFollowChangeView, isPlanView, type FiltersState } from "./filtersSlice.ts";
+import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, type FiltersState } from "./filtersSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -112,17 +110,11 @@ export const selectFollowChangeCounts = createSelector([selectBaseAccounts, sele
   followChangeCounts({ accounts }, since),
 );
 
-const PLAN_VIEW_ACTIONS: Partial<Record<FiltersState["view"], ActionType>> = {
-  [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
-  [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
-};
-
 /** Whether the account belongs to the selected view (before status, tag and search filters). */
 function viewMatches(account: RAccount, filters: FiltersState, since: string | null): boolean {
   if (filters.view === LIST_VIEWS.REVIEW) return scopeMatches(account, filters.scope);
   if (isFollowChangeView(filters.view)) return followChangeMatches(account, filters.view, since);
-  const action = PLAN_VIEW_ACTIONS[filters.view];
-  return action !== undefined && planOf(account, action) === PLAN_STATES.PLANNED;
+  return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) === PLAN_STATES.PLANNED;
 }
 
 function sameKeys(a: readonly string[], b: readonly string[]): boolean {

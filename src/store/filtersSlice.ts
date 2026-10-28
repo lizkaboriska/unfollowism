@@ -1,9 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import {
+  ACTION_TYPES,
   FOLLOW_CHANGES,
   REVIEW_SCOPES,
   REVIEW_STATUSES,
   TAG_FILTER_KINDS,
+  type ActionType,
   type FollowChange,
   type ReviewScope,
   type ReviewStatusFilter,
@@ -24,10 +26,21 @@ export const LIST_VIEWS = {
 } as const;
 export type ListView = ValueOf<typeof LIST_VIEWS>;
 
-const PLAN_VIEW_VALUES: readonly ListView[] = [LIST_VIEWS.TO_UNFOLLOW, LIST_VIEWS.TO_REMOVE];
-/** The To do lists. Status doesn't apply there: planning an action marks the account reviewed. */
-export function isPlanView(view: ListView): view is typeof LIST_VIEWS.TO_UNFOLLOW | typeof LIST_VIEWS.TO_REMOVE {
-  return PLAN_VIEW_VALUES.includes(view);
+/** The To do lists, and the action each one lists. Status doesn't apply there: planning an action marks the account reviewed. */
+export const PLAN_VIEW_ACTIONS = {
+  [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
+  [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
+} as const satisfies Partial<Record<ListView, ActionType>>;
+export type PlanView = keyof typeof PLAN_VIEW_ACTIONS;
+
+/** The To do list of each action (the reverse of PLAN_VIEW_ACTIONS). */
+export const ACTION_PLAN_VIEWS = {
+  [ACTION_TYPES.UNFOLLOW]: LIST_VIEWS.TO_UNFOLLOW,
+  [ACTION_TYPES.REMOVE_FOLLOWER]: LIST_VIEWS.TO_REMOVE,
+} as const satisfies Record<ActionType, PlanView>;
+
+export function isPlanView(view: ListView): view is PlanView {
+  return Object.hasOwn(PLAN_VIEW_ACTIONS, view);
 }
 
 const FOLLOW_CHANGE_VALUES: readonly string[] = Object.values(FOLLOW_CHANGES);
