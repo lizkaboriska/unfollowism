@@ -29,11 +29,22 @@ export function relationshipOf(account: ReadonlyAccount): Relationship {
 
 /**
  * WRITE: records the follows found in the latest export (absent entry = no follow).
- * A follow that disappears is dated with this import (`seenAt`); one that comes back clears that date.
+ * A follow that appears or disappears is dated with this import (`seenAt`); the opposite change clears that date.
+ * Appearing follows are dated only with `datesNew`: without a saved master every follow counts as new anyway.
  */
-export function setFollows(account: Account, following: ExportEntry | undefined, followedBy: ExportEntry | undefined, seenAt: string): void {
+export function setFollows(
+  account: Account,
+  following: ExportEntry | undefined,
+  followedBy: ExportEntry | undefined,
+  seenAt: string,
+  datesNew: boolean,
+): void {
+  if (datesNew && !account.following && following) account.followedSeenAt = seenAt;
+  if (!following) delete account.followedSeenAt;
   if (account.following && !following) account.unfollowedSeenAt = seenAt;
   if (following) delete account.unfollowedSeenAt;
+  if (datesNew && !account.followedBy && followedBy) account.followedMeSeenAt = seenAt;
+  if (!followedBy) delete account.followedMeSeenAt;
   if (account.followedBy && !followedBy) account.unfollowedMeSeenAt = seenAt;
   if (followedBy) delete account.unfollowedMeSeenAt;
   account.following = following ? { since: following.since } : null;
@@ -54,8 +65,8 @@ export function followChangeMatches(account: ReadonlyAccount, change: FollowChan
   const sinceMs = since === null ? Number.NEGATIVE_INFINITY : Date.parse(since);
   const after = (seenAt: string | undefined) => seenAt !== undefined && Date.parse(seenAt) > sinceMs;
   switch (change) {
-    case FOLLOW_CHANGES.NEW_FOLLOWS: return followedAfter(account.following, sinceMs / 1000);
-    case FOLLOW_CHANGES.NEW_FOLLOWERS: return followedAfter(account.followedBy, sinceMs / 1000);
+    case FOLLOW_CHANGES.NEW_FOLLOWS: return after(account.followedSeenAt) || followedAfter(account.following, sinceMs / 1000);
+    case FOLLOW_CHANGES.NEW_FOLLOWERS: return after(account.followedMeSeenAt) || followedAfter(account.followedBy, sinceMs / 1000);
     case FOLLOW_CHANGES.UNFOLLOWED: return after(account.unfollowedSeenAt);
     case FOLLOW_CHANGES.LOST_FOLLOWERS: return after(account.unfollowedMeSeenAt) || account.renameSuggestion !== undefined;
   }

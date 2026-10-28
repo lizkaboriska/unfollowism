@@ -49,10 +49,16 @@ function redated(previous: Follow | null, entry: ExportEntry | undefined): boole
 /**
  * WRITE: applies a fresh export to the accounts (mutated in place): finds likely renames while
  * the old follow dates are still there, updates the follows, dates the ones that stopped (`now`),
- * puts rename suggestions on the old accounts (dropping earlier ones that no longer hold), and
- * settles planned actions against the follows.
+ * and, when `accounts` come from a saved master (`saved`), the ones that appeared; puts rename
+ * suggestions on the old accounts (dropping earlier ones that no longer hold), and settles planned
+ * actions against the follows.
  */
-export function mergeExports(accounts: Record<string, Account>, bundle: ExportBundle, now: string): { exportChanged: boolean; plans: PlanOutcomes } {
+export function mergeExports(
+  accounts: Record<string, Account>,
+  bundle: ExportBundle,
+  now: string,
+  saved: boolean,
+): { exportChanged: boolean; plans: PlanOutcomes } {
   const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
   const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
   const renames = findRenames(accounts, following, followers);
@@ -77,7 +83,7 @@ export function mergeExports(accounts: Record<string, Account>, bundle: ExportBu
     // Same people, but a follow re-dated (e.g. unfollowed and followed again between exports).
     if (redated(account.following, followingEntry) || redated(account.followedBy, followerEntry)) exportChanged = true;
     if (source) account.username = source.username; // casing follows the newest export
-    setFollows(account, followingEntry, followerEntry, now);
+    setFollows(account, followingEntry, followerEntry, now, saved);
   }
 
   settleRenameSuggestions(accounts);
@@ -100,7 +106,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const { exportChanged, plans } = mergeExports(accounts, bundle, now);
+  const { exportChanged, plans } = mergeExports(accounts, bundle, now, base?.lastSavedAt !== undefined);
   const summary: ImportSummary = {
     exportChanged,
     followingCount: Object.values(accounts).filter(a => a.following).length,

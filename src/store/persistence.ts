@@ -20,12 +20,15 @@ function toMeta(state: MasterState, storedAt: string): TabMeta {
   };
 }
 
-/** Accounts whose object differs from what was last stored (null = removed). Only looks at edited accounts. */
-function newlyChanged(stored: Accounts | null, current: Accounts): Record<string, AccountRecord | null> {
+/**
+ * Accounts whose object differs from what was last stored (null = removed). Only looks at edited accounts.
+ * `savedAt` is the stored base's, so a reloaded account matches its base again (see toAccountRecord).
+ */
+function newlyChanged(stored: Accounts | null, current: Accounts, savedAt: string | undefined): Record<string, AccountRecord | null> {
   const records = createDict<AccountRecord | null>();
   if (stored === current) return records;
   for (const [key, account] of Object.entries(current)) {
-    if (stored?.[key] !== account) records[key] = account && toAccountRecord(account);
+    if (stored?.[key] !== account) records[key] = account && toAccountRecord(account, savedAt);
   }
   return records;
 }
@@ -70,12 +73,15 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     const meta = toMeta(state, api.extra.now().toISOString());
     try {
       if (base !== storedBase) {
-        await api.extra.tab.replace(toMasterFile(base), meta, { changed: newlyChanged(null, changed), saved: newlyChanged(null, savedChanged) });
+        await api.extra.tab.replace(toMasterFile(base), meta, {
+          changed: newlyChanged(null, changed, base.lastSavedAt),
+          saved: newlyChanged(null, savedChanged, base.lastSavedAt),
+        });
       } else {
         await api.extra.tab.update(meta, {
-          changed: newlyChanged(storedChanged, changed),
+          changed: newlyChanged(storedChanged, changed, base.lastSavedAt),
           removed: noLongerChanged(storedChanged, changed),
-          saved: newlyChanged(storedSaved, savedChanged),
+          saved: newlyChanged(storedSaved, savedChanged, base.lastSavedAt),
         });
       }
       storedBase = base;

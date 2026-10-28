@@ -43,8 +43,9 @@ export const PLAN_STATES = { PLANNED: "planned", DONE: "done" } as const;
 export type PlanState = ValueOf<typeof PLAN_STATES>;
 
 /**
- * What changed since the master you imported was saved (or everything, without a saved master).
- * Follows use Instagram's own dates; stopped follows use the date an import first noticed them.
+ * What changed since the master you imported was saved (or everything, without a saved master),
+ * by the date an import first noticed the change. New follows also count by Instagram's own date
+ * (a follow re-dated after the save, or with no date).
  */
 export const FOLLOW_CHANGES = {
   NEW_FOLLOWS: "newFollows",
@@ -80,6 +81,13 @@ export interface Account {
   toUnfollow?: PlanState;
   /** You plan to remove them as a follower; absent when not marked. Cleared like toUnfollow. */
   toRemove?: PlanState;
+  /**
+   * When an import first found you following them; absent while you don't. Instagram's own date can't
+   * tell whether a follow is newer than the last save: one made after the export was built still predates the save.
+   */
+  followedSeenAt?: string;
+  /** When an import first found them following you; absent while they don't. Like followedSeenAt. */
+  followedMeSeenAt?: string;
   /** When an import found you no longer follow them; absent while you do (or never did). */
   unfollowedSeenAt?: string;
   /** When an import found they no longer follow you; absent while they do (or never did). */

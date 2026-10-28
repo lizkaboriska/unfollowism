@@ -225,6 +225,8 @@ describe("importExport", () => {
     expect(must(result.master.accounts.alice).followedBy).toEqual({ since: 300 });
     expect(relationshipOf(must(result.master.accounts.carol))).toBe(RELATIONSHIPS.FOLLOWS_YOU_ONLY);
     expect(Object.values(result.master.accounts).some(a => a.unfollowedSeenAt ?? a.unfollowedMeSeenAt)).toBe(false);
+    // Without a saved master everything counts as new, so follows aren't dated either.
+    expect(Object.values(result.master.accounts).some(a => a.followedSeenAt ?? a.followedMeSeenAt)).toBe(false);
     expect(result.summary).toMatchObject({ followingCount: 2, followersCount: 2, changes: changes(2, 0, 2, 0) });
   });
 
@@ -270,6 +272,26 @@ describe("importExport", () => {
     const since = (key: string) => followChangeMatches(must(third.master.accounts[key]), FOLLOW_CHANGES.NEW_FOLLOWS, T1);
     expect(since("alice")).toBe(false); // followed before the save
     expect(since("erin")).toBe(true);
+  });
+
+  test("a follow made after the export was built but before the save still counts as new", () => {
+    const BEFORE_T1 = Date.parse(T1) / 1000 - 3600; // missing from the export the saved master came from
+    const result = importExport(savedAtT1(freshMaster()), bundle(followingFile(["alice"], ["bob"], ["erin", BEFORE_T1]), followersFile(["alice"], ["carol"], ["gina", BEFORE_T1])), T2);
+    expect(result.summary.changes).toEqual(changes(1, 0, 1, 0));
+    expect(must(result.master.accounts.erin).followedSeenAt).toBe(T2);
+    expect(must(result.master.accounts.gina).followedMeSeenAt).toBe(T2);
+    expect(must(result.master.accounts.alice).followedSeenAt).toBeUndefined(); // already followed in the saved master
+  });
+
+  test("first-seen dates stay in the browser's copy, but a downloaded master holds none", () => {
+    const sameExport = bundle(followingFile(["alice"], ["bob"], ["erin"]), followersFile(["alice"], ["carol"]));
+    const imported = importExport(savedAtT1(freshMaster()), sameExport, T2).master;
+    expect(toMasterFile(imported).accounts.erin).toHaveProperty("followedSeenAt", T2); // tab storage: still counts from T1
+
+    const downloaded = toMasterFile({ ...imported, lastSavedAt: T3 });
+    expect(Object.values(downloaded.accounts).some(a => a.followedSeenAt ?? a.followedMeSeenAt)).toBe(false);
+    const next = importExport(JSON.parse(stringifyMasterFile(downloaded)), sameExport, T3);
+    expect(next.summary.changes[FOLLOW_CHANGES.NEW_FOLLOWS]).toBe(0); // erin was new before that save, not after
   });
 
   test("a follow without a known date counts as new so it gets looked at", () => {

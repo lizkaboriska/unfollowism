@@ -39,6 +39,9 @@ export interface AccountRecord {
   /** Present only while marked. */
   toUnfollow?: PlanState;
   toRemove?: PlanState;
+  /** Present only while after `lastSavedAt` (see keptSeenAt). */
+  followedSeenAt?: string;
+  followedMeSeenAt?: string;
   /** Present only after you stopped following them (and until you follow again). */
   unfollowedSeenAt?: string;
   /** Present only after they stopped following you (and until they follow again). */
@@ -53,7 +56,17 @@ function isDefaultReview(r: DeepReadonly<Review>): boolean {
   return !r.reviewed && !r.unavailable && r.tags.length === 0 && r.notes === "";
 }
 
-export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
+/**
+ * A follow's first-seen date is only compared with the save the change lists count from: one that
+ * isn't after it (or with no save yet, when everything counts) changes nothing, so it isn't written.
+ * Every one is older than a new save, so a downloaded master holds none.
+ */
+function keptSeenAt(seenAt: string | undefined, savedAt: string | undefined): seenAt is string {
+  return seenAt !== undefined && savedAt !== undefined && Date.parse(seenAt) > Date.parse(savedAt);
+}
+
+/** `savedAt` is the lastSavedAt of the master the record is written into (see keptSeenAt). */
+export function toAccountRecord(account: ReadonlyAccount, savedAt: string | undefined): AccountRecord {
   const { following, followedBy, review } = account;
   const out: AccountRecord = { username: account.username };
   if (following) out.followingSince = following.since;
@@ -61,6 +74,8 @@ export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
   if (!isDefaultReview(review)) out.review = { ...review, tags: [...review.tags] };
   if (account.toUnfollow) out.toUnfollow = account.toUnfollow;
   if (account.toRemove) out.toRemove = account.toRemove;
+  if (keptSeenAt(account.followedSeenAt, savedAt)) out.followedSeenAt = account.followedSeenAt;
+  if (keptSeenAt(account.followedMeSeenAt, savedAt)) out.followedMeSeenAt = account.followedMeSeenAt;
   if (account.unfollowedSeenAt) out.unfollowedSeenAt = account.unfollowedSeenAt;
   if (account.unfollowedMeSeenAt) out.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
   const suggestion = account.renameSuggestion;
@@ -68,9 +83,12 @@ export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
   return out;
 }
 
-/** The saved record as text, with tags sorted (toAccountRecord copies them, so the account is untouched). */
+/**
+ * The saved record as text, with tags sorted (toAccountRecord copies them, so the account is untouched).
+ * First-seen dates are left out: only imports set them, never an edit.
+ */
 function comparableRecord(account: ReadonlyAccount): string {
-  const record = toAccountRecord(account);
+  const record = toAccountRecord(account, undefined);
   record.review?.tags.sort();
   return JSON.stringify(record);
 }
@@ -82,7 +100,7 @@ export function sameAccountData(a: ReadonlyAccount, b: ReadonlyAccount): boolean
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
   const accounts = createDict<AccountRecord>();
-  for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account);
+  for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account, master.lastSavedAt);
   return {
     version: FORMAT_VERSION,
     ...(master.lastSavedAt === undefined ? {} : { lastSavedAt: master.lastSavedAt }),
@@ -182,7 +200,7 @@ function parseRenameSuggestion(value: unknown, path: string): RenameSuggestion {
 }
 
 const ACCOUNT_FIELDS: ReadonlySet<string> = new Set([
-  "username", "followingSince", "followerSince", "review", "toUnfollow", "toRemove", "unfollowedSeenAt", "unfollowedMeSeenAt", "renameSuggestion",
+  "username", "followingSince", "followerSince", "review", "toUnfollow", "toRemove", "followedSeenAt", "followedMeSeenAt", "unfollowedSeenAt", "unfollowedMeSeenAt", "renameSuggestion",
 ] satisfies (keyof AccountRecord)[]);
 
 /** Builds the working account from its saved record. */
@@ -197,6 +215,8 @@ export function fromAccountRecord(value: unknown, path: string): Account {
   };
   if (r.toUnfollow !== undefined) account.toUnfollow = oneOf(r.toUnfollow, PLAN_STATES, `${path}.toUnfollow`);
   if (r.toRemove !== undefined) account.toRemove = oneOf(r.toRemove, PLAN_STATES, `${path}.toRemove`);
+  if (r.followedSeenAt !== undefined) account.followedSeenAt = date(r.followedSeenAt, `${path}.followedSeenAt`);
+  if (r.followedMeSeenAt !== undefined) account.followedMeSeenAt = date(r.followedMeSeenAt, `${path}.followedMeSeenAt`);
   if (r.unfollowedSeenAt !== undefined) account.unfollowedSeenAt = date(r.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
   if (r.unfollowedMeSeenAt !== undefined) account.unfollowedMeSeenAt = date(r.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
   if (r.renameSuggestion !== undefined) account.renameSuggestion = parseRenameSuggestion(r.renameSuggestion, `${path}.renameSuggestion`);
