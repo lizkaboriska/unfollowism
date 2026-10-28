@@ -2,11 +2,14 @@ import type { ListenerMiddlewareInstance } from "@reduxjs/toolkit";
 import { createDict, toAccountRecord, toMasterFile, type AccountRecord, type ChangedAccounts, type DeepReadonly, type Master } from "../core/index.ts";
 import type { TabMeta } from "../io/tabStore.ts";
 import type { StoreDeps } from "./deps.ts";
-import { persistenceFailed, type MasterState } from "./masterSlice.ts";
+import { persistenceFailed, persistenceRecovered, type MasterState } from "./masterSlice.ts";
 import { restoreTab } from "./thunks.ts";
 import type { AppDispatch, RootState } from "./index.ts";
 
 type Accounts = DeepReadonly<ChangedAccounts>;
+
+/** Waits before each retry of a failed write. */
+export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
 
 function toMeta(state: MasterState, storedAt: string): TabMeta {
   return {
@@ -38,7 +41,8 @@ function noLongerChanged(stored: Accounts | null, current: Accounts): string[] {
  * - a new import stores the whole master once (it is also the session baseline);
  * - an edit stores only the edited account (~1 KB), however large the master;
  * - a save stores the edited accounts as written to the file, for Reset changes after a reload;
- * - a change arriving while a write is running is folded into one follow-up write.
+ * - a change arriving while a write is running is folded into one follow-up write;
+ * - a failed write is retried after each of RETRY_DELAYS_MS, then on the next change.
  */
 export function startPersistence(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>): void {
   let storedBase: DeepReadonly<Master> | null = null;
@@ -58,10 +62,11 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     },
   });
 
-  async function writeLatest(api: { getState: () => RootState; extra: StoreDeps; dispatch: AppDispatch }): Promise<void> {
+  /** True when storage now holds the latest state (or there is nothing to store). */
+  async function writeLatest(api: { getState: () => RootState; extra: StoreDeps; dispatch: AppDispatch }): Promise<boolean> {
     const state = api.getState().master;
     const { base, changed, savedChanged } = state;
-    if (!base) return;
+    if (!base) return true;
     const meta = toMeta(state, api.extra.now().toISOString());
     try {
       if (base !== storedBase) {
@@ -76,9 +81,15 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       storedBase = base;
       storedChanged = changed;
       storedSaved = savedChanged;
+      if (api.getState().master.persistenceFailed) api.dispatch(persistenceRecovered());
+      return true;
     } catch {
-      // Keep the old references so the next write retries everything changed since the last success.
+      // Storage may now hold anything (or nothing, if the tab's data was deleted): the next write starts over with replace.
+      storedBase = null;
+      storedChanged = null;
+      storedSaved = null;
       if (!api.getState().master.persistenceFailed) api.dispatch(persistenceFailed());
+      return false;
     }
   }
 
@@ -95,9 +106,18 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       writing = true;
       try {
         let written = 0;
+        let failures = 0;
         while (written < changes) {
           written = changes;
-          await writeLatest(api);
+          if (await writeLatest(api)) {
+            failures = 0;
+            continue;
+          }
+          const delay = RETRY_DELAYS_MS[failures];
+          if (delay === undefined) break; // given up: the next change tries again
+          failures += 1;
+          await api.delay(delay);
+          written = 0; // retry, including anything that changed meanwhile
         }
       } finally {
         writing = false;

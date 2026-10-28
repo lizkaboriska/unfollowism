@@ -45,7 +45,7 @@ export interface MasterState {
   status: StatusEvent | null;
   /** `status` as it was right after the last save (or the import): Reset changes puts it back. Not restored after a reload, like `status`. */
   savedStatus: StatusEvent | null;
-  /** Browser storage failed: unsaved work won't survive a reload. */
+  /** The last write to browser storage failed: unsaved work won't survive a reload. Cleared by the next write that works. */
   persistenceFailed: boolean;
   /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
   restoreFailed: boolean;
@@ -207,6 +207,10 @@ export const masterSlice = createSlice({
     persistenceFailed(state) {
       state.persistenceFailed = true;
     },
+    /** A write to browser storage worked again after a failure. */
+    persistenceRecovered(state) {
+      state.persistenceFailed = false;
+    },
   },
   extraReducers: builder => {
     builder
@@ -266,4 +270,5 @@ export const masterSlice = createSlice({
 
 export const {
   setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, renameTag, deleteTag, confirmRename, dismissRename, resetChanges, persistenceFailed,
+  persistenceRecovered,
 } = masterSlice.actions;

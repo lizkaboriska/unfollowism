@@ -22,6 +22,7 @@ import {
 import { importPrepared, restoreTab, saveMaster } from "../thunks.ts";
 import { STATUS_EVENTS } from "../statuses.ts";
 import { selectListKeys } from "../listSlice.ts";
+import { RETRY_DELAYS_MS } from "../persistence.ts";
 import { WRITES, deferred, flushPersistence, makeTestStore, prepared, recordingTab, type RecordedWrite } from "./testStore.ts";
 
 const write = (kind: RecordedWrite["kind"], keys: Partial<Omit<RecordedWrite, "kind">> = {}): RecordedWrite =>
@@ -578,6 +579,86 @@ describe("reload safety net", () => {
     await t.store.dispatch(restoreTab());
     expect(t.store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
     await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
+  });
+});
+
+describe("storage write failures", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  /** A tab store whose writes fail while `failing.on` is set; counts every write attempt. */
+  function flakyTab(inner: TabStore = createMemoryTabDatabase().forTab("t")) {
+    const failing = { on: false, attempts: 0 };
+    const attempt = <T,>(write: () => Promise<T>) => {
+      failing.attempts += 1;
+      return failing.on ? Promise.reject(new Error("quota")) : write();
+    };
+    const tab: TabStore = {
+      durable: true,
+      load: () => inner.load(),
+      replace: (...args) => attempt(() => inner.replace(...args)),
+      update: (...args) => attempt(() => inner.update(...args)),
+    };
+    return { tab, failing };
+  }
+
+  /** Imports with real timers (the import waits for a paint), then switches to fake ones to step through retries. */
+  async function importedWithFakeTimers(tab: TabStore) {
+    const t = makeTestStore({ tab });
+    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    await flushPersistence();
+    vi.useFakeTimers();
+    return t;
+  }
+
+  const storedNote = async (tab: TabStore, key: string) =>
+    (must(await tab.load()).changed[key] as { review?: { notes: string } } | undefined)?.review?.notes;
+
+  test("a failed write is retried by itself, and the warning clears once storage works again", async () => {
+    const { tab, failing } = flakyTab();
+    const t = await importedWithFakeTimers(tab);
+
+    failing.on = true;
+    t.store.dispatch(setNote({ username: "bob", note: "my last edit" }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.store.getState().master.persistenceFailed).toBe(true);
+
+    failing.on = false; // no further edit: the retry alone has to store it
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
+    expect(t.store.getState().master.persistenceFailed).toBe(false);
+    expect(await storedNote(tab, "bob")).toBe("my last edit");
+  });
+
+  test("a tab whose stored data was deleted gets it rebuilt", async () => {
+    const db = createMemoryTabDatabase();
+    const { tab } = flakyTab(db.forTab("t"));
+    const t = await importedWithFakeTimers(tab);
+
+    await db.deleteTab("t");
+    t.store.dispatch(setNote({ username: "bob", note: "after the loss" }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.store.getState().master.persistenceFailed).toBe(true); // an update needs the stored tab
+
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]); // the retry writes everything again
+    expect(t.store.getState().master.persistenceFailed).toBe(false);
+    expect(must(await tab.load()).base).toMatchObject({ accounts: { bob: { username: "bob" } } });
+    expect(await storedNote(tab, "bob")).toBe("after the loss");
+  });
+
+  test("after the last retry it waits for the next change", async () => {
+    const { tab, failing } = flakyTab();
+    const t = await importedWithFakeTimers(tab);
+
+    failing.on = true;
+    failing.attempts = 0;
+    t.store.dispatch(setNote({ username: "bob", note: "x" }));
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0) * 2);
+    expect(failing.attempts).toBe(1 + RETRY_DELAYS_MS.length);
+
+    failing.on = false;
+    t.store.dispatch(setNote({ username: "bob", note: "y" }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.store.getState().master.persistenceFailed).toBe(false);
+    expect(await storedNote(tab, "bob")).toBe("y");
   });
 });
 
