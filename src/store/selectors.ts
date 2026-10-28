@@ -28,7 +28,6 @@ import {
   type PlanStats,
   type ReadonlyAccount,
   type ReadonlyAccounts,
-  type RenameSuggestion,
   type ScopeStats,
   type TagCounts,
 } from "../core/index.ts";
@@ -54,8 +53,6 @@ export const selectIsDirty = (s: RootState): boolean => s.master.base !== null &
 export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
   s.master.base ? accountOf<RAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectFilters = (s: RootState) => s.filters;
-/** The rename suggested for this (old) account by the last import, if it is still open. */
-export const selectRenameFrom = (s: RootState, key: string): RenameSuggestion | undefined => s.master.renames.find(r => r.from === key);
 const selectBaseAccounts = (s: RootState): RAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
 /** All account keys sorted by username. Once per import: edits never change usernames. */
@@ -114,16 +111,20 @@ const selectBaseFollowChangeCounts = createSelector([selectBaseAccounts, selectC
   followChangeCounts({ accounts }, since),
 );
 
-/** Sizes of the change lists: imported counts (edits never change follows), minus removed accounts. */
+/**
+ * Sizes of the change lists: imported counts, adjusted by the edited accounts. Edits never change
+ * follows, but a removed account leaves its lists, and deciding a rename takes it out of Lost followers.
+ */
 export const selectFollowChangeCounts = createSelector(
   [selectBaseFollowChangeCounts, selectBaseAccounts, selectChanged, selectChangesSince],
   (baseCounts, base, changed, since): FollowChangeCounts => {
-    let counts = baseCounts;
+    const counts = { ...baseCounts };
     for (const [key, account] of Object.entries(changed)) {
-      const removed = base[key];
-      if (account !== null || !removed) continue;
-      if (counts === baseCounts) counts = { ...baseCounts };
-      for (const change of Object.values(FOLLOW_CHANGES)) if (followChangeMatches(removed, change, since)) counts[change] -= 1;
+      for (const change of Object.values(FOLLOW_CHANGES)) {
+        const before = base[key];
+        if (before && followChangeMatches(before, change, since)) counts[change] -= 1;
+        if (account && followChangeMatches(account, change, since)) counts[change] += 1;
+      }
     }
     return counts;
   },

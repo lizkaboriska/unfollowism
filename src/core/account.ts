@@ -18,6 +18,7 @@ export function copyAccount(account: ReadonlyAccount): Account {
   if (account.toRemove) copy.toRemove = account.toRemove;
   if (account.unfollowedSeenAt) copy.unfollowedSeenAt = account.unfollowedSeenAt;
   if (account.unfollowedMeSeenAt) copy.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
+  if (account.renameSuggestion) copy.renameSuggestion = { to: account.renameSuggestion.to, plans: [...account.renameSuggestion.plans] };
   return copy;
 }
 

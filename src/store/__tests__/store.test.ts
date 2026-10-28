@@ -582,7 +582,7 @@ describe("renames", () => {
   test("the import suggests the rename and doesn't count its plan as done", async () => {
     const t = await renamedStore();
     const state = t.store.getState();
-    expect(state.master.renames).toEqual([{ from: "carol", to: "carol_2", plans: [REMOVE_FOLLOWER] }]);
+    expect(account(t, "carol").renameSuggestion).toEqual({ to: "carol_2", plans: [REMOVE_FOLLOWER] });
     expect(state.master.status).toMatchObject({ summary: { plans: { completed: { [REMOVE_FOLLOWER]: 0 } } } });
     expect(selectListKeys(state)).toEqual(["carol"]);
   });
@@ -594,7 +594,6 @@ describe("renames", () => {
 
     expect(selectAccount(state, "carol")).toBeUndefined();
     expect(account(t, "carol_2")).toMatchObject({ review: { reviewed: true, tags: ["artist"], notes: "old note" }, toRemove: PLAN_STATES.PLANNED });
-    expect(state.master.renames).toEqual([]);
     expect(selectListKeys(state)).toEqual([]); // the old card leaves the list
     expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(0);
     expect(selectTagCounts(state).artist).toBe(1);
@@ -608,37 +607,54 @@ describe("renames", () => {
     expect(saved.accounts.carol_2?.review.tags).toEqual(["artist"]);
   });
 
-  test("Reset changes brings the old account back; the suggestion stays gone", async () => {
+  test("Reset changes brings the old account back, with its suggestion", async () => {
     const t = await renamedStore();
     t.store.dispatch(confirmRename({ from: "carol" }));
     t.store.dispatch(resetChanges());
-    expect(account(t, "carol").review.tags).toEqual(["artist"]);
+    expect(account(t, "carol")).toMatchObject({ review: { tags: ["artist"] }, renameSuggestion: { to: "carol_2" } });
     expect(account(t, "carol_2").review.tags).toEqual([]);
     expect(selectListKeys(t.store.getState())).toEqual(["carol"]);
-    expect(t.store.getState().master.renames).toEqual([]);
   });
 
-  test("Not a rename hides the suggestion and changes nothing", async () => {
+  test("Not a rename is an edit like unticking a box: unsaved, listed, undone by Reset", async () => {
     const t = await renamedStore();
-    const revision = t.store.getState().master.revision;
     t.store.dispatch(dismissRename({ from: "carol" }));
-    expect(t.store.getState().master.renames).toEqual([]);
-    expect(t.store.getState().master.revision).toBe(revision);
+    const state = t.store.getState();
+    expect(account(t, "carol").renameSuggestion).toBeUndefined();
     expect(account(t, "carol").review.tags).toEqual(["artist"]);
+    expect(selectUnsavedAccountCount(state)).toBe(1);
+    expect(selectUnsavedDiff(state)).toEqual([{ username: "carol", changes: [{ type: SESSION_CHANGES.RENAME_DISMISSED }] }]);
+    expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(1); // still lost since the last save
+
+    t.store.dispatch(resetChanges());
+    expect(account(t, "carol").renameSuggestion).toEqual({ to: "carol_2", plans: [REMOVE_FOLLOWER] });
   });
 
-  test("a confirmed rename survives a reload; open suggestions don't", async () => {
+  test("an open suggestion survives a reload, and so does a confirmed rename", async () => {
     const t = await renamedStore();
-    t.store.dispatch(confirmRename({ from: "carol" }));
     await flushPersistence();
-
     const reloaded = makeTestStore({ tab: t.tab });
     await reloaded.store.dispatch(restoreTab());
-    expect(selectAccount(reloaded.store.getState(), "carol")).toBeUndefined();
-    expect(account(reloaded, "carol_2").review.notes).toBe("old note");
-    expect(reloaded.store.getState().master.renames).toEqual([]);
-    reloaded.store.dispatch(resetChanges()); // and the removal can still be undone
-    expect(account(reloaded, "carol").review.notes).toBe("old note");
+    expect(account(reloaded, "carol").renameSuggestion).toEqual({ to: "carol_2", plans: [REMOVE_FOLLOWER] });
+
+    reloaded.store.dispatch(confirmRename({ from: "carol" }));
+    await flushPersistence();
+    const again = makeTestStore({ tab: t.tab });
+    await again.store.dispatch(restoreTab());
+    expect(selectAccount(again.store.getState(), "carol")).toBeUndefined();
+    expect(account(again, "carol_2").review.notes).toBe("old note");
+    again.store.dispatch(resetChanges()); // and the removal can still be undone
+    expect(account(again, "carol").review.notes).toBe("old note");
+  });
+
+  test("an open suggestion survives Save master and the next import, and stays in Lost followers", async () => {
+    const t = await renamedStore();
+    await t.store.dispatch(saveMaster()).unwrap();
+    const master: unknown = JSON.parse(must(t.downloads[1]).text);
+    t.setNow("2026-10-29T12:00:00.000Z");
+    await t.store.dispatch(importPrepared(prepared({ following: [["alice", 101], ["bob", 102]], followers: [["alice", 201], ["carol_2", 203]], master }))).unwrap();
+    expect(account(t, "carol").renameSuggestion).toEqual({ to: "carol_2", plans: [REMOVE_FOLLOWER] });
+    expect(selectListKeys(t.store.getState())).toEqual(["carol"]);
   });
 });
 

@@ -17,6 +17,8 @@ export const SESSION_CHANGES = {
   NOTE_EDITED: "noteEdited",
   /** The account is gone: the old name of a confirmed rename. */
   ACCOUNT_REMOVED: "accountRemoved",
+  /** A suggested rename was dismissed. */
+  RENAME_DISMISSED: "renameDismissed",
 } as const;
 export type SessionChangeType = ValueOf<typeof SESSION_CHANGES>;
 
@@ -49,6 +51,7 @@ export const SESSION_CHANGE_CATEGORY: Readonly<Record<SessionChangeType, Session
   [SESSION_CHANGES.UNAVAILABLE_CLEARED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.NOTE_EDITED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.ACCOUNT_REMOVED]: SESSION_CATEGORIES.OTHER,
+  [SESSION_CHANGES.RENAME_DISMISSED]: SESSION_CATEGORIES.OTHER,
 };
 
 export interface SessionAccountChanges {
@@ -79,6 +82,7 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
     for (const tag of after.tags) if (!before.tags.includes(tag)) changes.push({ type: SESSION_CHANGES.TAG_ADDED, tag });
     for (const tag of before.tags) if (!after.tags.includes(tag)) changes.push({ type: SESSION_CHANGES.TAG_REMOVED, tag });
     if (before.notes !== after.notes) changes.push({ type: SESSION_CHANGES.NOTE_EDITED });
+    if (beforeAccount?.renameSuggestion && !afterAccount?.renameSuggestion) changes.push({ type: SESSION_CHANGES.RENAME_DISMISSED });
 
     // Plans are only settled on import, which starts a new session, so a plan that went away was cancelled.
     for (const action of Object.values(ACTION_TYPES)) {

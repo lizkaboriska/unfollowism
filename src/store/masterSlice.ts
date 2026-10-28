@@ -17,7 +17,6 @@ import {
   type Master,
   type PlanState,
   type ReadonlyAccount,
-  type RenameSuggestion,
   type ReviewScope,
   type TagFilter,
 } from "../core/index.ts";
@@ -50,8 +49,6 @@ export interface MasterState {
   persistenceFailed: boolean;
   /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
   restoreFailed: boolean;
-  /** Likely renames found by the last import, not yet confirmed or dismissed. In memory only: not stored, gone after a reload. */
-  renames: RenameSuggestion[];
 }
 
 const initialState: MasterState = {
@@ -67,7 +64,6 @@ const initialState: MasterState = {
   savedStatus: null,
   persistenceFailed: false,
   restoreFailed: false,
-  renames: [],
 };
 
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
@@ -185,19 +181,19 @@ export const masterSlice = createSlice({
     /** A suggested rename was right: the old account's review work moves to the new name, and the old account is removed. */
     confirmRename(state, { payload }: PayloadAction<{ from: string }>) {
       const before = original(state);
-      const suggestion = before.renames.find(r => r.from === payload.from);
       const base = before.base;
-      if (!suggestion || !base) return;
-      state.renames = state.renames.filter(r => r.from !== payload.from);
-      const old = accountOf<ReadonlyAccount>(base.accounts, before.changed, suggestion.from);
-      if (!old || !accountOf<ReadonlyAccount>(base.accounts, before.changed, suggestion.to)) return;
-      applyEdit(state, suggestion.to, account => { mergeRenamed(account, old, suggestion.plans); });
-      state.changed[suggestion.from] = null;
+      if (!base) return;
+      const old = accountOf<ReadonlyAccount>(base.accounts, before.changed, payload.from);
+      const to = old?.renameSuggestion?.to;
+      if (!old || to === undefined || !accountOf<ReadonlyAccount>(base.accounts, before.changed, to)) return;
+      applyEdit(state, to, account => { mergeRenamed(account, old); });
+      state.changed[payload.from] = null;
       state.revision += 1;
     },
-    /** A suggested rename was wrong: the suggestion goes away (until the next import, which may find it again). */
+    /** A suggested rename was wrong: the suggestion goes away, like unticking a box. Imports don't suggest it again. */
     dismissRename(state, { payload }: PayloadAction<{ from: string }>) {
-      state.renames = state.renames.filter(r => r.from !== payload.from);
+      if (!accountBefore(state, payload.from)?.renameSuggestion) return;
+      editAccount(state, payload.from, account => { delete account.renameSuggestion; });
     },
     /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
     resetChanges(state) {
@@ -232,7 +228,6 @@ export const masterSlice = createSlice({
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         state.importStatus = IMPORT_STATUSES.IDLE;
         state.restoreFailed = false;
-        state.renames = payload.renames;
         state.base = payload.master;
         state.changed = createDict<Account | null>();
         state.savedChanged = state.changed;

@@ -1,14 +1,17 @@
 import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from "./importProblems.ts";
 import { createReview } from "./review.ts";
 import {
+  ACTION_TYPES,
   FORMAT_VERSION,
   PLAN_STATES,
   type Account,
+  type ActionType,
   type DeepReadonly,
   type Follow,
   type Master,
   type PlanState,
   type ReadonlyAccount,
+  type RenameSuggestion,
   type Review,
 } from "./types.ts";
 import { createDict, isRecord, usernameKey } from "./util.ts";
@@ -40,6 +43,8 @@ export interface AccountRecord {
   unfollowedSeenAt?: string;
   /** Present only after they stopped following you (and until they follow again). */
   unfollowedMeSeenAt?: string;
+  /** Present only while a likely rename waits for a decision; `plans` omitted when empty. */
+  renameSuggestion?: { to: string; plans?: ActionType[] };
 }
 
 // ── Writing ──────────────────────────────────────────────────────────────────
@@ -58,6 +63,8 @@ export function toAccountRecord(account: ReadonlyAccount): AccountRecord {
   if (account.toRemove) out.toRemove = account.toRemove;
   if (account.unfollowedSeenAt) out.unfollowedSeenAt = account.unfollowedSeenAt;
   if (account.unfollowedMeSeenAt) out.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
+  const suggestion = account.renameSuggestion;
+  if (suggestion) out.renameSuggestion = suggestion.plans.length ? { to: suggestion.to, plans: [...suggestion.plans] } : { to: suggestion.to };
   return out;
 }
 
@@ -165,8 +172,17 @@ function follow(present: boolean, since: unknown, path: string): Follow | null {
   return present ? { since: numOrNull(since, path) } : null;
 }
 
+const RENAME_FIELDS: ReadonlySet<string> = new Set(["to", "plans"] satisfies (keyof RenameSuggestion)[]);
+
+function parseRenameSuggestion(value: unknown, path: string): RenameSuggestion {
+  const r = record(value, path);
+  rejectUnknownFields(r, RENAME_FIELDS, path);
+  const plans = r.plans === undefined ? [] : array(r.plans, `${path}.plans`).map((type, i) => oneOf(type, ACTION_TYPES, `${path}.plans[${i}]`));
+  return { to: nonEmptyStr(r.to, `${path}.to`), plans };
+}
+
 const ACCOUNT_FIELDS: ReadonlySet<string> = new Set([
-  "username", "followingSince", "followerSince", "review", "toUnfollow", "toRemove", "unfollowedSeenAt", "unfollowedMeSeenAt",
+  "username", "followingSince", "followerSince", "review", "toUnfollow", "toRemove", "unfollowedSeenAt", "unfollowedMeSeenAt", "renameSuggestion",
 ] satisfies (keyof AccountRecord)[]);
 
 /** Builds the working account from its saved record. */
@@ -183,6 +199,7 @@ export function fromAccountRecord(value: unknown, path: string): Account {
   if (r.toRemove !== undefined) account.toRemove = oneOf(r.toRemove, PLAN_STATES, `${path}.toRemove`);
   if (r.unfollowedSeenAt !== undefined) account.unfollowedSeenAt = date(r.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
   if (r.unfollowedMeSeenAt !== undefined) account.unfollowedMeSeenAt = date(r.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
+  if (r.renameSuggestion !== undefined) account.renameSuggestion = parseRenameSuggestion(r.renameSuggestion, `${path}.renameSuggestion`);
   return account;
 }
 

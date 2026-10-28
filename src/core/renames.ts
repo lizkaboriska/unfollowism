@@ -1,18 +1,10 @@
 import { followExists, planOf, setPlan } from "./actions.ts";
-import { ACTION_TYPES, PLAN_STATES, type Account, type ActionType, type ExportEntry, type ReadonlyAccount } from "./types.ts";
+import { ACTION_TYPES, PLAN_STATES, type Account, type ExportEntry, type ReadonlyAccount, type RenameSuggestion } from "./types.ts";
 
-/**
- * A likely rename found by an import: an account that stopped following you, and a username
- * never seen before with exactly the same follow dates. Instagram exports have no account id,
- * so this is the only trace a rename leaves. Kept in memory only; nothing is saved.
- */
-export interface RenameSuggestion {
-  /** Key of the account that disappeared. */
+/** A rename found by an import: the old account's key and the suggestion to put on it. */
+export interface FoundRename {
   from: string;
-  /** Key of the new username. */
-  to: string;
-  /** Actions planned (or marked done) on the old account; the import cleared them because its follows were gone. */
-  plans: ActionType[];
+  suggestion: RenameSuggestion;
 }
 
 /** The follow dates that identify an account across a rename; null when a date is unknown (no match then). */
@@ -42,7 +34,7 @@ export function findRenames(
   accounts: Readonly<Record<string, ReadonlyAccount>>,
   following: ReadonlyMap<string, ExportEntry>,
   followers: ReadonlyMap<string, ExportEntry>,
-): RenameSuggestion[] {
+): FoundRename[] {
   const gone = unique(Object.entries(accounts)
     .filter(([key, account]) => account.followedBy !== null && !followers.has(key) && !following.has(key))
     .map(([key, account]) => [key, signature(account.following?.since, account.followedBy?.since)] as const));
@@ -50,27 +42,41 @@ export function findRenames(
     .filter(([key]) => !Object.hasOwn(accounts, key))
     .map(([key, entry]) => [key, signature(following.get(key)?.since, entry.since)] as const));
 
-  const renames: RenameSuggestion[] = [];
+  const found: FoundRename[] = [];
   for (const [sig, from] of gone) {
     const to = appeared.get(sig);
     const old = accounts[from];
     if (to === undefined || !old) continue;
-    renames.push({ from, to, plans: Object.values(ACTION_TYPES).filter(type => planOf(old, type) !== undefined) });
+    found.push({ from, suggestion: { to, plans: Object.values(ACTION_TYPES).filter(type => planOf(old, type) !== undefined) } });
   }
-  return renames;
+  return found;
+}
+
+/**
+ * WRITE: after an import has updated the follows, drops open suggestions that no longer hold:
+ * the old name is back in the export, or the new name no longer follows you.
+ */
+export function settleRenameSuggestions(accounts: Record<string, Account>): void {
+  for (const account of Object.values(accounts)) {
+    const suggestion = account.renameSuggestion;
+    if (!suggestion) continue;
+    const target = accounts[suggestion.to];
+    if (account.following || account.followedBy || !target?.followedBy) delete account.renameSuggestion;
+  }
 }
 
 /**
  * WRITE (to `target`): moves the old account's review work onto its new name. Tags are combined,
- * notes kept one per line, reviewed if either was. Old plans come back as planned where that follow
- * exists on the new name. Unavailable is not moved: the account clearly still exists.
+ * notes kept one per line, reviewed if either was. The old account's plans (kept on its suggestion)
+ * come back as planned where that follow exists on the new name. Unavailable is not moved: the
+ * account clearly still exists.
  */
-export function mergeRenamed(target: Account, old: ReadonlyAccount, plans: readonly ActionType[]): void {
+export function mergeRenamed(target: Account, old: ReadonlyAccount): void {
   const review = target.review;
   for (const tag of old.review.tags) if (!review.tags.includes(tag)) review.tags.push(tag);
   review.notes = [review.notes, old.review.notes].filter(Boolean).join("\n");
   review.reviewed ||= old.review.reviewed;
-  for (const type of plans) {
+  for (const type of old.renameSuggestion?.plans ?? []) {
     if (planOf(target, type) === undefined && followExists(target, type)) setPlan(target, type, PLAN_STATES.PLANNED);
   }
 }

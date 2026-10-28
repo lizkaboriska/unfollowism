@@ -3,7 +3,7 @@ import { settlePlans, totalOf, type PlanOutcomes } from "./actions.ts";
 import { IMPORT_PROBLEMS, ImportError } from "./importProblems.ts";
 import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
-import { findRenames, type RenameSuggestion } from "./renames.ts";
+import { findRenames, settleRenameSuggestions } from "./renames.ts";
 import { followChangeCounts, setFollows, type FollowChangeCounts } from "./scopes.ts";
 import { FORMAT_VERSION, type Account, type ExportEntry, type Master } from "./types.ts";
 import { createDict, usernameKey } from "./util.ts";
@@ -33,8 +33,6 @@ export interface ImportResult {
   /** Whether the imported state differs from the master file and should be saved. */
   dirty: boolean;
   followerFileCount: number;
-  /** Likely renames found by this import, for the Lost followers view. */
-  renames: RenameSuggestion[];
 }
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
@@ -46,13 +44,10 @@ function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 /**
  * WRITE: applies a fresh export to the accounts (mutated in place): finds likely renames while
  * the old follow dates are still there, updates the follows, dates the ones that stopped (`now`),
- * and settles planned actions against them.
+ * puts rename suggestions on the old accounts (dropping earlier ones that no longer hold), and
+ * settles planned actions against the follows.
  */
-export function mergeExports(
-  accounts: Record<string, Account>,
-  bundle: ExportBundle,
-  now: string,
-): { exportChanged: boolean; plans: PlanOutcomes; renames: RenameSuggestion[] } {
+export function mergeExports(accounts: Record<string, Account>, bundle: ExportBundle, now: string): { exportChanged: boolean; plans: PlanOutcomes } {
   const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
   const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
   const renames = findRenames(accounts, following, followers);
@@ -78,7 +73,13 @@ export function mergeExports(
     setFollows(account, followingEntry, followerEntry, now);
   }
 
-  return { exportChanged, plans: settlePlans({ accounts }, new Set(renames.map(r => r.from))), renames };
+  settleRenameSuggestions(accounts);
+  for (const { from, suggestion } of renames) {
+    const account = accounts[from];
+    if (account) account.renameSuggestion = suggestion;
+  }
+
+  return { exportChanged, plans: settlePlans({ accounts }, new Set(renames.map(r => r.from))) };
 }
 
 /**
@@ -92,7 +93,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const { exportChanged, plans, renames } = mergeExports(accounts, bundle, now);
+  const { exportChanged, plans } = mergeExports(accounts, bundle, now);
   const summary: ImportSummary = {
     exportChanged,
     followingCount: Object.values(accounts).filter(a => a.following).length,
@@ -116,6 +117,5 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
     isNewMaster,
     dirty: isNewMaster || exportChanged || plansSettled,
     followerFileCount: bundle.followerFileCount,
-    renames,
   };
 }

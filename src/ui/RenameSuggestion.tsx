@@ -2,16 +2,16 @@ import { Box, Button, HStack, Text } from "@chakra-ui/react";
 import { LIST_VIEWS } from "../store/filtersSlice.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { confirmRename, dismissRename } from "../store/masterSlice.ts";
-import { selectAccount, selectRenameFrom } from "../store/selectors.ts";
+import { selectAccount } from "../store/selectors.ts";
 import { ProfileLink } from "./ProfileLink.tsx";
 
 /**
- * In Lost followers, on an account the last import thinks was renamed: move its review work to the
- * new name, or dismiss. Suggestions live in memory until the next import (a reload drops them).
+ * In Lost followers, on an account an import thinks was renamed: move its review work to the
+ * new name, or dismiss. The suggestion is saved with the account until it is decided.
  */
 export function RenameSuggestion({ accountKey }: { accountKey: string }) {
   const dispatch = useAppDispatch();
-  const suggestion = useAppSelector(s => (s.filters.view === LIST_VIEWS.LOST_FOLLOWERS ? selectRenameFrom(s, accountKey) : undefined));
+  const suggestion = useAppSelector(s => (s.filters.view === LIST_VIEWS.LOST_FOLLOWERS ? selectAccount(s, accountKey)?.renameSuggestion : undefined));
   const newName = useAppSelector(s => (suggestion ? selectAccount(s, suggestion.to)?.username : undefined));
   if (!suggestion || newName === undefined) return null;
 

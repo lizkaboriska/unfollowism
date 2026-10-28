@@ -586,7 +586,10 @@ test("a renamed follower is suggested in Lost followers, and confirming moves it
   ];
   const tabButton = (name: RegExp) => screen.getByRole("button", { name });
   let clock = Date.parse("2026-10-27T12:00:00.000Z");
-  const { downloads, user } = await renderApp({ now: () => new Date((clock += 60_000)) }); // the next import comes after the save
+  const now = () => new Date((clock += 60_000)); // the next import comes after the save
+  const first = await renderApp({ now });
+  const { downloads } = first;
+  let user = first.user;
   await importFiles(user, exportOf([["alice", 201], ["carol", 203]]));
   await findRow("alice");
   await chooseFilter(user, "Scope", "People who follow me");
@@ -601,7 +604,12 @@ test("a renamed follower is suggested in Lost followers, and confirming moves it
   expect(await findRow("carol_2")).toBeInTheDocument();
   expect(screen.queryByText(/Looks renamed/)).not.toBeInTheDocument(); // only in Lost followers
 
-  await user.click(tabButton(/^Lost followers \(1\)$/));
+  // A reload keeps the suggestion, like any unsaved edit.
+  await waitFor(async () => { expect((await first.tab.load())?.base).toMatchObject({ accounts: { carol: { renameSuggestion: { to: "carol_2" } } } }); });
+  first.unmount();
+  user = (await renderApp({ tab: first.tab, now })).user;
+
+  await user.click(await screen.findByRole("button", { name: /^Lost followers \(1\)$/ }));
   const card = await findRow("carol");
   expect(within(card).getByText(/Looks renamed to/)).toBeInTheDocument();
   await user.click(within(card).getByRole("button", { name: "Move to @carol_2" }));
@@ -609,5 +617,7 @@ test("a renamed follower is suggested in Lost followers, and confirming moves it
   expect(tabButton(/^Lost followers \(0\)$/)).toBeInTheDocument();
 
   await user.click(tabButton(/^Review$/));
+  await chooseFilter(user, "Scope", "People who follow me"); // filters start fresh after the reload
+  await findRow("carol_2");
   expect(reviewedBox("carol_2")).toBeChecked();
 });
