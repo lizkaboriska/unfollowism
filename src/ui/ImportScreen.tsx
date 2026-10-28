@@ -9,10 +9,7 @@ import { IMPORT_STATUSES } from "../store/statuses.ts";
 import { importPrepared } from "../store/thunks.ts";
 import { useAlert, useConfirm } from "./dialogs.tsx";
 import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from "./importText.ts";
-
-function errorMessage(error: unknown): string {
-  return typeof error === "string" ? error : error instanceof Error ? error.message : "Unexpected error";
-}
+import { errorMessage } from "./statusText.ts";
 
 const HELP = (
   <Stack gap="3">

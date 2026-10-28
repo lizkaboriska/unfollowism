@@ -1,6 +1,6 @@
 import { ACTION_TYPES, FOLLOW_CHANGES, emptyActionCounts, type ImportSummary } from "../../core/index.ts";
 import { STATUS_EVENTS, type StatusEvent } from "../../store/statuses.ts";
-import { statusText } from "../statusText.ts";
+import { errorMessage, statusText } from "../statusText.ts";
 
 const summary: ImportSummary = {
   exportChanged: true,
@@ -26,6 +26,16 @@ test.each([
   ["saved", { type: STATUS_EVENTS.SAVED, filename: "m.json", changedWhileSaving: false }, "Master saved as m.json. Keep this file: import it next time."],
   ["saved while editing", { type: STATUS_EVENTS.SAVED, filename: "m.json", changedWhileSaving: true }, "Master saved as m.json. Changes made while saving are not in that file yet."],
   ["save failed", { type: STATUS_EVENTS.SAVE_FAILED, reason: "disk full" }, "Could not save master: disk full"],
+  ["save failed without a message", { type: STATUS_EVENTS.SAVE_FAILED, reason: null }, "Could not save master: unexpected error"],
 ] as const)("%s", (_, status, expected) => {
   expect(statusText(status)).toBe(expected);
+});
+
+test.each([
+  ["a string", "No accounts found", "No accounts found"],
+  ["an Error", new Error("Broken zip"), "Broken zip"],
+  ["Redux Toolkit's plain error object", { name: "TypeError", message: "x is undefined" }, "x is undefined"],
+  ["something else", 42, "Unexpected error"],
+])("error message from %s", (_, error, expected) => {
+  expect(errorMessage(error)).toBe(expected);
 });

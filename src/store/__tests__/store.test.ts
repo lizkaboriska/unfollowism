@@ -203,6 +203,20 @@ describe("save", () => {
     expect(calls).toHaveLength(1);
   });
 
+  test("a failed download keeps its message, marks nothing saved, and saving works again", async () => {
+    let fail = true;
+    const t = makeTestStore({ download: () => { if (fail) throw new Error("Download blocked"); } });
+    await t.store.dispatch(importPrepared(prepared())).unwrap();
+
+    await t.store.dispatch(saveMaster());
+    expect(t.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVE_FAILED, reason: "Download blocked" });
+    expect(selectIsDirty(t.store.getState())).toBe(true);
+
+    fail = false;
+    await t.store.dispatch(saveMaster()).unwrap();
+    expect(selectIsDirty(t.store.getState())).toBe(false);
+  });
+
   test("saving with nothing loaded is rejected", async () => {
     const { store } = makeTestStore();
     const result = await store.dispatch(saveMaster());

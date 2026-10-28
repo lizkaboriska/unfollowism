@@ -233,10 +233,10 @@ export const masterSlice = createSlice({
         state.status = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: state.revision !== payload.revision };
         state.savedStatus = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: false };
       })
-      .addCase(saveMaster.rejected, (state, { payload, meta }) => {
+      .addCase(saveMaster.rejected, (state, { payload, error, meta }) => {
         if (meta.condition) return; // a save was already running
         state.saveStatus = SAVE_STATUSES.IDLE;
-        state.status = { type: STATUS_EVENTS.SAVE_FAILED, reason: payload ?? "unexpected error" };
+        state.status = { type: STATUS_EVENTS.SAVE_FAILED, reason: payload ?? error.message ?? null };
       });
   },
 });

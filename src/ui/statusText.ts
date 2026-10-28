@@ -1,5 +1,12 @@
-import { ACTION_TYPES, type FollowChangeCounts, type ImportSummary, type PlanOutcomes } from "../core/index.ts";
+import { ACTION_TYPES, isRecord, type FollowChangeCounts, type ImportSummary, type PlanOutcomes } from "../core/index.ts";
 import { STATUS_EVENTS, type StatusEvent } from "../store/statuses.ts";
+
+/** The message of a caught error: a string, an Error, or the plain { message } object Redux Toolkit passes on. */
+export function errorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (isRecord(error) && typeof error.message === "string") return error.message;
+  return "Unexpected error";
+}
 
 export function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
@@ -40,6 +47,6 @@ export function statusText(status: StatusEvent | null): string {
         ? `Master saved as ${status.filename}. Changes made while saving are not in that file yet.`
         : `Master saved as ${status.filename}. Keep this file: import it next time.`;
     case STATUS_EVENTS.SAVE_FAILED:
-      return `Could not save master: ${status.reason}`;
+      return `Could not save master: ${status.reason ?? "unexpected error"}`;
   }
 }
