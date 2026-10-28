@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Box, Text } from "@chakra-ui/react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useAppSelector } from "../store/hooks.ts";
@@ -21,6 +21,22 @@ export function AccountList() {
   const keys = useAppSelector(selectListKeys);
   const todoAction = useAppSelector(s => (isPlanView(s.filters.view) ? PLAN_VIEW_ACTIONS[s.filters.view] : undefined));
   const [scrollMargin, setScrollMargin] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+  const hasList = keys.length > 0;
+
+  // Where the list starts moves when something above it changes height (status line, warnings),
+  // so it is measured again whenever the page resizes, not only when the list renders.
+  useLayoutEffect(() => {
+    const node = listRef.current;
+    if (!node) return;
+    const measure = () => { setScrollMargin(node.offsetTop); };
+    measure();
+    if (typeof ResizeObserver === "undefined") return; // tests (jsdom)
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    return () => { observer.disconnect(); };
+  }, [hasList]);
+
   const virtualizer = useWindowVirtualizer({
     count: keys.length,
     estimateSize: () => (todoAction ? ESTIMATED_ROW_HEIGHT : ESTIMATED_CARD_HEIGHT),
@@ -30,11 +46,11 @@ export function AccountList() {
     getItemKey: index => keys[index] ?? index,
   });
 
-  if (!keys.length) return <Text color="fg.muted">No accounts match the current filters.</Text>;
+  if (!hasList) return <Text color="fg.muted">No accounts match the current filters.</Text>;
 
   return (
     <Box
-      ref={(node: HTMLDivElement | null) => { if (node) setScrollMargin(node.offsetTop); }}
+      ref={listRef}
       position="relative"
       height={`${virtualizer.getTotalSize()}px`}
     >

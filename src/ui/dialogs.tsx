@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { Button, Dialog, Portal } from "@chakra-ui/react";
 import type { ValueOf } from "../core/index.ts";
 
@@ -23,7 +23,6 @@ export interface ConfirmOptions extends AlertOptions {
 
 interface OpenDialog extends ConfirmOptions {
   kind: DialogKind;
-  resolve: (confirmed: boolean) => void;
 }
 
 type OpenDialogFn = (kind: DialogKind, options: ConfirmOptions) => Promise<boolean>;
@@ -34,15 +33,20 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   // The last dialog stays in state after closing so its text doesn't vanish during the close animation.
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  /** Answers the dialog on screen; null once it has been answered. */
+  const pending = useRef<((confirmed: boolean) => void) | null>(null);
 
   const open = useCallback<OpenDialogFn>((kind, options) => new Promise(resolve => {
-    setDialog({ ...options, kind, resolve });
+    pending.current?.(false); // a dialog opened over another one cancels it, so its caller isn't left waiting
+    pending.current = resolve;
+    setDialog({ ...options, kind });
     setIsOpen(true);
   }), []);
 
   function close(confirmed: boolean) {
-    if (!isOpen) return;
-    dialog?.resolve(confirmed);
+    if (!pending.current) return;
+    pending.current(confirmed);
+    pending.current = null;
     setIsOpen(false);
   }
 

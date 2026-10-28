@@ -77,12 +77,18 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
   const [dragging, setDragging] = useState(false);
 
   // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be removed.
-  const { selection, selectionError } = useMemo((): { selection: ImportSelection | null; selectionError: string | null } => {
-    if (!chosen.length) return { selection: null, selectionError: null };
+  // The last save from this browser is read here too, once per change rather than on every render.
+  const { selection, selectionError, lastKnownSavedAt } = useMemo((): {
+    selection: ImportSelection | null;
+    selectionError: string | null;
+    lastKnownSavedAt: string | null;
+  } => {
+    if (!chosen.length) return { selection: null, selectionError: null, lastKnownSavedAt: null };
+    const savedAt = lastSaved.get();
     try {
-      return { selection: analyzeImport(chosen.flatMap(c => c.inputs), lastSaved.get()), selectionError: null };
+      return { selection: analyzeImport(chosen.flatMap(c => c.inputs), savedAt), selectionError: null, lastKnownSavedAt: savedAt };
     } catch (e) {
-      return { selection: null, selectionError: e instanceof ImportError ? importProblemText(e.problem) : errorMessage(e) };
+      return { selection: null, selectionError: e instanceof ImportError ? importProblemText(e.problem) : errorMessage(e), lastKnownSavedAt: savedAt };
     }
   }, [chosen, lastSaved]);
 
@@ -169,7 +175,8 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
         py="10"
         textAlign="center"
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => { setDragging(false); }}
+        // Moving over the text inside also fires dragleave; only leaving the zone itself ends the highlight.
+        onDragLeave={e => { if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) setDragging(false); }}
         onDrop={onDrop}
       >
         <Stack gap="3" align="center">
@@ -201,7 +208,7 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
       )}
 
       {reading > 0 && <Text color="fg.muted">Reading files…</Text>}
-      {selection && <Text>{recognizedText(selection.recognized, lastSaved.get())}</Text>}
+      {selection && <Text>{recognizedText(selection.recognized, lastKnownSavedAt)}</Text>}
       {missing && <Text color="fg.muted">{missing}</Text>}
 
       {selection?.prepared?.warnings.map(w => w.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE && (
@@ -211,8 +218,8 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
         </Alert.Root>
       ))}
 
-      {[selectionError, importError].map(message => message && (
-        <Alert.Root key={message} status="error">
+      {([["selection", selectionError], ["import", importError]] as const).map(([key, message]) => message && (
+        <Alert.Root key={key} status="error">
           <Alert.Indicator />
           <Alert.Title>{message}</Alert.Title>
         </Alert.Root>

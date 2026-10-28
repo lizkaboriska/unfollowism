@@ -236,7 +236,7 @@ test("a reload silently continues where the tab left off", async () => {
   const first = await renderApp();
   await importFiles(first.user, exportFiles());
   await first.user.click(within(await findRow("bob")).getByRole("checkbox", { name: "Reviewed" }));
-  await new Promise(resolve => setTimeout(resolve, 20)); // let the storage write finish
+  await waitFor(async () => { expect(Object.keys((await first.tab.load())?.changed ?? {})).toContain("bob"); }); // the tick is stored
   first.unmount();
 
   await renderApp({ tab: first.tab }); // same tab storage, fresh page
@@ -249,7 +249,7 @@ test("a reload shows Loading your work… instead of flashing the import screen"
   const first = await renderApp();
   await importFiles(first.user, exportFiles());
   await findRow("bob");
-  await new Promise(resolve => setTimeout(resolve, 20)); // let the storage write finish
+  await waitFor(async () => { expect(await first.tab.load()).not.toBeNull(); }); // the import is stored
   first.unmount();
 
   let release!: () => void;

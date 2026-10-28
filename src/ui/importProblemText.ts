@@ -22,7 +22,7 @@ export function importProblemText(problem: ImportProblem): string {
     case IMPORT_PROBLEMS.SEVERAL_MASTERS:
       return `Found ${problem.names.length} master files (${problem.names.join(", ")}). Choose only the newest one.`;
     case IMPORT_PROBLEMS.HTML_EXPORT:
-      return "This export is in HTML format. In Instagram, request “Download your information” again and choose the JSON format.";
+      return "This export is in HTML format. In Instagram, request “Export your information” again (called Download your information in some versions) and choose the JSON format.";
     case IMPORT_PROBLEMS.NO_FOLLOWING:
       return "No accounts found in the Following file of this export.";
     case IMPORT_PROBLEMS.NO_FOLLOWERS:

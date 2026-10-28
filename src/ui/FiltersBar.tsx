@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, Input, Stack } from "@chakra-ui/react";
-import { REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
+import { REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type TagFilter } from "../core/index.ts";
 import { LIST_VIEWS, isPlanView, setQuery, setReviewStatus, setScope, setTagFilter } from "../store/filtersSlice.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { resetScope } from "../store/masterSlice.ts";
@@ -78,10 +78,10 @@ export function FiltersBar() {
         onChange={e => dispatch(setQuery(e.currentTarget.value))}
       />
       {inReview && (
-        <FilterSelect name="scope" label="Scope" options={scopeOptions} value={filters.scope} onChange={value => dispatch(setScope(value as ReviewScope))} />
+        <FilterSelect name="scope" label="Scope" options={scopeOptions} value={filters.scope} onChange={value => dispatch(setScope(value))} />
       )}
       {!isPlanView(filters.view) && (
-        <FilterSelect name="status" label="Status" options={statusOptions} value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value as ReviewStatusFilter))} />
+        <FilterSelect name="status" label="Status" options={statusOptions} value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value))} />
       )}
       <FilterSelect name="tag" label="Tag" options={tagOptions} value={tagFilterValue(filters.tag, tags)} onChange={onTagChange} />
       <ManageTagsDialog open={tagsOpen} onClose={() => { setTagsOpen(false); }} />

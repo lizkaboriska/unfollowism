@@ -9,7 +9,7 @@ test.each<[string, ImportProblem, string]>([
   ["two masters", { kind: IMPORT_PROBLEMS.SEVERAL_MASTERS, names: ["m1.json", "m2.json"] },
     "Found 2 master files (m1.json, m2.json). Choose only the newest one."],
   ["HTML export", { kind: IMPORT_PROBLEMS.HTML_EXPORT },
-    "This export is in HTML format. In Instagram, request “Download your information” again and choose the JSON format."],
+    "This export is in HTML format. In Instagram, request “Export your information” again (called Download your information in some versions) and choose the JSON format."],
   ["empty Following", { kind: IMPORT_PROBLEMS.NO_FOLLOWING }, "No accounts found in the Following file of this export."],
   ["empty Followers", { kind: IMPORT_PROBLEMS.NO_FOLLOWERS }, "No accounts found in the Followers files of this export."],
   ["not a master", { kind: IMPORT_PROBLEMS.NOT_A_MASTER }, "This file is not an Instagram Review master."],

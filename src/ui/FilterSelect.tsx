@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Box, HStack, Portal, Select, Text, createListCollection } from "@chakra-ui/react";
 
-export interface FilterOption {
-  value: string;
+export interface FilterOption<V extends string = string> {
+  value: V;
   label: string;
   /** Shown to the right of the label, e.g. how many accounts have a tag. */
   count?: number;
@@ -11,16 +11,16 @@ export interface FilterOption {
 }
 
 /**
- * A styled dropdown for the filters bar. Choosing an option calls `onChange`; the shown
- * value only changes when the parent passes a new `value`, so an option can also act as
- * an action (e.g. "Manage tags…") without becoming the selection.
+ * A styled dropdown for the filters bar. Choosing an option calls `onChange` with that option's
+ * own (typed) value; the shown value only changes when the parent passes a new `value`, so an
+ * option can also act as an action (e.g. "Manage tags…") without becoming the selection.
  */
-export function FilterSelect({ name, label, options, value, onChange }: {
+export function FilterSelect<V extends string>({ name, label, options, value, onChange }: {
   name: string;
   label: string;
-  options: readonly FilterOption[];
-  value: string;
-  onChange: (value: string) => void;
+  options: readonly FilterOption<V>[];
+  value: V;
+  onChange: (value: V) => void;
 }) {
   const collection = useMemo(() => createListCollection({ items: [...options] }), [options]);
   return (
@@ -30,7 +30,10 @@ export function FilterSelect({ name, label, options, value, onChange }: {
       width={{ base: "full", md: "52" }}
       name={name}
       value={[value]}
-      onValueChange={e => { const next = e.value[0]; if (next !== undefined && next !== value) onChange(next); }}
+      onValueChange={e => {
+        const option = options.find(o => o.value === e.value[0]);
+        if (option && option.value !== value) onChange(option.value);
+      }}
       positioning={{ sameWidth: false, placement: "bottom-start" }}
     >
       <Select.HiddenSelect />

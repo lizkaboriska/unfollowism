@@ -95,7 +95,7 @@ async function run(total: number) {
 
   rows.push(
     ["read + classify export and master", analyzeMs, 0],
-    ["import (merge, markers, confirm)", importMs, 0],
+    ["import (merge, settle plans)", importMs, 0],
     ["first screen after import (sort + counts)", firstRenderMs, 0],
     ["one edit: reducer", editMs, 0],
     ["filter change: refresh list", listMs, 0],
@@ -119,7 +119,7 @@ test("100k accounts: fast", { timeout: 120_000 }, async () => {
   expect(t["one edit: unsaved changes list"]).toBeLessThan(5);
   expect(t["one edit: storage write"]).toBeLessThan(50);
   expect(t["filter change: refresh list"]).toBeLessThan(50);
-  expect(t["import (merge, markers, confirm)"]).toBeLessThan(5_000);
+  expect(t["import (merge, settle plans)"]).toBeLessThan(5_000);
   expect(t["save (serialize master)"]).toBeLessThan(2_000);
   expect(t["reload restore"]).toBeLessThan(3_000);
 });
@@ -128,5 +128,5 @@ test("500k accounts: still works", { timeout: 600_000 }, async () => {
   const t = await run(500_000);
   expect(t["one edit: reducer"]).toBeLessThan(25);
   expect(t["one edit: stats"]).toBeLessThan(25);
-  expect(t["import (merge, markers, confirm)"]).toBeLessThan(30_000);
+  expect(t["import (merge, settle plans)"]).toBeLessThan(30_000);
 });

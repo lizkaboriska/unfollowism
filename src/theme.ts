@@ -1,7 +1,6 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
 
-// Light-only theme loosely matching the original palette: cream background, plum text.
-// Colors otherwise come from Chakra's built-in palettes (see PLAN.md › Theme).
+// Light-only theme: cream background, plum text. Other colors come from Chakra's built-in palettes.
 export const system = createSystem(
   defaultConfig,
   defineConfig({
