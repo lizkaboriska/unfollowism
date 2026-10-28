@@ -1,4 +1,5 @@
 import { memo, useState, type KeyboardEvent } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from "@chakra-ui/react";
 import {
   ACTION_TYPES,
@@ -91,6 +92,43 @@ function PlanControl({ account, type }: { account: ReadonlyAccount; type: Action
   );
 }
 
+/** How long typing must pause before the note is stored. */
+const NOTE_DEBOUNCE_MS = 300;
+
+/**
+ * The note, stored after a pause in typing (or on leaving the field) rather than on every letter.
+ * Shows what you type at once; a change from elsewhere (Reset changes, a confirmed rename) shows when you're not typing.
+ */
+function NoteField({ username, note }: { username: string; note: string }) {
+  const dispatch = useAppDispatch();
+  const [draft, setDraft] = useState(note);
+  // flushOnExit: a card scrolled away (or a page closed) mid-typing still stores the note.
+  const storeNote = useDebouncedCallback((value: string) => dispatch(setNote({ username, note: value })), NOTE_DEBOUNCE_MS, { flushOnExit: true });
+
+  // The stored note changed (from typing here, or from elsewhere): show it unless more typing is on its way.
+  const [shownNote, setShownNote] = useState(note);
+  if (note !== shownNote) {
+    setShownNote(note);
+    if (!storeNote.isPending()) setDraft(note);
+  }
+
+  return (
+    <Input
+      size="sm"
+      name={`note-${username}`}
+      autoComplete="off"
+      placeholder="Add note…"
+      aria-label={`Note for @${username}`}
+      value={draft}
+      onChange={e => {
+        setDraft(e.currentTarget.value);
+        storeNote(e.currentTarget.value);
+      }}
+      onBlur={() => storeNote.flush()}
+    />
+  );
+}
+
 export const AccountCard = memo(function AccountCard({ accountKey }: { accountKey: string }) {
   const dispatch = useAppDispatch();
   const account = useAppSelector(s => selectAccount(s, accountKey));
@@ -150,15 +188,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
             })}
             <NewTag username={username} tags={tags} has={review.tags} />
           </HStack>
-          <Input
-            size="sm"
-            name={`note-${username}`}
-            autoComplete="off"
-            placeholder="Add note…"
-            aria-label={`Note for @${username}`}
-            value={review.notes}
-            onChange={e => dispatch(setNote({ username, note: e.currentTarget.value }))}
-          />
+          <NoteField username={username} note={review.notes} />
         </Stack>
       </Stack>
     </Box>
