@@ -15,6 +15,8 @@ export const SESSION_CHANGES = {
   UNAVAILABLE_MARKED: "unavailableMarked",
   UNAVAILABLE_CLEARED: "unavailableCleared",
   NOTE_EDITED: "noteEdited",
+  /** The account is gone: the old name of a confirmed rename. */
+  ACCOUNT_REMOVED: "accountRemoved",
 } as const;
 export type SessionChangeType = ValueOf<typeof SESSION_CHANGES>;
 
@@ -46,6 +48,7 @@ export const SESSION_CHANGE_CATEGORY: Readonly<Record<SessionChangeType, Session
   [SESSION_CHANGES.UNAVAILABLE_MARKED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.UNAVAILABLE_CLEARED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.NOTE_EDITED]: SESSION_CATEGORIES.OTHER,
+  [SESSION_CHANGES.ACCOUNT_REMOVED]: SESSION_CATEGORIES.OTHER,
 };
 
 export interface SessionAccountChanges {
@@ -63,6 +66,10 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
   for (const key of new Set([...Object.keys(baseline), ...Object.keys(current)].map(usernameKey))) {
     const beforeAccount = baseline[key];
     const afterAccount = current[key];
+    if (beforeAccount && !afterAccount) {
+      result.push({ username: beforeAccount.username, changes: [{ type: SESSION_CHANGES.ACCOUNT_REMOVED }] }); // its work moved elsewhere
+      continue;
+    }
     const before = beforeAccount?.review ?? createReview();
     const after = afterAccount?.review ?? createReview();
     const changes: SessionChange[] = [];

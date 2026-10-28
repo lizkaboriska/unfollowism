@@ -9,6 +9,7 @@ import {
   stringifyMasterFile,
   toMasterFile,
   type Account,
+  type ChangedAccounts,
   type ImportProblem,
   type ImportResult,
   type Master,
@@ -38,12 +39,12 @@ export interface SaveFulfilled {
   savedAt: string;
   revision: number;
   filename: string;
-  /** The edited accounts as written to the file. */
-  changed: Record<string, Account>;
+  /** The edited accounts as written to the file (null = removed, so not in the file). */
+  changed: ChangedAccounts;
 }
 
-/** The full master: imported accounts with the edited ones applied. */
-export function currentMaster(base: Master, changed: Readonly<Record<string, Account>>): Master {
+/** The full master: imported accounts with the edited ones applied, without removed ones. */
+export function currentMaster(base: Master, changed: Readonly<ChangedAccounts>): Master {
   const accounts = createDict<Account>();
   for (const key of Object.keys(base.accounts)) {
     const account = accountOf(base.accounts, changed, key);
@@ -78,16 +79,17 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
 
 export interface RestoredSession {
   base: Master;
-  changed: Record<string, Account>;
-  savedChanged: Record<string, Account>;
+  changed: ChangedAccounts;
+  savedChanged: ChangedAccounts;
   savedAt: string | null;
   revision: number;
   savedRevision: number;
 }
 
-function reviveAccounts(records: Record<string, unknown>, path: string): Record<string, Account> {
-  const accounts = createDict<Account>();
-  for (const [key, record] of Object.entries(records)) accounts[key] = fromAccountRecord(record, `${path}.${key}`);
+/** null records are accounts removed since the import (see ChangedAccounts). */
+function reviveAccounts(records: Record<string, unknown>, path: string): ChangedAccounts {
+  const accounts = createDict<Account | null>();
+  for (const [key, record] of Object.entries(records)) accounts[key] = record === null ? null : fromAccountRecord(record, `${path}.${key}`);
   return accounts;
 }
 

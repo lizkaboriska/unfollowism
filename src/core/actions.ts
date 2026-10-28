@@ -47,16 +47,19 @@ export interface PlanOutcomes {
   reopened: ActionCounts;
 }
 
-/** WRITE: after an import has updated the follows, settles every plan against them. */
-export function settlePlans(source: Pick<Master, "accounts">): PlanOutcomes {
+/**
+ * WRITE: after an import has updated the follows, settles every plan against them.
+ * Plans on `uncounted` accounts (likely renames) are cleared like the rest but not reported as done.
+ */
+export function settlePlans(source: Pick<Master, "accounts">, uncounted: ReadonlySet<string> = new Set()): PlanOutcomes {
   const outcomes: PlanOutcomes = { completed: emptyActionCounts(), reopened: emptyActionCounts() };
-  for (const account of Object.values(source.accounts)) {
+  for (const [key, account] of Object.entries(source.accounts)) {
     for (const type of Object.values(ACTION_TYPES)) {
       const plan = planOf(account, type);
       if (plan === undefined) continue;
       if (!followExists(account, type)) {
         setPlan(account, type, undefined);
-        outcomes.completed[type] += 1;
+        if (!uncounted.has(key)) outcomes.completed[type] += 1;
       } else if (plan === PLAN_STATES.DONE) {
         setPlan(account, type, PLAN_STATES.PLANNED);
         outcomes.reopened[type] += 1;

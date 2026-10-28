@@ -9,4 +9,5 @@ export * from "./sessionDiff.ts";
 export * from "./importProblems.ts";
 export * from "./masterFile.ts";
 export * from "./merge.ts";
+export * from "./renames.ts";
 export * from "./tags.ts";

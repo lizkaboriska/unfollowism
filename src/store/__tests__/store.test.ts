@@ -4,7 +4,9 @@ const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
 import { createMemoryTabDatabase, type TabStore } from "../../io/tabStore.ts";
 import { LIST_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setView } from "../filtersSlice.ts";
-import { deleteTag, renameTag, resetChanges, resetScope, setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
+import {
+  confirmRename, deleteTag, dismissRename, renameTag, resetChanges, resetScope, setNote, setPlan, setReviewed, setUnavailable, toggleTag,
+} from "../masterSlice.ts";
 import {
   selectAccount,
   selectIsDirty,
@@ -558,6 +560,85 @@ describe("reload safety net", () => {
     await t.store.dispatch(restoreTab());
     expect(t.store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
     await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
+  });
+});
+
+describe("renames", () => {
+  /** carol (follows me, reviewed, tagged, noted, planned for removal) is saved, then shows up as carol_2 with the same date. */
+  async function renamedStore() {
+    const t = makeTestStore();
+    await t.store.dispatch(importPrepared(prepared({ following: [["alice", 101], ["bob", 102]], followers: [["alice", 201], ["carol", 203]] }))).unwrap();
+    t.store.dispatch(toggleTag({ username: "carol", tag: "artist" }));
+    t.store.dispatch(setNote({ username: "carol", note: "old note" }));
+    t.store.dispatch(setPlan({ username: "carol", type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED })); // also marks reviewed
+    await t.store.dispatch(saveMaster()).unwrap();
+    const master: unknown = JSON.parse(must(t.downloads[0]).text);
+    t.setNow("2026-10-28T12:00:00.000Z");
+    await t.store.dispatch(importPrepared(prepared({ following: [["alice", 101], ["bob", 102]], followers: [["alice", 201], ["carol_2", 203]], master }))).unwrap();
+    t.store.dispatch(setView(LIST_VIEWS.LOST_FOLLOWERS));
+    return t;
+  }
+
+  test("the import suggests the rename and doesn't count its plan as done", async () => {
+    const t = await renamedStore();
+    const state = t.store.getState();
+    expect(state.master.renames).toEqual([{ from: "carol", to: "carol_2", plans: [REMOVE_FOLLOWER] }]);
+    expect(state.master.status).toMatchObject({ summary: { plans: { completed: { [REMOVE_FOLLOWER]: 0 } } } });
+    expect(selectListKeys(state)).toEqual(["carol"]);
+  });
+
+  test("confirming moves the work to the new name, removes the old account, and saves without it", async () => {
+    const t = await renamedStore();
+    t.store.dispatch(confirmRename({ from: "carol" }));
+    const state = t.store.getState();
+
+    expect(selectAccount(state, "carol")).toBeUndefined();
+    expect(account(t, "carol_2")).toMatchObject({ review: { reviewed: true, tags: ["artist"], notes: "old note" }, toRemove: PLAN_STATES.PLANNED });
+    expect(state.master.renames).toEqual([]);
+    expect(selectListKeys(state)).toEqual([]); // the old card leaves the list
+    expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(0);
+    expect(selectTagCounts(state).artist).toBe(1);
+    expect(selectPlanStats(state)[PLAN_STATES.PLANNED][REMOVE_FOLLOWER]).toBe(1);
+    expect(selectUnsavedAccountCount(state)).toBe(2);
+    expect(selectUnsavedDiff(state).find(entry => entry.username === "carol")?.changes).toEqual([{ type: SESSION_CHANGES.ACCOUNT_REMOVED }]);
+
+    await t.store.dispatch(saveMaster()).unwrap();
+    const saved = parseMaster(JSON.parse(must(t.downloads[1]).text));
+    expect(Object.keys(saved.accounts).sort()).toEqual(["alice", "bob", "carol_2"]);
+    expect(saved.accounts.carol_2?.review.tags).toEqual(["artist"]);
+  });
+
+  test("Reset changes brings the old account back; the suggestion stays gone", async () => {
+    const t = await renamedStore();
+    t.store.dispatch(confirmRename({ from: "carol" }));
+    t.store.dispatch(resetChanges());
+    expect(account(t, "carol").review.tags).toEqual(["artist"]);
+    expect(account(t, "carol_2").review.tags).toEqual([]);
+    expect(selectListKeys(t.store.getState())).toEqual(["carol"]);
+    expect(t.store.getState().master.renames).toEqual([]);
+  });
+
+  test("Not a rename hides the suggestion and changes nothing", async () => {
+    const t = await renamedStore();
+    const revision = t.store.getState().master.revision;
+    t.store.dispatch(dismissRename({ from: "carol" }));
+    expect(t.store.getState().master.renames).toEqual([]);
+    expect(t.store.getState().master.revision).toBe(revision);
+    expect(account(t, "carol").review.tags).toEqual(["artist"]);
+  });
+
+  test("a confirmed rename survives a reload; open suggestions don't", async () => {
+    const t = await renamedStore();
+    t.store.dispatch(confirmRename({ from: "carol" }));
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ tab: t.tab });
+    await reloaded.store.dispatch(restoreTab());
+    expect(selectAccount(reloaded.store.getState(), "carol")).toBeUndefined();
+    expect(account(reloaded, "carol_2").review.notes).toBe("old note");
+    expect(reloaded.store.getState().master.renames).toEqual([]);
+    reloaded.store.dispatch(resetChanges()); // and the removal can still be undone
+    expect(account(reloaded, "carol").review.notes).toBe("old note");
   });
 });
 

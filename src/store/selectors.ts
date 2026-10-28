@@ -1,5 +1,6 @@
 import { createSelector } from "@reduxjs/toolkit";
 import {
+  FOLLOW_CHANGES,
   PLAN_STATES,
   accountOf,
   buildSessionDiff,
@@ -21,10 +22,13 @@ import {
   scopeMatches,
   tagMatches,
   type Account,
+  type ChangedAccounts,
+  type DeepReadonly,
   type FollowChangeCounts,
   type PlanStats,
   type ReadonlyAccount,
   type ReadonlyAccounts,
+  type RenameSuggestion,
   type ScopeStats,
   type TagCounts,
 } from "../core/index.ts";
@@ -34,6 +38,8 @@ import type { RootState } from "./index.ts";
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
 type RAccount = ReadonlyAccount;
 type RAccounts = ReadonlyAccounts;
+/** Edited accounts; null = removed (see ChangedAccounts). */
+type RChanged = DeepReadonly<ChangedAccounts>;
 
 // Per-edit work below only looks at the edited accounts (`changed`); anything that needs
 // all accounts is computed once per import from `base`, which edits never touch.
@@ -41,13 +47,15 @@ type RAccounts = ReadonlyAccounts;
 const EMPTY_ACCOUNTS: RAccounts = Object.freeze(createDict<Account>());
 const EMPTY_KEYS: readonly string[] = Object.freeze([]);
 
-export const selectChanged = (s: RootState): RAccounts => s.master.changed;
-const selectSavedChanged = (s: RootState): RAccounts => s.master.savedChanged;
+export const selectChanged = (s: RootState): RChanged => s.master.changed;
+const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;
 export const selectHasProject = (s: RootState): boolean => s.master.base !== null;
 export const selectIsDirty = (s: RootState): boolean => s.master.base !== null && s.master.revision !== s.master.savedRevision;
 export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
   s.master.base ? accountOf<RAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectFilters = (s: RootState) => s.filters;
+/** The rename suggested for this (old) account by the last import, if it is still open. */
+export const selectRenameFrom = (s: RootState, key: string): RenameSuggestion | undefined => s.master.renames.find(r => r.from === key);
 const selectBaseAccounts = (s: RootState): RAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
 /** All account keys sorted by username. Once per import: edits never change usernames. */
@@ -79,7 +87,7 @@ export const selectScopeStats = createSelector(
     };
     for (const [key, account] of Object.entries(changed)) {
       count(base[key], -1);
-      count(account, 1);
+      count(account ?? undefined, 1);
     }
     stats.needsReview = stats.total - stats.reviewed;
     return stats;
@@ -94,7 +102,7 @@ export const selectPlanStats = createSelector([selectBasePlanStats, selectBaseAc
   for (const [key, account] of Object.entries(changed)) {
     const before = base[key];
     if (before) countPlans(stats, before, -1);
-    countPlans(stats, account, 1);
+    if (account) countPlans(stats, account, 1);
   }
   return stats;
 });
@@ -102,9 +110,23 @@ export const selectPlanStats = createSelector([selectBasePlanStats, selectBaseAc
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
 export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
 
-/** Sizes of the change lists. Once per import: edits never change follows. */
-export const selectFollowChangeCounts = createSelector([selectBaseAccounts, selectChangesSince], (accounts, since): FollowChangeCounts =>
+const selectBaseFollowChangeCounts = createSelector([selectBaseAccounts, selectChangesSince], (accounts, since): FollowChangeCounts =>
   followChangeCounts({ accounts }, since),
+);
+
+/** Sizes of the change lists: imported counts (edits never change follows), minus removed accounts. */
+export const selectFollowChangeCounts = createSelector(
+  [selectBaseFollowChangeCounts, selectBaseAccounts, selectChanged, selectChangesSince],
+  (baseCounts, base, changed, since): FollowChangeCounts => {
+    let counts = baseCounts;
+    for (const [key, account] of Object.entries(changed)) {
+      const removed = base[key];
+      if (account !== null || !removed) continue;
+      if (counts === baseCounts) counts = { ...baseCounts };
+      for (const change of Object.values(FOLLOW_CHANGES)) if (followChangeMatches(removed, change, since)) counts[change] -= 1;
+    }
+    return counts;
+  },
 );
 
 /** Whether the account belongs to the selected view (before status, tag and search filters). */
@@ -191,7 +213,7 @@ export const selectTagCounts = createSelector([selectBaseTagCounts, selectBaseAc
   for (const [key, account] of Object.entries(changed)) {
     const before = base[key];
     if (before) countTags(counts, before, -1);
-    countTags(counts, account, 1);
+    if (account) countTags(counts, account, 1);
   }
   return counts;
 });

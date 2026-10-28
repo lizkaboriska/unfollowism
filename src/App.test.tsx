@@ -16,10 +16,11 @@ async function renderApp({
   tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab("tab-1"),
   lastSaved = memoryLastSaved(),
   waitForRestore = true,
+  now = () => new Date("2026-10-27T12:00:00.000Z"),
 } = {}) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
-    now: () => new Date("2026-10-27T12:00:00.000Z"),
+    now,
     download: (filename, text) => { downloads.push({ filename, text }); },
     tab,
     lastSaved,
@@ -576,4 +577,37 @@ describe("tags", () => {
     expect(tagButtons("alice")).toEqual([]);
     expect(tagButtons("bob")).toEqual([]);
   });
+});
+
+test("a renamed follower is suggested in Lost followers, and confirming moves its work", async () => {
+  const exportOf = (followers: [string, number][]) => [
+    new File([JSON.stringify(followingFile(["alice", 101], ["bob", 102]))], "following.json", { type: "application/json" }),
+    new File([JSON.stringify(followersFile(...followers))], "followers_1.json", { type: "application/json" }),
+  ];
+  const tabButton = (name: RegExp) => screen.getByRole("button", { name });
+  let clock = Date.parse("2026-10-27T12:00:00.000Z");
+  const { downloads, user } = await renderApp({ now: () => new Date((clock += 60_000)) }); // the next import comes after the save
+  await importFiles(user, exportOf([["alice", 201], ["carol", 203]]));
+  await findRow("alice");
+  await chooseFilter(user, "Scope", "People who follow me");
+  await findRow("carol");
+  await user.click(reviewedBox("carol"));
+  await user.click(screen.getByRole("button", { name: "Save master" }));
+  await waitFor(() => { expect(downloads).toHaveLength(1); });
+
+  await user.click(screen.getByRole("button", { name: "Import files" }));
+  const master = new File([must(downloads[0]).text], "instagram_master_tracker.json", { type: "application/json" });
+  await importFiles(user, [master, ...exportOf([["alice", 201], ["carol_2", 203]])]);
+  expect(await findRow("carol_2")).toBeInTheDocument();
+  expect(screen.queryByText(/Looks renamed/)).not.toBeInTheDocument(); // only in Lost followers
+
+  await user.click(tabButton(/^Lost followers \(1\)$/));
+  const card = await findRow("carol");
+  expect(within(card).getByText(/Looks renamed to/)).toBeInTheDocument();
+  await user.click(within(card).getByRole("button", { name: "Move to @carol_2" }));
+  await waitFor(() => { expect(queryRow("carol")).not.toBeInTheDocument(); });
+  expect(tabButton(/^Lost followers \(0\)$/)).toBeInTheDocument();
+
+  await user.click(tabButton(/^Review$/));
+  expect(reviewedBox("carol_2")).toBeChecked();
 });

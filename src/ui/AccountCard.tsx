@@ -20,6 +20,7 @@ import { selectAccount, selectChangesSince, selectTags } from "../store/selector
 import { formatSince } from "./dates.ts";
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from "./labels.ts";
 import { ProfileLink } from "./ProfileLink.tsx";
+import { RenameSuggestion } from "./RenameSuggestion.tsx";
 
 /** `name` identifies the field to the browser (e.g. "reviewed-bob"); the app itself doesn't read it. */
 function CheckboxField({ name, label, checked, onChange }: { name: string; label: string; checked: boolean; onChange: (checked: boolean) => void }) {
@@ -122,6 +123,7 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
           <Text fontSize="sm" color="fg.muted">
             {dates.length ? dates.join(" · ") : "No relationship date in export"}
           </Text>
+          <RenameSuggestion accountKey={accountKey} />
         </Stack>
 
         <Stack gap="3" flex="2" minW="0">

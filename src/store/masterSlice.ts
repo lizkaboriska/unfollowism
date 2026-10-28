@@ -5,6 +5,7 @@ import {
   createDict,
   followExists,
   inResetScope,
+  mergeRenamed,
   planOf,
   removeTagFrom,
   renameTagOn,
@@ -12,9 +13,11 @@ import {
   usernameKey,
   type Account,
   type ActionType,
+  type ChangedAccounts,
   type Master,
   type PlanState,
   type ReadonlyAccount,
+  type RenameSuggestion,
   type ReviewScope,
   type TagFilter,
 } from "../core/index.ts";
@@ -28,10 +31,10 @@ import { importPrepared, restoreTab, saveMaster } from "./thunks.ts";
  */
 export interface MasterState {
   base: Master | null;
-  /** Account key → current version of every account edited since the import. */
-  changed: Record<string, Account>;
+  /** Account key → current version of every account edited since the import (null = removed, see ChangedAccounts). */
+  changed: ChangedAccounts;
   /** `changed` as written to the last downloaded file (empty if not saved since the import). Reset changes goes back to it. */
-  savedChanged: Record<string, Account>;
+  savedChanged: ChangedAccounts;
   /** lastSavedAt of the master (from the imported file, then from each save). */
   savedAt: string | null;
   /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
@@ -47,12 +50,14 @@ export interface MasterState {
   persistenceFailed: boolean;
   /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
   restoreFailed: boolean;
+  /** Likely renames found by the last import, not yet confirmed or dismissed. In memory only: not stored, gone after a reload. */
+  renames: RenameSuggestion[];
 }
 
 const initialState: MasterState = {
   base: null,
-  changed: createDict<Account>(),
-  savedChanged: createDict<Account>(),
+  changed: createDict<Account | null>(),
+  savedChanged: createDict<Account | null>(),
   savedAt: null,
   revision: 0,
   savedRevision: 0,
@@ -62,6 +67,7 @@ const initialState: MasterState = {
   savedStatus: null,
   persistenceFailed: false,
   restoreFailed: false,
+  renames: [],
 };
 
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
@@ -80,11 +86,11 @@ function accountBefore(state: MasterState, username: string): ReadonlyAccount | 
   return before.base ? accountOf<ReadonlyAccount>(before.base.accounts, before.changed, usernameKey(username)) : undefined;
 }
 
-/** Applies an edit, copying the account into `changed` on its first edit so `base` is never copied. */
+/** Applies an edit, copying the account into `changed` on its first edit so `base` is never copied. A removed account isn't edited. */
 function applyEdit(state: MasterState, key: string, edit: (account: Account) => void): void {
-  const existing = state.changed[key];
-  if (existing) {
-    edit(existing);
+  if (Object.hasOwn(state.changed, key)) {
+    const existing = state.changed[key];
+    if (existing) edit(existing);
     return;
   }
   const source = original(state).base?.accounts[key];
@@ -176,6 +182,23 @@ export const masterSlice = createSlice({
     deleteTag(state, { payload }: PayloadAction<{ tag: string }>) {
       editTagged(state, payload.tag, account => { removeTagFrom(account, payload.tag); });
     },
+    /** A suggested rename was right: the old account's review work moves to the new name, and the old account is removed. */
+    confirmRename(state, { payload }: PayloadAction<{ from: string }>) {
+      const before = original(state);
+      const suggestion = before.renames.find(r => r.from === payload.from);
+      const base = before.base;
+      if (!suggestion || !base) return;
+      state.renames = state.renames.filter(r => r.from !== payload.from);
+      const old = accountOf<ReadonlyAccount>(base.accounts, before.changed, suggestion.from);
+      if (!old || !accountOf<ReadonlyAccount>(base.accounts, before.changed, suggestion.to)) return;
+      applyEdit(state, suggestion.to, account => { mergeRenamed(account, old, suggestion.plans); });
+      state.changed[suggestion.from] = null;
+      state.revision += 1;
+    },
+    /** A suggested rename was wrong: the suggestion goes away (until the next import, which may find it again). */
+    dismissRename(state, { payload }: PayloadAction<{ from: string }>) {
+      state.renames = state.renames.filter(r => r.from !== payload.from);
+    },
     /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
     resetChanges(state) {
       const before = original(state);
@@ -209,8 +232,9 @@ export const masterSlice = createSlice({
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         state.importStatus = IMPORT_STATUSES.IDLE;
         state.restoreFailed = false;
+        state.renames = payload.renames;
         state.base = payload.master;
-        state.changed = createDict<Account>();
+        state.changed = createDict<Account | null>();
         state.savedChanged = state.changed;
         state.savedAt = payload.master.lastSavedAt ?? null;
         state.revision = 0;
@@ -245,5 +269,6 @@ export const masterSlice = createSlice({
   },
 });
 
-export const { setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, renameTag, deleteTag, resetChanges, persistenceFailed } =
-  masterSlice.actions;
+export const {
+  setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, renameTag, deleteTag, confirmRename, dismissRename, resetChanges, persistenceFailed,
+} = masterSlice.actions;

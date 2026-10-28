@@ -22,13 +22,20 @@ export function copyAccount(account: ReadonlyAccount): Account {
 }
 
 /**
+ * Accounts edited since the import, by key. null = removed since the import (the old name of a
+ * confirmed rename): the imported account then no longer exists.
+ */
+export type ChangedAccounts<A extends ReadonlyAccount = Account> = Record<string, A | null>;
+
+/**
  * The working state keeps the imported accounts untouched and the edited ones separately,
  * so an edit never copies all accounts. This reads one account through that overlay.
+ * Undefined when there is no such account, or it was removed.
  */
 export function accountOf<A extends ReadonlyAccount>(
   base: Readonly<Record<string, A>>,
-  changed: Readonly<Record<string, A>>,
+  changed: Readonly<ChangedAccounts<A>>,
   key: string,
 ): A | undefined {
-  return Object.hasOwn(changed, key) ? changed[key] : base[key];
+  return Object.hasOwn(changed, key) ? (changed[key] ?? undefined) : base[key];
 }

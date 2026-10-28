@@ -1,12 +1,12 @@
 import type { ListenerMiddlewareInstance } from "@reduxjs/toolkit";
-import { createDict, toAccountRecord, toMasterFile, type Account, type AccountRecord, type DeepReadonly, type Master } from "../core/index.ts";
+import { createDict, toAccountRecord, toMasterFile, type AccountRecord, type ChangedAccounts, type DeepReadonly, type Master } from "../core/index.ts";
 import type { TabMeta } from "../io/tabStore.ts";
 import type { StoreDeps } from "./deps.ts";
 import { persistenceFailed, type MasterState } from "./masterSlice.ts";
 import { restoreTab } from "./thunks.ts";
 import type { AppDispatch, RootState } from "./index.ts";
 
-type Accounts = DeepReadonly<Record<string, Account>>;
+type Accounts = DeepReadonly<ChangedAccounts>;
 
 function toMeta(state: MasterState, storedAt: string): TabMeta {
   return {
@@ -17,12 +17,12 @@ function toMeta(state: MasterState, storedAt: string): TabMeta {
   };
 }
 
-/** Accounts whose object differs from what was last stored. Only looks at edited accounts. */
-function newlyChanged(stored: Accounts | null, current: Accounts): Record<string, AccountRecord> {
-  const records = createDict<AccountRecord>();
+/** Accounts whose object differs from what was last stored (null = removed). Only looks at edited accounts. */
+function newlyChanged(stored: Accounts | null, current: Accounts): Record<string, AccountRecord | null> {
+  const records = createDict<AccountRecord | null>();
   if (stored === current) return records;
   for (const [key, account] of Object.entries(current)) {
-    if (stored?.[key] !== account) records[key] = toAccountRecord(account);
+    if (stored?.[key] !== account) records[key] = account && toAccountRecord(account);
   }
   return records;
 }

@@ -27,5 +27,6 @@ export function changeLine(change: SessionChange): { symbol: string; text: strin
     case SESSION_CHANGES.UNAVAILABLE_MARKED: return { symbol: "•", text: "Marked unavailable" };
     case SESSION_CHANGES.UNAVAILABLE_CLEARED: return { symbol: "•", text: "Cleared unavailable" };
     case SESSION_CHANGES.NOTE_EDITED: return { symbol: "✎", text: "Edited note" };
+    case SESSION_CHANGES.ACCOUNT_REMOVED: return { symbol: "→", text: "Moved to its new name" };
   }
 }

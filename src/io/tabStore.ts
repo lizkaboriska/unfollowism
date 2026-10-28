@@ -19,16 +19,16 @@ export interface TabMeta {
 export interface StoredTab {
   base: unknown;
   meta: TabMeta;
-  /** Account key → latest record, for accounts changed since import. */
+  /** Account key → latest record (null = removed), for accounts changed since import. */
   changed: Record<string, unknown>;
   /** Account key → record as in the last downloaded file, for accounts changed between import and that save. */
   saved: Record<string, unknown>;
 }
 
-/** Account records to write: changed accounts, and accounts as they were in the last downloaded file. */
+/** Account records to write: changed accounts, and accounts as they were in the last downloaded file. null = removed since the import. */
 export interface TabWrites {
-  changed: Record<string, AccountRecord>;
-  saved: Record<string, AccountRecord>;
+  changed: Record<string, AccountRecord | null>;
+  saved: Record<string, AccountRecord | null>;
 }
 
 export interface TabStore {
