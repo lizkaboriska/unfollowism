@@ -21,12 +21,10 @@ import {
   scopeMatches,
   tagMatches,
   type Account,
-  type DeepReadonly,
   type FollowChangeCounts,
   type PlanStats,
   type ReadonlyAccount,
   type ReadonlyAccounts,
-  type Master,
   type ScopeStats,
   type TagCounts,
 } from "../core/index.ts";
@@ -43,7 +41,6 @@ type RAccounts = ReadonlyAccounts;
 const EMPTY_ACCOUNTS: RAccounts = Object.freeze(createDict<Account>());
 const EMPTY_KEYS: readonly string[] = Object.freeze([]);
 
-export const selectBase = (s: RootState): DeepReadonly<Master> | null => s.master.base;
 export const selectChanged = (s: RootState): RAccounts => s.master.changed;
 const selectSavedChanged = (s: RootState): RAccounts => s.master.savedChanged;
 export const selectHasProject = (s: RootState): boolean => s.master.base !== null;

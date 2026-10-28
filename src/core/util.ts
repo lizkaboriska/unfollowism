@@ -7,15 +7,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** JSON round-trip clone: the master only ever holds JSON data. */
-export function cloneJson<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-export function stringOrNull(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
 export function numberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

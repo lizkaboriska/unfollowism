@@ -16,16 +16,10 @@ export type RootState = ReturnType<typeof rootReducer>;
 // Declared directly (not via ReturnType<typeof makeStore>) because the listener middleware needs it before the store exists.
 export type AppDispatch = ThunkDispatch<RootState, StoreDeps, UnknownAction>;
 
-
-export interface StoreOptions {
-  preloadedState?: Partial<RootState>;
-}
-
-export function makeStore(deps: StoreDeps, { preloadedState }: StoreOptions = {}) {
+export function makeStore(deps: StoreDeps) {
   const listener = createListenerMiddleware<RootState, AppDispatch, StoreDeps>({ extra: deps });
   const store = configureStore({
     reducer: rootReducer,
-    ...(preloadedState ? { preloadedState } : {}),
     middleware: getDefaultMiddleware =>
       getDefaultMiddleware({
         thunk: { extraArgument: deps },
