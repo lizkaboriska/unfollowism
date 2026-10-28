@@ -137,6 +137,11 @@ describe("master file", () => {
     expect(() => parseMaster({ ...saved(), version: undefined })).toThrow(MasterFormatError);
   });
 
+  test("rejects a save or import time that isn't a date, since the change lists count from it", () => {
+    expect(() => parseMaster({ ...saved(), lastSavedAt: "yesterday" })).toThrow("Invalid master file: lastSavedAt should be a date.");
+    expect(() => parseMaster({ ...saved(), lastImportAt: "x" })).toThrow("Invalid master file: lastImportAt should be a date.");
+  });
+
   test("names the exact field that is wrong instead of silently repairing it", () => {
     const raw = saved();
     (must(raw.accounts.bob).review as { tags: unknown }).tags = "artist";

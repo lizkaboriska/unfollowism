@@ -262,6 +262,17 @@ test("a reload shows Loading your work… instead of flashing the import screen"
   expect(await findRow("bob")).toBeInTheDocument();
 });
 
+test("work that can't be restored after a reload is reported on the import screen", async () => {
+  const tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab("tab-1");
+  const { user } = await renderApp({ tab: { ...tab, load: () => Promise.reject(new Error("unreadable")) } });
+  expect(screen.getByText(/couldn't be restored/)).toBeInTheDocument();
+
+  await importFiles(user, exportFiles());
+  expect(await findRow("bob")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Import files" }));
+  expect(screen.queryByText(/couldn't be restored/)).not.toBeInTheDocument();
+});
+
 test("Import shows that it's working", async () => {
   const { user } = await renderApp();
   await user.upload(screen.getByTestId("file-input"), exportFiles());

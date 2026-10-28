@@ -212,8 +212,8 @@ export function parseMaster(raw: unknown): Master {
   const master: Master = {
     version: FORMAT_VERSION,
     accounts,
-    lastImportAt: nonEmptyStr(raw.lastImportAt, "lastImportAt"),
+    lastImportAt: date(raw.lastImportAt, "lastImportAt"),
   };
-  if (raw.lastSavedAt !== undefined) master.lastSavedAt = str(raw.lastSavedAt, "lastSavedAt");
+  if (raw.lastSavedAt !== undefined) master.lastSavedAt = date(raw.lastSavedAt, "lastSavedAt");
   return master;
 }

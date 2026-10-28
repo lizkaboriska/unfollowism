@@ -66,6 +66,7 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
   const alert = useAlert();
   const dirty = useAppSelector(selectIsDirty);
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
+  const restoreFailed = useAppSelector(s => s.master.restoreFailed);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<readonly ChosenFile[]>([]);
@@ -151,6 +152,14 @@ export function ImportScreen({ lastSaved, onImported, onCancel }: {
 
   return (
     <Stack gap="4">
+      {restoreFailed && (
+        <Alert.Root status="warning">
+          <Alert.Indicator />
+          <Alert.Title>
+            Your work in this tab from before the reload couldn't be restored. Add your Instagram export and your last saved master to continue.
+          </Alert.Title>
+        </Alert.Root>
+      )}
       <Box
         borderWidth="2px"
         borderStyle="dashed"

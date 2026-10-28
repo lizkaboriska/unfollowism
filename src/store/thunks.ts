@@ -91,29 +91,28 @@ function reviveAccounts(records: Record<string, unknown>, path: string): Record<
 /**
  * Reads back what this tab stored: the imported master and the accounts changed since
  * (current versions, and versions as in the last downloaded file).
- * Everything goes through the strict readers. Null if the stored data is unusable.
+ * Everything goes through the strict readers, which throw if the stored data is unusable.
  */
-export function reviveTab(stored: StoredTab): RestoredSession | null {
-  try {
-    const base = parseMaster(stored.base);
-    const changed = reviveAccounts(stored.changed, "changed");
-    const savedChanged = reviveAccounts(stored.saved, "saved");
-    const { meta } = stored;
-    return {
-      base,
-      changed,
-      savedChanged,
-      savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
-      revision: meta.revision,
-      savedRevision: meta.savedRevision,
-    };
-  } catch {
-    return null;
-  }
+function reviveTab(stored: StoredTab): RestoredSession {
+  const base = parseMaster(stored.base);
+  const changed = reviveAccounts(stored.changed, "changed");
+  const savedChanged = reviveAccounts(stored.saved, "saved");
+  const { meta } = stored;
+  return {
+    base,
+    changed,
+    savedChanged,
+    savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
+    revision: meta.revision,
+    savedRevision: meta.savedRevision,
+  };
 }
 
-/** After a reload: puts back whatever this tab was working on (nothing if it's a new tab). */
+/**
+ * After a reload: puts back whatever this tab was working on. Null for a new tab (nothing stored);
+ * rejected when something is stored but can't be read back (see MasterState.restoreFailed).
+ */
 export const restoreTab = createAppThunk<RestoredSession | null, undefined>("master/restoreTab", async (_, { extra }) => {
-  const stored = await extra.tab.load().catch(() => null);
+  const stored = await extra.tab.load();
   return stored ? reviveTab(stored) : null;
 });

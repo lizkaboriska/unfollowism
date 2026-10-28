@@ -48,6 +48,8 @@ export interface MasterState {
   savedStatus: StatusEvent | null;
   /** Browser storage failed: unsaved work won't survive a reload. */
   persistenceFailed: boolean;
+  /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
+  restoreFailed: boolean;
 }
 
 const initialState: MasterState = {
@@ -62,6 +64,7 @@ const initialState: MasterState = {
   status: null,
   savedStatus: null,
   persistenceFailed: false,
+  restoreFailed: false,
 };
 
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
@@ -200,11 +203,15 @@ export const masterSlice = createSlice({
         state.revision = payload.revision;
         state.savedRevision = payload.savedRevision;
       })
+      .addCase(restoreTab.rejected, state => {
+        if (!state.base) state.restoreFailed = true; // after an import meanwhile, there's nothing to warn about
+      })
       .addCase(importPrepared.pending, state => {
         state.importStatus = IMPORT_STATUSES.IMPORTING;
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         state.importStatus = IMPORT_STATUSES.IDLE;
+        state.restoreFailed = false;
         state.base = payload.master;
         state.changed = createDict<Account>();
         state.savedChanged = state.changed;

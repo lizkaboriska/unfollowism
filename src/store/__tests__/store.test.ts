@@ -2,7 +2,7 @@ import { ACTION_TYPES, FOLLOW_CHANGES, PLAN_STATES, REVIEW_SCOPES, SESSION_CHANG
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 import { must } from "../../core/__tests__/helpers.ts";
-import type { TabStore } from "../../io/tabStore.ts";
+import { createMemoryTabDatabase, type TabStore } from "../../io/tabStore.ts";
 import { LIST_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setView } from "../filtersSlice.ts";
 import { deleteTag, renameTag, resetChanges, resetScope, setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../masterSlice.ts";
 import {
@@ -507,12 +507,26 @@ describe("reload safety net", () => {
     expect(Object.keys((stored.base as { accounts: object }).accounts)).toEqual(["zed"]);
   });
 
-  test("unusable stored data is ignored", async () => {
+  test("unusable stored data is reported, and the next import clears the report", async () => {
     const t = makeTestStore();
     await t.tab.replace({ version: 1, lastImportAt: "x", accounts: { bob: { username: "" } } }, {
       revision: 1, savedRevision: 0, storedAt: "x",
     }, { changed: {}, saved: {} });
-    expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
+    await t.store.dispatch(restoreTab());
+    expect(t.store.getState().master).toMatchObject({ base: null, restoreFailed: true });
+
+    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    expect(t.store.getState().master.restoreFailed).toBe(false);
+  });
+
+  test("a storage read that fails is reported; a new tab is not", async () => {
+    const unreadable = makeTestStore({ tab: { ...createMemoryTabDatabase().forTab("t"), load: () => Promise.reject(new Error("no idb")) } });
+    await unreadable.store.dispatch(restoreTab());
+    expect(unreadable.store.getState().master.restoreFailed).toBe(true);
+
+    const fresh = makeTestStore();
+    await fresh.store.dispatch(restoreTab());
+    expect(fresh.store.getState().master.restoreFailed).toBe(false);
   });
 
   test("storage failures are surfaced, not swallowed, and saving still works", async () => {
@@ -525,7 +539,8 @@ describe("reload safety net", () => {
     const t = await importedStore({ tab: failing });
     await flushPersistence();
     expect(t.store.getState().master.persistenceFailed).toBe(true);
-    expect(await t.store.dispatch(restoreTab()).unwrap()).toBeNull();
+    await t.store.dispatch(restoreTab());
+    expect(t.store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
     await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
   });
 });
