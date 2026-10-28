@@ -238,6 +238,16 @@ describe("importExport", () => {
     expect(result.summary.changes).toEqual(changes(0, 1, 1, 1)); // bob unfollowed, dave new, carol lost (all since T1)
   });
 
+  test("the same people with a re-dated follow count as a changed export", () => {
+    const earlier = importExport(savedAtT1(freshMaster()), bundle(followingFile(["alice"]), followersFile(["alice"])), T2).master;
+    const result = importExport(asFile(earlier), bundle(followingFile(["alice", AFTER_T1]), followersFile(["alice"])), T3);
+    expect(result.summary.exportChanged).toBe(true);
+    expect(result.dirty).toBe(true);
+    expect(result.master.lastImportAt).toBe(T3);
+    expect(must(result.master.accounts.alice).following).toEqual({ since: AFTER_T1 });
+    expect(result.summary.changes[FOLLOW_CHANGES.NEW_FOLLOWS]).toBe(1); // followed again after the last save
+  });
+
   test("a later export dates stopped follows and keeps review data", () => {
     const saved = freshMaster();
     must(saved.accounts.bob).review = { reviewed: true, unavailable: false, tags: ["artist"], notes: "hi" };

@@ -5,7 +5,7 @@ import { parseMaster } from "./masterFile.ts";
 import { dedupeAccounts } from "./parse.ts";
 import { findRenames, settleRenameSuggestions } from "./renames.ts";
 import { followChangeCounts, setFollows, type FollowChangeCounts } from "./scopes.ts";
-import { FORMAT_VERSION, type Account, type ExportEntry, type Master } from "./types.ts";
+import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type Master } from "./types.ts";
 import { createDict, usernameKey } from "./util.ts";
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
@@ -17,7 +17,7 @@ export interface ExportBundle {
 
 /** What an import found, for the status message. */
 export interface ImportSummary {
-  /** False when the export has exactly the same following/followers as the previous import. */
+  /** False when the export has exactly the same following/followers, with the same dates, as the previous import. */
   exportChanged: boolean;
   followingCount: number;
   followersCount: number;
@@ -41,6 +41,11 @@ function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   return true;
 }
 
+/** Whether a follow that is still there has a different "since" in the new export. */
+function redated(previous: Follow | null, entry: ExportEntry | undefined): boolean {
+  return previous !== null && entry !== undefined && previous.since !== entry.since;
+}
+
 /**
  * WRITE: applies a fresh export to the accounts (mutated in place): finds likely renames while
  * the old follow dates are still there, updates the follows, dates the ones that stopped (`now`),
@@ -58,7 +63,7 @@ export function mergeExports(accounts: Record<string, Account>, bundle: ExportBu
     if (account.following) previousFollowing.add(key);
     if (account.followedBy) previousFollowers.add(key);
   }
-  const exportChanged = !sameSet(previousFollowing, new Set(following.keys())) || !sameSet(previousFollowers, new Set(followers.keys()));
+  let exportChanged = !sameSet(previousFollowing, new Set(following.keys())) || !sameSet(previousFollowers, new Set(followers.keys()));
 
   for (const key of new Set([...Object.keys(accounts), ...following.keys(), ...followers.keys()])) {
     const followingEntry = following.get(key);
@@ -69,6 +74,8 @@ export function mergeExports(accounts: Record<string, Account>, bundle: ExportBu
       if (!source) continue; // unreachable: every key comes from accounts or an export
       account = accounts[key] = createAccount(source.username);
     }
+    // Same people, but a follow re-dated (e.g. unfollowed and followed again between exports).
+    if (redated(account.following, followingEntry) || redated(account.followedBy, followerEntry)) exportChanged = true;
     if (source) account.username = source.username; // casing follows the newest export
     setFollows(account, followingEntry, followerEntry, now);
   }
