@@ -1,4 +1,4 @@
-import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
+import { IDBDatabase, IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { strToU8, zipSync } from "fflate";
 import { IMPORT_PROBLEMS, type MasterFile } from "../../core/index.ts";
 import { followersFile, followingFile, must, problemOf } from "../../core/__tests__/helpers.ts";
@@ -196,6 +196,39 @@ describe.each([
     expect(Object.keys(copy.changed)).toEqual(["bob"]);
     expect(Object.keys(copy.saved)).toEqual(["alice"]);
     expect(await db.forTab("a").load()).toBeNull();
+  });
+});
+
+describe("IndexedDB tab store", () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  test("an edit writes the meta and accounts, never the stored master", async () => {
+    const tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab("a");
+    await tab.replace(BASE, META, NOTHING);
+    const transaction = vi.spyOn(IDBDatabase.prototype, "transaction");
+    await tab.update({ ...META, revision: 3 }, edited({ bob: { username: "bob" } }));
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(transaction.mock.calls[0]?.[0]).not.toContain("tabs");
+  });
+
+  test("a v3 database (meta kept with the master) is migrated, keeping the stored work", async () => {
+    const factory = new IDBFactory();
+    await new Promise<void>((resolve, reject) => {
+      const open = factory.open("instagram-review", 3);
+      open.onupgradeneeded = () => {
+        const database = open.result;
+        database.createObjectStore("tabs").put({ base: BASE, meta: META }, "a");
+        database.createObjectStore("accounts").put({ username: "bob" }, ["a", "bob"]);
+        database.createObjectStore("savedAccounts").put({ username: "bob", followerSince: 1 }, ["a", "bob"]);
+      };
+      open.onsuccess = () => { open.result.close(); resolve(); };
+      open.onerror = () => { reject(open.error ?? new Error("open failed")); };
+    });
+
+    const tab = openIndexedDbTabDatabase(factory, IDBKeyRange).forTab("a");
+    expect(await tab.load()).toEqual({ base: BASE, meta: META, changed: { bob: { username: "bob" } }, saved: { bob: { username: "bob", followerSince: 1 } } });
+    await tab.update({ ...META, revision: 3 }, edited({}));
+    expect(must(await tab.load()).meta.revision).toBe(3);
   });
 });
 

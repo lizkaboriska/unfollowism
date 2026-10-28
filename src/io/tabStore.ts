@@ -50,8 +50,9 @@ export interface TabDatabase {
 }
 
 const DB_NAME = "instagram-review";
-const DB_VERSION = 3; // v1 held a single whole-session record; v2 had no saved accounts
-const TABS = "tabs"; // tabId → { base, meta }
+const DB_VERSION = 4; // v1 held a single whole-session record; v2 had no saved accounts; v3 kept meta in the tabs row
+const TABS = "tabs"; // tabId → base
+const META = "meta"; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.
 const ACCOUNTS = "accounts"; // [tabId, accountKey] → AccountRecord
 const SAVED_ACCOUNTS = "savedAccounts"; // [tabId, accountKey] → AccountRecord
 const ACCOUNT_STORES = [ACCOUNTS, SAVED_ACCOUNTS] as const;
@@ -71,10 +72,18 @@ function committed(tx: IDBTransaction): Promise<void> {
   });
 }
 
-
-interface TabRow {
-  base: unknown;
-  meta: TabMeta;
+/** v3 kept each tab's meta with its base, as { base, meta }: moves the meta to its own store. Runs in the upgrade transaction. */
+function migrateFromV3(database: IDBDatabase, upgrade: IDBTransaction): void {
+  const metas = database.createObjectStore(META);
+  const request = upgrade.objectStore(TABS).openCursor();
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+    const row = cursor.value as { base: unknown; meta: TabMeta };
+    metas.put(row.meta, cursor.key);
+    cursor.update(row.base);
+    cursor.continue();
+  };
 }
 
 export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRange: typeof IDBKeyRange = IDBKeyRange): TabDatabase {
@@ -88,11 +97,14 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
   function db(): Promise<IDBDatabase> {
     dbPromise ??= new Promise((resolve, reject) => {
       const open = factory.open(DB_NAME, DB_VERSION);
-      open.onupgradeneeded = () => {
+      open.onupgradeneeded = event => {
         const database = open.result;
+        if (event.oldVersion === 3 && open.transaction) {
+          migrateFromV3(database, open.transaction);
+          return;
+        }
         for (const name of [...database.objectStoreNames]) database.deleteObjectStore(name);
-        database.createObjectStore(TABS);
-        for (const name of ACCOUNT_STORES) database.createObjectStore(name);
+        for (const name of [TABS, META, ...ACCOUNT_STORES]) database.createObjectStore(name);
       };
       open.onsuccess = () => {
         // Let a newer version of the app upgrade the database instead of being blocked by this tab.
@@ -121,34 +133,36 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
     return {
       durable: true,
       async load() {
-        const tx = (await db()).transaction([TABS, ...ACCOUNT_STORES], "readonly");
-        const [row, changed, saved] = await Promise.all([
-          done(tx.objectStore(TABS).get(tabId)) as Promise<TabRow | undefined>,
+        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readonly");
+        const [base, meta, changed, saved] = await Promise.all([
+          done(tx.objectStore(TABS).get(tabId)) as Promise<unknown>,
+          done(tx.objectStore(META).get(tabId)) as Promise<TabMeta | undefined>,
           loadAccounts(tx.objectStore(ACCOUNTS), tabId),
           loadAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId),
         ]);
-        if (!row) return null;
-        return { base: row.base, meta: row.meta, changed, saved };
+        if (base === undefined || !meta) return null;
+        return { base, meta, changed, saved };
       },
 
       async replace(base, meta, writes) {
-        const tx = (await db()).transaction([TABS, ...ACCOUNT_STORES], "readwrite");
+        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readwrite");
         for (const name of ACCOUNT_STORES) tx.objectStore(name).delete(tabRange(tabId));
-        tx.objectStore(TABS).put({ base, meta } satisfies TabRow, tabId);
+        tx.objectStore(TABS).put(base, tabId);
+        tx.objectStore(META).put(meta, tabId);
         putAccounts(tx.objectStore(ACCOUNTS), tabId, writes.changed);
         putAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId, writes.saved);
         await committed(tx);
       },
 
+      // Never touches the base: an edit writes ~1 KB however large the master is.
       async update(meta, writes) {
-        const tx = (await db()).transaction([TABS, ...ACCOUNT_STORES], "readwrite");
-        const tabs = tx.objectStore(TABS);
-        const row = await done(tabs.get(tabId)) as TabRow | undefined;
-        if (!row) {
+        const tx = (await db()).transaction([META, ...ACCOUNT_STORES], "readwrite");
+        const metas = tx.objectStore(META);
+        if (await done(metas.getKey(tabId)) === undefined) {
           tx.abort();
           throw new Error("Nothing stored for this tab yet");
         }
-        tabs.put({ base: row.base, meta } satisfies TabRow, tabId);
+        metas.put(meta, tabId);
         const accounts = tx.objectStore(ACCOUNTS);
         for (const key of writes.removed) accounts.delete([tabId, key]);
         putAccounts(accounts, tabId, writes.changed);
@@ -167,22 +181,26 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
     },
 
     async copyTab(from, to) {
-      const tx = (await db()).transaction([TABS, ...ACCOUNT_STORES], "readwrite");
+      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readwrite");
       const tabs = tx.objectStore(TABS);
-      const [row, ...accountSets] = await Promise.all([
-        done(tabs.get(from)) as Promise<TabRow | undefined>,
+      const metas = tx.objectStore(META);
+      const [base, meta, ...accountSets] = await Promise.all([
+        done(tabs.get(from)) as Promise<unknown>,
+        done(metas.get(from)) as Promise<TabMeta | undefined>,
         ...ACCOUNT_STORES.map(name => loadAccounts(tx.objectStore(name), from)),
       ]);
-      if (row) {
-        tabs.put(row, to);
+      if (base !== undefined && meta) {
+        tabs.put(base, to);
+        metas.put(meta, to);
         ACCOUNT_STORES.forEach((name, i) => { putAccounts(tx.objectStore(name), to, accountSets[i] ?? {}); });
       }
       await committed(tx);
     },
 
     async deleteTab(tabId) {
-      const tx = (await db()).transaction([TABS, ...ACCOUNT_STORES], "readwrite");
+      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readwrite");
       tx.objectStore(TABS).delete(tabId);
+      tx.objectStore(META).delete(tabId);
       for (const name of ACCOUNT_STORES) tx.objectStore(name).delete(tabRange(tabId));
       await committed(tx);
     },
