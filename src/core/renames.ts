@@ -65,16 +65,19 @@ export function settleRenameSuggestions(accounts: Record<string, Account>): void
   }
 }
 
+/** Joins merged notes. Notes are edited in a one-line field, which would drop a line break. */
+const NOTE_SEPARATOR = " · ";
+
 /**
  * WRITE (to `target`): moves the old account's review work onto its new name. Tags are combined,
- * notes kept one per line, reviewed if either was. The old account's plans (kept on its suggestion)
+ * notes joined with NOTE_SEPARATOR, reviewed if either was. The old account's plans (kept on its suggestion)
  * come back as planned where that follow exists on the new name. Unavailable is not moved: the
  * account clearly still exists.
  */
 export function mergeRenamed(target: Account, old: ReadonlyAccount): void {
   const review = target.review;
   for (const tag of old.review.tags) if (!review.tags.includes(tag)) review.tags.push(tag);
-  review.notes = [review.notes, old.review.notes].filter(Boolean).join("\n");
+  review.notes = [review.notes, old.review.notes].filter(Boolean).join(NOTE_SEPARATOR);
   review.reviewed ||= old.review.reviewed;
   for (const type of old.renameSuggestion?.plans ?? []) {
     if (planOf(target, type) === undefined && followExists(target, type)) setPlan(target, type, PLAN_STATES.PLANNED);

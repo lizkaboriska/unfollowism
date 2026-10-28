@@ -139,7 +139,7 @@ test("confirming moves tags, notes, reviewed and plans to the new name", () => {
   old.renameSuggestion = { to: "alice_new", plans: [UNFOLLOW, REMOVE_FOLLOWER] };
 
   mergeRenamed(target, old);
-  expect(target.review).toEqual({ reviewed: true, unavailable: false, tags: ["friend", "artist"], notes: "new note\nold note" });
+  expect(target.review).toEqual({ reviewed: true, unavailable: false, tags: ["friend", "artist"], notes: "new note · old note" });
   expect(target.toUnfollow).toBe(PLAN_STATES.PLANNED);
   expect(target.toRemove).toBe(PLAN_STATES.PLANNED);
 
@@ -149,4 +149,17 @@ test("confirming moves tags, notes, reviewed and plans to the new name", () => {
   carol.renameSuggestion = { to: "carol_2", plans: [UNFOLLOW] };
   mergeRenamed(followerOnly, carol);
   expect(followerOnly.toUnfollow).toBeUndefined(); // I don't follow the new name: nothing to unfollow
+});
+
+test("confirming with only one note keeps it as it is", () => {
+  const onlyOld = createAccount("bob_new");
+  const bob = createAccount("bob");
+  bob.review.notes = "old note";
+  mergeRenamed(onlyOld, bob);
+  expect(onlyOld.review.notes).toBe("old note");
+
+  const onlyNew = createAccount("dave_new");
+  onlyNew.review.notes = "new note";
+  mergeRenamed(onlyNew, createAccount("dave"));
+  expect(onlyNew.review.notes).toBe("new note");
 });
