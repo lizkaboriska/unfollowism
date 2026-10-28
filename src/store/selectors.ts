@@ -32,6 +32,7 @@ import {
   type TagCounts,
 } from "../core/index.ts";
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, type FiltersState } from "./filtersSlice.ts";
+import { UNSAVED_IMPORT } from "./masterSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -49,7 +50,6 @@ const EMPTY_KEYS: readonly string[] = Object.freeze([]);
 export const selectChanged = (s: RootState): RChanged => s.master.changed;
 const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;
 export const selectHasProject = (s: RootState): boolean => s.master.base !== null;
-export const selectIsDirty = (s: RootState): boolean => s.master.base !== null && s.master.revision !== s.master.savedRevision;
 export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
   s.master.base ? accountOf<RAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectFilters = (s: RootState) => s.filters;
@@ -205,6 +205,13 @@ export const selectUnsavedAccountCount = createSelector([selectBaseAccounts, sel
   }
   return count;
 });
+
+/**
+ * Whether there is anything not in the downloaded file yet: an import that differs from its file,
+ * or an account that differs from it. An edit that was undone (a tag ticked on and off) doesn't count.
+ */
+export const selectIsDirty = (s: RootState): boolean =>
+  s.master.base !== null && (s.master.savedRevision === UNSAVED_IMPORT || selectUnsavedAccountCount(s) > 0);
 
 const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tagCounts({ accounts }));
 

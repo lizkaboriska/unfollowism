@@ -192,6 +192,24 @@ describe("save", () => {
     ]);
   });
 
+  test("an edit that was undone leaves nothing unsaved", async () => {
+    const t = await importedStore();
+    await t.store.dispatch(saveMaster()).unwrap();
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    expect(selectIsDirty(t.store.getState())).toBe(true);
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    expect(selectIsDirty(t.store.getState())).toBe(false);
+  });
+
+  test("an import that differs from its file stays unsaved without any edit", async () => {
+    const t = makeTestStore();
+    await t.store.dispatch(importPrepared(prepared())).unwrap(); // no master: a new one, not downloaded yet
+    expect(selectIsDirty(t.store.getState())).toBe(true);
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    t.store.dispatch(toggleTag({ username: "bob", tag: "dog" }));
+    expect(selectIsDirty(t.store.getState())).toBe(true);
+  });
+
   test("edits made while saving stay unsaved", async () => {
     const gate = deferred();
     const t = makeTestStore({ download: () => gate.promise });

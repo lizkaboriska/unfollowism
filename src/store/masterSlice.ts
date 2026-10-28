@@ -67,7 +67,7 @@ const initialState: MasterState = {
 };
 
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
-const UNSAVED_IMPORT = -1;
+export const UNSAVED_IMPORT = -1;
 
 /** `state` null = not marked (cancels the plan). */
 interface PlanPayload {
