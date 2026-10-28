@@ -7,8 +7,10 @@ import { downloadText } from "./io/download.ts";
 import { localStorageLastSaved } from "./io/lastSaved.ts";
 import { browserTabEnvironment, claimTab } from "./io/tabIdentity.ts";
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from "./io/tabStore.ts";
+import { guardUnload } from "./io/unloadGuard.ts";
 import type { StoreDeps } from "./store/deps.ts";
 import { makeStore } from "./store/index.ts";
+import { selectIsDirty } from "./store/selectors.ts";
 import { system } from "./theme.ts";
 import { DialogProvider } from "./ui/dialogs.tsx";
 
@@ -33,6 +35,7 @@ const deps: StoreDeps = {
   lastSaved: localStorageLastSaved(),
 };
 const store = makeStore(deps);
+guardUnload(store, () => selectIsDirty(store.getState()));
 
 createRoot(rootElement).render(
   <StrictMode>
