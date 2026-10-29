@@ -1,6 +1,7 @@
+import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from '@chakra-ui/react';
 import { memo, useState, type KeyboardEvent } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
-import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from '@chakra-ui/react';
+
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -18,6 +19,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from '../store/masterSlice.ts';
 import { selectAccount, selectChangesSince, selectTags } from '../store/selectors.ts';
+
 import { formatSince } from './dates.ts';
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from './labels.ts';
 import { ProfileLink } from './ProfileLink.tsx';
@@ -52,7 +54,9 @@ function CheckboxField({
 }
 
 function sinceText(prefix: string, follow: Follow | null): string | null {
-  if (!follow) return null;
+  if (!follow) {
+    return null;
+  }
   return `${prefix} ${follow.since === null ? '(date unknown)' : formatSince(follow.since)}`;
 }
 
@@ -77,11 +81,17 @@ function NewTag({ username, tags, has }: { username: string; tags: readonly stri
     );
   }
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Escape') setDraft(null);
-    if (event.key !== 'Enter' || draft === null) return;
+    if (event.key === 'Escape') {
+      setDraft(null);
+    }
+    if (event.key !== 'Enter' || draft === null) {
+      return;
+    }
     const name = draft.trim();
     const tag = findTag(tags, name) ?? name;
-    if (tag && !has.includes(tag)) dispatch(toggleTag({ username, tag }));
+    if (tag && !has.includes(tag)) {
+      dispatch(toggleTag({ username, tag }));
+    }
     setDraft(null);
   }
   return (
@@ -112,7 +122,9 @@ function NewTag({ username, tags, has }: { username: string; tags: readonly stri
 function PlanControl({ account, type }: { account: ReadonlyAccount; type: ActionType }) {
   const dispatch = useAppDispatch();
   const plan = planOf(account, type);
-  if (plan === undefined && !followExists(account, type)) return null;
+  if (plan === undefined && !followExists(account, type)) {
+    return null;
+  }
   return (
     <CheckboxField
       name={`${PLAN_FIELDS[type]}-${account.username}`}
@@ -147,7 +159,9 @@ function NoteField({ username, note }: { username: string; note: string }) {
   const [shownNote, setShownNote] = useState(note);
   if (note !== shownNote) {
     setShownNote(note);
-    if (!storeNote.isPending()) setDraft(note);
+    if (!storeNote.isPending()) {
+      setDraft(note);
+    }
   }
 
   return (
@@ -172,7 +186,9 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
   const account = useAppSelector(s => selectAccount(s, accountKey));
   const since = useAppSelector(selectChangesSince);
   const tags = useAppSelector(selectTags);
-  if (!account) return null;
+  if (!account) {
+    return null;
+  }
 
   const { username, review } = account;
   const changes = Object.values(FOLLOW_CHANGES).filter(change => followChangeMatches(account, change, since));

@@ -1,12 +1,13 @@
+import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
-import { ChakraProvider } from '@chakra-ui/react';
+import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { Provider } from 'react-redux';
+
 import { App } from './App.tsx';
 import { followersFile, followingFile, must } from './core/__tests__/helpers.ts';
 import { memoryLastSaved } from './io/lastSaved.ts';
 import { openIndexedDbTabDatabase, type TabStore } from './io/tabStore.ts';
-import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import type { StoreDeps } from './store/deps.ts';
 import { makeStore } from './store/index.ts';
 import { system } from './theme.ts';
@@ -38,10 +39,11 @@ async function renderApp({
     </ChakraProvider>,
   );
   // The app first checks browser storage for this tab's work ("Loading your work…").
-  if (waitForRestore)
+  if (waitForRestore) {
     await waitFor(() => {
       expect(screen.queryByText('Loading your work…')).not.toBeInTheDocument();
     });
+  }
   return { downloads, user: userEvent.setup(), unmount: view.unmount, tab };
 }
 

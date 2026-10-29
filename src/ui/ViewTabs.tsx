@@ -1,9 +1,11 @@
-import { useState } from 'react';
 import { Button, HStack, Stack } from '@chakra-ui/react';
+import { useState } from 'react';
+
 import { ACTION_TYPES, FOLLOW_CHANGES, type ActionType, type FollowChange } from '../core/index.ts';
 import { ACTION_PLAN_VIEWS, LIST_VIEWS, isPlanView, setView } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectChangesSince, selectFollowChangeCounts, selectPlanStats } from '../store/selectors.ts';
+
 import { formatDate } from './dates.ts';
 import { CHANGE_TAB_LABELS, PLAN_LABELS } from './labels.ts';
 

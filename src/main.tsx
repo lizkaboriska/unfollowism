@@ -1,7 +1,8 @@
+import { ChakraProvider } from '@chakra-ui/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ChakraProvider } from '@chakra-ui/react';
 import { Provider } from 'react-redux';
+
 import { App } from './App.tsx';
 import { downloadText } from './io/download.ts';
 import { localStorageLastSaved } from './io/lastSaved.ts';
@@ -15,12 +16,16 @@ import { system } from './theme.ts';
 import { DialogProvider } from './ui/dialogs.tsx';
 
 const rootElement = document.getElementById('root');
-if (!rootElement) throw new Error('Missing #root element');
+if (!rootElement) {
+  throw new Error('Missing #root element');
+}
 
 /** This tab's reload safety net; falls back to memory (no reload survival) if browser storage is unavailable. */
 async function openTabStore(): Promise<TabStore> {
   try {
-    if (typeof indexedDB === 'undefined') throw new Error('IndexedDB unavailable');
+    if (typeof indexedDB === 'undefined') {
+      throw new Error('IndexedDB unavailable');
+    }
     const database = openIndexedDbTabDatabase();
     return database.forTab(await claimTab(database, browserTabEnvironment()));
   } catch (error) {

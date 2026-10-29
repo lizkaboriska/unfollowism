@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
 import { Button, Input, Stack } from '@chakra-ui/react';
+import { useMemo, useState } from 'react';
+
 import {
   REVIEW_SCOPES,
   REVIEW_STATUSES,
@@ -12,10 +13,11 @@ import { LIST_VIEWS, isPlanView, setQuery, setReviewStatus, setScope, setTagFilt
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { resetScope } from '../store/masterSlice.ts';
 import { selectScopeStats, selectTagCounts, selectTags } from '../store/selectors.ts';
-import { useConfirm } from './dialogs.tsx';
+
+import { useConfirm } from './dialogHooks.ts';
 import { FilterSelect, type FilterOption } from './FilterSelect.tsx';
-import { ManageTagsDialog } from './ManageTagsDialog.tsx';
 import { SCOPE_LABELS, STATUS_LABELS, scopeDescription } from './labels.ts';
+import { ManageTagsDialog } from './ManageTagsDialog.tsx';
 import { plural } from './statusText.ts';
 
 // A tag can be any text (even "untagged"), so the tag select uses positions as option values.
@@ -35,13 +37,19 @@ const STATUS_OPTIONS: readonly FilterOption<ReviewStatusFilter>[] = Object.value
 }));
 
 function tagFilterValue(tag: TagFilter, tags: readonly string[]): string {
-  if (tag.kind === TAG_FILTER_KINDS.ALL) return ALL_TAGS_VALUE;
-  if (tag.kind === TAG_FILTER_KINDS.UNTAGGED) return UNTAGGED_VALUE;
+  if (tag.kind === TAG_FILTER_KINDS.ALL) {
+    return ALL_TAGS_VALUE;
+  }
+  if (tag.kind === TAG_FILTER_KINDS.UNTAGGED) {
+    return UNTAGGED_VALUE;
+  }
   return tagValue(tags.indexOf(tag.tag));
 }
 
 function tagFilterOf(value: string, tags: readonly string[]): TagFilter {
-  if (value === UNTAGGED_VALUE) return { kind: TAG_FILTER_KINDS.UNTAGGED };
+  if (value === UNTAGGED_VALUE) {
+    return { kind: TAG_FILTER_KINDS.UNTAGGED };
+  }
   const tag = tags.find((_, i) => tagValue(i) === value);
   return tag === undefined ? { kind: TAG_FILTER_KINDS.ALL } : { kind: TAG_FILTER_KINDS.TAG, tag };
 }
@@ -72,8 +80,11 @@ export function FiltersBar() {
   );
 
   function onTagChange(value: string) {
-    if (value === MANAGE_TAGS_VALUE) setTagsOpen(true);
-    else dispatch(setTagFilter(tagFilterOf(value, tags)));
+    if (value === MANAGE_TAGS_VALUE) {
+      setTagsOpen(true);
+    } else {
+      dispatch(setTagFilter(tagFilterOf(value, tags)));
+    }
   }
 
   async function onResetScope() {
@@ -86,7 +97,9 @@ export function FiltersBar() {
       confirmLabel: 'Reset',
       destructive: true,
     });
-    if (confirmed) dispatch(resetScope({ scope: filters.scope, tag: filters.tag }));
+    if (confirmed) {
+      dispatch(resetScope({ scope: filters.scope, tag: filters.tag }));
+    }
   }
 
   return (

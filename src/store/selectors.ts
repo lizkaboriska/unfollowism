@@ -1,4 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
+
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
@@ -31,9 +32,10 @@ import {
   type ScopeStats,
   type TagCounts,
 } from '../core/index.ts';
+
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, type FiltersState } from './filtersSlice.ts';
-import { UNSAVED_IMPORT } from './masterSlice.ts';
 import type { RootState } from './index.ts';
+import { UNSAVED_IMPORT } from './masterSlice.ts';
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
 /** Edited accounts; null = removed (see ChangedAccounts). */
@@ -79,10 +81,16 @@ export const selectScopeStats = createSelector(
   (baseStats, base, changed, scope, tag): ScopeStats => {
     const stats = { ...baseStats };
     const count = (account: ReadonlyAccount | undefined, sign: 1 | -1) => {
-      if (!account || !scopeMatches(account, scope) || !tagMatches(account, tag)) return;
+      if (!account || !scopeMatches(account, scope) || !tagMatches(account, tag)) {
+        return;
+      }
       stats.total += sign;
-      if (account.review.reviewed) stats.reviewed += sign;
-      if (account.review.unavailable) stats.unavailable += sign;
+      if (account.review.reviewed) {
+        stats.reviewed += sign;
+      }
+      if (account.review.unavailable) {
+        stats.unavailable += sign;
+      }
     };
     for (const [key, account] of Object.entries(changed)) {
       count(base[key], -1);
@@ -105,8 +113,12 @@ export const selectPlanStats = createSelector(
     };
     for (const [key, account] of Object.entries(changed)) {
       const before = base[key];
-      if (before) countPlans(stats, before, -1);
-      if (account) countPlans(stats, account, 1);
+      if (before) {
+        countPlans(stats, before, -1);
+      }
+      if (account) {
+        countPlans(stats, account, 1);
+      }
     }
     return stats;
   },
@@ -131,8 +143,12 @@ export const selectFollowChangeCounts = createSelector(
     for (const [key, account] of Object.entries(changed)) {
       for (const change of Object.values(FOLLOW_CHANGES)) {
         const before = base[key];
-        if (before && followChangeMatches(before, change, since)) counts[change] -= 1;
-        if (account && followChangeMatches(account, change, since)) counts[change] += 1;
+        if (before && followChangeMatches(before, change, since)) {
+          counts[change] -= 1;
+        }
+        if (account && followChangeMatches(account, change, since)) {
+          counts[change] += 1;
+        }
       }
     }
     return counts;
@@ -141,8 +157,12 @@ export const selectFollowChangeCounts = createSelector(
 
 /** Whether the account belongs to the selected view (before status, tag and search filters). */
 function viewMatches(account: ReadonlyAccount, filters: FiltersState, since: string | null): boolean {
-  if (filters.view === LIST_VIEWS.REVIEW) return scopeMatches(account, filters.scope);
-  if (isFollowChangeView(filters.view)) return followChangeMatches(account, filters.view, since);
+  if (filters.view === LIST_VIEWS.REVIEW) {
+    return scopeMatches(account, filters.scope);
+  }
+  if (isFollowChangeView(filters.view)) {
+    return followChangeMatches(account, filters.view, since);
+  }
   return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) === PLAN_STATES.PLANNED;
 }
 
@@ -183,9 +203,15 @@ export const selectUnsavedDiff = createSelector(
     for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
       const then = accountOf(base, saved, key);
       const now = accountOf(base, changed, key);
-      if (then === now) continue; // untouched since the save
-      if (then) before[key] = then;
-      if (now) after[key] = now;
+      if (then === now) {
+        continue;
+      } // untouched since the save
+      if (then) {
+        before[key] = then;
+      }
+      if (now) {
+        after[key] = now;
+      }
     }
     return buildSessionDiff(before, after);
   },
@@ -197,10 +223,16 @@ export const selectUnsavedSummary = createSelector([selectUnsavedDiff], summariz
 const savedComparisons = new WeakMap<ReadonlyAccount, { saved: ReadonlyAccount | undefined; same: boolean }>();
 
 function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccount | undefined): boolean {
-  if (current === saved) return true;
-  if (!current || !saved) return false;
+  if (current === saved) {
+    return true;
+  }
+  if (!current || !saved) {
+    return false;
+  }
   const cached = savedComparisons.get(current);
-  if (cached?.saved === saved) return cached.same;
+  if (cached?.saved === saved) {
+    return cached.same;
+  }
   const same = sameAccountData(current, saved);
   savedComparisons.set(current, { saved, same });
   return same;
@@ -214,10 +246,14 @@ function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccoun
 export const selectUnsavedAccountCount = createSelector(
   [selectBaseAccounts, selectChanged, selectSavedChanged],
   (base, changed, saved) => {
-    if (changed === saved) return 0;
+    if (changed === saved) {
+      return 0;
+    }
     let count = 0;
     for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
-      if (!sameAsSaved(accountOf(base, changed, key), accountOf(base, saved, key))) count += 1;
+      if (!sameAsSaved(accountOf(base, changed, key), accountOf(base, saved, key))) {
+        count += 1;
+      }
     }
     return count;
   },
@@ -239,8 +275,12 @@ export const selectTagCounts = createSelector(
     const counts: TagCounts = Object.assign(createDict<number>(), baseCounts);
     for (const [key, account] of Object.entries(changed)) {
       const before = base[key];
-      if (before) countTags(counts, before, -1);
-      if (account) countTags(counts, account, 1);
+      if (before) {
+        countTags(counts, before, -1);
+      }
+      if (account) {
+        countTags(counts, account, 1);
+      }
     }
     return counts;
   },

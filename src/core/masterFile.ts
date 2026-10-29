@@ -69,20 +69,39 @@ function keptSeenAt(seenAt: string | undefined, savedAt: string | undefined): se
 export function toAccountRecord(account: ReadonlyAccount, savedAt: string | undefined): AccountRecord {
   const { following, followedBy, review } = account;
   const out: AccountRecord = { username: account.username };
-  if (following) out.followingSince = following.since;
-  if (followedBy) out.followerSince = followedBy.since;
-  if (!isDefaultReview(review)) out.review = { ...review, tags: [...review.tags] };
-  if (account.toUnfollow) out.toUnfollow = account.toUnfollow;
-  if (account.toRemove) out.toRemove = account.toRemove;
-  if (keptSeenAt(account.followedSeenAt, savedAt)) out.followedSeenAt = account.followedSeenAt;
-  if (keptSeenAt(account.followedMeSeenAt, savedAt)) out.followedMeSeenAt = account.followedMeSeenAt;
-  if (account.unfollowedSeenAt) out.unfollowedSeenAt = account.unfollowedSeenAt;
-  if (account.unfollowedMeSeenAt) out.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
+  if (following) {
+    out.followingSince = following.since;
+  }
+  if (followedBy) {
+    out.followerSince = followedBy.since;
+  }
+  if (!isDefaultReview(review)) {
+    out.review = { ...review, tags: [...review.tags] };
+  }
+  if (account.toUnfollow) {
+    out.toUnfollow = account.toUnfollow;
+  }
+  if (account.toRemove) {
+    out.toRemove = account.toRemove;
+  }
+  if (keptSeenAt(account.followedSeenAt, savedAt)) {
+    out.followedSeenAt = account.followedSeenAt;
+  }
+  if (keptSeenAt(account.followedMeSeenAt, savedAt)) {
+    out.followedMeSeenAt = account.followedMeSeenAt;
+  }
+  if (account.unfollowedSeenAt) {
+    out.unfollowedSeenAt = account.unfollowedSeenAt;
+  }
+  if (account.unfollowedMeSeenAt) {
+    out.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
+  }
   const suggestion = account.renameSuggestion;
-  if (suggestion)
+  if (suggestion) {
     out.renameSuggestion = suggestion.plans.length
       ? { to: suggestion.to, plans: [...suggestion.plans] }
       : { to: suggestion.to };
+  }
   return out;
 }
 
@@ -103,8 +122,9 @@ export function sameAccountData(a: ReadonlyAccount, b: ReadonlyAccount): boolean
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
   const accounts = createDict<AccountRecord>();
-  for (const [key, account] of Object.entries(master.accounts))
+  for (const [key, account] of Object.entries(master.accounts)) {
     accounts[key] = toAccountRecord(account, master.lastSavedAt);
+  }
   return {
     version: FORMAT_VERSION,
     ...(master.lastSavedAt === undefined ? {} : { lastSavedAt: master.lastSavedAt }),
@@ -161,7 +181,9 @@ function numOrNull(value: unknown, path: string): number | null {
 /** One of a constant object's values, e.g. oneOf(value, PLAN_STATES, path). */
 function oneOf<T extends string>(value: unknown, options: Readonly<Record<string, T>>, path: string): T {
   const allowed: readonly string[] = Object.values(options);
-  if (typeof value === 'string' && allowed.includes(value)) return value as T;
+  if (typeof value === 'string' && allowed.includes(value)) {
+    return value as T;
+  }
   throw new ImportError({
     kind: IMPORT_PROBLEMS.INVALID_FIELD,
     path,
@@ -173,7 +195,9 @@ function oneOf<T extends string>(value: unknown, options: Readonly<Record<string
 /** Rejected rather than dropped: losing a field silently could lose your work. */
 function rejectUnknownFields(r: Record<string, unknown>, known: ReadonlySet<string>, path: string): void {
   for (const key of Object.keys(r)) {
-    if (!known.has(key)) throw new ImportError({ kind: IMPORT_PROBLEMS.UNKNOWN_FIELD, path: `${path}.${key}` });
+    if (!known.has(key)) {
+      throw new ImportError({ kind: IMPORT_PROBLEMS.UNKNOWN_FIELD, path: `${path}.${key}` });
+    }
   }
 }
 
@@ -244,15 +268,27 @@ export function fromAccountRecord(value: unknown, path: string): Account {
     followedBy: follow('followerSince' in r, r.followerSince, `${path}.followerSince`),
     review: r.review === undefined ? createReview() : parseReview(r.review, `${path}.review`),
   };
-  if (r.toUnfollow !== undefined) account.toUnfollow = oneOf(r.toUnfollow, PLAN_STATES, `${path}.toUnfollow`);
-  if (r.toRemove !== undefined) account.toRemove = oneOf(r.toRemove, PLAN_STATES, `${path}.toRemove`);
-  if (r.followedSeenAt !== undefined) account.followedSeenAt = date(r.followedSeenAt, `${path}.followedSeenAt`);
-  if (r.followedMeSeenAt !== undefined) account.followedMeSeenAt = date(r.followedMeSeenAt, `${path}.followedMeSeenAt`);
-  if (r.unfollowedSeenAt !== undefined) account.unfollowedSeenAt = date(r.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
-  if (r.unfollowedMeSeenAt !== undefined)
+  if (r.toUnfollow !== undefined) {
+    account.toUnfollow = oneOf(r.toUnfollow, PLAN_STATES, `${path}.toUnfollow`);
+  }
+  if (r.toRemove !== undefined) {
+    account.toRemove = oneOf(r.toRemove, PLAN_STATES, `${path}.toRemove`);
+  }
+  if (r.followedSeenAt !== undefined) {
+    account.followedSeenAt = date(r.followedSeenAt, `${path}.followedSeenAt`);
+  }
+  if (r.followedMeSeenAt !== undefined) {
+    account.followedMeSeenAt = date(r.followedMeSeenAt, `${path}.followedMeSeenAt`);
+  }
+  if (r.unfollowedSeenAt !== undefined) {
+    account.unfollowedSeenAt = date(r.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
+  }
+  if (r.unfollowedMeSeenAt !== undefined) {
     account.unfollowedMeSeenAt = date(r.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
-  if (r.renameSuggestion !== undefined)
+  }
+  if (r.renameSuggestion !== undefined) {
     account.renameSuggestion = parseRenameSuggestion(r.renameSuggestion, `${path}.renameSuggestion`);
+  }
   return account;
 }
 
@@ -262,15 +298,20 @@ export function fromAccountRecord(value: unknown, path: string): Account {
  * Unknown top-level fields are dropped; unknown account fields are rejected. Never mutates `raw`.
  */
 export function parseMaster(raw: unknown): Master {
-  if (!isRecord(raw) || !isRecord(raw.accounts)) throw new ImportError({ kind: IMPORT_PROBLEMS.NOT_A_MASTER });
-  if (raw.version !== FORMAT_VERSION) throw new ImportError({ kind: IMPORT_PROBLEMS.INCOMPATIBLE_VERSION });
+  if (!isRecord(raw) || !isRecord(raw.accounts)) {
+    throw new ImportError({ kind: IMPORT_PROBLEMS.NOT_A_MASTER });
+  }
+  if (raw.version !== FORMAT_VERSION) {
+    throw new ImportError({ kind: IMPORT_PROBLEMS.INCOMPATIBLE_VERSION });
+  }
 
   const accounts = createDict<Account>();
   for (const [rawKey, value] of Object.entries(raw.accounts)) {
     const account = fromAccountRecord(value, `accounts.${rawKey}`);
     const key = usernameKey(account.username);
-    if (Object.hasOwn(accounts, key))
+    if (Object.hasOwn(accounts, key)) {
       throw new ImportError({ kind: IMPORT_PROBLEMS.DUPLICATE_ACCOUNT, username: account.username });
+    }
     accounts[key] = account;
   }
 
@@ -279,6 +320,8 @@ export function parseMaster(raw: unknown): Master {
     accounts,
     lastImportAt: date(raw.lastImportAt, 'lastImportAt'),
   };
-  if (raw.lastSavedAt !== undefined) master.lastSavedAt = date(raw.lastSavedAt, 'lastSavedAt');
+  if (raw.lastSavedAt !== undefined) {
+    master.lastSavedAt = date(raw.lastSavedAt, 'lastSavedAt');
+  }
   return master;
 }

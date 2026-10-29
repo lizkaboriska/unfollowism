@@ -22,6 +22,7 @@ import {
   summarizeSession,
   type Account,
 } from '../index.ts';
+
 import { account, follows, must, stateWith } from './helpers.ts';
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;

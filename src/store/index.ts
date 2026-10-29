@@ -5,6 +5,7 @@ import {
   type ThunkDispatch,
   type UnknownAction,
 } from '@reduxjs/toolkit';
+
 import type { StoreDeps } from './deps.ts';
 import { filtersSlice } from './filtersSlice.ts';
 import { listSlice, startListRefresh } from './listSlice.ts';

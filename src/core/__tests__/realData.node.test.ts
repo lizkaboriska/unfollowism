@@ -4,6 +4,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import {
   ACTION_TYPES,
   importExport,
@@ -14,6 +15,7 @@ import {
   toMasterFile,
   usernameKey,
 } from '../index.ts';
+
 import { must } from './helpers.ts';
 
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -70,10 +72,14 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     const result = importExport(master, bundle(following, followerRaws), NOW);
     expect(result.summary.exportChanged).toBe(true);
     expect(result.summary.plans.completed[ACTION_TYPES.UNFOLLOW]).toBe(planned.size);
-    for (const key of planned)
+    for (const key of planned) {
       expect(result.master.accounts[key]).toMatchObject({ following: null, unfollowedSeenAt: NOW });
-    for (const key of planned) expect(result.master.accounts[key]?.toUnfollow).toBeUndefined();
-    for (const key of left)
+    }
+    for (const key of planned) {
+      expect(result.master.accounts[key]?.toUnfollow).toBeUndefined();
+    }
+    for (const key of left) {
       expect(result.master.accounts[key]).toMatchObject({ followedBy: null, unfollowedMeSeenAt: NOW });
+    }
   });
 });

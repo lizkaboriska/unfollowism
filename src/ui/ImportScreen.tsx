@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Alert, Box, Button, HStack, IconButton, List, Stack, Text } from '@chakra-ui/react';
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+
 import { ImportError } from '../core/index.ts';
 import { IMPORT_WARNINGS, analyzeImport, type ImportSelection } from '../io/analyzeImport.ts';
 import type { LastSavedStore } from '../io/lastSaved.ts';
@@ -8,7 +9,8 @@ import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectIsDirty } from '../store/selectors.ts';
 import { IMPORT_STATUSES } from '../store/statuses.ts';
 import { importPrepared } from '../store/thunks.ts';
-import { useAlert, useConfirm } from './dialogs.tsx';
+
+import { useAlert, useConfirm } from './dialogHooks.ts';
 import { importProblemText } from './importProblemText.ts';
 import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
@@ -94,7 +96,9 @@ export function ImportScreen({
     selectionError: string | null;
     lastKnownSavedAt: string | null;
   } => {
-    if (!chosen.length) return { selection: null, selectionError: null, lastKnownSavedAt: null };
+    if (!chosen.length) {
+      return { selection: null, selectionError: null, lastKnownSavedAt: null };
+    }
     const savedAt = lastSaved.get();
     try {
       return {
@@ -115,14 +119,20 @@ export function ImportScreen({
   }, [chosen, lastSaved]);
 
   async function choose(files: File[]) {
-    if (!files.length) return;
+    if (!files.length) {
+      return;
+    }
     setImportError(null);
     setReading(n => n + 1);
     try {
       const read = await Promise.all(files.map(readChosen));
       setChosen(current => {
         const next = [...current];
-        for (const file of read) if (!next.some(c => c.id === file.id)) next.push(file);
+        for (const file of read) {
+          if (!next.some(c => c.id === file.id)) {
+            next.push(file);
+          }
+        }
         return next;
       });
     } finally {
@@ -149,7 +159,9 @@ export function ImportScreen({
 
   async function onImport() {
     const prepared = selection?.prepared;
-    if (!prepared) return;
+    if (!prepared) {
+      return;
+    }
     const noMaster = prepared.warnings.find(w => w.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE);
     if (noMaster) {
       const proceed = await confirm({
@@ -158,7 +170,9 @@ export function ImportScreen({
         confirmLabel: 'Import anyway',
         destructive: true,
       });
-      if (!proceed) return;
+      if (!proceed) {
+        return;
+      }
     }
     if (dirty) {
       const discard = await confirm({
@@ -169,12 +183,17 @@ export function ImportScreen({
         confirmLabel: 'Import anyway',
         destructive: true,
       });
-      if (!discard) return;
+      if (!discard) {
+        return;
+      }
     }
     setImportError(null);
     const result = await dispatch(importPrepared(prepared));
-    if (importPrepared.fulfilled.match(result)) onImported();
-    else setImportError(result.payload ? importProblemText(result.payload) : errorMessage(result.error));
+    if (importPrepared.fulfilled.match(result)) {
+      onImported();
+    } else {
+      setImportError(result.payload ? importProblemText(result.payload) : errorMessage(result.error));
+    }
   }
 
   const missing = selection && missingText(selection.recognized);
@@ -205,7 +224,9 @@ export function ImportScreen({
         }}
         // Moving over the text inside also fires dragleave; only leaving the zone itself ends the highlight.
         onDragLeave={e => {
-          if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) setDragging(false);
+          if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
+            setDragging(false);
+          }
         }}
         onDrop={onDrop}
       >

@@ -14,14 +14,27 @@ export function copyAccount(account: ReadonlyAccount): Account {
     followedBy: account.followedBy && { ...account.followedBy },
     review: { ...account.review, tags: [...account.review.tags] },
   };
-  if (account.toUnfollow) copy.toUnfollow = account.toUnfollow;
-  if (account.toRemove) copy.toRemove = account.toRemove;
-  if (account.followedSeenAt) copy.followedSeenAt = account.followedSeenAt;
-  if (account.followedMeSeenAt) copy.followedMeSeenAt = account.followedMeSeenAt;
-  if (account.unfollowedSeenAt) copy.unfollowedSeenAt = account.unfollowedSeenAt;
-  if (account.unfollowedMeSeenAt) copy.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
-  if (account.renameSuggestion)
+  if (account.toUnfollow) {
+    copy.toUnfollow = account.toUnfollow;
+  }
+  if (account.toRemove) {
+    copy.toRemove = account.toRemove;
+  }
+  if (account.followedSeenAt) {
+    copy.followedSeenAt = account.followedSeenAt;
+  }
+  if (account.followedMeSeenAt) {
+    copy.followedMeSeenAt = account.followedMeSeenAt;
+  }
+  if (account.unfollowedSeenAt) {
+    copy.unfollowedSeenAt = account.unfollowedSeenAt;
+  }
+  if (account.unfollowedMeSeenAt) {
+    copy.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
+  }
+  if (account.renameSuggestion) {
     copy.renameSuggestion = { to: account.renameSuggestion.to, plans: [...account.renameSuggestion.plans] };
+  }
   return copy;
 }
 

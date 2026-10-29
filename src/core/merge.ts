@@ -36,8 +36,14 @@ export interface ImportResult {
 }
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
-  if (a.size !== b.size) return false;
-  for (const key of a) if (!b.has(key)) return false;
+  if (a.size !== b.size) {
+    return false;
+  }
+  for (const key of a) {
+    if (!b.has(key)) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -66,8 +72,12 @@ export function mergeExports(
   const previousFollowing = new Set<string>();
   const previousFollowers = new Set<string>();
   for (const [key, account] of Object.entries(accounts)) {
-    if (account.following) previousFollowing.add(key);
-    if (account.followedBy) previousFollowers.add(key);
+    if (account.following) {
+      previousFollowing.add(key);
+    }
+    if (account.followedBy) {
+      previousFollowers.add(key);
+    }
   }
   let exportChanged =
     !sameSet(previousFollowing, new Set(following.keys())) || !sameSet(previousFollowers, new Set(followers.keys()));
@@ -78,19 +88,27 @@ export function mergeExports(
     const source = followingEntry ?? followerEntry;
     let account = accounts[key];
     if (!account) {
-      if (!source) continue; // unreachable: every key comes from accounts or an export
+      if (!source) {
+        continue;
+      } // unreachable: every key comes from accounts or an export
       account = accounts[key] = createAccount(source.username);
     }
     // Same people, but a follow re-dated (e.g. unfollowed and followed again between exports).
-    if (redated(account.following, followingEntry) || redated(account.followedBy, followerEntry)) exportChanged = true;
-    if (source) account.username = source.username; // casing follows the newest export
+    if (redated(account.following, followingEntry) || redated(account.followedBy, followerEntry)) {
+      exportChanged = true;
+    }
+    if (source) {
+      account.username = source.username;
+    } // casing follows the newest export
     setFollows(account, followingEntry, followerEntry, now, saved);
   }
 
   settleRenameSuggestions(accounts);
   for (const { from, suggestion } of renames) {
     const account = accounts[from];
-    if (account) account.renameSuggestion = suggestion;
+    if (account) {
+      account.renameSuggestion = suggestion;
+    }
   }
 
   return { exportChanged, plans: settlePlans({ accounts }, new Set(renames.map(r => r.from))) };
@@ -101,8 +119,12 @@ export function mergeExports(
  * parseMaster → mergeExports (incl. settlePlans), with an injected clock.
  */
 export function importExport(rawMaster: unknown, bundle: ExportBundle, now: string): ImportResult {
-  if (!bundle.following.length) throw new ImportError({ kind: IMPORT_PROBLEMS.NO_FOLLOWING });
-  if (!bundle.followers.length) throw new ImportError({ kind: IMPORT_PROBLEMS.NO_FOLLOWERS });
+  if (!bundle.following.length) {
+    throw new ImportError({ kind: IMPORT_PROBLEMS.NO_FOLLOWING });
+  }
+  if (!bundle.followers.length) {
+    throw new ImportError({ kind: IMPORT_PROBLEMS.NO_FOLLOWERS });
+  }
 
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);

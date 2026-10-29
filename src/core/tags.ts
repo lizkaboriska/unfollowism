@@ -9,12 +9,16 @@ export type TagCounts = Record<string, number>;
 
 /** WRITE (to `counts`): adds (sign 1) or removes (sign -1) one account's tags. */
 export function countTags(counts: TagCounts, account: ReadonlyAccount, sign: 1 | -1): void {
-  for (const tag of account.review.tags) counts[tag] = (counts[tag] ?? 0) + sign;
+  for (const tag of account.review.tags) {
+    counts[tag] = (counts[tag] ?? 0) + sign;
+  }
 }
 
 export function tagCounts(source: DeepReadonly<Pick<Master, 'accounts'>>): TagCounts {
   const counts = createDict<number>();
-  for (const account of Object.values(source.accounts)) countTags(counts, account, 1);
+  for (const account of Object.values(source.accounts)) {
+    countTags(counts, account, 1);
+  }
   return counts;
 }
 
@@ -35,13 +39,20 @@ export function findTag(tags: readonly string[], name: string): string | undefin
 export function renameTagOn(account: Account, from: string, to: string): void {
   const tags = account.review.tags;
   const index = tags.indexOf(from);
-  if (index === -1) return;
-  if (tags.includes(to)) tags.splice(index, 1);
-  else tags[index] = to;
+  if (index === -1) {
+    return;
+  }
+  if (tags.includes(to)) {
+    tags.splice(index, 1);
+  } else {
+    tags[index] = to;
+  }
 }
 
 /** WRITE: removes a tag from one account. */
 export function removeTagFrom(account: Account, tag: string): void {
   const index = account.review.tags.indexOf(tag);
-  if (index !== -1) account.review.tags.splice(index, 1);
+  if (index !== -1) {
+    account.review.tags.splice(index, 1);
+  }
 }

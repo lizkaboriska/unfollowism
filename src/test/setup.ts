@@ -13,6 +13,8 @@ if (typeof window !== 'undefined') {
     });
   }
   for (const method of ['scrollTo', 'scrollIntoView'] as const) {
-    if (!(method in Element.prototype)) Object.defineProperty(Element.prototype, method, { value: () => undefined });
+    if (!(method in Element.prototype)) {
+      Object.defineProperty(Element.prototype, method, { value: () => undefined });
+    }
   }
 }

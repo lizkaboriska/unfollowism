@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
 import { Box, HStack, Portal, Select, Text, createListCollection } from '@chakra-ui/react';
+import { useMemo } from 'react';
 
 export interface FilterOption<V extends string = string> {
   value: V;
@@ -38,7 +38,9 @@ export function FilterSelect<V extends string>({
       value={[value]}
       onValueChange={e => {
         const option = options.find(o => o.value === e.value[0]);
-        if (option && option.value !== value) onChange(option.value);
+        if (option && option.value !== value) {
+          onChange(option.value);
+        }
       }}
       positioning={{ sameWidth: false, placement: 'bottom-start' }}
     >

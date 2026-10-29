@@ -1,4 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
+
 import {
   ImportError,
   accountOf,
@@ -18,9 +19,10 @@ import type { PreparedImport } from '../io/analyzeImport.ts';
 import { masterFileName } from '../io/download.ts';
 import { nextPaint } from '../io/nextPaint.ts';
 import type { StoredTab } from '../io/tabStore.ts';
+
 import type { StoreDeps } from './deps.ts';
-import { SAVE_STATUSES } from './statuses.ts';
 import type { AppDispatch, RootState } from './index.ts';
+import { SAVE_STATUSES } from './statuses.ts';
 
 const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps }>();
 
@@ -35,7 +37,9 @@ export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rej
     try {
       return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
     } catch (error) {
-      if (error instanceof ImportError) return rejectWithValue(error.problem);
+      if (error instanceof ImportError) {
+        return rejectWithValue(error.problem);
+      }
       throw error;
     }
   },
@@ -54,7 +58,9 @@ export function currentMaster(base: Master, changed: Readonly<ChangedAccounts>):
   const accounts = createDict<Account>();
   for (const key of Object.keys(base.accounts)) {
     const account = accountOf(base.accounts, changed, key);
-    if (account) accounts[key] = account;
+    if (account) {
+      accounts[key] = account;
+    }
   }
   return { ...base, accounts };
 }
@@ -71,7 +77,9 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
   'master/save',
   async (_, { getState, extra }) => {
     const { base, changed, revision } = getState().master;
-    if (!base) throw new Error('saveMaster: nothing loaded'); // unreachable: see condition
+    if (!base) {
+      throw new Error('saveMaster: nothing loaded');
+    } // unreachable: see condition
     const master = currentMaster(base, changed);
     const now = extra.now();
     const savedAt = now.toISOString();
@@ -98,8 +106,9 @@ export interface RestoredSession {
 /** null records are accounts removed since the import (see ChangedAccounts). */
 function reviveAccounts(records: Record<string, unknown>, path: string): ChangedAccounts {
   const accounts = createDict<Account | null>();
-  for (const [key, record] of Object.entries(records))
+  for (const [key, record] of Object.entries(records)) {
     accounts[key] = record === null ? null : fromAccountRecord(record, `${path}.${key}`);
+  }
   return accounts;
 }
 

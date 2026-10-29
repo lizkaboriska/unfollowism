@@ -1,3 +1,4 @@
+import { must } from '../../core/__tests__/helpers.ts';
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -10,11 +11,9 @@ import {
   parseMaster,
   toMasterFile,
 } from '../../core/index.ts';
-
-const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
-import { must } from '../../core/__tests__/helpers.ts';
 import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
 import { LIST_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setView } from '../filtersSlice.ts';
+import { selectListKeys } from '../listSlice.ts';
 import {
   confirmRename,
   deleteTag,
@@ -28,6 +27,7 @@ import {
   setUnavailable,
   toggleTag,
 } from '../masterSlice.ts';
+import { RETRY_DELAYS_MS } from '../persistence.ts';
 import {
   selectAccount,
   selectIsDirty,
@@ -40,10 +40,9 @@ import {
   selectUnsavedAccountCount,
   selectVisibleAccountKeys,
 } from '../selectors.ts';
-import { importPrepared, restoreTab, saveMaster } from '../thunks.ts';
 import { STATUS_EVENTS } from '../statuses.ts';
-import { selectListKeys } from '../listSlice.ts';
-import { RETRY_DELAYS_MS } from '../persistence.ts';
+import { importPrepared, restoreTab, saveMaster } from '../thunks.ts';
+
 import {
   WRITES,
   deferred,
@@ -53,6 +52,8 @@ import {
   recordingTab,
   type RecordedWrite,
 } from './testStore.ts';
+
+const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 
 const write = (kind: RecordedWrite['kind'], keys: Partial<Omit<RecordedWrite, 'kind'>> = {}): RecordedWrite => ({
   kind,
@@ -185,7 +186,9 @@ describe('edits', () => {
 
   test('reset scope follows the tag and keeps tags, notes and plans', async () => {
     const t = await importedStore();
-    for (const username of ['alice', 'bob', 'carol']) t.store.dispatch(setReviewed({ username, reviewed: true }));
+    for (const username of ['alice', 'bob', 'carol']) {
+      t.store.dispatch(setReviewed({ username, reviewed: true }));
+    }
     t.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
     t.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
     t.store.dispatch(setNote({ username: 'alice', note: 'keep this' }));
@@ -293,7 +296,9 @@ describe('save', () => {
     let fail = true;
     const t = makeTestStore({
       download: () => {
-        if (fail) throw new Error('Download blocked');
+        if (fail) {
+          throw new Error('Download blocked');
+        }
       },
     });
     await t.store.dispatch(importPrepared(prepared())).unwrap();

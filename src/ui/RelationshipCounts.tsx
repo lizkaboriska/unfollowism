@@ -1,7 +1,9 @@
 import { Badge, HStack } from '@chakra-ui/react';
+
 import { RELATIONSHIPS } from '../core/index.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectRelationshipStats } from '../store/selectors.ts';
+
 import { RELATIONSHIP_LABELS } from './labels.ts';
 
 /** The relationship badges use the same names as the cards and the Scope filter. */

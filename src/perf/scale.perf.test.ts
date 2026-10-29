@@ -1,6 +1,14 @@
 // @vitest-environment node
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
+import { must } from '../core/__tests__/helpers.ts';
+import { importExport, stringifyMasterFile, toMasterFile } from '../core/index.ts';
+import { analyzeImport } from '../io/analyzeImport.ts';
+import { memoryLastSaved } from '../io/lastSaved.ts';
+import { createMemoryTabDatabase } from '../io/tabStore.ts';
+import { setQuery } from '../store/filtersSlice.ts';
+import { makeStore } from '../store/index.ts';
+import { setNote } from '../store/masterSlice.ts';
 import {
   selectAccount,
   selectRelationshipStats,
@@ -10,14 +18,6 @@ import {
   selectVisibleAccountKeys,
 } from '../store/selectors.ts';
 import { importPrepared, restoreTab, saveMaster } from '../store/thunks.ts';
-import { setNote } from '../store/masterSlice.ts';
-import { setQuery } from '../store/filtersSlice.ts';
-import { importExport, stringifyMasterFile, toMasterFile } from '../core/index.ts';
-import { analyzeImport } from '../io/analyzeImport.ts';
-import { must } from '../core/__tests__/helpers.ts';
-import { createMemoryTabDatabase } from '../io/tabStore.ts';
-import { memoryLastSaved } from '../io/lastSaved.ts';
-import { makeStore } from '../store/index.ts';
 
 const INSTAGRAM_FOLLOWING_CAP = 7_500;
 const MUTUAL = 5_000;
@@ -83,7 +83,9 @@ async function run(total: number) {
   const keys = Object.keys(earlier.accounts);
   for (let i = 0; i < keys.length; i += 10) {
     const account = earlier.accounts[keys[i] ?? ''];
-    if (account) account.review = { reviewed: true, unavailable: false, tags: ['artist'], notes: '' };
+    if (account) {
+      account.review = { reviewed: true, unavailable: false, tags: ['artist'], notes: '' };
+    }
   }
   const masterText = stringifyMasterFile(toMasterFile({ ...earlier, lastSavedAt: '2026-09-02T00:00:00.000Z' }));
 
@@ -135,8 +137,12 @@ async function run(total: number) {
     ['save (serialize master)', saveMs, 0],
     ['reload restore', restoreMs, 0],
   );
+  // eslint-disable-next-line no-console -- printing the timing table is what `npm run test:perf` is for
   console.log(`\n${total.toLocaleString()} accounts — master file ${mb(masterText.length)}`);
-  for (const [label, ms] of rows) console.log(`  ${label.padEnd(42)} ${ms.toFixed(1).padStart(9)} ms`);
+  for (const [label, ms] of rows) {
+    // eslint-disable-next-line no-console -- see above
+    console.log(`  ${label.padEnd(42)} ${ms.toFixed(1).padStart(9)} ms`);
+  }
 
   expect(selectAccount(reloaded.getState(), someone)?.review.notes).toBe('typing…');
   return Object.fromEntries(rows.map(([label, ms]) => [label, ms]));

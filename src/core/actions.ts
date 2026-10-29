@@ -38,11 +38,16 @@ export function followExists(account: ReadonlyAccount, type: ActionType): boolea
 export function setPlan(account: Account, type: ActionType, state: PlanState | undefined): void {
   const field = PLAN_FIELDS[type];
   if (state === undefined) {
-    if (type === ACTION_TYPES.UNFOLLOW) delete account.toUnfollow;
-    else delete account.toRemove;
+    if (type === ACTION_TYPES.UNFOLLOW) {
+      delete account.toUnfollow;
+    } else {
+      delete account.toRemove;
+    }
     return;
   }
-  if (account[field] === undefined && !followExists(account, type)) throw new Error(`setPlan: no follow for ${type}`);
+  if (account[field] === undefined && !followExists(account, type)) {
+    throw new Error(`setPlan: no follow for ${type}`);
+  }
   account[field] = state;
 }
 
@@ -75,10 +80,14 @@ export function settlePlans(
   for (const [key, account] of Object.entries(source.accounts)) {
     for (const type of Object.values(ACTION_TYPES)) {
       const plan = planOf(account, type);
-      if (plan === undefined) continue;
+      if (plan === undefined) {
+        continue;
+      }
       if (!followExists(account, type)) {
         setPlan(account, type, undefined);
-        if (!uncounted.has(key)) outcomes.completed[type] += 1;
+        if (!uncounted.has(key)) {
+          outcomes.completed[type] += 1;
+        }
       } else if (plan === PLAN_STATES.DONE) {
         setPlan(account, type, PLAN_STATES.PLANNED);
         outcomes.reopened[type] += 1;
@@ -98,12 +107,16 @@ export function emptyPlanStats(): PlanStats {
 export function countPlans(stats: PlanStats, account: ReadonlyAccount, sign: 1 | -1): void {
   for (const type of Object.values(ACTION_TYPES)) {
     const plan = planOf(account, type);
-    if (plan !== undefined) stats[plan][type] += sign;
+    if (plan !== undefined) {
+      stats[plan][type] += sign;
+    }
   }
 }
 
 export function planStats(source: DeepReadonly<Pick<Master, 'accounts'>>): PlanStats {
   const stats = emptyPlanStats();
-  for (const account of Object.values(source.accounts)) countPlans(stats, account, 1);
+  for (const account of Object.values(source.accounts)) {
+    countPlans(stats, account, 1);
+  }
   return stats;
 }

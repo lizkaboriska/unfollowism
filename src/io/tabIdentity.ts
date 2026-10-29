@@ -30,7 +30,9 @@ export function browserTabEnvironment(): TabEnvironment {
 
 /** Takes the lock for this tab id and keeps it until the tab closes. Resolves false if another tab holds it. */
 function holdLock(locks: TabEnvironment['locks'], tabId: string): Promise<boolean> {
-  if (!locks) return Promise.resolve(true);
+  if (!locks) {
+    return Promise.resolve(true);
+  }
   return new Promise(resolve => {
     void locks.request(lockName(tabId), { ifAvailable: true }, lock => {
       resolve(lock !== null);
@@ -63,10 +65,14 @@ export async function claimTab(database: TabDatabase, env: TabEnvironment): Prom
 }
 
 async function removeClosedTabs(database: TabDatabase, env: TabEnvironment, ownId: string): Promise<void> {
-  if (!env.locks) return; // can't tell open tabs from closed ones; leave the data alone
+  if (!env.locks) {
+    return;
+  } // can't tell open tabs from closed ones; leave the data alone
   const held = new Set(((await env.locks.query()).held ?? []).map(lock => lock.name));
   for (const id of await database.tabIds()) {
-    if (id !== ownId && !held.has(lockName(id))) await database.deleteTab(id);
+    if (id !== ownId && !held.has(lockName(id))) {
+      await database.deleteTab(id);
+    }
   }
 }
 

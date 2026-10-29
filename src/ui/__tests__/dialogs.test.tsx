@@ -1,8 +1,10 @@
+import { ChakraProvider } from '@chakra-ui/react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ChakraProvider } from '@chakra-ui/react';
+
 import { system } from '../../theme.ts';
-import { DialogProvider, useConfirm } from '../dialogs.tsx';
+import { useConfirm } from '../dialogHooks.ts';
+import { DialogProvider } from '../dialogs.tsx';
 
 test('a dialog opened over another one cancels the first, and the second still answers', async () => {
   const answers: [string, boolean][] = [];

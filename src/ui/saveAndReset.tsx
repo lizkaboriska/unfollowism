@@ -1,10 +1,12 @@
 import { Button, type ButtonProps } from '@chakra-ui/react';
+
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { resetChanges } from '../store/masterSlice.ts';
 import { selectHasProject, selectIsDirty, selectUnsavedAccountCount } from '../store/selectors.ts';
 import { SAVE_STATUSES } from '../store/statuses.ts';
 import { saveMaster } from '../store/thunks.ts';
-import { useConfirm } from './dialogs.tsx';
+
+import { useConfirm } from './dialogHooks.ts';
 import { plural } from './statusText.ts';
 
 /** Save master and Reset changes, shared by the header and the Unsaved changes drawer. */
@@ -42,7 +44,9 @@ export function ResetButton(props: ButtonProps) {
       confirmLabel: 'Reset',
       destructive: true,
     });
-    if (confirmed) dispatch(resetChanges());
+    if (confirmed) {
+      dispatch(resetChanges());
+    }
   }
 
   return (

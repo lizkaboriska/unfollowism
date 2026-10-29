@@ -14,10 +14,15 @@ export function guardUnload(
   };
   let guarded = false;
   const setGuarded = (next: boolean) => {
-    if (next === guarded) return;
+    if (next === guarded) {
+      return;
+    }
     guarded = next;
-    if (next) target.addEventListener('beforeunload', onBeforeUnload);
-    else target.removeEventListener('beforeunload', onBeforeUnload);
+    if (next) {
+      target.addEventListener('beforeunload', onBeforeUnload);
+    } else {
+      target.removeEventListener('beforeunload', onBeforeUnload);
+    }
   };
 
   setGuarded(isDirty());

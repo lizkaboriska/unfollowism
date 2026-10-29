@@ -24,10 +24,14 @@ export function parseFollowingJson(raw: unknown): ExportEntry[] {
       : [];
   const result: ExportEntry[] = [];
   for (const item of items) {
-    if (!isRecord(item)) continue;
+    if (!isRecord(item)) {
+      continue;
+    }
     const first = firstEntry(item);
     const username = nonEmptyString(item.title) ?? nonEmptyString(first.value);
-    if (username) result.push(toEntry(username, first));
+    if (username) {
+      result.push(toEntry(username, first));
+    }
   }
   return result;
 }
@@ -37,10 +41,14 @@ export function parseFollowersJson(raw: unknown): ExportEntry[] {
   const items: unknown[] = Array.isArray(raw) ? raw : [];
   const result: ExportEntry[] = [];
   for (const item of items) {
-    if (!isRecord(item)) continue;
+    if (!isRecord(item)) {
+      continue;
+    }
     const first = firstEntry(item);
     const username = nonEmptyString(first.value) ?? nonEmptyString(item.title);
-    if (username) result.push(toEntry(username, first));
+    if (username) {
+      result.push(toEntry(username, first));
+    }
   }
   return result;
 }
@@ -50,9 +58,13 @@ export function dedupeAccounts(items: readonly ExportEntry[]): ExportEntry[] {
   const byUsername = new Map<string, ExportEntry>();
   for (const item of items) {
     const key = usernameKey(item.username);
-    if (!key) continue;
+    if (!key) {
+      continue;
+    }
     const existing = byUsername.get(key);
-    if (!existing || (item.since ?? 0) > (existing.since ?? 0)) byUsername.set(key, item);
+    if (!existing || (item.since ?? 0) > (existing.since ?? 0)) {
+      byUsername.set(key, item);
+    }
   }
   return [...byUsername.values()];
 }

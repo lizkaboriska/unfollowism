@@ -68,6 +68,8 @@ export const PLAN_LABELS: Record<ActionType, { checkbox: string; todo: string; s
 
 /** "I follow · artist": the scope and tag the Review tab (and Reset scope) covers. */
 export function scopeDescription(scope: ReviewScope, tag: TagFilter): string {
-  if (tag.kind === TAG_FILTER_KINDS.ALL) return SCOPE_LABELS[scope];
+  if (tag.kind === TAG_FILTER_KINDS.ALL) {
+    return SCOPE_LABELS[scope];
+  }
   return `${SCOPE_LABELS[scope]} · ${tag.kind === TAG_FILTER_KINDS.UNTAGGED ? 'untagged' : tag.tag}`;
 }

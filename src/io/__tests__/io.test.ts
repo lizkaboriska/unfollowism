@@ -1,11 +1,12 @@
-import { IDBDatabase, IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { TextReader, Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip.js/zip.js';
-import { IMPORT_PROBLEMS, type MasterFile } from '../../core/index.ts';
+import { IDBDatabase, IDBFactory, IDBKeyRange } from 'fake-indexeddb';
+
 import { followersFile, followingFile, must, problemOf } from '../../core/__tests__/helpers.ts';
+import { IMPORT_PROBLEMS, type MasterFile } from '../../core/index.ts';
 import { IMPORT_WARNINGS, analyzeImport } from '../analyzeImport.ts';
 import { masterFileName } from '../download.ts';
-import { readInputs } from '../readInputs.ts';
 import { localStorageLastSaved } from '../lastSaved.ts';
+import { readInputs } from '../readInputs.ts';
 import { claimTab, type TabEnvironment } from '../tabIdentity.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabMeta, type TabWrites } from '../tabStore.ts';
 
@@ -340,7 +341,9 @@ function fakeBrowser() {
       _options: { ifAvailable: boolean },
       callback: (lock: { name: string } | null) => unknown,
     ) => {
-      if (held.has(name)) return Promise.resolve(callback(null));
+      if (held.has(name)) {
+        return Promise.resolve(callback(null));
+      }
       held.add(name);
       return Promise.resolve(callback({ name }));
     }) as unknown as LockManager['request'],

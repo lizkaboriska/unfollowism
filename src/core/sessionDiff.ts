@@ -78,39 +78,56 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
     const after = afterAccount?.review ?? createReview();
     const changes: SessionChange[] = [];
 
-    if (before.reviewed !== after.reviewed)
+    if (before.reviewed !== after.reviewed) {
       changes.push({ type: after.reviewed ? SESSION_CHANGES.REVIEWED : SESSION_CHANGES.UNREVIEWED });
-    if (before.unavailable !== after.unavailable)
+    }
+    if (before.unavailable !== after.unavailable) {
       changes.push({
         type: after.unavailable ? SESSION_CHANGES.UNAVAILABLE_MARKED : SESSION_CHANGES.UNAVAILABLE_CLEARED,
       });
-    for (const tag of after.tags)
-      if (!before.tags.includes(tag)) changes.push({ type: SESSION_CHANGES.TAG_ADDED, tag });
-    for (const tag of before.tags)
-      if (!after.tags.includes(tag)) changes.push({ type: SESSION_CHANGES.TAG_REMOVED, tag });
-    if (before.notes !== after.notes) changes.push({ type: SESSION_CHANGES.NOTE_EDITED });
-    if (beforeAccount?.renameSuggestion && !afterAccount?.renameSuggestion)
+    }
+    for (const tag of after.tags) {
+      if (!before.tags.includes(tag)) {
+        changes.push({ type: SESSION_CHANGES.TAG_ADDED, tag });
+      }
+    }
+    for (const tag of before.tags) {
+      if (!after.tags.includes(tag)) {
+        changes.push({ type: SESSION_CHANGES.TAG_REMOVED, tag });
+      }
+    }
+    if (before.notes !== after.notes) {
+      changes.push({ type: SESSION_CHANGES.NOTE_EDITED });
+    }
+    if (beforeAccount?.renameSuggestion && !afterAccount?.renameSuggestion) {
       changes.push({ type: SESSION_CHANGES.RENAME_DISMISSED });
+    }
 
     // Plans are only settled on import, which starts a new session, so a plan that went away was cancelled.
     for (const action of Object.values(ACTION_TYPES)) {
       const was = beforeAccount && planOf(beforeAccount, action);
       const is = afterAccount && planOf(afterAccount, action);
-      if (was === is) continue;
-      if (is === undefined) changes.push({ type: SESSION_CHANGES.ACTION_CANCELLED, action });
-      else if (was === undefined)
+      if (was === is) {
+        continue;
+      }
+      if (is === undefined) {
+        changes.push({ type: SESSION_CHANGES.ACTION_CANCELLED, action });
+      } else if (was === undefined) {
         changes.push({
           type: is === PLAN_STATES.DONE ? SESSION_CHANGES.ACTION_DONE : SESSION_CHANGES.ACTION_MARKED,
           action,
         });
-      else
+      } else {
         changes.push({
           type: is === PLAN_STATES.DONE ? SESSION_CHANGES.ACTION_DONE : SESSION_CHANGES.ACTION_UNDONE,
           action,
         });
+      }
     }
 
-    if (changes.length) result.push({ username: afterAccount?.username ?? beforeAccount?.username ?? key, changes });
+    if (changes.length) {
+      result.push({ username: afterAccount?.username ?? beforeAccount?.username ?? key, changes });
+    }
   }
 
   return result.sort((a, b) => a.username.localeCompare(b.username));
@@ -133,7 +150,11 @@ export interface SessionSummary {
 function tagCounts(accounts: readonly SessionAccountChanges[], type: TagChangeType): TagCount[] {
   const counts = new Map<string, number>();
   for (const { changes } of accounts) {
-    for (const change of changes) if (change.type === type) counts.set(change.tag, (counts.get(change.tag) ?? 0) + 1);
+    for (const change of changes) {
+      if (change.type === type) {
+        counts.set(change.tag, (counts.get(change.tag) ?? 0) + 1);
+      }
+    }
   }
   return [...counts]
     .map(([tag, count]) => ({ tag, count }))

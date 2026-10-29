@@ -1,4 +1,5 @@
 import { Alert } from '@chakra-ui/react';
+
 import { useAppSelector } from '../store/hooks.ts';
 import { selectHasProject } from '../store/selectors.ts';
 
@@ -6,7 +7,9 @@ import { selectHasProject } from '../store/selectors.ts';
 export function StorageWarning({ durable }: { durable: boolean }) {
   const failed = useAppSelector(s => s.master.persistenceFailed) || !durable;
   const hasProject = useAppSelector(selectHasProject);
-  if (!failed || !hasProject) return null;
+  if (!failed || !hasProject) {
+    return null;
+  }
   return (
     <Alert.Root status="warning">
       <Alert.Indicator />

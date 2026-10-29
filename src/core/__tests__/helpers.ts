@@ -5,7 +5,9 @@ export function problemOf(run: () => unknown): ImportProblem {
   try {
     run();
   } catch (error) {
-    if (error instanceof ImportError) return error.problem;
+    if (error instanceof ImportError) {
+      return error.problem;
+    }
     throw error;
   }
   throw new Error('Expected an ImportError');
@@ -31,20 +33,26 @@ export function follows(
 
 export function stateWith(...items: Account[]): Pick<Master, 'accounts'> {
   const accounts = createDict<Account>();
-  for (const item of items) accounts[item.username.toLowerCase()] = item;
+  for (const item of items) {
+    accounts[item.username.toLowerCase()] = item;
+  }
   return { accounts };
 }
 
 /** Non-null assertion for tests that fails with a readable message. */
 export function must<T>(value: T | null | undefined, what = 'value'): T {
-  if (value == null) throw new Error(`Expected ${what} to be present`);
+  if (value == null) {
+    throw new Error(`Expected ${what} to be present`);
+  }
   return value;
 }
 
 export function deepFreeze<T>(value: T): T {
   if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
     Object.freeze(value);
-    for (const child of Object.values(value)) deepFreeze(child);
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
   }
   return value;
 }

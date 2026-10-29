@@ -1,9 +1,11 @@
-import { useLayoutEffect, useRef, useState } from 'react';
 import { Box, Text } from '@chakra-ui/react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useAppSelector } from '../store/hooks.ts';
+import { useLayoutEffect, useRef, useState } from 'react';
+
 import { PLAN_VIEW_ACTIONS, isPlanView } from '../store/filtersSlice.ts';
+import { useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';
+
 import { AccountCard } from './AccountCard.tsx';
 import { TodoRow } from './TodoRow.tsx';
 
@@ -28,12 +30,16 @@ export function AccountList() {
   // so it is measured again whenever the page resizes, not only when the list renders.
   useLayoutEffect(() => {
     const node = listRef.current;
-    if (!node) return;
+    if (!node) {
+      return;
+    }
     const measure = () => {
       setScrollMargin(node.offsetTop);
     };
     measure();
-    if (typeof ResizeObserver === 'undefined') return; // tests (jsdom)
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    } // tests (jsdom)
     const observer = new ResizeObserver(measure);
     observer.observe(document.body);
     return () => {
@@ -50,7 +56,9 @@ export function AccountList() {
     getItemKey: index => keys[index] ?? index,
   });
 
-  if (!hasList) return <Text color="fg.muted">No accounts match the current filters.</Text>;
+  if (!hasList) {
+    return <Text color="fg.muted">No accounts match the current filters.</Text>;
+  }
 
   return (
     <Box ref={listRef} position="relative" height={`${virtualizer.getTotalSize()}px`}>

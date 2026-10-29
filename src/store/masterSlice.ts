@@ -1,4 +1,5 @@
 import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
+
 import {
   accountOf,
   copyAccount,
@@ -20,6 +21,7 @@ import {
   type ReviewScope,
   type TagFilter,
 } from '../core/index.ts';
+
 import {
   IMPORT_STATUSES,
   SAVE_STATUSES,
@@ -107,11 +109,15 @@ function accountBefore(state: MasterState, username: string): ReadonlyAccount | 
 function applyEdit(state: MasterState, key: string, edit: (account: Account) => void): void {
   if (Object.hasOwn(state.changed, key)) {
     const existing = state.changed[key];
-    if (existing) edit(existing);
+    if (existing) {
+      edit(existing);
+    }
     return;
   }
   const source = original(state).base?.accounts[key];
-  if (!source) return;
+  if (!source) {
+    return;
+  }
   const copy = copyAccount(source);
   edit(copy);
   state.changed[key] = copy;
@@ -121,17 +127,25 @@ function applyEdit(state: MasterState, key: string, edit: (account: Account) => 
 function editTagged(state: MasterState, tag: string, edit: (account: Account) => void): void {
   const before = original(state);
   const base = before.base;
-  if (!base) return;
+  if (!base) {
+    return;
+  }
   const targets = Object.keys(base.accounts).filter(key =>
     accountOf<ReadonlyAccount>(base.accounts, before.changed, key)?.review.tags.includes(tag),
   );
-  for (const key of targets) applyEdit(state, key, edit);
-  if (targets.length) state.revision += 1;
+  for (const key of targets) {
+    applyEdit(state, key, edit);
+  }
+  if (targets.length) {
+    state.revision += 1;
+  }
 }
 
 /** Edits one account (callers have already checked that the edit changes something). */
 function editAccount(state: MasterState, username: string, edit: (account: Account) => void): void {
-  if (!accountBefore(state, username)) return;
+  if (!accountBefore(state, username)) {
+    return;
+  }
   applyEdit(state, usernameKey(username), edit);
   state.revision += 1;
 }
@@ -141,29 +155,40 @@ export const masterSlice = createSlice({
   initialState,
   reducers: {
     setReviewed(state, { payload }: PayloadAction<{ username: string; reviewed: boolean }>) {
-      if (accountBefore(state, payload.username)?.review.reviewed === payload.reviewed) return;
+      if (accountBefore(state, payload.username)?.review.reviewed === payload.reviewed) {
+        return;
+      }
       editAccount(state, payload.username, account => {
         account.review.reviewed = payload.reviewed;
       });
     },
     /** Marking unavailable also marks the account reviewed; clearing it does not un-review. */
     setUnavailable(state, { payload }: PayloadAction<{ username: string; unavailable: boolean }>) {
-      if (accountBefore(state, payload.username)?.review.unavailable === payload.unavailable) return;
+      if (accountBefore(state, payload.username)?.review.unavailable === payload.unavailable) {
+        return;
+      }
       editAccount(state, payload.username, account => {
         account.review.unavailable = payload.unavailable;
-        if (payload.unavailable) account.review.reviewed = true;
+        if (payload.unavailable) {
+          account.review.reviewed = true;
+        }
       });
     },
     toggleTag(state, { payload }: PayloadAction<{ username: string; tag: string }>) {
       editAccount(state, payload.username, account => {
         const tags = account.review.tags;
         const index = tags.indexOf(payload.tag);
-        if (index === -1) tags.push(payload.tag);
-        else tags.splice(index, 1);
+        if (index === -1) {
+          tags.push(payload.tag);
+        } else {
+          tags.splice(index, 1);
+        }
       });
     },
     setNote(state, { payload }: PayloadAction<{ username: string; note: string }>) {
-      if (accountBefore(state, payload.username)?.review.notes === payload.note) return;
+      if (accountBefore(state, payload.username)?.review.notes === payload.note) {
+        return;
+      }
       editAccount(state, payload.username, account => {
         account.review.notes = payload.note;
       });
@@ -174,34 +199,49 @@ export const masterSlice = createSlice({
      */
     setPlan(state, { payload }: PayloadAction<PlanPayload>) {
       const before = accountBefore(state, payload.username);
-      if (!before) return;
+      if (!before) {
+        return;
+      }
       const current = planOf(before, payload.type);
       const next = payload.state ?? undefined;
-      if (current === next) return;
-      if (current === undefined && !followExists(before, payload.type)) return; // the UI only offers eligible actions
+      if (current === next) {
+        return;
+      }
+      if (current === undefined && !followExists(before, payload.type)) {
+        return;
+      } // the UI only offers eligible actions
       editAccount(state, payload.username, account => {
         applyPlan(account, payload.type, next);
-        if (current === undefined) account.review.reviewed = true;
+        if (current === undefined) {
+          account.review.reviewed = true;
+        }
       });
     },
     /** Un-reviews the accounts inResetScope picks; everything else on them is kept. */
     resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {
       const before = original(state);
       const base = before.base;
-      if (!base) return;
+      if (!base) {
+        return;
+      }
       const targets = Object.keys(base.accounts).filter(key => {
         const account = accountOf<ReadonlyAccount>(base.accounts, before.changed, key);
         return !!account && inResetScope(account, payload);
       });
-      for (const key of targets)
+      for (const key of targets) {
         applyEdit(state, key, account => {
           account.review.reviewed = false;
         });
-      if (targets.length) state.revision += 1;
+      }
+      if (targets.length) {
+        state.revision += 1;
+      }
     },
     /** Renames a tag on every account that has it. Renaming onto an existing tag merges the two. */
     renameTag(state, { payload }: PayloadAction<{ from: string; to: string }>) {
-      if (payload.from === payload.to) return;
+      if (payload.from === payload.to) {
+        return;
+      }
       editTagged(state, payload.from, account => {
         renameTagOn(account, payload.from, payload.to);
       });
@@ -219,10 +259,14 @@ export const masterSlice = createSlice({
     confirmRename(state, { payload }: PayloadAction<{ from: string }>) {
       const before = original(state);
       const base = before.base;
-      if (!base) return;
+      if (!base) {
+        return;
+      }
       const old = accountOf<ReadonlyAccount>(base.accounts, before.changed, payload.from);
       const to = old?.renameSuggestion?.to;
-      if (!old || to === undefined || !accountOf<ReadonlyAccount>(base.accounts, before.changed, to)) return;
+      if (!old || to === undefined || !accountOf<ReadonlyAccount>(base.accounts, before.changed, to)) {
+        return;
+      }
       applyEdit(state, to, account => {
         mergeRenamed(account, old);
       });
@@ -231,7 +275,9 @@ export const masterSlice = createSlice({
     },
     /** A suggested rename was wrong: the suggestion goes away, like unticking a box. Imports don't suggest it again. */
     dismissRename(state, { payload }: PayloadAction<{ from: string }>) {
-      if (!accountBefore(state, payload.from)?.renameSuggestion) return;
+      if (!accountBefore(state, payload.from)?.renameSuggestion) {
+        return;
+      }
       editAccount(state, payload.from, account => {
         delete account.renameSuggestion;
       });
@@ -239,10 +285,14 @@ export const masterSlice = createSlice({
     /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
     resetChanges(state) {
       const before = original(state);
-      if (!before.base || before.changed === before.savedChanged) return;
+      if (!before.base || before.changed === before.savedChanged) {
+        return;
+      }
       state.changed = before.savedChanged;
       state.revision += 1;
-      if (state.savedRevision !== UNSAVED_IMPORT) state.savedRevision = state.revision;
+      if (state.savedRevision !== UNSAVED_IMPORT) {
+        state.savedRevision = state.revision;
+      }
       state.status = before.savedStatus;
     },
     persistenceFailed(state) {
@@ -256,7 +306,9 @@ export const masterSlice = createSlice({
   extraReducers: builder => {
     builder
       .addCase(restoreTab.fulfilled, (state, { payload }) => {
-        if (!payload || state.base) return; // nothing stored, or the user already imported meanwhile
+        if (!payload || state.base) {
+          return;
+        } // nothing stored, or the user already imported meanwhile
         state.base = payload.base;
         state.changed = payload.changed;
         state.savedChanged = payload.savedChanged;
@@ -265,7 +317,9 @@ export const masterSlice = createSlice({
         state.savedRevision = payload.savedRevision;
       })
       .addCase(restoreTab.rejected, state => {
-        if (!state.base) state.restoreFailed = true; // after an import meanwhile, there's nothing to warn about
+        if (!state.base) {
+          state.restoreFailed = true;
+        } // after an import meanwhile, there's nothing to warn about
       })
       .addCase(importPrepared.pending, state => {
         state.importStatus = IMPORT_STATUSES.IMPORTING;
@@ -306,7 +360,9 @@ export const masterSlice = createSlice({
         state.savedStatus = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: false };
       })
       .addCase(saveMaster.rejected, (state, { error, meta }) => {
-        if (meta.condition) return; // skipped: a save was already running, or nothing is loaded
+        if (meta.condition) {
+          return;
+        } // skipped: a save was already running, or nothing is loaded
         state.saveStatus = SAVE_STATUSES.IDLE;
         state.status = { type: STATUS_EVENTS.SAVE_FAILED, reason: error.message ?? null };
       });

@@ -1,5 +1,6 @@
-import { memo } from 'react';
 import { Badge, Box, Button, HStack, Stack, Text } from '@chakra-ui/react';
+import { memo } from 'react';
+
 import {
   ACTION_TYPES,
   PLAN_STATES,
@@ -12,6 +13,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { setPlan } from '../store/masterSlice.ts';
 import { selectAccount } from '../store/selectors.ts';
+
 import { formatSince } from './dates.ts';
 import { RELATIONSHIP_LABELS } from './labels.ts';
 import { ProfileLink } from './ProfileLink.tsx';
@@ -24,7 +26,9 @@ import { ProfileLink } from './ProfileLink.tsx';
 export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey: string; type: ActionType }) {
   const dispatch = useAppDispatch();
   const account = useAppSelector(s => selectAccount(s, accountKey));
-  if (!account) return null;
+  if (!account) {
+    return null;
+  }
 
   const { username } = account;
   const plan = planOf(account, type);

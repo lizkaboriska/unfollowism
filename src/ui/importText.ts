@@ -1,4 +1,5 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '../io/analyzeImport.ts';
+
 import { formatDateTime } from './dates.ts';
 import { plural } from './statusText.ts';
 
@@ -29,9 +30,12 @@ export function missingText({ hasFollowing, followerFileCount }: RecognizedFiles
       'or the following.json and followers_*.json files from it.'
     );
   }
-  if (!hasFollowing) return 'following.json is missing. Add it with Choose files or drop it here.';
-  if (!followerFileCount)
+  if (!hasFollowing) {
+    return 'following.json is missing. Add it with Choose files or drop it here.';
+  }
+  if (!followerFileCount) {
     return 'followers_1.json (and any followers_2.json, …) is missing. Add them with Choose files or drop them here.';
+  }
   return null;
 }
 

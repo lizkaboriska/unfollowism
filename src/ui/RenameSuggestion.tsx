@@ -1,8 +1,10 @@
 import { Box, Button, HStack, Text } from '@chakra-ui/react';
+
 import { LIST_VIEWS } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { confirmRename, dismissRename } from '../store/masterSlice.ts';
 import { selectAccount } from '../store/selectors.ts';
+
 import { ProfileLink } from './ProfileLink.tsx';
 
 /**
@@ -15,7 +17,9 @@ export function RenameSuggestion({ accountKey }: { accountKey: string }) {
     s.filters.view === LIST_VIEWS.LOST_FOLLOWERS ? selectAccount(s, accountKey)?.renameSuggestion : undefined,
   );
   const newName = useAppSelector(s => (suggestion ? selectAccount(s, suggestion.to)?.username : undefined));
-  if (!suggestion || newName === undefined) return null;
+  if (!suggestion || newName === undefined) {
+    return null;
+  }
 
   return (
     <Box borderWidth="1px" borderColor="pink.200" bg="pink.50" borderRadius="md" p="2">

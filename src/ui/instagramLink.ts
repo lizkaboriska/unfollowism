@@ -16,9 +16,13 @@ function popupFeatures(screen: Screen): string {
  * a plain click when popups are blocked, since the link itself has target="_blank".
  */
 export function openProfilePopup(event: MouseEvent<HTMLAnchorElement>): void {
-  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
   const popup = window.open(event.currentTarget.href, POPUP_NAME, popupFeatures(window.screen));
-  if (!popup) return;
+  if (!popup) {
+    return;
+  }
   event.preventDefault();
   try {
     popup.focus();

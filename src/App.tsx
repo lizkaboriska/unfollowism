@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Box, Stack, Text } from '@chakra-ui/react';
+import { useEffect, useState } from 'react';
+
 import type { StoreDeps } from './store/deps.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { selectHasProject } from './store/selectors.ts';

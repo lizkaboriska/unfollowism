@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -12,6 +13,7 @@ import {
   type TagFilter,
   type ValueOf,
 } from '../core/index.ts';
+
 import { renameTag, resetScope } from './masterSlice.ts';
 
 /** Which list the main view shows: the review queue, a change since the last save, or a list of planned actions. */
@@ -96,8 +98,9 @@ export const filtersSlice = createSlice({
       })
       // The filter follows a renamed tag. A tag that no longer exists is handled by tagFilterCleanup.ts.
       .addCase(renameTag, (state, { payload }) => {
-        if (state.tag.kind === TAG_FILTER_KINDS.TAG && state.tag.tag === payload.from)
+        if (state.tag.kind === TAG_FILTER_KINDS.TAG && state.tag.tag === payload.from) {
           state.tag = { kind: TAG_FILTER_KINDS.TAG, tag: payload.to };
+        }
       });
   },
 });

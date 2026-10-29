@@ -1,9 +1,11 @@
 import { Text } from '@chakra-ui/react';
+
 import { PLAN_STATES } from '../core/index.ts';
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView } from '../store/filtersSlice.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';
 import { selectChangesSince, selectPlanStats, selectScopeStats } from '../store/selectors.ts';
+
 import { formatDate } from './dates.ts';
 import { CHANGE_SUMMARY_PHRASES, PLAN_LABELS, scopeDescription } from './labels.ts';
 import { plural } from './statusText.ts';

@@ -1,5 +1,6 @@
-import { useState } from 'react';
 import { Box, Button, CloseButton, Drawer, HStack, Portal, SimpleGrid, Stack, Text } from '@chakra-ui/react';
+import { useState } from 'react';
+
 import {
   SESSION_CATEGORIES,
   SESSION_CHANGE_CATEGORY,
@@ -10,6 +11,7 @@ import {
 } from '../core/index.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectUnsavedDiff, selectUnsavedSummary } from '../store/selectors.ts';
+
 import { ProfileLink } from './ProfileLink.tsx';
 import { ResetButton, SaveButton } from './saveAndReset.tsx';
 import { CATEGORY_LABELS, changeLine } from './sessionText.ts';
@@ -52,10 +54,14 @@ function UnsavedChanges() {
   const [category, setCategory] = useState<SessionCategory | null>(null);
   const [tagFocus, setTagFocus] = useState<TagFocus | null>(null);
 
-  if (!diff.length) return <Text color="fg.muted">No edits since your last save.</Text>;
+  if (!diff.length) {
+    return <Text color="fg.muted">No edits since your last save.</Text>;
+  }
 
   const matches = (change: SessionChange) => {
-    if (tagFocus) return change.type === tagFocus.type && change.tag === tagFocus.tag;
+    if (tagFocus) {
+      return change.type === tagFocus.type && change.tag === tagFocus.tag;
+    }
     return category === null || SESSION_CHANGE_CATEGORY[change.type] === category;
   };
   const visible = diff
@@ -163,7 +169,9 @@ export function UnsavedDrawer({ open, onClose }: { open: boolean; onClose: () =>
     <Drawer.Root
       open={open}
       onOpenChange={e => {
-        if (!e.open) onClose();
+        if (!e.open) {
+          onClose();
+        }
       }}
       placement="end"
       size={{ base: 'full', md: 'md' }}

@@ -1,5 +1,7 @@
 import { Link } from '@chakra-ui/react';
+
 import { profileUrl } from '../core/index.ts';
+
 import { openProfilePopup } from './instagramLink.ts';
 
 /** "@name ↗": opens the Instagram profile in the side popup (see openProfilePopup). */

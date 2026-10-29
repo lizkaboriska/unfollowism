@@ -1,10 +1,12 @@
-import { useState } from 'react';
 import { Button, CloseButton, Dialog, HStack, Input, Portal, Stack, Text } from '@chakra-ui/react';
+import { useState } from 'react';
+
 import { findTag } from '../core/index.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { deleteTag, renameTag } from '../store/masterSlice.ts';
 import { selectTagCounts, selectTags } from '../store/selectors.ts';
-import { useConfirm } from './dialogs.tsx';
+
+import { useConfirm } from './dialogHooks.ts';
 import { plural } from './statusText.ts';
 
 interface Editing {
@@ -22,7 +24,9 @@ function TagLines() {
   const counts = useAppSelector(selectTagCounts);
   const [editing, setEditing] = useState<Editing | null>(null);
 
-  if (!tags.length) return <Text color="fg.muted">No tags yet. Use + tag on any card to create one.</Text>;
+  if (!tags.length) {
+    return <Text color="fg.muted">No tags yet. Use + tag on any card to create one.</Text>;
+  }
 
   const count = (tag: string) => counts[tag] ?? 0;
 
@@ -44,7 +48,9 @@ function TagLines() {
           `${plural(count(tag), 'account')} will have ${existing} instead.`,
         confirmLabel: 'Merge',
       });
-      if (!merge) return;
+      if (!merge) {
+        return;
+      }
     }
     dispatch(renameTag({ from: tag, to: existing ?? name }));
     setEditing(null);
@@ -57,7 +63,9 @@ function TagLines() {
       confirmLabel: 'Delete',
       destructive: true,
     });
-    if (confirmed) dispatch(deleteTag({ tag }));
+    if (confirmed) {
+      dispatch(deleteTag({ tag }));
+    }
   }
 
   return (
@@ -85,7 +93,9 @@ function TagLines() {
                     setEditing({ tag, draft: e.currentTarget.value, error: null });
                   }}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') void save(editing);
+                    if (e.key === 'Enter') {
+                      void save(editing);
+                    }
                   }}
                 />
                 <Button size="sm" colorPalette="pink" onClick={() => void save(editing)}>
@@ -145,7 +155,9 @@ export function ManageTagsDialog({ open, onClose }: { open: boolean; onClose: ()
     <Dialog.Root
       open={open}
       onOpenChange={e => {
-        if (!e.open) onClose();
+        if (!e.open) {
+          onClose();
+        }
       }}
       placement="center"
       lazyMount

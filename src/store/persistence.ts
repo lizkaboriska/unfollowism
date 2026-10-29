@@ -1,4 +1,5 @@
 import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
+
 import {
   createDict,
   toAccountRecord,
@@ -9,10 +10,11 @@ import {
   type Master,
 } from '../core/index.ts';
 import type { TabMeta } from '../io/tabStore.ts';
+
 import type { StoreDeps } from './deps.ts';
+import type { AppDispatch, RootState } from './index.ts';
 import { persistenceFailed, persistenceRecovered, type MasterState } from './masterSlice.ts';
 import { restoreTab } from './thunks.ts';
-import type { AppDispatch, RootState } from './index.ts';
 
 type Accounts = DeepReadonly<ChangedAccounts>;
 
@@ -38,16 +40,22 @@ function newlyChanged(
   savedAt: string | undefined,
 ): Record<string, AccountRecord | null> {
   const records = createDict<AccountRecord | null>();
-  if (stored === current) return records;
+  if (stored === current) {
+    return records;
+  }
   for (const [key, account] of Object.entries(current)) {
-    if (stored?.[key] !== account) records[key] = account && toAccountRecord(account, savedAt);
+    if (stored?.[key] !== account) {
+      records[key] = account && toAccountRecord(account, savedAt);
+    }
   }
   return records;
 }
 
 /** Accounts stored as changed that no longer are (after Reset changes). */
 function noLongerChanged(stored: Accounts | null, current: Accounts): string[] {
-  if (!stored || stored === current) return [];
+  if (!stored || stored === current) {
+    return [];
+  }
   return Object.keys(stored).filter(key => !Object.hasOwn(current, key));
 }
 
@@ -85,7 +93,9 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
   }): Promise<boolean> {
     const state = api.getState().master;
     const { base, changed, savedChanged } = state;
-    if (!base) return true;
+    if (!base) {
+      return true;
+    }
     const meta = toMeta(state, api.extra.now().toISOString());
     try {
       if (base !== storedBase) {
@@ -103,7 +113,9 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       storedBase = base;
       storedChanged = changed;
       storedSaved = savedChanged;
-      if (api.getState().master.persistenceFailed) api.dispatch(persistenceRecovered());
+      if (api.getState().master.persistenceFailed) {
+        api.dispatch(persistenceRecovered());
+      }
       return true;
     } catch (error) {
       console.error("Writing the tab's backup to browser storage failed:", error);
@@ -112,7 +124,9 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       storedBase = null;
       storedChanged = null;
       storedSaved = null;
-      if (!api.getState().master.persistenceFailed) api.dispatch(persistenceFailed());
+      if (!api.getState().master.persistenceFailed) {
+        api.dispatch(persistenceFailed());
+      }
       return false;
     }
   }
@@ -126,7 +140,9 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
         current.master.savedRevision !== previous.master.savedRevision),
     effect: async (_action, api) => {
       changes += 1;
-      if (writing) return; // the running loop below will pick this change up
+      if (writing) {
+        return;
+      } // the running loop below will pick this change up
       writing = true;
       try {
         let written = 0;
@@ -138,7 +154,9 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
             continue;
           }
           const delay = RETRY_DELAYS_MS[failures];
-          if (delay === undefined) break; // given up: the next change tries again
+          if (delay === undefined) {
+            break;
+          } // given up: the next change tries again
           failures += 1;
           await api.delay(delay);
           written = 0; // retry, including anything that changed meanwhile

@@ -32,6 +32,7 @@ import {
   type FieldType,
   type Master,
 } from '../index.ts';
+
 import { deepFreeze, followersFile, followingFile, must, problemOf } from './helpers.ts';
 
 const T1 = '2026-10-01T10:00:00.000Z';
@@ -216,8 +217,9 @@ describe('master file', () => {
   test('usernames that collide with Object.prototype members are ordinary accounts', () => {
     const raw = saved();
     const accounts = JSON.parse('{}') as Record<string, unknown>;
-    for (const name of ['constructor', '__proto__', 'toString'])
+    for (const name of ['constructor', '__proto__', 'toString']) {
       Object.defineProperty(accounts, name, { value: { username: name }, enumerable: true });
+    }
     const parsed = parseMaster({ ...raw, accounts });
     expect(Object.keys(parsed.accounts).sort()).toEqual(['__proto__', 'constructor', 'tostring']);
     const key: string = 'constructor';

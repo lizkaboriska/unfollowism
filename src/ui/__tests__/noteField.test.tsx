@@ -1,11 +1,12 @@
+import { ChakraProvider } from '@chakra-ui/react';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ChakraProvider } from '@chakra-ui/react';
 import { Provider } from 'react-redux';
+
+import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
 import { resetChanges } from '../../store/masterSlice.ts';
 import { selectAccount } from '../../store/selectors.ts';
 import { importPrepared } from '../../store/thunks.ts';
-import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
 import { system } from '../../theme.ts';
 import { AccountCard } from '../AccountCard.tsx';
 

@@ -16,7 +16,9 @@ export interface FoundRename {
 
 /** The follow dates that identify an account across a rename; null when a date is unknown (no match then). */
 function signature(following: number | null | undefined, followedBy: number | null | undefined): string | null {
-  if (following === null || followedBy === null || followedBy === undefined) return null;
+  if (following === null || followedBy === null || followedBy === undefined) {
+    return null;
+  }
   return `${following ?? '-'}:${followedBy}`;
 }
 
@@ -24,10 +26,16 @@ function signature(following: number | null | undefined, followedBy: number | nu
 function unique(entries: readonly (readonly [key: string, signature: string | null])[]): Map<string, string> {
   const bySignature = new Map<string, string | null>(); // null = seen more than once
   for (const [key, sig] of entries) {
-    if (sig !== null) bySignature.set(sig, bySignature.has(sig) ? null : key);
+    if (sig !== null) {
+      bySignature.set(sig, bySignature.has(sig) ? null : key);
+    }
   }
   const result = new Map<string, string>();
-  for (const [sig, key] of bySignature) if (key !== null) result.set(sig, key);
+  for (const [sig, key] of bySignature) {
+    if (key !== null) {
+      result.set(sig, key);
+    }
+  }
   return result;
 }
 
@@ -57,7 +65,9 @@ export function findRenames(
   for (const [sig, from] of gone) {
     const to = appeared.get(sig);
     const old = accounts[from];
-    if (to === undefined || !old) continue;
+    if (to === undefined || !old) {
+      continue;
+    }
     found.push({
       from,
       suggestion: { to, plans: Object.values(ACTION_TYPES).filter(type => planOf(old, type) !== undefined) },
@@ -73,9 +83,13 @@ export function findRenames(
 export function settleRenameSuggestions(accounts: Record<string, Account>): void {
   for (const account of Object.values(accounts)) {
     const suggestion = account.renameSuggestion;
-    if (!suggestion) continue;
+    if (!suggestion) {
+      continue;
+    }
     const target = accounts[suggestion.to];
-    if (account.following || account.followedBy || !target?.followedBy) delete account.renameSuggestion;
+    if (account.following || account.followedBy || !target?.followedBy) {
+      delete account.renameSuggestion;
+    }
   }
 }
 
@@ -90,10 +104,16 @@ const NOTE_SEPARATOR = ' · ';
  */
 export function mergeRenamed(target: Account, old: ReadonlyAccount): void {
   const review = target.review;
-  for (const tag of old.review.tags) if (!review.tags.includes(tag)) review.tags.push(tag);
+  for (const tag of old.review.tags) {
+    if (!review.tags.includes(tag)) {
+      review.tags.push(tag);
+    }
+  }
   review.notes = [review.notes, old.review.notes].filter(Boolean).join(NOTE_SEPARATOR);
   review.reviewed ||= old.review.reviewed;
   for (const type of old.renameSuggestion?.plans ?? []) {
-    if (planOf(target, type) === undefined && followExists(target, type)) setPlan(target, type, PLAN_STATES.PLANNED);
+    if (planOf(target, type) === undefined && followExists(target, type)) {
+      setPlan(target, type, PLAN_STATES.PLANNED);
+    }
   }
 }

@@ -40,11 +40,15 @@ async function readZip(file: File, path: string): Promise<InputText[]> {
   try {
     const result: InputText[] = [];
     for (const entry of await zip.getEntries()) {
-      if (entry.directory || entry.filename.startsWith('__MACOSX/')) continue;
+      if (entry.directory || entry.filename.startsWith('__MACOSX/')) {
+        continue;
+      }
       const entryPath = `${path}/${entry.filename}`;
-      if (HTML_FILE.test(entry.filename)) result.push({ path: entryPath, text: '' });
-      else if (JSON_FILE.test(entry.filename))
+      if (HTML_FILE.test(entry.filename)) {
+        result.push({ path: entryPath, text: '' });
+      } else if (JSON_FILE.test(entry.filename)) {
         result.push({ path: entryPath, text: await entry.getData(new TextWriter()) });
+      }
     }
     return result;
   } finally {

@@ -21,9 +21,15 @@ import { usernameKey } from './util.ts';
 const ALL_TAGS: TagFilter = { kind: TAG_FILTER_KINDS.ALL };
 
 export function relationshipOf(account: ReadonlyAccount): Relationship {
-  if (account.following && account.followedBy) return RELATIONSHIPS.MUTUAL;
-  if (account.following) return RELATIONSHIPS.NOT_FOLLOWING_BACK;
-  if (account.followedBy) return RELATIONSHIPS.FOLLOWS_YOU_ONLY;
+  if (account.following && account.followedBy) {
+    return RELATIONSHIPS.MUTUAL;
+  }
+  if (account.following) {
+    return RELATIONSHIPS.NOT_FOLLOWING_BACK;
+  }
+  if (account.followedBy) {
+    return RELATIONSHIPS.FOLLOWS_YOU_ONLY;
+  }
   return RELATIONSHIPS.NEITHER;
 }
 
@@ -39,14 +45,30 @@ export function setFollows(
   seenAt: string,
   datesNew: boolean,
 ): void {
-  if (datesNew && !account.following && following) account.followedSeenAt = seenAt;
-  if (!following) delete account.followedSeenAt;
-  if (account.following && !following) account.unfollowedSeenAt = seenAt;
-  if (following) delete account.unfollowedSeenAt;
-  if (datesNew && !account.followedBy && followedBy) account.followedMeSeenAt = seenAt;
-  if (!followedBy) delete account.followedMeSeenAt;
-  if (account.followedBy && !followedBy) account.unfollowedMeSeenAt = seenAt;
-  if (followedBy) delete account.unfollowedMeSeenAt;
+  if (datesNew && !account.following && following) {
+    account.followedSeenAt = seenAt;
+  }
+  if (!following) {
+    delete account.followedSeenAt;
+  }
+  if (account.following && !following) {
+    account.unfollowedSeenAt = seenAt;
+  }
+  if (following) {
+    delete account.unfollowedSeenAt;
+  }
+  if (datesNew && !account.followedBy && followedBy) {
+    account.followedMeSeenAt = seenAt;
+  }
+  if (!followedBy) {
+    delete account.followedMeSeenAt;
+  }
+  if (account.followedBy && !followedBy) {
+    account.unfollowedMeSeenAt = seenAt;
+  }
+  if (followedBy) {
+    delete account.unfollowedMeSeenAt;
+  }
   account.following = following ? { since: following.since } : null;
   account.followedBy = followedBy ? { since: followedBy.since } : null;
 }
@@ -92,8 +114,11 @@ export function followChangeCounts(
     [FOLLOW_CHANGES.LOST_FOLLOWERS]: 0,
   };
   for (const account of Object.values(source.accounts)) {
-    for (const change of Object.values(FOLLOW_CHANGES))
-      if (followChangeMatches(account, change, since)) counts[change] += 1;
+    for (const change of Object.values(FOLLOW_CHANGES)) {
+      if (followChangeMatches(account, change, since)) {
+        counts[change] += 1;
+      }
+    }
   }
   return counts;
 }
@@ -195,9 +220,15 @@ export function relationshipStats(source: DeepReadonly<Pick<Master, 'accounts'>>
     currentAccounts: 0,
   };
   for (const account of Object.values(source.accounts)) {
-    if (account.following) stats.following += 1;
-    if (account.followedBy) stats.followers += 1;
-    if (account.following || account.followedBy) stats.currentAccounts += 1;
+    if (account.following) {
+      stats.following += 1;
+    }
+    if (account.followedBy) {
+      stats.followers += 1;
+    }
+    if (account.following || account.followedBy) {
+      stats.currentAccounts += 1;
+    }
     switch (relationshipOf(account)) {
       case RELATIONSHIPS.MUTUAL:
         stats.mutual += 1;

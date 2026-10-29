@@ -94,7 +94,9 @@ function migrateFromV3(database: IDBDatabase, upgrade: IDBTransaction): void {
   const request = upgrade.objectStore(TABS).openCursor();
   request.onsuccess = () => {
     const cursor = request.result;
-    if (!cursor) return;
+    if (!cursor) {
+      return;
+    }
     const row = cursor.value as { base: unknown; meta: TabMeta };
     metas.put(row.meta, cursor.key);
     cursor.update(row.base);
@@ -122,8 +124,12 @@ export function openIndexedDbTabDatabase(
           migrateFromV3(database, open.transaction);
           return;
         }
-        for (const name of [...database.objectStoreNames]) database.deleteObjectStore(name);
-        for (const name of [TABS, META, ...ACCOUNT_STORES]) database.createObjectStore(name);
+        for (const name of [...database.objectStoreNames]) {
+          database.deleteObjectStore(name);
+        }
+        for (const name of [TABS, META, ...ACCOUNT_STORES]) {
+          database.createObjectStore(name);
+        }
       };
       open.onsuccess = () => {
         // Let a newer version of the app upgrade the database instead of being blocked by this tab.
@@ -156,7 +162,9 @@ export function openIndexedDbTabDatabase(
   }
 
   function putAccounts(store: IDBObjectStore, tabId: string, records: Record<string, unknown>): void {
-    for (const [key, record] of Object.entries(records)) store.put(record, [tabId, key]);
+    for (const [key, record] of Object.entries(records)) {
+      store.put(record, [tabId, key]);
+    }
   }
 
   function forTab(tabId: string): TabStore {
@@ -170,13 +178,17 @@ export function openIndexedDbTabDatabase(
           loadAccounts(tx.objectStore(ACCOUNTS), tabId),
           loadAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId),
         ]);
-        if (base === undefined || !meta) return null;
+        if (base === undefined || !meta) {
+          return null;
+        }
         return { base, meta, changed, saved };
       },
 
       async replace(base, meta, writes) {
         const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
-        for (const name of ACCOUNT_STORES) tx.objectStore(name).delete(tabRange(tabId));
+        for (const name of ACCOUNT_STORES) {
+          tx.objectStore(name).delete(tabRange(tabId));
+        }
         tx.objectStore(TABS).put(base, tabId);
         tx.objectStore(META).put(meta, tabId);
         putAccounts(tx.objectStore(ACCOUNTS), tabId, writes.changed);
@@ -194,7 +206,9 @@ export function openIndexedDbTabDatabase(
         }
         metas.put(meta, tabId);
         const accounts = tx.objectStore(ACCOUNTS);
-        for (const key of writes.removed) accounts.delete([tabId, key]);
+        for (const key of writes.removed) {
+          accounts.delete([tabId, key]);
+        }
         putAccounts(accounts, tabId, writes.changed);
         putAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId, writes.saved);
         await committed(tx);
@@ -233,7 +247,9 @@ export function openIndexedDbTabDatabase(
       const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
       tx.objectStore(TABS).delete(tabId);
       tx.objectStore(META).delete(tabId);
-      for (const name of ACCOUNT_STORES) tx.objectStore(name).delete(tabRange(tabId));
+      for (const name of ACCOUNT_STORES) {
+        tx.objectStore(name).delete(tabRange(tabId));
+      }
       await committed(tx);
     },
   };
@@ -248,12 +264,16 @@ interface MemoryTab {
 
 function cloneRecords(records: Map<string, unknown>): Record<string, unknown> {
   const out = Object.create(null) as Record<string, unknown>;
-  for (const [key, record] of records) out[key] = structuredClone(record);
+  for (const [key, record] of records) {
+    out[key] = structuredClone(record);
+  }
   return out;
 }
 
 function putRecords(target: Map<string, unknown>, records: Record<string, unknown>): void {
-  for (const [key, record] of Object.entries(records)) target.set(key, structuredClone(record));
+  for (const [key, record] of Object.entries(records)) {
+    target.set(key, structuredClone(record));
+  }
 }
 
 /** In-memory version: tests, and browsers without IndexedDB (work then survives only while the tab is open). */
@@ -266,7 +286,9 @@ export function createMemoryTabDatabase(): TabDatabase {
         durable: false,
         load() {
           const tab = tabs.get(tabId);
-          if (!tab) return Promise.resolve(null);
+          if (!tab) {
+            return Promise.resolve(null);
+          }
           return Promise.resolve({
             base: structuredClone(tab.base),
             meta: structuredClone(tab.meta),
@@ -288,9 +310,13 @@ export function createMemoryTabDatabase(): TabDatabase {
         },
         update(meta, writes) {
           const tab = tabs.get(tabId);
-          if (!tab) return Promise.reject(new Error('Nothing stored for this tab yet'));
+          if (!tab) {
+            return Promise.reject(new Error('Nothing stored for this tab yet'));
+          }
           tab.meta = structuredClone(meta);
-          for (const key of writes.removed) tab.changed.delete(key);
+          for (const key of writes.removed) {
+            tab.changed.delete(key);
+          }
           putRecords(tab.changed, writes.changed);
           putRecords(tab.saved, writes.saved);
           return Promise.resolve();
@@ -300,13 +326,14 @@ export function createMemoryTabDatabase(): TabDatabase {
     tabIds: () => Promise.resolve([...tabs.keys()]),
     copyTab(from, to) {
       const tab = tabs.get(from);
-      if (tab)
+      if (tab) {
         tabs.set(to, {
           base: structuredClone(tab.base),
           meta: structuredClone(tab.meta),
           changed: new Map(tab.changed),
           saved: new Map(tab.saved),
         });
+      }
       return Promise.resolve();
     },
     deleteTab(tabId) {
