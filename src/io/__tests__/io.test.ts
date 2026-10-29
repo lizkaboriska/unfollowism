@@ -1,5 +1,5 @@
 import { IDBDatabase, IDBFactory, IDBKeyRange } from "fake-indexeddb";
-import { strToU8, zipSync } from "fflate";
+import { TextReader, Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from "@zip.js/zip.js";
 import { IMPORT_PROBLEMS, type MasterFile } from "../../core/index.ts";
 import { followersFile, followingFile, must, problemOf } from "../../core/__tests__/helpers.ts";
 import { IMPORT_WARNINGS, analyzeImport } from "../analyzeImport.ts";
@@ -15,14 +15,23 @@ const followers2 = JSON.stringify(followersFile(["carol"]));
 const followers10 = JSON.stringify(followersFile(["zed"]));
 const DIR = "instagram-me-2026/connections/followers_and_following";
 
+/** Bytes rather than a Blob: zip.js builds Blobs with Node's Response, and jsdom's File doesn't accept those. */
+async function zipOf(entries: Record<string, string | Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
+  const writer = new ZipWriter(new Uint8ArrayWriter(), { useWebWorkers: false });
+  for (const [name, content] of Object.entries(entries)) {
+    await writer.add(name, typeof content === "string" ? new TextReader(content) : new Uint8ArrayReader(content));
+  }
+  return writer.close();
+}
+
 describe("readInputs", () => {
-  test("expands an Instagram zip, skipping media and macOS metadata without decompressing them", async () => {
-    const zip = zipSync({
-      [`${DIR}/following.json`]: strToU8(following),
-      [`${DIR}/followers_1.json`]: strToU8(followers1),
+  test("expands an Instagram zip: JSON is read, HTML only by name, media and macOS metadata skipped", async () => {
+    const zip = await zipOf({
+      [`${DIR}/following.json`]: following,
+      [`${DIR}/followers_1.json`]: followers1,
       "instagram-me-2026/media/posts/photo.jpg": new Uint8Array([1, 2, 3]),
-      "__MACOSX/._following.json": strToU8("junk"),
-      "instagram-me-2026/start_here.html": strToU8("<html></html>"),
+      "__MACOSX/._following.json": "junk",
+      "instagram-me-2026/start_here.html": "<html></html>",
     });
     const inputs = await readInputs([new File([zip], "instagram-me-2026.zip")]);
     expect(inputs.map(i => i.path).sort()).toEqual([
@@ -31,6 +40,7 @@ describe("readInputs", () => {
       "instagram-me-2026.zip/instagram-me-2026/start_here.html",
     ]);
     expect(inputs.find(i => i.path.endsWith("following.json"))?.text).toBe(following);
+    expect(inputs.find(i => i.path.endsWith(".html"))?.text).toBe("");
   });
 
   test("reads loose JSON files and ignores unrelated file types", async () => {

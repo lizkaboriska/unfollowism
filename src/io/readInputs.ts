@@ -1,12 +1,16 @@
-import { unzipSync } from "fflate";
+import { BlobReader, TextWriter, ZipReader } from "@zip.js/zip.js";
 
-/** A text file from the user's selection, with its path inside a zip or folder when known. */
+/**
+ * A text file from the user's selection, with its path inside a zip or folder when known.
+ * `text` is empty for an HTML file inside a zip: HTML is only recognized by its name (see analyzeImport).
+ */
 export interface InputText {
   path: string;
   text: string;
 }
 
-const RELEVANT = /\.(json|html?)$/i;
+const JSON_FILE = /\.json$/i;
+const HTML_FILE = /\.html?$/i;
 
 function displayPath(file: File): string {
   // Folder pickers expose the relative path; plain file pickers only the name.
@@ -24,9 +28,26 @@ function readArrayBuffer(file: Blob): Promise<ArrayBuffer> {
 }
 
 /**
- * Expands the user's selection (zip archives, folders, loose files) into the JSON/HTML
- * text files it contains. Media inside a zip is skipped without being decompressed.
+ * Reads the zip's list of files, then only the JSON entries: media in a multi-GB export is never
+ * read, and HTML entries are listed by name without being decompressed.
  */
+async function readZip(file: File, path: string): Promise<InputText[]> {
+  const zip = new ZipReader(new BlobReader(file), { useWebWorkers: false });
+  try {
+    const result: InputText[] = [];
+    for (const entry of await zip.getEntries()) {
+      if (entry.directory || entry.filename.startsWith("__MACOSX/")) continue;
+      const entryPath = `${path}/${entry.filename}`;
+      if (HTML_FILE.test(entry.filename)) result.push({ path: entryPath, text: "" });
+      else if (JSON_FILE.test(entry.filename)) result.push({ path: entryPath, text: await entry.getData(new TextWriter()) });
+    }
+    return result;
+  } finally {
+    await zip.close();
+  }
+}
+
+/** Expands the user's selection (zip archives, folders, loose files) into the JSON/HTML text files it contains. */
 export async function readInputs(files: readonly File[]): Promise<InputText[]> {
   const decoder = new TextDecoder();
   const result: InputText[] = [];
@@ -34,13 +55,8 @@ export async function readInputs(files: readonly File[]): Promise<InputText[]> {
   for (const file of files) {
     const path = displayPath(file);
     if (/\.zip$/i.test(file.name)) {
-      const entries = unzipSync(new Uint8Array(await readArrayBuffer(file)), {
-        filter: entry => RELEVANT.test(entry.name) && !entry.name.startsWith("__MACOSX/"),
-      });
-      for (const [name, data] of Object.entries(entries)) {
-        result.push({ path: `${path}/${name}`, text: decoder.decode(data) });
-      }
-    } else if (RELEVANT.test(file.name)) {
+      result.push(...await readZip(file, path));
+    } else if (JSON_FILE.test(file.name) || HTML_FILE.test(file.name)) {
       result.push({ path, text: decoder.decode(await readArrayBuffer(file)) });
     }
   }

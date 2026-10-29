@@ -19,7 +19,7 @@
     "@reduxjs/toolkit": "2.13.0",
     "@tanstack/react-virtual": "3.14.18",
     "@tanstack/virtual-core": "3.19.3",
-    "fflate": "0.8.3",
+    "@zip.js/zip.js": "2.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-redux": "9.3.0",
