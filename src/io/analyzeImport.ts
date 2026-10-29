@@ -15,10 +15,8 @@ export type ImportWarning =
 /** Everything needed to run importExport(), produced before anything touches the store. */
 export interface PreparedImport {
   rawMaster: unknown;
-  masterPath: string | null;
   bundle: ExportBundle;
   warnings: ImportWarning[];
-  ignoredCount: number;
 }
 
 /** What the selection contains, for the import screen; shown even when something is missing. */
@@ -67,12 +65,10 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
   const followers: { path: string; data: unknown }[] = [];
   const masters: { path: string; data: Record<string, unknown> }[] = [];
   let htmlCount = 0;
-  let ignoredCount = 0;
 
   for (const input of inputs) {
     if (/\.html?$/i.test(input.path)) {
       if (/following|followers_\d+/i.test(baseName(input.path))) htmlCount += 1;
-      else ignoredCount += 1;
       continue;
     }
     const data = parseJson(input.text);
@@ -84,8 +80,6 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
       followers.push({ path: input.path, data });
     } else if (isRecord(data) && isRecord(data.accounts)) {
       masters.push({ path: input.path, data });
-    } else {
-      ignoredCount += 1;
     }
   }
 
@@ -121,14 +115,12 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
 
   const prepared: PreparedImport = {
     rawMaster: master?.data ?? null,
-    masterPath: master?.path ?? null,
     bundle: {
       following: parseFollowingJson(following.data),
       followers: followers.flatMap(f => parseFollowersJson(f.data)),
       followerFileCount: followers.length,
     },
     warnings,
-    ignoredCount,
   };
   return { recognized, prepared };
 }

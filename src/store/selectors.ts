@@ -36,24 +36,22 @@ import { UNSAVED_IMPORT } from "./masterSlice.ts";
 import type { RootState } from "./index.ts";
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
-type RAccount = ReadonlyAccount;
-type RAccounts = ReadonlyAccounts;
 /** Edited accounts; null = removed (see ChangedAccounts). */
 type RChanged = DeepReadonly<ChangedAccounts>;
 
 // Per-edit work below only looks at the edited accounts (`changed`); anything that needs
 // all accounts is computed once per import from `base`, which edits never touch.
 
-const EMPTY_ACCOUNTS: RAccounts = Object.freeze(createDict<Account>());
+const EMPTY_ACCOUNTS: ReadonlyAccounts = Object.freeze(createDict<Account>());
 const EMPTY_KEYS: readonly string[] = Object.freeze([]);
 
 export const selectChanged = (s: RootState): RChanged => s.master.changed;
 const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;
 export const selectHasProject = (s: RootState): boolean => s.master.base !== null;
-export const selectAccount = (s: RootState, key: string): RAccount | undefined =>
-  s.master.base ? accountOf<RAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
+export const selectAccount = (s: RootState, key: string): ReadonlyAccount | undefined =>
+  s.master.base ? accountOf<ReadonlyAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectFilters = (s: RootState) => s.filters;
-const selectBaseAccounts = (s: RootState): RAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
+const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
 /** All account keys sorted by username. Once per import: edits never change usernames. */
 export const selectSortedKeys = createSelector([selectBaseAccounts], (accounts): readonly string[] =>
@@ -76,7 +74,7 @@ export const selectScopeStats = createSelector(
   [selectBaseScopeStats, selectBaseAccounts, selectChanged, selectScope, selectTag],
   (baseStats, base, changed, scope, tag): ScopeStats => {
     const stats = { ...baseStats };
-    const count = (account: RAccount | undefined, sign: 1 | -1) => {
+    const count = (account: ReadonlyAccount | undefined, sign: 1 | -1) => {
       if (!account || !scopeMatches(account, scope) || !tagMatches(account, tag)) return;
       stats.total += sign;
       if (account.review.reviewed) stats.reviewed += sign;
@@ -131,7 +129,7 @@ export const selectFollowChangeCounts = createSelector(
 );
 
 /** Whether the account belongs to the selected view (before status, tag and search filters). */
-function viewMatches(account: RAccount, filters: FiltersState, since: string | null): boolean {
+function viewMatches(account: ReadonlyAccount, filters: FiltersState, since: string | null): boolean {
   if (filters.view === LIST_VIEWS.REVIEW) return scopeMatches(account, filters.scope);
   if (isFollowChangeView(filters.view)) return followChangeMatches(account, filters.view, since);
   return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) === PLAN_STATES.PLANNED;
@@ -165,8 +163,8 @@ export const selectVisibleAccountKeys = createSelector(
  * imported, if not saved since) against now. Only edited accounts can differ, so only they are compared.
  */
 export const selectUnsavedDiff = createSelector([selectBaseAccounts, selectChanged, selectSavedChanged], (base, changed, saved) => {
-  const before = createDict<RAccount>();
-  const after = createDict<RAccount>();
+  const before = createDict<ReadonlyAccount>();
+  const after = createDict<ReadonlyAccount>();
   for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
     const then = accountOf(base, saved, key);
     const now = accountOf(base, changed, key);
@@ -180,9 +178,9 @@ export const selectUnsavedDiff = createSelector([selectBaseAccounts, selectChang
 export const selectUnsavedSummary = createSelector([selectUnsavedDiff], summarizeSession);
 
 /** Per current account object: the saved version it was compared with, and whether they match. */
-const savedComparisons = new WeakMap<RAccount, { saved: RAccount | undefined; same: boolean }>();
+const savedComparisons = new WeakMap<ReadonlyAccount, { saved: ReadonlyAccount | undefined; same: boolean }>();
 
-function sameAsSaved(current: RAccount | undefined, saved: RAccount | undefined): boolean {
+function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccount | undefined): boolean {
   if (current === saved) return true;
   if (!current || !saved) return false;
   const cached = savedComparisons.get(current);

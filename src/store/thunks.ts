@@ -22,10 +22,10 @@ import type { StoreDeps } from "./deps.ts";
 import { SAVE_STATUSES } from "./statuses.ts";
 import type { AppDispatch, RootState } from "./index.ts";
 
-const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps; rejectValue: ImportProblem }>();
+const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps }>();
 
 /** Applies an analyzed import (see io/analyzeImport) to the store. Rejects with the problem when the files can't be imported. */
-export const importPrepared = createAppThunk<ImportResult, PreparedImport>("master/import", async (prepared, { extra, rejectWithValue }) => {
+export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rejectValue: ImportProblem }>("master/import", async (prepared, { extra, rejectWithValue }) => {
   await nextPaint(); // let "Importing…" show before the merge, which can take seconds for large accounts
   try {
     return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());

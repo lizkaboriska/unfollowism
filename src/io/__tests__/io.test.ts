@@ -87,7 +87,6 @@ describe("analyzeImport", () => {
     expect(result.bundle.following).toHaveLength(2);
     expect(result.bundle.followerFileCount).toBe(3);
     expect(result.rawMaster).toEqual(master);
-    expect(result.ignoredCount).toBe(3);
     expect(result.warnings).toEqual([]);
   });
 
