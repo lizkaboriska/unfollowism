@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, Input, Stack } from "@chakra-ui/react";
-import { REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type TagFilter } from "../core/index.ts";
+import { REVIEW_SCOPES, REVIEW_STATUSES, TAG_FILTER_KINDS, type ReviewScope, type ReviewStatusFilter, type TagFilter } from "../core/index.ts";
 import { LIST_VIEWS, isPlanView, setQuery, setReviewStatus, setScope, setTagFilter } from "../store/filtersSlice.ts";
 import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
 import { resetScope } from "../store/masterSlice.ts";
@@ -17,6 +17,9 @@ const UNTAGGED_VALUE = "untagged";
 /** The last line of the tag list opens Manage tags instead of filtering. */
 const MANAGE_TAGS_VALUE = "manage";
 const tagValue = (index: number) => `tag-${index}`;
+
+const SCOPE_OPTIONS: readonly FilterOption<ReviewScope>[] = Object.values(REVIEW_SCOPES).map(scope => ({ value: scope, label: SCOPE_LABELS[scope] }));
+const STATUS_OPTIONS: readonly FilterOption<ReviewStatusFilter>[] = Object.values(REVIEW_STATUSES).map(status => ({ value: status, label: STATUS_LABELS[status] }));
 
 function tagFilterValue(tag: TagFilter, tags: readonly string[]): string {
   if (tag.kind === TAG_FILTER_KINDS.ALL) return ALL_TAGS_VALUE;
@@ -40,8 +43,6 @@ export function FiltersBar() {
   const inReview = filters.view === LIST_VIEWS.REVIEW;
   const [tagsOpen, setTagsOpen] = useState(false);
 
-  const scopeOptions = useMemo(() => Object.values(REVIEW_SCOPES).map(scope => ({ value: scope, label: SCOPE_LABELS[scope] })), []);
-  const statusOptions = useMemo(() => Object.values(REVIEW_STATUSES).map(status => ({ value: status, label: STATUS_LABELS[status] })), []);
   const tagOptions = useMemo((): FilterOption[] => [
     { value: ALL_TAGS_VALUE, label: "All tags" },
     { value: UNTAGGED_VALUE, label: "Untagged" },
@@ -78,10 +79,10 @@ export function FiltersBar() {
         onChange={e => dispatch(setQuery(e.currentTarget.value))}
       />
       {inReview && (
-        <FilterSelect name="scope" label="Scope" options={scopeOptions} value={filters.scope} onChange={value => dispatch(setScope(value))} />
+        <FilterSelect name="scope" label="Scope" options={SCOPE_OPTIONS} value={filters.scope} onChange={value => dispatch(setScope(value))} />
       )}
       {!isPlanView(filters.view) && (
-        <FilterSelect name="status" label="Status" options={statusOptions} value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value))} />
+        <FilterSelect name="status" label="Status" options={STATUS_OPTIONS} value={filters.reviewStatus} onChange={value => dispatch(setReviewStatus(value))} />
       )}
       <FilterSelect name="tag" label="Tag" options={tagOptions} value={tagFilterValue(filters.tag, tags)} onChange={onTagChange} />
       <ManageTagsDialog open={tagsOpen} onClose={() => { setTagsOpen(false); }} />
