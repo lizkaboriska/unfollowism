@@ -90,7 +90,7 @@ async function run(total: number) {
   const masterText = stringifyMasterFile(toMasterFile({ ...earlier, lastSavedAt: '2026-09-02T00:00:00.000Z' }));
 
   // Second import: a newer export plus the saved master (the normal monthly flow).
-  const inputs = [...exportTexts(total, 1_000), { path: 'instagram_master_tracker.json', text: masterText }];
+  const inputs = [...exportTexts(total, 1_000), { path: 'unfollowism_master.json', text: masterText }];
   const [prepared, analyzeMs] = time(() => must(analyzeImport(inputs, null).prepared));
   const [, importMs] = await timeAsync(() => store.dispatch(importPrepared(prepared)).unwrap());
   await flush();

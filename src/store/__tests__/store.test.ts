@@ -219,7 +219,7 @@ describe('save', () => {
     await t.store.dispatch(saveMaster()).unwrap();
 
     const file = must(t.downloads[0]);
-    expect(file.filename).toMatch(/^instagram_master_tracker_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
+    expect(file.filename).toMatch(/^unfollowism_master_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
     const saved = JSON.parse(file.text) as { lastSavedAt: string };
     expect(saved.lastSavedAt).toBe('2026-10-27T14:05:09.000Z');
     expect(toMasterFile(parseMaster(saved))).toEqual(saved); // the file is exactly the saved format

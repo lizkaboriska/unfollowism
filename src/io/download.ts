@@ -14,9 +14,9 @@ export function downloadText(filename: string, text: string, type = 'application
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** instagram_master_tracker_2026-10-27_14-05-09.json, in the user's local time. */
+/** unfollowism_master_2026-10-27_14-05-09.json, in the user's local time. */
 export function masterFileName(date: Date): string {
   const d = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   const t = `${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
-  return `instagram_master_tracker_${d}_${t}.json`;
+  return `unfollowism_master_${d}_${t}.json`;
 }

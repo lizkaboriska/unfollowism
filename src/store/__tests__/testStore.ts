@@ -101,7 +101,7 @@ export function prepared({
     },
   ];
   if (master) {
-    inputs.push({ path: 'instagram_master_tracker.json', text: JSON.stringify(master) });
+    inputs.push({ path: 'unfollowism_master.json', text: JSON.stringify(master) });
   }
   return must(analyzeImport(inputs, lastKnownSavedAt).prepared);
 }

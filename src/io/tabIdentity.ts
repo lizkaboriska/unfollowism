@@ -9,8 +9,8 @@ export interface TabEnvironment {
   newId: () => string;
 }
 
-const TAB_ID_KEY = 'instagram-review:tab';
-const lockName = (tabId: string) => `instagram-review:tab:${tabId}`;
+const TAB_ID_KEY = 'unfollowism:tab';
+const lockName = (tabId: string) => `unfollowism:tab:${tabId}`;
 
 function safeSessionStorage(): Storage | null {
   try {

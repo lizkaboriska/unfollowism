@@ -73,7 +73,7 @@ describe('analyzeImport', () => {
         f(`${DIR}/followers_2.json`, followers2),
         f(`${DIR}/followers_1.json`, followers1),
         f(`${DIR}/following.json`, following),
-        f('saved/instagram_master_tracker_2026-10-01.json', JSON.stringify(master)),
+        f('saved/unfollowism_master_2026-10-01.json', JSON.stringify(master)),
         f('x/liked_posts.json', '[]'),
         f('x/close_friends.json', JSON.stringify({ relationships_close_friends: [] })),
         f('x/broken.json', '{not json'),
@@ -84,7 +84,7 @@ describe('analyzeImport', () => {
     expect(recognized).toEqual({
       hasFollowing: true,
       followerFileCount: 3,
-      master: { name: 'instagram_master_tracker_2026-10-01.json', savedAt: '2026-10-01T00:00:00Z' },
+      master: { name: 'unfollowism_master_2026-10-01.json', savedAt: '2026-10-01T00:00:00Z' },
     });
     const result = must(prepared);
     expect(result.bundle.followers.map(a => a.username)).toEqual(['alice', 'carol', 'zed']);
@@ -304,7 +304,7 @@ describe('IndexedDB tab store', () => {
   test('a v3 database (meta kept with the master) is migrated, keeping the stored work', async () => {
     const factory = new IDBFactory();
     await new Promise<void>((resolve, reject) => {
-      const open = factory.open('instagram-review', 3);
+      const open = factory.open('unfollowism', 3);
       open.onupgradeneeded = () => {
         const database = open.result;
         database.createObjectStore('tabs').put({ base: BASE, meta: META }, 'a');
@@ -364,7 +364,7 @@ function fakeBrowser() {
   return {
     tab,
     close: (id: string) => {
-      held.delete(`instagram-review:tab:${id}`);
+      held.delete(`unfollowism:tab:${id}`);
     },
   };
 }
@@ -431,5 +431,5 @@ test('last-saved time survives in localStorage and tolerates blocked storage', (
 });
 
 test('master file names are timestamped in local time', () => {
-  expect(masterFileName(new Date(2026, 9, 7, 4, 5, 9))).toBe('instagram_master_tracker_2026-10-07_04-05-09.json');
+  expect(masterFileName(new Date(2026, 9, 7, 4, 5, 9))).toBe('unfollowism_master_2026-10-07_04-05-09.json');
 });

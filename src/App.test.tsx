@@ -84,7 +84,7 @@ const reviewedBox = (username: string) => within(row(username)).getByRole('check
 
 test('starts on the import screen', async () => {
   await renderApp();
-  expect(screen.getByRole('heading', { name: 'Instagram Review' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Unfollowism' })).toBeInTheDocument();
   expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Choose files' })).toBeEnabled();
   expect(importButton()).toBeDisabled();
@@ -155,7 +155,7 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
   expect(browserHandlesDrop(row('alice'))).toBe(false); // the main view has no drop zone at all
 });
 
-const masterJson = (savedAt: string, name = 'instagram_master_tracker.json') =>
+const masterJson = (savedAt: string, name = 'unfollowism_master.json') =>
   new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts: {} })], name, {
     type: 'application/json',
   });
@@ -167,7 +167,7 @@ test('files chosen one after another add up, e.g. a master from another folder',
 
   await user.upload(screen.getByTestId('file-input'), [masterJson('2026-10-01T00:00:00.000Z')]);
   expect(
-    await screen.findByText(/^Following ✓ · Followers ✓ \(1 file\) · Master: instagram_master_tracker\.json \(saved/),
+    await screen.findByText(/^Following ✓ · Followers ✓ \(1 file\) · Master: unfollowism_master\.json \(saved/),
   ).toBeInTheDocument();
   expect(screen.getByText('following.json')).toBeInTheDocument();
   expect(screen.getByText('followers_1.json')).toBeInTheDocument();
@@ -525,7 +525,7 @@ describe('main view', () => {
     await user.click(link);
     expect(open).toHaveBeenCalledWith(
       'https://www.instagram.com/bob',
-      'instagram-review-profile',
+      'unfollowism-profile',
       expect.stringContaining('popup=yes'),
     );
 
@@ -719,7 +719,7 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   });
 
   await user.click(screen.getByRole('button', { name: 'Import files' }));
-  const master = new File([must(downloads[0]).text], 'instagram_master_tracker.json', { type: 'application/json' });
+  const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
   await importFiles(user, [
     master,
     ...exportOf([

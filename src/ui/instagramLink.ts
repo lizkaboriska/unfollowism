@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 
-const POPUP_NAME = 'instagram-review-profile';
+const POPUP_NAME = 'unfollowism-profile';
 
 /** A phone-sized window at the right edge of the screen, so the list stays visible next to it. */
 function popupFeatures(screen: Screen): string {

@@ -7,7 +7,7 @@ export interface LastSavedStore {
   set(value: string): void;
 }
 
-const KEY = 'instagram-review:last-saved-at';
+const KEY = 'unfollowism:last-saved-at';
 
 export function localStorageLastSaved(
   storage: Pick<Storage, 'getItem' | 'setItem'> | null = safeLocalStorage(),

@@ -52,7 +52,7 @@ export interface TabDatabase {
   deleteTab(tabId: string): Promise<void>;
 }
 
-const DB_NAME = 'instagram-review';
+const DB_NAME = 'unfollowism';
 const DB_VERSION = 4; // v1 held a single whole-session record; v2 had no saved accounts; v3 kept meta in the tabs row
 const TABS = 'tabs'; // tabId → base
 const META = 'meta'; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.

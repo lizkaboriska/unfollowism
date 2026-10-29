@@ -1,10 +1,12 @@
-# Instagram Review
+# Unfollowism
 
 Keep your Instagram following intentional, using your own Instagram data export:
 see who you followed and who followed you since last time, tag the people you follow,
 and keep a to-do list of accounts to unfollow or remove by hand.
 
 Everything runs in your browser. Your files are never uploaded anywhere.
+
+Unfollowism is an independent project, not affiliated with Instagram or Meta.
 
 ## How it works
 
@@ -26,7 +28,7 @@ You work in rounds. Each round:
    - **I unfollowed / New followers / Lost followers**: what changed since your last save.
 
    Tag accounts, add notes, tick **Reviewed**.
-4. **Save.** Click **Save master** to download `instagram_master_tracker_<date>.json`. That file
+4. **Save.** Click **Save master** to download `unfollowism_master_<date>.json`. That file
    is your record: keep it and add it to your next import. Saving also ends the round:
    "new" and "since your last save" count from it next time.
 

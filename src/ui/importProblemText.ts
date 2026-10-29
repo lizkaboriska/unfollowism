@@ -31,9 +31,9 @@ export function importProblemText(problem: ImportProblem): string {
     case IMPORT_PROBLEMS.NO_FOLLOWERS:
       return 'No accounts found in the Followers files of this export.';
     case IMPORT_PROBLEMS.NOT_A_MASTER:
-      return 'This file is not an Instagram Review master.';
+      return 'This file is not an Unfollowism master.';
     case IMPORT_PROBLEMS.INCOMPATIBLE_VERSION:
-      return "This file wasn't saved by a compatible version of Instagram Review.";
+      return "This file wasn't saved by a compatible version of Unfollowism.";
     case IMPORT_PROBLEMS.INVALID_FIELD: {
       const expected =
         problem.expected === FIELD_TYPES.ONE_OF ? `one of ${problem.options.join(', ')}` : EXPECTED[problem.expected];

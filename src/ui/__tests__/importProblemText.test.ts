@@ -34,11 +34,11 @@ test.each<[string, ImportProblem, string]>([
     { kind: IMPORT_PROBLEMS.NO_FOLLOWERS },
     'No accounts found in the Followers files of this export.',
   ],
-  ['not a master', { kind: IMPORT_PROBLEMS.NOT_A_MASTER }, 'This file is not an Instagram Review master.'],
+  ['not a master', { kind: IMPORT_PROBLEMS.NOT_A_MASTER }, 'This file is not an Unfollowism master.'],
   [
     'other version',
     { kind: IMPORT_PROBLEMS.INCOMPATIBLE_VERSION },
-    "This file wasn't saved by a compatible version of Instagram Review.",
+    "This file wasn't saved by a compatible version of Unfollowism.",
   ],
   [
     'wrong type',

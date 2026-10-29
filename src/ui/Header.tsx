@@ -28,7 +28,7 @@ export function Header({ onImportNew }: { onImportNew?: () => void }) {
       gap="3"
     >
       <Box>
-        <Heading size="2xl">Instagram Review</Heading>
+        <Heading size="2xl">Unfollowism</Heading>
         <Text color="fg.muted">Keep your feed fun. Keep your people intentional.</Text>
       </Box>
       <HStack gap="3" wrap="wrap">
