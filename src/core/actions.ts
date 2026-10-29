@@ -1,7 +1,20 @@
-import { ACTION_TYPES, PLAN_STATES, type Account, type ActionType, type DeepReadonly, type Follow, type Master, type PlanState, type ReadonlyAccount } from "./types.ts";
+import {
+  ACTION_TYPES,
+  PLAN_STATES,
+  type Account,
+  type ActionType,
+  type DeepReadonly,
+  type Follow,
+  type Master,
+  type PlanState,
+  type ReadonlyAccount,
+} from './types.ts';
 
 /** The account field that holds each action's plan. */
-export const PLAN_FIELDS = { [ACTION_TYPES.UNFOLLOW]: "toUnfollow", [ACTION_TYPES.REMOVE_FOLLOWER]: "toRemove" } as const satisfies Record<ActionType, keyof Account>;
+export const PLAN_FIELDS = {
+  [ACTION_TYPES.UNFOLLOW]: 'toUnfollow',
+  [ACTION_TYPES.REMOVE_FOLLOWER]: 'toRemove',
+} as const satisfies Record<ActionType, keyof Account>;
 
 /** The plan for an action, or undefined when it isn't marked. */
 export function planOf(account: ReadonlyAccount, type: ActionType): PlanState | undefined {
@@ -18,7 +31,10 @@ export function followExists(account: ReadonlyAccount, type: ActionType): boolea
   return followOf(account, type) !== null;
 }
 
-/** WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise (a caller bug). */
+/**
+ * WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise (a caller
+ * bug).
+ */
 export function setPlan(account: Account, type: ActionType, state: PlanState | undefined): void {
   const field = PLAN_FIELDS[type];
   if (state === undefined) {
@@ -51,7 +67,10 @@ export interface PlanOutcomes {
  * WRITE: after an import has updated the follows, settles every plan against them.
  * Plans on `uncounted` accounts (likely renames) are cleared like the rest but not reported as done.
  */
-export function settlePlans(source: Pick<Master, "accounts">, uncounted: ReadonlySet<string> = new Set()): PlanOutcomes {
+export function settlePlans(
+  source: Pick<Master, 'accounts'>,
+  uncounted: ReadonlySet<string> = new Set(),
+): PlanOutcomes {
   const outcomes: PlanOutcomes = { completed: emptyActionCounts(), reopened: emptyActionCounts() };
   for (const [key, account] of Object.entries(source.accounts)) {
     for (const type of Object.values(ACTION_TYPES)) {
@@ -83,7 +102,7 @@ export function countPlans(stats: PlanStats, account: ReadonlyAccount, sign: 1 |
   }
 }
 
-export function planStats(source: DeepReadonly<Pick<Master, "accounts">>): PlanStats {
+export function planStats(source: DeepReadonly<Pick<Master, 'accounts'>>): PlanStats {
   const stats = emptyPlanStats();
   for (const account of Object.values(source.accounts)) countPlans(stats, account, 1);
   return stats;

@@ -1,4 +1,4 @@
-import type { AccountRecord, MasterFile } from "../core/index.ts";
+import type { AccountRecord, MasterFile } from '../core/index.ts';
 
 /**
  * Per-tab safety net so a reload doesn't lose work. For each open tab it keeps the
@@ -25,7 +25,10 @@ export interface StoredTab {
   saved: Record<string, unknown>;
 }
 
-/** Account records to write: changed accounts, and accounts as they were in the last downloaded file. null = removed since the import. */
+/**
+ * Account records to write: changed accounts, and accounts as they were in the last downloaded file. null = removed
+ * since the import.
+ */
 export interface TabWrites {
   changed: Record<string, AccountRecord | null>;
   saved: Record<string, AccountRecord | null>;
@@ -49,30 +52,43 @@ export interface TabDatabase {
   deleteTab(tabId: string): Promise<void>;
 }
 
-const DB_NAME = "instagram-review";
+const DB_NAME = 'instagram-review';
 const DB_VERSION = 4; // v1 held a single whole-session record; v2 had no saved accounts; v3 kept meta in the tabs row
-const TABS = "tabs"; // tabId → base
-const META = "meta"; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.
-const ACCOUNTS = "accounts"; // [tabId, accountKey] → AccountRecord
-const SAVED_ACCOUNTS = "savedAccounts"; // [tabId, accountKey] → AccountRecord
+const TABS = 'tabs'; // tabId → base
+const META = 'meta'; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.
+const ACCOUNTS = 'accounts'; // [tabId, accountKey] → AccountRecord
+const SAVED_ACCOUNTS = 'savedAccounts'; // [tabId, accountKey] → AccountRecord
 const ACCOUNT_STORES = [ACCOUNTS, SAVED_ACCOUNTS] as const;
 
 function done<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
-    req.onsuccess = () => { resolve(req.result); };
-    req.onerror = () => { reject(req.error ?? new Error("Browser storage request failed")); };
+    req.onsuccess = () => {
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      reject(req.error ?? new Error('Browser storage request failed'));
+    };
   });
 }
 
 function committed(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
-    tx.oncomplete = () => { resolve(); };
-    tx.onerror = () => { reject(tx.error ?? new Error("Browser storage write failed")); };
-    tx.onabort = () => { reject(tx.error ?? new Error("Browser storage write was aborted")); };
+    tx.oncomplete = () => {
+      resolve();
+    };
+    tx.onerror = () => {
+      reject(tx.error ?? new Error('Browser storage write failed'));
+    };
+    tx.onabort = () => {
+      reject(tx.error ?? new Error('Browser storage write was aborted'));
+    };
   });
 }
 
-/** v3 kept each tab's meta with its base, as { base, meta }: moves the meta to its own store. Runs in the upgrade transaction. */
+/**
+ * v3 kept each tab's meta with its base, as { base, meta }: moves the meta to its own store. Runs in the upgrade
+ * transaction.
+ */
 function migrateFromV3(database: IDBDatabase, upgrade: IDBTransaction): void {
   const metas = database.createObjectStore(META);
   const request = upgrade.objectStore(TABS).openCursor();
@@ -86,7 +102,10 @@ function migrateFromV3(database: IDBDatabase, upgrade: IDBTransaction): void {
   };
 }
 
-export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRange: typeof IDBKeyRange = IDBKeyRange): TabDatabase {
+export function openIndexedDbTabDatabase(
+  factory: IDBFactory = indexedDB,
+  keyRange: typeof IDBKeyRange = IDBKeyRange,
+): TabDatabase {
   let dbPromise: Promise<IDBDatabase> | null = null;
 
   /** Every [tabId, accountKey] key of one tab. Arrays sort after strings, so [tabId, []] bounds them all. */
@@ -108,20 +127,31 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
       };
       open.onsuccess = () => {
         // Let a newer version of the app upgrade the database instead of being blocked by this tab.
-        open.result.onversionchange = () => { open.result.close(); };
+        open.result.onversionchange = () => {
+          open.result.close();
+        };
         resolve(open.result);
       };
-      open.onblocked = () => { reject(new Error("Browser storage is held by an older open tab of this app")); };
-      open.onerror = () => { reject(open.error ?? new Error("Could not open browser storage")); };
+      open.onblocked = () => {
+        reject(new Error('Browser storage is held by an older open tab of this app'));
+      };
+      open.onerror = () => {
+        reject(open.error ?? new Error('Could not open browser storage'));
+      };
     });
     return dbPromise;
   }
 
   /** Account key → record, for one tab in one account store. */
   async function loadAccounts(store: IDBObjectStore, tabId: string): Promise<Record<string, unknown>> {
-    const [keys, records] = await Promise.all([done(store.getAllKeys(tabRange(tabId))), done(store.getAll(tabRange(tabId)))]);
+    const [keys, records] = await Promise.all([
+      done(store.getAllKeys(tabRange(tabId))),
+      done(store.getAll(tabRange(tabId))),
+    ]);
     const accounts: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-    keys.forEach((key, i) => { accounts[(key as [string, string])[1]] = records[i]; });
+    keys.forEach((key, i) => {
+      accounts[(key as [string, string])[1]] = records[i];
+    });
     return accounts;
   }
 
@@ -133,7 +163,7 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
     return {
       durable: true,
       async load() {
-        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readonly");
+        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readonly');
         const [base, meta, changed, saved] = await Promise.all([
           done(tx.objectStore(TABS).get(tabId)) as Promise<unknown>,
           done(tx.objectStore(META).get(tabId)) as Promise<TabMeta | undefined>,
@@ -145,7 +175,7 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
       },
 
       async replace(base, meta, writes) {
-        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readwrite");
+        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
         for (const name of ACCOUNT_STORES) tx.objectStore(name).delete(tabRange(tabId));
         tx.objectStore(TABS).put(base, tabId);
         tx.objectStore(META).put(meta, tabId);
@@ -156,11 +186,11 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
 
       // Never touches the base: an edit writes ~1 KB however large the master is.
       async update(meta, writes) {
-        const tx = (await db()).transaction([META, ...ACCOUNT_STORES], "readwrite");
+        const tx = (await db()).transaction([META, ...ACCOUNT_STORES], 'readwrite');
         const metas = tx.objectStore(META);
-        if (await done(metas.getKey(tabId)) === undefined) {
+        if ((await done(metas.getKey(tabId))) === undefined) {
           tx.abort();
-          throw new Error("Nothing stored for this tab yet");
+          throw new Error('Nothing stored for this tab yet');
         }
         metas.put(meta, tabId);
         const accounts = tx.objectStore(ACCOUNTS);
@@ -176,12 +206,12 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
     forTab,
 
     async tabIds() {
-      const tx = (await db()).transaction(TABS, "readonly");
+      const tx = (await db()).transaction(TABS, 'readonly');
       return (await done(tx.objectStore(TABS).getAllKeys())).map(String);
     },
 
     async copyTab(from, to) {
-      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readwrite");
+      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
       const tabs = tx.objectStore(TABS);
       const metas = tx.objectStore(META);
       const [base, meta, ...accountSets] = await Promise.all([
@@ -192,13 +222,15 @@ export function openIndexedDbTabDatabase(factory: IDBFactory = indexedDB, keyRan
       if (base !== undefined && meta) {
         tabs.put(base, to);
         metas.put(meta, to);
-        ACCOUNT_STORES.forEach((name, i) => { putAccounts(tx.objectStore(name), to, accountSets[i] ?? {}); });
+        ACCOUNT_STORES.forEach((name, i) => {
+          putAccounts(tx.objectStore(name), to, accountSets[i] ?? {});
+        });
       }
       await committed(tx);
     },
 
     async deleteTab(tabId) {
-      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], "readwrite");
+      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
       tx.objectStore(TABS).delete(tabId);
       tx.objectStore(META).delete(tabId);
       for (const name of ACCOUNT_STORES) tx.objectStore(name).delete(tabRange(tabId));
@@ -243,7 +275,12 @@ export function createMemoryTabDatabase(): TabDatabase {
           });
         },
         replace(base, meta, writes) {
-          const tab: MemoryTab = { base: structuredClone(base), meta: structuredClone(meta), changed: new Map(), saved: new Map() };
+          const tab: MemoryTab = {
+            base: structuredClone(base),
+            meta: structuredClone(meta),
+            changed: new Map(),
+            saved: new Map(),
+          };
           putRecords(tab.changed, writes.changed);
           putRecords(tab.saved, writes.saved);
           tabs.set(tabId, tab);
@@ -251,7 +288,7 @@ export function createMemoryTabDatabase(): TabDatabase {
         },
         update(meta, writes) {
           const tab = tabs.get(tabId);
-          if (!tab) return Promise.reject(new Error("Nothing stored for this tab yet"));
+          if (!tab) return Promise.reject(new Error('Nothing stored for this tab yet'));
           tab.meta = structuredClone(meta);
           for (const key of writes.removed) tab.changed.delete(key);
           putRecords(tab.changed, writes.changed);
@@ -263,7 +300,13 @@ export function createMemoryTabDatabase(): TabDatabase {
     tabIds: () => Promise.resolve([...tabs.keys()]),
     copyTab(from, to) {
       const tab = tabs.get(from);
-      if (tab) tabs.set(to, { base: structuredClone(tab.base), meta: structuredClone(tab.meta), changed: new Map(tab.changed), saved: new Map(tab.saved) });
+      if (tab)
+        tabs.set(to, {
+          base: structuredClone(tab.base),
+          meta: structuredClone(tab.meta),
+          changed: new Map(tab.changed),
+          saved: new Map(tab.saved),
+        });
       return Promise.resolve();
     },
     deleteTab(tabId) {

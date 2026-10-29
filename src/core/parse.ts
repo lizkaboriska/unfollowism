@@ -1,5 +1,5 @@
-import type { ExportEntry } from "./types.ts";
-import { isRecord, numberOrNull, usernameKey } from "./util.ts";
+import type { ExportEntry } from './types.ts';
+import { isRecord, numberOrNull, usernameKey } from './util.ts';
 
 function firstEntry(item: Record<string, unknown>): Record<string, unknown> {
   const list = item.string_list_data;
@@ -12,12 +12,16 @@ function toEntry(username: string, first: Record<string, unknown>): ExportEntry 
 }
 
 function nonEmptyString(value: unknown): string | null {
-  return typeof value === "string" && value ? value : null;
+  return typeof value === 'string' && value ? value : null;
 }
 
 /** Instagram `following.json`: `{ relationships_following: [...] }` (or a bare array). The username is in `title`. */
 export function parseFollowingJson(raw: unknown): ExportEntry[] {
-  const items: unknown[] = Array.isArray(raw) ? raw : isRecord(raw) && Array.isArray(raw.relationships_following) ? raw.relationships_following : [];
+  const items: unknown[] = Array.isArray(raw)
+    ? raw
+    : isRecord(raw) && Array.isArray(raw.relationships_following)
+      ? raw.relationships_following
+      : [];
   const result: ExportEntry[] = [];
   for (const item of items) {
     if (!isRecord(item)) continue;

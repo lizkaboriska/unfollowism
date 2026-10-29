@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "lint": "eslint .",
+    "format": "prettier --write src eslint.config.js vite.config.ts vitest.perf.config.ts",
+    "format:check": "prettier --check src eslint.config.js vite.config.ts vitest.perf.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:perf": "vitest run --config vitest.perf.config.ts"
@@ -27,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
@@ -40,6 +43,7 @@
     "fake-indexeddb": "6.2.5",
     "globals": "17.13.0",
     "jsdom": "29.1.1",
+    "prettier": "3.9.10",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",

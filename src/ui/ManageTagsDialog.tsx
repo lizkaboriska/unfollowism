@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { Button, CloseButton, Dialog, HStack, Input, Portal, Stack, Text } from "@chakra-ui/react";
-import { findTag } from "../core/index.ts";
-import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
-import { deleteTag, renameTag } from "../store/masterSlice.ts";
-import { selectTagCounts, selectTags } from "../store/selectors.ts";
-import { useConfirm } from "./dialogs.tsx";
-import { plural } from "./statusText.ts";
+import { useState } from 'react';
+import { Button, CloseButton, Dialog, HStack, Input, Portal, Stack, Text } from '@chakra-ui/react';
+import { findTag } from '../core/index.ts';
+import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
+import { deleteTag, renameTag } from '../store/masterSlice.ts';
+import { selectTagCounts, selectTags } from '../store/selectors.ts';
+import { useConfirm } from './dialogs.tsx';
+import { plural } from './statusText.ts';
 
 interface Editing {
   tag: string;
@@ -29,15 +29,20 @@ function TagLines() {
   async function save({ tag, draft }: Editing) {
     const name = draft.trim();
     if (!name) {
-      setEditing({ tag, draft, error: "A tag needs a name." });
+      setEditing({ tag, draft, error: 'A tag needs a name.' });
       return;
     }
-    const existing = findTag(tags.filter(t => t !== tag), name);
+    const existing = findTag(
+      tags.filter(t => t !== tag),
+      name,
+    );
     if (existing) {
       const merge = await confirm({
-        title: "Merge tags?",
-        body: `${existing} already exists. Merge ${tag} into ${existing}? ${plural(count(tag), "account")} will have ${existing} instead.`,
-        confirmLabel: "Merge",
+        title: 'Merge tags?',
+        body:
+          `${existing} already exists. Merge ${tag} into ${existing}? ` +
+          `${plural(count(tag), 'account')} will have ${existing} instead.`,
+        confirmLabel: 'Merge',
       });
       if (!merge) return;
     }
@@ -48,8 +53,8 @@ function TagLines() {
   async function remove(tag: string) {
     const confirmed = await confirm({
       title: `Delete tag ${tag}?`,
-      body: `It will be removed from ${plural(count(tag), "account")}.`,
-      confirmLabel: "Delete",
+      body: `It will be removed from ${plural(count(tag), 'account')}.`,
+      confirmLabel: 'Delete',
       destructive: true,
     });
     if (confirmed) dispatch(deleteTag({ tag }));
@@ -58,7 +63,14 @@ function TagLines() {
   return (
     <Stack gap="3">
       {tags.map(tag => (
-        <Stack key={tag} direction={{ base: "column", sm: "row" }} gap="2" align={{ base: "stretch", sm: "center" }} borderBottomWidth="1px" pb="2">
+        <Stack
+          key={tag}
+          direction={{ base: 'column', sm: 'row' }}
+          gap="2"
+          align={{ base: 'stretch', sm: 'center' }}
+          borderBottomWidth="1px"
+          pb="2"
+        >
           {editing?.tag === tag ? (
             <Stack flex="1" gap="1">
               <HStack>
@@ -69,34 +81,76 @@ function TagLines() {
                   autoComplete="off"
                   aria-label={`New name for ${tag}`}
                   value={editing.draft}
-                  onChange={e => { setEditing({ tag, draft: e.currentTarget.value, error: null }); }}
-                  onKeyDown={e => { if (e.key === "Enter") void save(editing); }}
+                  onChange={e => {
+                    setEditing({ tag, draft: e.currentTarget.value, error: null });
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') void save(editing);
+                  }}
                 />
-                <Button size="sm" colorPalette="pink" onClick={() => void save(editing)}>Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setEditing(null); }}>Cancel</Button>
+                <Button size="sm" colorPalette="pink" onClick={() => void save(editing)}>
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditing(null);
+                  }}
+                >
+                  Cancel
+                </Button>
               </HStack>
-              {editing.error && <Text fontSize="sm" color="red.600">{editing.error}</Text>}
+              {editing.error && (
+                <Text fontSize="sm" color="red.600">
+                  {editing.error}
+                </Text>
+              )}
             </Stack>
           ) : (
             <>
-              <Text flex="1" fontWeight="medium">{tag}</Text>
-              <Text color="fg.muted" fontSize="sm">{plural(count(tag), "account")}</Text>
+              <Text flex="1" fontWeight="medium">
+                {tag}
+              </Text>
+              <Text color="fg.muted" fontSize="sm">
+                {plural(count(tag), 'account')}
+              </Text>
               <HStack gap="1">
-                <Button size="xs" variant="outline" onClick={() => { setEditing({ tag, draft: tag, error: null }); }}>Rename</Button>
-                <Button size="xs" variant="outline" colorPalette="red" onClick={() => void remove(tag)}>Delete</Button>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => {
+                    setEditing({ tag, draft: tag, error: null });
+                  }}
+                >
+                  Rename
+                </Button>
+                <Button size="xs" variant="outline" colorPalette="red" onClick={() => void remove(tag)}>
+                  Delete
+                </Button>
               </HStack>
             </>
           )}
         </Stack>
       ))}
-      <Text fontSize="sm" color="fg.muted">New tags: use + tag on any card.</Text>
+      <Text fontSize="sm" color="fg.muted">
+        New tags: use + tag on any card.
+      </Text>
     </Stack>
   );
 }
 
 export function ManageTagsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Dialog.Root open={open} onOpenChange={e => { if (!e.open) onClose(); }} placement="center" lazyMount unmountOnExit>
+    <Dialog.Root
+      open={open}
+      onOpenChange={e => {
+        if (!e.open) onClose();
+      }}
+      placement="center"
+      lazyMount
+      unmountOnExit
+    >
       <Portal>
         <Dialog.Backdrop />
         <Dialog.Positioner>

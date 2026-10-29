@@ -1,4 +1,4 @@
-import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -11,22 +11,25 @@ import {
   type ReviewStatusFilter,
   type TagFilter,
   type ValueOf,
-} from "../core/index.ts";
-import { renameTag, resetScope } from "./masterSlice.ts";
+} from '../core/index.ts';
+import { renameTag, resetScope } from './masterSlice.ts';
 
 /** Which list the main view shows: the review queue, a change since the last save, or a list of planned actions. */
 export const LIST_VIEWS = {
-  REVIEW: "review",
+  REVIEW: 'review',
   NEW_FOLLOWS: FOLLOW_CHANGES.NEW_FOLLOWS,
   UNFOLLOWED: FOLLOW_CHANGES.UNFOLLOWED,
   NEW_FOLLOWERS: FOLLOW_CHANGES.NEW_FOLLOWERS,
   LOST_FOLLOWERS: FOLLOW_CHANGES.LOST_FOLLOWERS,
-  TO_UNFOLLOW: "toUnfollow",
-  TO_REMOVE: "toRemove",
+  TO_UNFOLLOW: 'toUnfollow',
+  TO_REMOVE: 'toRemove',
 } as const;
 export type ListView = ValueOf<typeof LIST_VIEWS>;
 
-/** The To do lists, and the action each one lists. Status doesn't apply there: planning an action marks the account reviewed. */
+/**
+ * The To do lists, and the action each one lists. Status doesn't apply there: planning an action marks the account
+ * reviewed.
+ */
 export const PLAN_VIEW_ACTIONS = {
   [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
   [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
@@ -61,12 +64,12 @@ const initialState: FiltersState = {
   scope: REVIEW_SCOPES.FOLLOWING,
   reviewStatus: REVIEW_STATUSES.ALL,
   tag: { kind: TAG_FILTER_KINDS.ALL },
-  query: "",
+  query: '',
   view: LIST_VIEWS.REVIEW,
 };
 
 export const filtersSlice = createSlice({
-  name: "filters",
+  name: 'filters',
   initialState,
   reducers: {
     setScope(state, { payload }: PayloadAction<ReviewScope>) {
@@ -93,7 +96,8 @@ export const filtersSlice = createSlice({
       })
       // The filter follows a renamed tag. A tag that no longer exists is handled by tagFilterCleanup.ts.
       .addCase(renameTag, (state, { payload }) => {
-        if (state.tag.kind === TAG_FILTER_KINDS.TAG && state.tag.tag === payload.from) state.tag = { kind: TAG_FILTER_KINDS.TAG, tag: payload.to };
+        if (state.tag.kind === TAG_FILTER_KINDS.TAG && state.tag.tag === payload.from)
+          state.tag = { kind: TAG_FILTER_KINDS.TAG, tag: payload.to };
       });
   },
 });

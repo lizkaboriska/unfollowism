@@ -1,4 +1,4 @@
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from '@reduxjs/toolkit';
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
@@ -30,10 +30,10 @@ import {
   type ReadonlyAccounts,
   type ScopeStats,
   type TagCounts,
-} from "../core/index.ts";
-import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, type FiltersState } from "./filtersSlice.ts";
-import { UNSAVED_IMPORT } from "./masterSlice.ts";
-import type { RootState } from "./index.ts";
+} from '../core/index.ts';
+import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, type FiltersState } from './filtersSlice.ts';
+import { UNSAVED_IMPORT } from './masterSlice.ts';
+import type { RootState } from './index.ts';
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
 /** Edited accounts; null = removed (see ChangedAccounts). */
@@ -57,11 +57,15 @@ const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.ac
 export const selectSortedKeys = createSelector([selectBaseAccounts], (accounts): readonly string[] =>
   accounts === EMPTY_ACCOUNTS
     ? EMPTY_KEYS
-    : Object.entries(accounts).sort(([, a], [, b]) => a.username.localeCompare(b.username)).map(([key]) => key),
+    : Object.entries(accounts)
+        .sort(([, a], [, b]) => a.username.localeCompare(b.username))
+        .map(([key]) => key),
 );
 
 /** Who follows whom. Once per import: edits never change relationships. */
-export const selectRelationshipStats = createSelector([selectBaseAccounts], accounts => relationshipStats({ accounts }));
+export const selectRelationshipStats = createSelector([selectBaseAccounts], accounts =>
+  relationshipStats({ accounts }),
+);
 
 const selectScope = (s: RootState) => s.filters.scope;
 const selectTag = (s: RootState) => s.filters.tag;
@@ -92,21 +96,28 @@ export const selectScopeStats = createSelector(
 const selectBasePlanStats = createSelector([selectBaseAccounts], accounts => planStats({ accounts }));
 
 /** Planned/done action counts: imported counts, adjusted by the edited accounts. */
-export const selectPlanStats = createSelector([selectBasePlanStats, selectBaseAccounts, selectChanged], (baseStats, base, changed): PlanStats => {
-  const stats: PlanStats = { [PLAN_STATES.PLANNED]: { ...baseStats.planned }, [PLAN_STATES.DONE]: { ...baseStats.done } };
-  for (const [key, account] of Object.entries(changed)) {
-    const before = base[key];
-    if (before) countPlans(stats, before, -1);
-    if (account) countPlans(stats, account, 1);
-  }
-  return stats;
-});
+export const selectPlanStats = createSelector(
+  [selectBasePlanStats, selectBaseAccounts, selectChanged],
+  (baseStats, base, changed): PlanStats => {
+    const stats: PlanStats = {
+      [PLAN_STATES.PLANNED]: { ...baseStats.planned },
+      [PLAN_STATES.DONE]: { ...baseStats.done },
+    };
+    for (const [key, account] of Object.entries(changed)) {
+      const before = base[key];
+      if (before) countPlans(stats, before, -1);
+      if (account) countPlans(stats, account, 1);
+    }
+    return stats;
+  },
+);
 
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
 export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
 
-const selectBaseFollowChangeCounts = createSelector([selectBaseAccounts, selectChangesSince], (accounts, since): FollowChangeCounts =>
-  followChangeCounts({ accounts }, since),
+const selectBaseFollowChangeCounts = createSelector(
+  [selectBaseAccounts, selectChangesSince],
+  (accounts, since): FollowChangeCounts => followChangeCounts({ accounts }, since),
 );
 
 /**
@@ -149,11 +160,13 @@ export const selectVisibleAccountKeys = createSelector(
   (keys, base, changed, filters, since): readonly string[] =>
     keys.filter(key => {
       const account = accountOf(base, changed, key);
-      return !!account &&
+      return (
+        !!account &&
         viewMatches(account, filters, since) &&
         (isPlanView(filters.view) || reviewStatusMatches(account, filters.reviewStatus)) &&
         tagMatches(account, filters.tag) &&
-        queryMatches(account, filters.query);
+        queryMatches(account, filters.query)
+      );
     }),
   { memoizeOptions: { resultEqualityCheck: sameKeys } },
 );
@@ -162,18 +175,21 @@ export const selectVisibleAccountKeys = createSelector(
  * Net changes not in the downloaded file yet: each edited account as last saved (or as
  * imported, if not saved since) against now. Only edited accounts can differ, so only they are compared.
  */
-export const selectUnsavedDiff = createSelector([selectBaseAccounts, selectChanged, selectSavedChanged], (base, changed, saved) => {
-  const before = createDict<ReadonlyAccount>();
-  const after = createDict<ReadonlyAccount>();
-  for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
-    const then = accountOf(base, saved, key);
-    const now = accountOf(base, changed, key);
-    if (then === now) continue; // untouched since the save
-    if (then) before[key] = then;
-    if (now) after[key] = now;
-  }
-  return buildSessionDiff(before, after);
-});
+export const selectUnsavedDiff = createSelector(
+  [selectBaseAccounts, selectChanged, selectSavedChanged],
+  (base, changed, saved) => {
+    const before = createDict<ReadonlyAccount>();
+    const after = createDict<ReadonlyAccount>();
+    for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
+      const then = accountOf(base, saved, key);
+      const now = accountOf(base, changed, key);
+      if (then === now) continue; // untouched since the save
+      if (then) before[key] = then;
+      if (now) after[key] = now;
+    }
+    return buildSessionDiff(before, after);
+  },
+);
 
 export const selectUnsavedSummary = createSelector([selectUnsavedDiff], summarizeSession);
 
@@ -195,14 +211,17 @@ function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccoun
  * saved since): what Reset changes would undo. Only edited accounts can differ; each
  * edited account is compared once, not on every edit.
  */
-export const selectUnsavedAccountCount = createSelector([selectBaseAccounts, selectChanged, selectSavedChanged], (base, changed, saved) => {
-  if (changed === saved) return 0;
-  let count = 0;
-  for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
-    if (!sameAsSaved(accountOf(base, changed, key), accountOf(base, saved, key))) count += 1;
-  }
-  return count;
-});
+export const selectUnsavedAccountCount = createSelector(
+  [selectBaseAccounts, selectChanged, selectSavedChanged],
+  (base, changed, saved) => {
+    if (changed === saved) return 0;
+    let count = 0;
+    for (const key of new Set([...Object.keys(changed), ...Object.keys(saved)])) {
+      if (!sameAsSaved(accountOf(base, changed, key), accountOf(base, saved, key))) count += 1;
+    }
+    return count;
+  },
+);
 
 /**
  * Whether there is anything not in the downloaded file yet: an import that differs from its file,
@@ -214,15 +233,18 @@ export const selectIsDirty = (s: RootState): boolean =>
 const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tagCounts({ accounts }));
 
 /** How many accounts have each tag: imported counts, adjusted by the edited accounts. */
-export const selectTagCounts = createSelector([selectBaseTagCounts, selectBaseAccounts, selectChanged], (baseCounts, base, changed): Readonly<TagCounts> => {
-  const counts: TagCounts = Object.assign(createDict<number>(), baseCounts);
-  for (const [key, account] of Object.entries(changed)) {
-    const before = base[key];
-    if (before) countTags(counts, before, -1);
-    if (account) countTags(counts, account, 1);
-  }
-  return counts;
-});
+export const selectTagCounts = createSelector(
+  [selectBaseTagCounts, selectBaseAccounts, selectChanged],
+  (baseCounts, base, changed): Readonly<TagCounts> => {
+    const counts: TagCounts = Object.assign(createDict<number>(), baseCounts);
+    for (const [key, account] of Object.entries(changed)) {
+      const before = base[key];
+      if (before) countTags(counts, before, -1);
+      if (account) countTags(counts, account, 1);
+    }
+    return counts;
+  },
+);
 
 /** Every tag some account has, alphabetical. The previous array is kept while the names don't change. */
 export const selectTags = createSelector([selectTagCounts], (counts): readonly string[] => tagsInUse(counts), {

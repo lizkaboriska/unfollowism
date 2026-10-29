@@ -7,19 +7,23 @@
 export function guardUnload(
   store: { subscribe: (listener: () => void) => () => void },
   isDirty: () => boolean,
-  target: Pick<Window, "addEventListener" | "removeEventListener"> = window,
+  target: Pick<Window, 'addEventListener' | 'removeEventListener'> = window,
 ): () => void {
-  const onBeforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+  const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+  };
   let guarded = false;
   const setGuarded = (next: boolean) => {
     if (next === guarded) return;
     guarded = next;
-    if (next) target.addEventListener("beforeunload", onBeforeUnload);
-    else target.removeEventListener("beforeunload", onBeforeUnload);
+    if (next) target.addEventListener('beforeunload', onBeforeUnload);
+    else target.removeEventListener('beforeunload', onBeforeUnload);
   };
 
   setGuarded(isDirty());
-  const unsubscribe = store.subscribe(() => { setGuarded(isDirty()); });
+  const unsubscribe = store.subscribe(() => {
+    setGuarded(isDirty());
+  });
   return () => {
     unsubscribe();
     setGuarded(false);

@@ -1,15 +1,15 @@
-import type { TabDatabase } from "./tabStore.ts";
+import type { TabDatabase } from './tabStore.ts';
 
 /** The browser APIs this needs, injectable for tests. */
 export interface TabEnvironment {
   /** sessionStorage: survives a reload, cleared when the tab closes, copied by "Duplicate tab". */
-  session: Pick<Storage, "getItem" | "setItem"> | null;
+  session: Pick<Storage, 'getItem' | 'setItem'> | null;
   /** Web Locks: held while the tab is open, released automatically when it closes. */
-  locks: Pick<LockManager, "request" | "query"> | null;
+  locks: Pick<LockManager, 'request' | 'query'> | null;
   newId: () => string;
 }
 
-const TAB_ID_KEY = "instagram-review:tab";
+const TAB_ID_KEY = 'instagram-review:tab';
 const lockName = (tabId: string) => `instagram-review:tab:${tabId}`;
 
 function safeSessionStorage(): Storage | null {
@@ -23,13 +23,13 @@ function safeSessionStorage(): Storage | null {
 export function browserTabEnvironment(): TabEnvironment {
   return {
     session: safeSessionStorage(),
-    locks: typeof navigator !== "undefined" && "locks" in navigator ? navigator.locks : null,
+    locks: typeof navigator !== 'undefined' && 'locks' in navigator ? navigator.locks : null,
     newId: () => crypto.randomUUID(),
   };
 }
 
 /** Takes the lock for this tab id and keeps it until the tab closes. Resolves false if another tab holds it. */
-function holdLock(locks: TabEnvironment["locks"], tabId: string): Promise<boolean> {
+function holdLock(locks: TabEnvironment['locks'], tabId: string): Promise<boolean> {
   if (!locks) return Promise.resolve(true);
   return new Promise(resolve => {
     void locks.request(lockName(tabId), { ifAvailable: true }, lock => {

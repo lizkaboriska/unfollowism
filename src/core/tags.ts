@@ -1,5 +1,5 @@
-import type { Account, DeepReadonly, Master, ReadonlyAccount } from "./types.ts";
-import { createDict } from "./util.ts";
+import type { Account, DeepReadonly, Master, ReadonlyAccount } from './types.ts';
+import { createDict } from './util.ts';
 
 /**
  * Tags have no list of their own: a tag exists while at least one account has it.
@@ -12,7 +12,7 @@ export function countTags(counts: TagCounts, account: ReadonlyAccount, sign: 1 |
   for (const tag of account.review.tags) counts[tag] = (counts[tag] ?? 0) + sign;
 }
 
-export function tagCounts(source: DeepReadonly<Pick<Master, "accounts">>): TagCounts {
+export function tagCounts(source: DeepReadonly<Pick<Master, 'accounts'>>): TagCounts {
   const counts = createDict<number>();
   for (const account of Object.values(source.accounts)) countTags(counts, account, 1);
   return counts;
@@ -20,7 +20,9 @@ export function tagCounts(source: DeepReadonly<Pick<Master, "accounts">>): TagCo
 
 /** Tags in use, alphabetical. */
 export function tagsInUse(counts: Readonly<TagCounts>): string[] {
-  return Object.keys(counts).filter(tag => (counts[tag] ?? 0) > 0).sort((a, b) => a.localeCompare(b));
+  return Object.keys(counts)
+    .filter(tag => (counts[tag] ?? 0) > 0)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /** The existing tag with this name in any letter case, so "Artist" reuses "artist". Undefined if none. */

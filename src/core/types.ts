@@ -5,41 +5,41 @@ export type ValueOf<T> = T[keyof T];
 export const FORMAT_VERSION = 1;
 
 /** Instagram actions you do by hand and mark in the app. */
-export const ACTION_TYPES = { UNFOLLOW: "unfollow", REMOVE_FOLLOWER: "removeFollower" } as const;
+export const ACTION_TYPES = { UNFOLLOW: 'unfollow', REMOVE_FOLLOWER: 'removeFollower' } as const;
 export type ActionType = ValueOf<typeof ACTION_TYPES>;
 
 /** Which accounts the review list covers. Scopes overlap: a mutual account is in "following" and "followers". */
 export const REVIEW_SCOPES = {
-  FOLLOWING: "following",
-  FOLLOWERS: "followers",
-  MUTUAL: "mutual",
-  NOT_FOLLOWING_BACK: "notFollowingBack",
-  FOLLOWS_YOU_ONLY: "followsYouOnly",
-  ALL_CURRENT: "allCurrent",
-  ALL_ACCOUNTS: "allAccounts",
+  FOLLOWING: 'following',
+  FOLLOWERS: 'followers',
+  MUTUAL: 'mutual',
+  NOT_FOLLOWING_BACK: 'notFollowingBack',
+  FOLLOWS_YOU_ONLY: 'followsYouOnly',
+  ALL_CURRENT: 'allCurrent',
+  ALL_ACCOUNTS: 'allAccounts',
 } as const;
 export type ReviewScope = ValueOf<typeof REVIEW_SCOPES>;
 
-export const REVIEW_STATUSES = { ALL: "all", NEEDS_REVIEW: "needsReview", REVIEWED: "reviewed" } as const;
+export const REVIEW_STATUSES = { ALL: 'all', NEEDS_REVIEW: 'needsReview', REVIEWED: 'reviewed' } as const;
 export type ReviewStatusFilter = ValueOf<typeof REVIEW_STATUSES>;
 
 // A user tag may be any string (even "untagged"), so the filter is structured rather than a sentinel string.
-export const TAG_FILTER_KINDS = { ALL: "all", UNTAGGED: "untagged", TAG: "tag" } as const;
+export const TAG_FILTER_KINDS = { ALL: 'all', UNTAGGED: 'untagged', TAG: 'tag' } as const;
 export type TagFilter =
   | { kind: typeof TAG_FILTER_KINDS.ALL }
   | { kind: typeof TAG_FILTER_KINDS.UNTAGGED }
   | { kind: typeof TAG_FILTER_KINDS.TAG; tag: string };
 
 export const RELATIONSHIPS = {
-  MUTUAL: "mutual",
-  NOT_FOLLOWING_BACK: "notFollowingBack",
-  FOLLOWS_YOU_ONLY: "followsYouOnly",
-  NEITHER: "neither",
+  MUTUAL: 'mutual',
+  NOT_FOLLOWING_BACK: 'notFollowingBack',
+  FOLLOWS_YOU_ONLY: 'followsYouOnly',
+  NEITHER: 'neither',
 } as const;
 export type Relationship = ValueOf<typeof RELATIONSHIPS>;
 
 /** A planned Instagram action: marked in the app, then "done" once you did it by hand. The next import checks it. */
-export const PLAN_STATES = { PLANNED: "planned", DONE: "done" } as const;
+export const PLAN_STATES = { PLANNED: 'planned', DONE: 'done' } as const;
 export type PlanState = ValueOf<typeof PLAN_STATES>;
 
 /**
@@ -48,10 +48,10 @@ export type PlanState = ValueOf<typeof PLAN_STATES>;
  * (a follow re-dated after the save, or with no date).
  */
 export const FOLLOW_CHANGES = {
-  NEW_FOLLOWS: "newFollows",
-  UNFOLLOWED: "unfollowed",
-  NEW_FOLLOWERS: "newFollowers",
-  LOST_FOLLOWERS: "lostFollowers",
+  NEW_FOLLOWS: 'newFollows',
+  UNFOLLOWED: 'unfollowed',
+  NEW_FOLLOWERS: 'newFollowers',
+  LOST_FOLLOWERS: 'lostFollowers',
 } as const;
 export type FollowChange = ValueOf<typeof FOLLOW_CHANGES>;
 
@@ -103,7 +103,10 @@ export interface Account {
 export interface RenameSuggestion {
   /** Key of the new username. */
   to: string;
-  /** Actions planned (or marked done) on this account before the import cleared them; they move to the new name on confirm. */
+  /**
+   * Actions planned (or marked done) on this account before the import cleared them; they move to the new name on
+   * confirm.
+   */
   plans: ActionType[];
 }
 

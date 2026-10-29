@@ -15,8 +15,8 @@ import {
   type ReviewScope,
   type ReviewStatusFilter,
   type TagFilter,
-} from "./types.ts";
-import { usernameKey } from "./util.ts";
+} from './types.ts';
+import { usernameKey } from './util.ts';
 
 const ALL_TAGS: TagFilter = { kind: TAG_FILTER_KINDS.ALL };
 
@@ -51,7 +51,10 @@ export function setFollows(
   account.followedBy = followedBy ? { since: followedBy.since } : null;
 }
 
-/** A follow that started after `since` (Instagram's date, in seconds). Unknown start dates count as new so they get looked at. */
+/**
+ * A follow that started after `since` (Instagram's date, in seconds). Unknown start dates count as new so they get
+ * looked at.
+ */
 function followedAfter(follow: DeepReadonly<Follow> | null, since: number): boolean {
   return follow !== null && (follow.since === null || follow.since > since);
 }
@@ -65,16 +68,23 @@ export function followChangeMatches(account: ReadonlyAccount, change: FollowChan
   const sinceMs = since === null ? Number.NEGATIVE_INFINITY : Date.parse(since);
   const after = (seenAt: string | undefined) => seenAt !== undefined && Date.parse(seenAt) > sinceMs;
   switch (change) {
-    case FOLLOW_CHANGES.NEW_FOLLOWS: return after(account.followedSeenAt) || followedAfter(account.following, sinceMs / 1000);
-    case FOLLOW_CHANGES.NEW_FOLLOWERS: return after(account.followedMeSeenAt) || followedAfter(account.followedBy, sinceMs / 1000);
-    case FOLLOW_CHANGES.UNFOLLOWED: return after(account.unfollowedSeenAt);
-    case FOLLOW_CHANGES.LOST_FOLLOWERS: return after(account.unfollowedMeSeenAt) || account.renameSuggestion !== undefined;
+    case FOLLOW_CHANGES.NEW_FOLLOWS:
+      return after(account.followedSeenAt) || followedAfter(account.following, sinceMs / 1000);
+    case FOLLOW_CHANGES.NEW_FOLLOWERS:
+      return after(account.followedMeSeenAt) || followedAfter(account.followedBy, sinceMs / 1000);
+    case FOLLOW_CHANGES.UNFOLLOWED:
+      return after(account.unfollowedSeenAt);
+    case FOLLOW_CHANGES.LOST_FOLLOWERS:
+      return after(account.unfollowedMeSeenAt) || account.renameSuggestion !== undefined;
   }
 }
 
 export type FollowChangeCounts = Record<FollowChange, number>;
 
-export function followChangeCounts(source: DeepReadonly<Pick<Master, "accounts">>, since: string | null): FollowChangeCounts {
+export function followChangeCounts(
+  source: DeepReadonly<Pick<Master, 'accounts'>>,
+  since: string | null,
+): FollowChangeCounts {
   const counts: FollowChangeCounts = {
     [FOLLOW_CHANGES.NEW_FOLLOWS]: 0,
     [FOLLOW_CHANGES.UNFOLLOWED]: 0,
@@ -82,36 +92,50 @@ export function followChangeCounts(source: DeepReadonly<Pick<Master, "accounts">
     [FOLLOW_CHANGES.LOST_FOLLOWERS]: 0,
   };
   for (const account of Object.values(source.accounts)) {
-    for (const change of Object.values(FOLLOW_CHANGES)) if (followChangeMatches(account, change, since)) counts[change] += 1;
+    for (const change of Object.values(FOLLOW_CHANGES))
+      if (followChangeMatches(account, change, since)) counts[change] += 1;
   }
   return counts;
 }
 
 export function scopeMatches(account: ReadonlyAccount, scope: ReviewScope): boolean {
   switch (scope) {
-    case REVIEW_SCOPES.FOLLOWING: return account.following !== null;
-    case REVIEW_SCOPES.FOLLOWERS: return account.followedBy !== null;
-    case REVIEW_SCOPES.MUTUAL: return relationshipOf(account) === RELATIONSHIPS.MUTUAL;
-    case REVIEW_SCOPES.NOT_FOLLOWING_BACK: return relationshipOf(account) === RELATIONSHIPS.NOT_FOLLOWING_BACK;
-    case REVIEW_SCOPES.FOLLOWS_YOU_ONLY: return relationshipOf(account) === RELATIONSHIPS.FOLLOWS_YOU_ONLY;
-    case REVIEW_SCOPES.ALL_CURRENT: return account.following !== null || account.followedBy !== null;
-    case REVIEW_SCOPES.ALL_ACCOUNTS: return true;
+    case REVIEW_SCOPES.FOLLOWING:
+      return account.following !== null;
+    case REVIEW_SCOPES.FOLLOWERS:
+      return account.followedBy !== null;
+    case REVIEW_SCOPES.MUTUAL:
+      return relationshipOf(account) === RELATIONSHIPS.MUTUAL;
+    case REVIEW_SCOPES.NOT_FOLLOWING_BACK:
+      return relationshipOf(account) === RELATIONSHIPS.NOT_FOLLOWING_BACK;
+    case REVIEW_SCOPES.FOLLOWS_YOU_ONLY:
+      return relationshipOf(account) === RELATIONSHIPS.FOLLOWS_YOU_ONLY;
+    case REVIEW_SCOPES.ALL_CURRENT:
+      return account.following !== null || account.followedBy !== null;
+    case REVIEW_SCOPES.ALL_ACCOUNTS:
+      return true;
   }
 }
 
 export function tagMatches(account: ReadonlyAccount, tag: TagFilter): boolean {
   switch (tag.kind) {
-    case TAG_FILTER_KINDS.ALL: return true;
-    case TAG_FILTER_KINDS.UNTAGGED: return account.review.tags.length === 0;
-    case TAG_FILTER_KINDS.TAG: return account.review.tags.includes(tag.tag);
+    case TAG_FILTER_KINDS.ALL:
+      return true;
+    case TAG_FILTER_KINDS.UNTAGGED:
+      return account.review.tags.length === 0;
+    case TAG_FILTER_KINDS.TAG:
+      return account.review.tags.includes(tag.tag);
   }
 }
 
 export function reviewStatusMatches(account: ReadonlyAccount, status: ReviewStatusFilter): boolean {
   switch (status) {
-    case REVIEW_STATUSES.ALL: return true;
-    case REVIEW_STATUSES.REVIEWED: return account.review.reviewed;
-    case REVIEW_STATUSES.NEEDS_REVIEW: return !account.review.reviewed;
+    case REVIEW_STATUSES.ALL:
+      return true;
+    case REVIEW_STATUSES.REVIEWED:
+      return account.review.reviewed;
+    case REVIEW_STATUSES.NEEDS_REVIEW:
+      return !account.review.reviewed;
   }
 }
 
@@ -130,13 +154,14 @@ export interface ScopeQuery {
 /** Generic so it returns mutable accounts when given mutable ones (reducers) and readonly ones otherwise. */
 export function reviewScopeAccounts<A extends ReadonlyAccount>(
   source: { readonly accounts: Readonly<Record<string, A>> },
-  { scope, tag = ALL_TAGS, reviewStatus = REVIEW_STATUSES.ALL, query = "" }: ScopeQuery,
+  { scope, tag = ALL_TAGS, reviewStatus = REVIEW_STATUSES.ALL, query = '' }: ScopeQuery,
 ): A[] {
-  return Object.values(source.accounts).filter(account =>
-    scopeMatches(account, scope) &&
-    tagMatches(account, tag) &&
-    reviewStatusMatches(account, reviewStatus) &&
-    queryMatches(account, query),
+  return Object.values(source.accounts).filter(
+    account =>
+      scopeMatches(account, scope) &&
+      tagMatches(account, tag) &&
+      reviewStatusMatches(account, reviewStatus) &&
+      queryMatches(account, query),
   );
 }
 
@@ -144,7 +169,10 @@ export function reviewScopeAccounts<A extends ReadonlyAccount>(
  * Whether Reset scope un-reviews this account: reviewed, in the scope and matching the tag.
  * Search and the review-status filter don't apply. The reset changes only `reviewed`.
  */
-export function inResetScope(account: ReadonlyAccount, { scope, tag }: { scope: ReviewScope; tag: TagFilter }): boolean {
+export function inResetScope(
+  account: ReadonlyAccount,
+  { scope, tag }: { scope: ReviewScope; tag: TagFilter },
+): boolean {
   return account.review.reviewed && scopeMatches(account, scope) && tagMatches(account, tag);
 }
 
@@ -157,17 +185,31 @@ export interface RelationshipStats {
   currentAccounts: number;
 }
 
-export function relationshipStats(source: DeepReadonly<Pick<Master, "accounts">>): RelationshipStats {
-  const stats: RelationshipStats = { following: 0, followers: 0, mutual: 0, notFollowingBack: 0, followsYouOnly: 0, currentAccounts: 0 };
+export function relationshipStats(source: DeepReadonly<Pick<Master, 'accounts'>>): RelationshipStats {
+  const stats: RelationshipStats = {
+    following: 0,
+    followers: 0,
+    mutual: 0,
+    notFollowingBack: 0,
+    followsYouOnly: 0,
+    currentAccounts: 0,
+  };
   for (const account of Object.values(source.accounts)) {
     if (account.following) stats.following += 1;
     if (account.followedBy) stats.followers += 1;
     if (account.following || account.followedBy) stats.currentAccounts += 1;
     switch (relationshipOf(account)) {
-      case RELATIONSHIPS.MUTUAL: stats.mutual += 1; break;
-      case RELATIONSHIPS.NOT_FOLLOWING_BACK: stats.notFollowingBack += 1; break;
-      case RELATIONSHIPS.FOLLOWS_YOU_ONLY: stats.followsYouOnly += 1; break;
-      case RELATIONSHIPS.NEITHER: break;
+      case RELATIONSHIPS.MUTUAL:
+        stats.mutual += 1;
+        break;
+      case RELATIONSHIPS.NOT_FOLLOWING_BACK:
+        stats.notFollowingBack += 1;
+        break;
+      case RELATIONSHIPS.FOLLOWS_YOU_ONLY:
+        stats.followsYouOnly += 1;
+        break;
+      case RELATIONSHIPS.NEITHER:
+        break;
     }
   }
   return stats;
@@ -180,7 +222,10 @@ export interface ScopeStats {
   unavailable: number;
 }
 
-export function reviewScopeStats(source: DeepReadonly<Pick<Master, "accounts">>, { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter }): ScopeStats {
+export function reviewScopeStats(
+  source: DeepReadonly<Pick<Master, 'accounts'>>,
+  { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter },
+): ScopeStats {
   const scoped = reviewScopeAccounts(source, { scope, tag });
   const reviewed = scoped.filter(a => a.review.reviewed).length;
   return {

@@ -1,6 +1,6 @@
-import { memo, useState, type KeyboardEvent } from "react";
-import { useDebouncedCallback } from "use-debounce";
-import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from "@chakra-ui/react";
+import { memo, useState, type KeyboardEvent } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
+import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from '@chakra-ui/react';
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -14,19 +14,36 @@ import {
   type ActionType,
   type Follow,
   type ReadonlyAccount,
-} from "../core/index.ts";
-import { useAppDispatch, useAppSelector } from "../store/hooks.ts";
-import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from "../store/masterSlice.ts";
-import { selectAccount, selectChangesSince, selectTags } from "../store/selectors.ts";
-import { formatSince } from "./dates.ts";
-import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from "./labels.ts";
-import { ProfileLink } from "./ProfileLink.tsx";
-import { RenameSuggestion } from "./RenameSuggestion.tsx";
+} from '../core/index.ts';
+import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
+import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from '../store/masterSlice.ts';
+import { selectAccount, selectChangesSince, selectTags } from '../store/selectors.ts';
+import { formatSince } from './dates.ts';
+import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from './labels.ts';
+import { ProfileLink } from './ProfileLink.tsx';
+import { RenameSuggestion } from './RenameSuggestion.tsx';
 
 /** `name` identifies the field to the browser (e.g. "reviewed-bob"); the app itself doesn't read it. */
-function CheckboxField({ name, label, checked, onChange }: { name: string; label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+function CheckboxField({
+  name,
+  label,
+  checked,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
-    <Checkbox.Root size="sm" name={name} checked={checked} onCheckedChange={e => { onChange(e.checked === true); }}>
+    <Checkbox.Root
+      size="sm"
+      name={name}
+      checked={checked}
+      onCheckedChange={e => {
+        onChange(e.checked === true);
+      }}
+    >
       <Checkbox.HiddenInput />
       <Checkbox.Control />
       <Checkbox.Label>{label}</Checkbox.Label>
@@ -36,7 +53,7 @@ function CheckboxField({ name, label, checked, onChange }: { name: string; label
 
 function sinceText(prefix: string, follow: Follow | null): string | null {
   if (!follow) return null;
-  return `${prefix} ${follow.since === null ? "(date unknown)" : formatSince(follow.since)}`;
+  return `${prefix} ${follow.since === null ? '(date unknown)' : formatSince(follow.since)}`;
 }
 
 /**
@@ -47,11 +64,21 @@ function NewTag({ username, tags, has }: { username: string; tags: readonly stri
   const dispatch = useAppDispatch();
   const [draft, setDraft] = useState<string | null>(null); // null = closed
   if (draft === null) {
-    return <Button size="xs" variant="ghost" onClick={() => { setDraft(""); }}>+ tag</Button>;
+    return (
+      <Button
+        size="xs"
+        variant="ghost"
+        onClick={() => {
+          setDraft('');
+        }}
+      >
+        + tag
+      </Button>
+    );
   }
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") setDraft(null);
-    if (event.key !== "Enter" || draft === null) return;
+    if (event.key === 'Escape') setDraft(null);
+    if (event.key !== 'Enter' || draft === null) return;
     const name = draft.trim();
     const tag = findTag(tags, name) ?? name;
     if (tag && !has.includes(tag)) dispatch(toggleTag({ username, tag }));
@@ -67,9 +94,13 @@ function NewTag({ username, tags, has }: { username: string; tags: readonly stri
       placeholder="new tag…"
       aria-label={`New tag for @${username}`}
       value={draft}
-      onChange={e => { setDraft(e.currentTarget.value); }}
+      onChange={e => {
+        setDraft(e.currentTarget.value);
+      }}
       onKeyDown={onKeyDown}
-      onBlur={() => { setDraft(null); }}
+      onBlur={() => {
+        setDraft(null);
+      }}
     />
   );
 }
@@ -87,7 +118,9 @@ function PlanControl({ account, type }: { account: ReadonlyAccount; type: Action
       name={`${PLAN_FIELDS[type]}-${account.username}`}
       label={PLAN_LABELS[type].checkbox}
       checked={plan !== undefined}
-      onChange={checked => dispatch(setPlan({ username: account.username, type, state: checked ? PLAN_STATES.PLANNED : null }))}
+      onChange={checked =>
+        dispatch(setPlan({ username: account.username, type, state: checked ? PLAN_STATES.PLANNED : null }))
+      }
     />
   );
 }
@@ -97,13 +130,18 @@ const NOTE_DEBOUNCE_MS = 300;
 
 /**
  * The note, stored after a pause in typing (or on leaving the field) rather than on every letter.
- * Shows what you type at once; a change from elsewhere (Reset changes, a confirmed rename) shows when you're not typing.
+ * Shows what you type at once; a change from elsewhere (Reset changes, a confirmed rename) shows when you're not
+ * typing.
  */
 function NoteField({ username, note }: { username: string; note: string }) {
   const dispatch = useAppDispatch();
   const [draft, setDraft] = useState(note);
   // flushOnExit: a card scrolled away (or a page closed) mid-typing still stores the note.
-  const storeNote = useDebouncedCallback((value: string) => dispatch(setNote({ username, note: value })), NOTE_DEBOUNCE_MS, { flushOnExit: true });
+  const storeNote = useDebouncedCallback(
+    (value: string) => dispatch(setNote({ username, note: value })),
+    NOTE_DEBOUNCE_MS,
+    { flushOnExit: true },
+  );
 
   // The stored note changed (from typing here, or from elsewhere): show it unless more typing is on its way.
   const [shownNote, setShownNote] = useState(note);
@@ -138,7 +176,9 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
 
   const { username, review } = account;
   const changes = Object.values(FOLLOW_CHANGES).filter(change => followChangeMatches(account, change, since));
-  const dates = [sinceText("You followed", account.following), sinceText("Followed you", account.followedBy)].filter(Boolean);
+  const dates = [sinceText('You followed', account.following), sinceText('Followed you', account.followedBy)].filter(
+    Boolean,
+  );
 
   return (
     <Box
@@ -150,25 +190,41 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
       p="4"
       opacity={review.unavailable ? 0.6 : 1}
     >
-      <Stack direction={{ base: "column", md: "row" }} gap="4">
+      <Stack direction={{ base: 'column', md: 'row' }} gap="4">
         <Stack gap="1" flex="1" minW="0">
           <ProfileLink username={username} />
           <HStack gap="1" wrap="wrap">
             <Badge>{RELATIONSHIP_LABELS[relationshipOf(account)]}</Badge>
             {review.unavailable && <Badge colorPalette="gray">Unavailable</Badge>}
-            {changes.map(change => <Badge key={change} colorPalette="pink">{CHANGE_BADGE_LABELS[change]}</Badge>)}
+            {changes.map(change => (
+              <Badge key={change} colorPalette="pink">
+                {CHANGE_BADGE_LABELS[change]}
+              </Badge>
+            ))}
           </HStack>
           <Text fontSize="sm" color="fg.muted">
-            {dates.length ? dates.join(" · ") : "No relationship date in export"}
+            {dates.length ? dates.join(' · ') : 'No relationship date in export'}
           </Text>
           <RenameSuggestion accountKey={accountKey} />
         </Stack>
 
         <Stack gap="3" flex="2" minW="0">
           <HStack gap="4" wrap="wrap">
-            <CheckboxField name={`reviewed-${username}`} label="Reviewed" checked={review.reviewed} onChange={reviewed => dispatch(setReviewed({ username, reviewed }))} />
-            <CheckboxField name={`unavailable-${username}`} label="Unavailable" checked={review.unavailable} onChange={unavailable => dispatch(setUnavailable({ username, unavailable }))} />
-            {Object.values(ACTION_TYPES).map(type => <PlanControl key={type} account={account} type={type} />)}
+            <CheckboxField
+              name={`reviewed-${username}`}
+              label="Reviewed"
+              checked={review.reviewed}
+              onChange={reviewed => dispatch(setReviewed({ username, reviewed }))}
+            />
+            <CheckboxField
+              name={`unavailable-${username}`}
+              label="Unavailable"
+              checked={review.unavailable}
+              onChange={unavailable => dispatch(setUnavailable({ username, unavailable }))}
+            />
+            {Object.values(ACTION_TYPES).map(type => (
+              <PlanControl key={type} account={account} type={type} />
+            ))}
           </HStack>
           <HStack gap="1" wrap="wrap" aria-label={`Tags for @${username}`}>
             {tags.map(tag => {
@@ -177,8 +233,8 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
                 <Button
                   key={tag}
                   size="xs"
-                  variant={on ? "solid" : "outline"}
-                  colorPalette={on ? "pink" : "gray"}
+                  variant={on ? 'solid' : 'outline'}
+                  colorPalette={on ? 'pink' : 'gray'}
                   aria-pressed={on}
                   onClick={() => dispatch(toggleTag({ username, tag }))}
                 >

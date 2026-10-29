@@ -1,8 +1,8 @@
-import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from "@reduxjs/toolkit";
-import type { StoreDeps } from "./deps.ts";
-import { confirmRename, resetChanges, resetScope } from "./masterSlice.ts";
-import { selectVisibleAccountKeys } from "./selectors.ts";
-import type { AppDispatch, RootState } from "./index.ts";
+import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from '@reduxjs/toolkit';
+import type { StoreDeps } from './deps.ts';
+import { confirmRename, resetChanges, resetScope } from './masterSlice.ts';
+import { selectVisibleAccountKeys } from './selectors.ts';
+import type { AppDispatch, RootState } from './index.ts';
 
 /**
  * The account keys the list shows. Recomputed only when the tab or a filter changes, on
@@ -16,7 +16,7 @@ export interface ListState {
 const initialState: ListState = { keys: [] };
 
 export const listSlice = createSlice({
-  name: "list",
+  name: 'list',
   initialState,
   reducers: {
     listRefreshed(_state, { payload }: PayloadAction<readonly string[]>) {

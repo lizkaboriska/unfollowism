@@ -1,17 +1,17 @@
-import { selectIsDirty } from "../../store/selectors.ts";
-import { importPrepared, saveMaster } from "../../store/thunks.ts";
-import { makeTestStore, prepared } from "../../store/__tests__/testStore.ts";
-import { guardUnload } from "../unloadGuard.ts";
+import { selectIsDirty } from '../../store/selectors.ts';
+import { importPrepared, saveMaster } from '../../store/thunks.ts';
+import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
+import { guardUnload } from '../unloadGuard.ts';
 
 /** Fires beforeunload as the browser does; true when the page asked to confirm leaving. */
 function leaveBlocked(): boolean {
-  const event = new Event("beforeunload", { cancelable: true });
+  const event = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(event);
   return event.defaultPrevented;
 }
 
-describe("guardUnload", () => {
-  test("asks to confirm leaving only while there is unsaved work", async () => {
+describe('guardUnload', () => {
+  test('asks to confirm leaving only while there is unsaved work', async () => {
     const { store } = makeTestStore();
     const stop = guardUnload(store, () => selectIsDirty(store.getState()));
     expect(leaveBlocked()).toBe(false); // nothing loaded
@@ -24,7 +24,7 @@ describe("guardUnload", () => {
     stop();
   });
 
-  test("stopping removes the guard", async () => {
+  test('stopping removes the guard', async () => {
     const { store } = makeTestStore();
     await store.dispatch(importPrepared(prepared())).unwrap();
     const stop = guardUnload(store, () => selectIsDirty(store.getState()));

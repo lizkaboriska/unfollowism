@@ -1,12 +1,12 @@
-import { createAccount } from "./account.ts";
-import { settlePlans, totalOf, type PlanOutcomes } from "./actions.ts";
-import { IMPORT_PROBLEMS, ImportError } from "./importProblems.ts";
-import { parseMaster } from "./masterFile.ts";
-import { dedupeAccounts } from "./parse.ts";
-import { findRenames, settleRenameSuggestions } from "./renames.ts";
-import { followChangeCounts, setFollows, type FollowChangeCounts } from "./scopes.ts";
-import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type Master } from "./types.ts";
-import { createDict, usernameKey } from "./util.ts";
+import { createAccount } from './account.ts';
+import { settlePlans, totalOf, type PlanOutcomes } from './actions.ts';
+import { IMPORT_PROBLEMS, ImportError } from './importProblems.ts';
+import { parseMaster } from './masterFile.ts';
+import { dedupeAccounts } from './parse.ts';
+import { findRenames, settleRenameSuggestions } from './renames.ts';
+import { followChangeCounts, setFollows, type FollowChangeCounts } from './scopes.ts';
+import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type Master } from './types.ts';
+import { createDict, usernameKey } from './util.ts';
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
 export interface ExportBundle {
@@ -69,7 +69,8 @@ export function mergeExports(
     if (account.following) previousFollowing.add(key);
     if (account.followedBy) previousFollowers.add(key);
   }
-  let exportChanged = !sameSet(previousFollowing, new Set(following.keys())) || !sameSet(previousFollowers, new Set(followers.keys()));
+  let exportChanged =
+    !sameSet(previousFollowing, new Set(following.keys())) || !sameSet(previousFollowers, new Set(followers.keys()));
 
   for (const key of new Set([...Object.keys(accounts), ...following.keys(), ...followers.keys()])) {
     const followingEntry = following.get(key);

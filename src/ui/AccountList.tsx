@@ -1,11 +1,11 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { Box, Text } from "@chakra-ui/react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { useAppSelector } from "../store/hooks.ts";
-import { PLAN_VIEW_ACTIONS, isPlanView } from "../store/filtersSlice.ts";
-import { selectListKeys } from "../store/listSlice.ts";
-import { AccountCard } from "./AccountCard.tsx";
-import { TodoRow } from "./TodoRow.tsx";
+import { useLayoutEffect, useRef, useState } from 'react';
+import { Box, Text } from '@chakra-ui/react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useAppSelector } from '../store/hooks.ts';
+import { PLAN_VIEW_ACTIONS, isPlanView } from '../store/filtersSlice.ts';
+import { selectListKeys } from '../store/listSlice.ts';
+import { AccountCard } from './AccountCard.tsx';
+import { TodoRow } from './TodoRow.tsx';
 
 /** Rough heights before measuring; real heights are measured as items render. */
 const ESTIMATED_CARD_HEIGHT = 190;
@@ -29,12 +29,16 @@ export function AccountList() {
   useLayoutEffect(() => {
     const node = listRef.current;
     if (!node) return;
-    const measure = () => { setScrollMargin(node.offsetTop); };
+    const measure = () => {
+      setScrollMargin(node.offsetTop);
+    };
     measure();
-    if (typeof ResizeObserver === "undefined") return; // tests (jsdom)
+    if (typeof ResizeObserver === 'undefined') return; // tests (jsdom)
     const observer = new ResizeObserver(measure);
     observer.observe(document.body);
-    return () => { observer.disconnect(); };
+    return () => {
+      observer.disconnect();
+    };
   }, [hasList]);
 
   const virtualizer = useWindowVirtualizer({
@@ -49,11 +53,7 @@ export function AccountList() {
   if (!hasList) return <Text color="fg.muted">No accounts match the current filters.</Text>;
 
   return (
-    <Box
-      ref={listRef}
-      position="relative"
-      height={`${virtualizer.getTotalSize()}px`}
-    >
+    <Box ref={listRef} position="relative" height={`${virtualizer.getTotalSize()}px`}>
       {virtualizer.getVirtualItems().map(item => (
         <Box
           key={item.key}
@@ -65,9 +65,11 @@ export function AccountList() {
           width="100%"
           transform={`translateY(${item.start - scrollMargin}px)`}
         >
-          {todoAction
-            ? <TodoRow accountKey={keys[item.index] ?? ""} type={todoAction} />
-            : <AccountCard accountKey={keys[item.index] ?? ""} />}
+          {todoAction ? (
+            <TodoRow accountKey={keys[item.index] ?? ''} type={todoAction} />
+          ) : (
+            <AccountCard accountKey={keys[item.index] ?? ''} />
+          )}
         </Box>
       ))}
     </Box>

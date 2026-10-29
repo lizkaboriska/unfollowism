@@ -1,5 +1,5 @@
-import { createReview } from "./review.ts";
-import type { Account, ReadonlyAccount } from "./types.ts";
+import { createReview } from './review.ts';
+import type { Account, ReadonlyAccount } from './types.ts';
 
 /** A new account with no follows, review or plans yet. */
 export function createAccount(username: string): Account {
@@ -20,7 +20,8 @@ export function copyAccount(account: ReadonlyAccount): Account {
   if (account.followedMeSeenAt) copy.followedMeSeenAt = account.followedMeSeenAt;
   if (account.unfollowedSeenAt) copy.unfollowedSeenAt = account.unfollowedSeenAt;
   if (account.unfollowedMeSeenAt) copy.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
-  if (account.renameSuggestion) copy.renameSuggestion = { to: account.renameSuggestion.to, plans: [...account.renameSuggestion.plans] };
+  if (account.renameSuggestion)
+    copy.renameSuggestion = { to: account.renameSuggestion.to, plans: [...account.renameSuggestion.plans] };
   return copy;
 }
 

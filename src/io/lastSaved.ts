@@ -7,9 +7,11 @@ export interface LastSavedStore {
   set(value: string): void;
 }
 
-const KEY = "instagram-review:last-saved-at";
+const KEY = 'instagram-review:last-saved-at';
 
-export function localStorageLastSaved(storage: Pick<Storage, "getItem" | "setItem"> | null = safeLocalStorage()): LastSavedStore {
+export function localStorageLastSaved(
+  storage: Pick<Storage, 'getItem' | 'setItem'> | null = safeLocalStorage(),
+): LastSavedStore {
   return {
     get() {
       try {
@@ -38,5 +40,10 @@ function safeLocalStorage(): Storage | null {
 
 export function memoryLastSaved(initial: string | null = null): LastSavedStore {
   let value = initial;
-  return { get: () => value, set: v => { value = v; } };
+  return {
+    get: () => value,
+    set: v => {
+      value = v;
+    },
+  };
 }

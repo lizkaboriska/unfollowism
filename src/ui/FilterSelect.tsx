@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Box, HStack, Portal, Select, Text, createListCollection } from "@chakra-ui/react";
+import { useMemo } from 'react';
+import { Box, HStack, Portal, Select, Text, createListCollection } from '@chakra-ui/react';
 
 export interface FilterOption<V extends string = string> {
   value: V;
@@ -15,7 +15,13 @@ export interface FilterOption<V extends string = string> {
  * own (typed) value; the shown value only changes when the parent passes a new `value`, so an
  * option can also act as an action (e.g. "Manage tags…") without becoming the selection.
  */
-export function FilterSelect<V extends string>({ name, label, options, value, onChange }: {
+export function FilterSelect<V extends string>({
+  name,
+  label,
+  options,
+  value,
+  onChange,
+}: {
   name: string;
   label: string;
   options: readonly FilterOption<V>[];
@@ -27,14 +33,14 @@ export function FilterSelect<V extends string>({ name, label, options, value, on
     <Select.Root
       collection={collection}
       size="sm"
-      width={{ base: "full", md: "52" }}
+      width={{ base: 'full', md: '52' }}
       name={name}
       value={[value]}
       onValueChange={e => {
         const option = options.find(o => o.value === e.value[0]);
         if (option && option.value !== value) onChange(option.value);
       }}
-      positioning={{ sameWidth: false, placement: "bottom-start" }}
+      positioning={{ sameWidth: false, placement: 'bottom-start' }}
     >
       <Select.HiddenSelect />
       <Select.Control>
@@ -54,7 +60,11 @@ export function FilterSelect<V extends string>({ name, label, options, value, on
                 <Select.Item item={option}>
                   <HStack flex="1" justify="space-between" gap="4">
                     <Select.ItemText>{option.label}</Select.ItemText>
-                    {option.count !== undefined && <Text as="span" color="fg.muted" fontSize="xs">{option.count}</Text>}
+                    {option.count !== undefined && (
+                      <Text as="span" color="fg.muted" fontSize="xs">
+                        {option.count}
+                      </Text>
+                    )}
                   </HStack>
                   <Select.ItemIndicator />
                 </Select.Item>

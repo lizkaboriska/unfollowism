@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
-import { Box, Stack, Text } from "@chakra-ui/react";
-import type { StoreDeps } from "./store/deps.ts";
-import { useAppDispatch, useAppSelector } from "./store/hooks.ts";
-import { selectHasProject } from "./store/selectors.ts";
-import { restoreTab } from "./store/thunks.ts";
-import { AccountList } from "./ui/AccountList.tsx";
-import { FiltersBar } from "./ui/FiltersBar.tsx";
-import { Header } from "./ui/Header.tsx";
-import { ImportScreen } from "./ui/ImportScreen.tsx";
-import { RelationshipCounts } from "./ui/RelationshipCounts.tsx";
-import { StatusLine } from "./ui/StatusLine.tsx";
-import { StorageWarning } from "./ui/StorageWarning.tsx";
-import { SummaryLine } from "./ui/SummaryLine.tsx";
-import { ViewTabs } from "./ui/ViewTabs.tsx";
+import { useEffect, useState } from 'react';
+import { Box, Stack, Text } from '@chakra-ui/react';
+import type { StoreDeps } from './store/deps.ts';
+import { useAppDispatch, useAppSelector } from './store/hooks.ts';
+import { selectHasProject } from './store/selectors.ts';
+import { restoreTab } from './store/thunks.ts';
+import { AccountList } from './ui/AccountList.tsx';
+import { FiltersBar } from './ui/FiltersBar.tsx';
+import { Header } from './ui/Header.tsx';
+import { ImportScreen } from './ui/ImportScreen.tsx';
+import { RelationshipCounts } from './ui/RelationshipCounts.tsx';
+import { StatusLine } from './ui/StatusLine.tsx';
+import { StorageWarning } from './ui/StorageWarning.tsx';
+import { SummaryLine } from './ui/SummaryLine.tsx';
+import { ViewTabs } from './ui/ViewTabs.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
@@ -22,17 +22,21 @@ export function App({ deps }: { deps: StoreDeps }) {
 
   // After a reload, silently continue where this tab left off.
   useEffect(() => {
-    void dispatch(restoreTab()).finally(() => { setRestoring(false); });
+    void dispatch(restoreTab()).finally(() => {
+      setRestoring(false);
+    });
   }, [dispatch]);
 
   // A file dropped anywhere but the import drop zone would be opened by the browser, leaving the app.
   useEffect(() => {
-    const keepPage = (event: Event) => { event.preventDefault(); };
-    window.addEventListener("dragover", keepPage);
-    window.addEventListener("drop", keepPage);
+    const keepPage = (event: Event) => {
+      event.preventDefault();
+    };
+    window.addEventListener('dragover', keepPage);
+    window.addEventListener('drop', keepPage);
     return () => {
-      window.removeEventListener("dragover", keepPage);
-      window.removeEventListener("drop", keepPage);
+      window.removeEventListener('dragover', keepPage);
+      window.removeEventListener('drop', keepPage);
     };
   }, []);
 
@@ -49,13 +53,29 @@ export function App({ deps }: { deps: StoreDeps }) {
   return (
     <Box maxW="5xl" mx="auto" px="4" py="8">
       <Stack gap="5">
-        <Header {...(showImport ? {} : { onImportNew: () => { setImportOpen(true); } })} />
+        <Header
+          {...(showImport
+            ? {}
+            : {
+                onImportNew: () => {
+                  setImportOpen(true);
+                },
+              })}
+        />
 
         {showImport ? (
           <ImportScreen
             lastSaved={deps.lastSaved}
-            onImported={() => { setImportOpen(false); }}
-            {...(hasProject ? { onCancel: () => { setImportOpen(false); } } : {})}
+            onImported={() => {
+              setImportOpen(false);
+            }}
+            {...(hasProject
+              ? {
+                  onCancel: () => {
+                    setImportOpen(false);
+                  },
+                }
+              : {})}
           />
         ) : (
           <>

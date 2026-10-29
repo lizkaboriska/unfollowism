@@ -1,13 +1,13 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
-import { Button, Dialog, Portal } from "@chakra-ui/react";
-import type { ValueOf } from "../core/index.ts";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { Button, Dialog, Portal } from '@chakra-ui/react';
+import type { ValueOf } from '../core/index.ts';
 
 /**
  * Promise-based dialogs: `if (await confirm({ … })) …` instead of wiring open state
  * into every component. One dialog is shown at a time, by DialogProvider.
  */
 
-const DIALOG_KINDS = { CONFIRM: "confirm", ALERT: "alert" } as const;
+const DIALOG_KINDS = { CONFIRM: 'confirm', ALERT: 'alert' } as const;
 type DialogKind = ValueOf<typeof DIALOG_KINDS>;
 
 export interface AlertOptions {
@@ -36,12 +36,16 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   /** Answers the dialog on screen; null once it has been answered. */
   const pending = useRef<((confirmed: boolean) => void) | null>(null);
 
-  const open = useCallback<OpenDialogFn>((kind, options) => new Promise(resolve => {
-    pending.current?.(false); // a dialog opened over another one cancels it, so its caller isn't left waiting
-    pending.current = resolve;
-    setDialog({ ...options, kind });
-    setIsOpen(true);
-  }), []);
+  const open = useCallback<OpenDialogFn>(
+    (kind, options) =>
+      new Promise(resolve => {
+        pending.current?.(false); // a dialog opened over another one cancels it, so its caller isn't left waiting
+        pending.current = resolve;
+        setDialog({ ...options, kind });
+        setIsOpen(true);
+      }),
+    [],
+  );
 
   function close(confirmed: boolean) {
     if (!pending.current) return;
@@ -55,8 +59,10 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog.Root
         open={isOpen}
-        onOpenChange={e => { if (!e.open) close(false); }}
-        role={dialog?.kind === DIALOG_KINDS.CONFIRM ? "alertdialog" : "dialog"}
+        onOpenChange={e => {
+          if (!e.open) close(false);
+        }}
+        role={dialog?.kind === DIALOG_KINDS.CONFIRM ? 'alertdialog' : 'dialog'}
         placement="center"
       >
         <Portal>
@@ -70,13 +76,32 @@ export function DialogProvider({ children }: { children: ReactNode }) {
               <Dialog.Footer>
                 {dialog?.kind === DIALOG_KINDS.CONFIRM ? (
                   <>
-                    <Button variant="outline" onClick={() => { close(false); }}>Cancel</Button>
-                    <Button colorPalette={dialog.destructive ? "red" : "pink"} onClick={() => { close(true); }}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        close(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      colorPalette={dialog.destructive ? 'red' : 'pink'}
+                      onClick={() => {
+                        close(true);
+                      }}
+                    >
                       {dialog.confirmLabel}
                     </Button>
                   </>
                 ) : (
-                  <Button colorPalette="pink" onClick={() => { close(true); }}>{dialog?.confirmLabel}</Button>
+                  <Button
+                    colorPalette="pink"
+                    onClick={() => {
+                      close(true);
+                    }}
+                  >
+                    {dialog?.confirmLabel}
+                  </Button>
                 )}
               </Dialog.Footer>
             </Dialog.Content>
@@ -89,7 +114,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 
 function useOpenDialog(): OpenDialogFn {
   const open = useContext(DialogContext);
-  if (!open) throw new Error("Dialogs need a DialogProvider above them");
+  if (!open) throw new Error('Dialogs need a DialogProvider above them');
   return open;
 }
 
@@ -102,5 +127,10 @@ export function useConfirm(): (options: ConfirmOptions) => Promise<boolean> {
 /** Resolves when the user closes the message. */
 export function useAlert(): (options: AlertOptions) => Promise<void> {
   const open = useOpenDialog();
-  return useCallback(async options => { await open(DIALOG_KINDS.ALERT, { ...options, confirmLabel: "OK" }); }, [open]);
+  return useCallback(
+    async options => {
+      await open(DIALOG_KINDS.ALERT, { ...options, confirmLabel: 'OK' });
+    },
+    [open],
+  );
 }

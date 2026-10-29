@@ -1,14 +1,14 @@
 export function usernameKey(value: unknown): string {
-  const text = typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
+  const text = typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
   return text.trim().toLowerCase();
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function numberOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 /**

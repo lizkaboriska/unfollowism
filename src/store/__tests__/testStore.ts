@@ -1,9 +1,9 @@
-import type { ValueOf } from "../../core/index.ts";
-import { followersFile, followingFile, must } from "../../core/__tests__/helpers.ts";
-import { analyzeImport, type PreparedImport } from "../../io/analyzeImport.ts";
-import { memoryLastSaved, type LastSavedStore } from "../../io/lastSaved.ts";
-import { createMemoryTabDatabase, type TabStore } from "../../io/tabStore.ts";
-import { makeStore } from "../index.ts";
+import type { ValueOf } from '../../core/index.ts';
+import { followersFile, followingFile, must } from '../../core/__tests__/helpers.ts';
+import { analyzeImport, type PreparedImport } from '../../io/analyzeImport.ts';
+import { memoryLastSaved, type LastSavedStore } from '../../io/lastSaved.ts';
+import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
+import { makeStore } from '../index.ts';
 
 export interface Download {
   filename: string;
@@ -11,8 +11,8 @@ export interface Download {
 }
 
 export function makeTestStore({
-  now = "2026-10-27T12:00:00.000Z",
-  tab = createMemoryTabDatabase().forTab("tab-1"),
+  now = '2026-10-27T12:00:00.000Z',
+  tab = createMemoryTabDatabase().forTab('tab-1'),
   lastSaved = memoryLastSaved(),
   download,
 }: {
@@ -25,7 +25,11 @@ export function makeTestStore({
   let clock = new Date(now);
   const store = makeStore({
     now: () => clock,
-    download: download ?? ((filename, text) => { downloads.push({ filename, text }); }),
+    download:
+      download ??
+      ((filename, text) => {
+        downloads.push({ filename, text });
+      }),
     tab,
     lastSaved,
   });
@@ -34,11 +38,13 @@ export function makeTestStore({
     downloads,
     tab,
     lastSaved,
-    setNow: (iso: string) => { clock = new Date(iso); },
+    setNow: (iso: string) => {
+      clock = new Date(iso);
+    },
   };
 }
 
-export const WRITES = { REPLACE: "replace", UPDATE: "update" } as const;
+export const WRITES = { REPLACE: 'replace', UPDATE: 'update' } as const;
 
 export interface RecordedWrite {
   kind: ValueOf<typeof WRITES>;
@@ -48,7 +54,7 @@ export interface RecordedWrite {
 }
 
 /** Wraps a tab store and records every write (account keys only), to assert what gets written when. */
-export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab("tab-1")) {
+export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab('tab-1')) {
   const writes: RecordedWrite[] = [];
   const tab: TabStore = {
     durable: inner.durable,
@@ -58,7 +64,12 @@ export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab(
       return inner.replace(base, meta, w);
     },
     update: (meta, w) => {
-      writes.push({ kind: WRITES.UPDATE, accounts: Object.keys(w.changed), saved: Object.keys(w.saved), removed: w.removed });
+      writes.push({
+        kind: WRITES.UPDATE,
+        accounts: Object.keys(w.changed),
+        saved: Object.keys(w.saved),
+        removed: w.removed,
+      });
       return inner.update(meta, w);
     },
   };
@@ -69,8 +80,8 @@ export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab(
 export const flushPersistence = () => new Promise(resolve => setTimeout(resolve, 0));
 
 export function prepared({
-  following = [["Alice"], ["bob"], ["carol"]],
-  followers = [["alice"], ["dave"]],
+  following = [['Alice'], ['bob'], ['carol']],
+  followers = [['alice'], ['dave']],
   master = null,
   lastKnownSavedAt = null,
 }: {
@@ -80,15 +91,23 @@ export function prepared({
   lastKnownSavedAt?: string | null;
 } = {}): PreparedImport {
   const inputs = [
-    { path: "export/connections/followers_and_following/following.json", text: JSON.stringify(followingFile(...following)) },
-    { path: "export/connections/followers_and_following/followers_1.json", text: JSON.stringify(followersFile(...followers)) },
+    {
+      path: 'export/connections/followers_and_following/following.json',
+      text: JSON.stringify(followingFile(...following)),
+    },
+    {
+      path: 'export/connections/followers_and_following/followers_1.json',
+      text: JSON.stringify(followersFile(...followers)),
+    },
   ];
-  if (master) inputs.push({ path: "instagram_master_tracker.json", text: JSON.stringify(master) });
+  if (master) inputs.push({ path: 'instagram_master_tracker.json', text: JSON.stringify(master) });
   return must(analyzeImport(inputs, lastKnownSavedAt).prepared);
 }
 
 export function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>(r => { resolve = r; });
+  const promise = new Promise<void>(r => {
+    resolve = r;
+  });
   return { promise, resolve };
 }

@@ -1,4 +1,4 @@
-import { createSlice, original, type PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
 import {
   accountOf,
   copyAccount,
@@ -19,9 +19,16 @@ import {
   type ReadonlyAccount,
   type ReviewScope,
   type TagFilter,
-} from "../core/index.ts";
-import { IMPORT_STATUSES, SAVE_STATUSES, STATUS_EVENTS, type ImportStatus, type SaveStatus, type StatusEvent } from "./statuses.ts";
-import { importPrepared, restoreTab, saveMaster } from "./thunks.ts";
+} from '../core/index.ts';
+import {
+  IMPORT_STATUSES,
+  SAVE_STATUSES,
+  STATUS_EVENTS,
+  type ImportStatus,
+  type SaveStatus,
+  type StatusEvent,
+} from './statuses.ts';
+import { importPrepared, restoreTab, saveMaster } from './thunks.ts';
 
 /**
  * The imported master is kept as-is in `base`, and accounts edited since then live in
@@ -32,7 +39,10 @@ export interface MasterState {
   base: Master | null;
   /** Account key → current version of every account edited since the import (null = removed, see ChangedAccounts). */
   changed: ChangedAccounts;
-  /** `changed` as written to the last downloaded file (empty if not saved since the import). Reset changes goes back to it. */
+  /**
+   * `changed` as written to the last downloaded file (empty if not saved since the import). Reset changes goes back to
+   * it.
+   */
   savedChanged: ChangedAccounts;
   /** lastSavedAt of the master (from the imported file, then from each save). */
   savedAt: string | null;
@@ -43,9 +53,15 @@ export interface MasterState {
   saveStatus: SaveStatus;
   /** What last happened (import, save…), for the status bar. The UI words it. */
   status: StatusEvent | null;
-  /** `status` as it was right after the last save (or the import): Reset changes puts it back. Not restored after a reload, like `status`. */
+  /**
+   * `status` as it was right after the last save (or the import): Reset changes puts it back. Not restored after a
+   * reload, like `status`.
+   */
   savedStatus: StatusEvent | null;
-  /** The last write to browser storage failed: unsaved work won't survive a reload. Cleared by the next write that works. */
+  /**
+   * The last write to browser storage failed: unsaved work won't survive a reload. Cleared by the next write that
+   * works.
+   */
   persistenceFailed: boolean;
   /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
   restoreFailed: boolean;
@@ -79,10 +95,15 @@ interface PlanPayload {
 /** The account as it is before this reducer runs (imported, or edited earlier). */
 function accountBefore(state: MasterState, username: string): ReadonlyAccount | undefined {
   const before = original(state);
-  return before.base ? accountOf<ReadonlyAccount>(before.base.accounts, before.changed, usernameKey(username)) : undefined;
+  return before.base
+    ? accountOf<ReadonlyAccount>(before.base.accounts, before.changed, usernameKey(username))
+    : undefined;
 }
 
-/** Applies an edit, copying the account into `changed` on its first edit so `base` is never copied. A removed account isn't edited. */
+/**
+ * Applies an edit, copying the account into `changed` on its first edit so `base` is never copied. A removed account
+ * isn't edited.
+ */
 function applyEdit(state: MasterState, key: string, edit: (account: Account) => void): void {
   if (Object.hasOwn(state.changed, key)) {
     const existing = state.changed[key];
@@ -101,7 +122,9 @@ function editTagged(state: MasterState, tag: string, edit: (account: Account) =>
   const before = original(state);
   const base = before.base;
   if (!base) return;
-  const targets = Object.keys(base.accounts).filter(key => accountOf<ReadonlyAccount>(base.accounts, before.changed, key)?.review.tags.includes(tag));
+  const targets = Object.keys(base.accounts).filter(key =>
+    accountOf<ReadonlyAccount>(base.accounts, before.changed, key)?.review.tags.includes(tag),
+  );
   for (const key of targets) applyEdit(state, key, edit);
   if (targets.length) state.revision += 1;
 }
@@ -114,12 +137,14 @@ function editAccount(state: MasterState, username: string, edit: (account: Accou
 }
 
 export const masterSlice = createSlice({
-  name: "master",
+  name: 'master',
   initialState,
   reducers: {
     setReviewed(state, { payload }: PayloadAction<{ username: string; reviewed: boolean }>) {
       if (accountBefore(state, payload.username)?.review.reviewed === payload.reviewed) return;
-      editAccount(state, payload.username, account => { account.review.reviewed = payload.reviewed; });
+      editAccount(state, payload.username, account => {
+        account.review.reviewed = payload.reviewed;
+      });
     },
     /** Marking unavailable also marks the account reviewed; clearing it does not un-review. */
     setUnavailable(state, { payload }: PayloadAction<{ username: string; unavailable: boolean }>) {
@@ -139,7 +164,9 @@ export const masterSlice = createSlice({
     },
     setNote(state, { payload }: PayloadAction<{ username: string; note: string }>) {
       if (accountBefore(state, payload.username)?.review.notes === payload.note) return;
-      editAccount(state, payload.username, account => { account.review.notes = payload.note; });
+      editAccount(state, payload.username, account => {
+        account.review.notes = payload.note;
+      });
     },
     /**
      * Plans an Instagram action (planned → done after doing it by hand), or cancels it with
@@ -166,19 +193,29 @@ export const masterSlice = createSlice({
         const account = accountOf<ReadonlyAccount>(base.accounts, before.changed, key);
         return !!account && inResetScope(account, payload);
       });
-      for (const key of targets) applyEdit(state, key, account => { account.review.reviewed = false; });
+      for (const key of targets)
+        applyEdit(state, key, account => {
+          account.review.reviewed = false;
+        });
       if (targets.length) state.revision += 1;
     },
     /** Renames a tag on every account that has it. Renaming onto an existing tag merges the two. */
     renameTag(state, { payload }: PayloadAction<{ from: string; to: string }>) {
       if (payload.from === payload.to) return;
-      editTagged(state, payload.from, account => { renameTagOn(account, payload.from, payload.to); });
+      editTagged(state, payload.from, account => {
+        renameTagOn(account, payload.from, payload.to);
+      });
     },
     /** Removes a tag from every account; with no account left, the tag no longer exists. */
     deleteTag(state, { payload }: PayloadAction<{ tag: string }>) {
-      editTagged(state, payload.tag, account => { removeTagFrom(account, payload.tag); });
+      editTagged(state, payload.tag, account => {
+        removeTagFrom(account, payload.tag);
+      });
     },
-    /** A suggested rename was right: the old account's review work moves to the new name, and the old account is removed. */
+    /**
+     * A suggested rename was right: the old account's review work moves to the new name, and the old account is
+     * removed.
+     */
     confirmRename(state, { payload }: PayloadAction<{ from: string }>) {
       const before = original(state);
       const base = before.base;
@@ -186,14 +223,18 @@ export const masterSlice = createSlice({
       const old = accountOf<ReadonlyAccount>(base.accounts, before.changed, payload.from);
       const to = old?.renameSuggestion?.to;
       if (!old || to === undefined || !accountOf<ReadonlyAccount>(base.accounts, before.changed, to)) return;
-      applyEdit(state, to, account => { mergeRenamed(account, old); });
+      applyEdit(state, to, account => {
+        mergeRenamed(account, old);
+      });
       state.changed[payload.from] = null;
       state.revision += 1;
     },
     /** A suggested rename was wrong: the suggestion goes away, like unticking a box. Imports don't suggest it again. */
     dismissRename(state, { payload }: PayloadAction<{ from: string }>) {
       if (!accountBefore(state, payload.from)?.renameSuggestion) return;
-      editAccount(state, payload.from, account => { delete account.renameSuggestion; });
+      editAccount(state, payload.from, account => {
+        delete account.renameSuggestion;
+      });
     },
     /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
     resetChanges(state) {
@@ -257,7 +298,11 @@ export const masterSlice = createSlice({
         state.savedRevision = payload.revision;
         state.savedAt = payload.savedAt;
         state.savedChanged = payload.changed;
-        state.status = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: state.revision !== payload.revision };
+        state.status = {
+          type: STATUS_EVENTS.SAVED,
+          filename: payload.filename,
+          changedWhileSaving: state.revision !== payload.revision,
+        };
         state.savedStatus = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: false };
       })
       .addCase(saveMaster.rejected, (state, { error, meta }) => {
@@ -269,6 +314,17 @@ export const masterSlice = createSlice({
 });
 
 export const {
-  setReviewed, setUnavailable, toggleTag, setNote, setPlan, resetScope, renameTag, deleteTag, confirmRename, dismissRename, resetChanges, persistenceFailed,
+  setReviewed,
+  setUnavailable,
+  toggleTag,
+  setNote,
+  setPlan,
+  resetScope,
+  renameTag,
+  deleteTag,
+  confirmRename,
+  dismissRename,
+  resetChanges,
+  persistenceFailed,
   persistenceRecovered,
 } = masterSlice.actions;

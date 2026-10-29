@@ -1,5 +1,5 @@
-import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from "./importProblems.ts";
-import { createReview } from "./review.ts";
+import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from './importProblems.ts';
+import { createReview } from './review.ts';
 import {
   ACTION_TYPES,
   FORMAT_VERSION,
@@ -13,8 +13,8 @@ import {
   type ReadonlyAccount,
   type RenameSuggestion,
   type Review,
-} from "./types.ts";
-import { createDict, isRecord, usernameKey } from "./util.ts";
+} from './types.ts';
+import { createDict, isRecord, usernameKey } from './util.ts';
 
 /**
  * The saved form of the master (download file and browser storage). Compact: anything
@@ -53,7 +53,7 @@ export interface AccountRecord {
 // ── Writing ──────────────────────────────────────────────────────────────────
 
 function isDefaultReview(r: DeepReadonly<Review>): boolean {
-  return !r.reviewed && !r.unavailable && r.tags.length === 0 && r.notes === "";
+  return !r.reviewed && !r.unavailable && r.tags.length === 0 && r.notes === '';
 }
 
 /**
@@ -79,7 +79,10 @@ export function toAccountRecord(account: ReadonlyAccount, savedAt: string | unde
   if (account.unfollowedSeenAt) out.unfollowedSeenAt = account.unfollowedSeenAt;
   if (account.unfollowedMeSeenAt) out.unfollowedMeSeenAt = account.unfollowedMeSeenAt;
   const suggestion = account.renameSuggestion;
-  if (suggestion) out.renameSuggestion = suggestion.plans.length ? { to: suggestion.to, plans: [...suggestion.plans] } : { to: suggestion.to };
+  if (suggestion)
+    out.renameSuggestion = suggestion.plans.length
+      ? { to: suggestion.to, plans: [...suggestion.plans] }
+      : { to: suggestion.to };
   return out;
 }
 
@@ -100,7 +103,8 @@ export function sameAccountData(a: ReadonlyAccount, b: ReadonlyAccount): boolean
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
   const accounts = createDict<AccountRecord>();
-  for (const [key, account] of Object.entries(master.accounts)) accounts[key] = toAccountRecord(account, master.lastSavedAt);
+  for (const [key, account] of Object.entries(master.accounts))
+    accounts[key] = toAccountRecord(account, master.lastSavedAt);
   return {
     version: FORMAT_VERSION,
     ...(master.lastSavedAt === undefined ? {} : { lastSavedAt: master.lastSavedAt }),
@@ -116,8 +120,10 @@ export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
 export function stringifyMasterFile(file: MasterFile): string {
   const { accounts, ...head } = file;
   const headLines = Object.entries(head).map(([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`);
-  const accountLines = Object.entries(accounts).map(([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)}`);
-  return `{\n${headLines.join(",\n")},\n  "accounts": {\n${accountLines.join(",\n")}\n  }\n}\n`;
+  const accountLines = Object.entries(accounts).map(
+    ([key, value]) => `    ${JSON.stringify(key)}: ${JSON.stringify(value)}`,
+  );
+  return `{\n${headLines.join(',\n')},\n  "accounts": {\n${accountLines.join(',\n')}\n  }\n}\n`;
 }
 
 // ── Reading: strict, each reader names the offending field ──────────────────
@@ -135,26 +141,33 @@ function array(value: unknown, path: string): unknown[] {
 }
 
 function str(value: unknown, path: string): string {
-  return typeof value === "string" ? value : fail(path, FIELD_TYPES.TEXT);
+  return typeof value === 'string' ? value : fail(path, FIELD_TYPES.TEXT);
 }
 
 function nonEmptyStr(value: unknown, path: string): string {
-  return typeof value === "string" && value ? value : fail(path, FIELD_TYPES.NON_EMPTY_TEXT);
+  return typeof value === 'string' && value ? value : fail(path, FIELD_TYPES.NON_EMPTY_TEXT);
 }
 
 function bool(value: unknown, path: string): boolean {
-  return typeof value === "boolean" ? value : fail(path, FIELD_TYPES.BOOLEAN);
+  return typeof value === 'boolean' ? value : fail(path, FIELD_TYPES.BOOLEAN);
 }
 
 function numOrNull(value: unknown, path: string): number | null {
-  return value === null || (typeof value === "number" && Number.isFinite(value)) ? value : fail(path, FIELD_TYPES.NUMBER_OR_NULL);
+  return value === null || (typeof value === 'number' && Number.isFinite(value))
+    ? value
+    : fail(path, FIELD_TYPES.NUMBER_OR_NULL);
 }
 
 /** One of a constant object's values, e.g. oneOf(value, PLAN_STATES, path). */
 function oneOf<T extends string>(value: unknown, options: Readonly<Record<string, T>>, path: string): T {
   const allowed: readonly string[] = Object.values(options);
-  if (typeof value === "string" && allowed.includes(value)) return value as T;
-  throw new ImportError({ kind: IMPORT_PROBLEMS.INVALID_FIELD, path, expected: FIELD_TYPES.ONE_OF, options: [...allowed] });
+  if (typeof value === 'string' && allowed.includes(value)) return value as T;
+  throw new ImportError({
+    kind: IMPORT_PROBLEMS.INVALID_FIELD,
+    path,
+    expected: FIELD_TYPES.ONE_OF,
+    options: [...allowed],
+  });
 }
 
 /** Rejected rather than dropped: losing a field silently could lose your work. */
@@ -168,7 +181,12 @@ function strings(value: unknown, path: string): string[] {
   return array(value, path).map((item, i) => str(item, `${path}[${i}]`));
 }
 
-const REVIEW_FIELDS: ReadonlySet<string> = new Set(["reviewed", "unavailable", "tags", "notes"] satisfies (keyof Review)[]);
+const REVIEW_FIELDS: ReadonlySet<string> = new Set([
+  'reviewed',
+  'unavailable',
+  'tags',
+  'notes',
+] satisfies (keyof Review)[]);
 
 function parseReview(value: unknown, path: string): Review {
   const r = record(value, path);
@@ -182,7 +200,7 @@ function parseReview(value: unknown, path: string): Review {
 }
 
 function date(value: unknown, path: string): string {
-  return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : fail(path, FIELD_TYPES.DATE);
+  return typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : fail(path, FIELD_TYPES.DATE);
 }
 
 /** A follow is recorded by the presence of its "since" field (null = time unknown). */
@@ -190,17 +208,30 @@ function follow(present: boolean, since: unknown, path: string): Follow | null {
   return present ? { since: numOrNull(since, path) } : null;
 }
 
-const RENAME_FIELDS: ReadonlySet<string> = new Set(["to", "plans"] satisfies (keyof RenameSuggestion)[]);
+const RENAME_FIELDS: ReadonlySet<string> = new Set(['to', 'plans'] satisfies (keyof RenameSuggestion)[]);
 
 function parseRenameSuggestion(value: unknown, path: string): RenameSuggestion {
   const r = record(value, path);
   rejectUnknownFields(r, RENAME_FIELDS, path);
-  const plans = r.plans === undefined ? [] : array(r.plans, `${path}.plans`).map((type, i) => oneOf(type, ACTION_TYPES, `${path}.plans[${i}]`));
+  const plans =
+    r.plans === undefined
+      ? []
+      : array(r.plans, `${path}.plans`).map((type, i) => oneOf(type, ACTION_TYPES, `${path}.plans[${i}]`));
   return { to: nonEmptyStr(r.to, `${path}.to`), plans };
 }
 
 const ACCOUNT_FIELDS: ReadonlySet<string> = new Set([
-  "username", "followingSince", "followerSince", "review", "toUnfollow", "toRemove", "followedSeenAt", "followedMeSeenAt", "unfollowedSeenAt", "unfollowedMeSeenAt", "renameSuggestion",
+  'username',
+  'followingSince',
+  'followerSince',
+  'review',
+  'toUnfollow',
+  'toRemove',
+  'followedSeenAt',
+  'followedMeSeenAt',
+  'unfollowedSeenAt',
+  'unfollowedMeSeenAt',
+  'renameSuggestion',
 ] satisfies (keyof AccountRecord)[]);
 
 /** Builds the working account from its saved record. */
@@ -209,8 +240,8 @@ export function fromAccountRecord(value: unknown, path: string): Account {
   rejectUnknownFields(r, ACCOUNT_FIELDS, path);
   const account: Account = {
     username: nonEmptyStr(r.username, `${path}.username`),
-    following: follow("followingSince" in r, r.followingSince, `${path}.followingSince`),
-    followedBy: follow("followerSince" in r, r.followerSince, `${path}.followerSince`),
+    following: follow('followingSince' in r, r.followingSince, `${path}.followingSince`),
+    followedBy: follow('followerSince' in r, r.followerSince, `${path}.followerSince`),
     review: r.review === undefined ? createReview() : parseReview(r.review, `${path}.review`),
   };
   if (r.toUnfollow !== undefined) account.toUnfollow = oneOf(r.toUnfollow, PLAN_STATES, `${path}.toUnfollow`);
@@ -218,8 +249,10 @@ export function fromAccountRecord(value: unknown, path: string): Account {
   if (r.followedSeenAt !== undefined) account.followedSeenAt = date(r.followedSeenAt, `${path}.followedSeenAt`);
   if (r.followedMeSeenAt !== undefined) account.followedMeSeenAt = date(r.followedMeSeenAt, `${path}.followedMeSeenAt`);
   if (r.unfollowedSeenAt !== undefined) account.unfollowedSeenAt = date(r.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
-  if (r.unfollowedMeSeenAt !== undefined) account.unfollowedMeSeenAt = date(r.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
-  if (r.renameSuggestion !== undefined) account.renameSuggestion = parseRenameSuggestion(r.renameSuggestion, `${path}.renameSuggestion`);
+  if (r.unfollowedMeSeenAt !== undefined)
+    account.unfollowedMeSeenAt = date(r.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
+  if (r.renameSuggestion !== undefined)
+    account.renameSuggestion = parseRenameSuggestion(r.renameSuggestion, `${path}.renameSuggestion`);
   return account;
 }
 
@@ -236,15 +269,16 @@ export function parseMaster(raw: unknown): Master {
   for (const [rawKey, value] of Object.entries(raw.accounts)) {
     const account = fromAccountRecord(value, `accounts.${rawKey}`);
     const key = usernameKey(account.username);
-    if (Object.hasOwn(accounts, key)) throw new ImportError({ kind: IMPORT_PROBLEMS.DUPLICATE_ACCOUNT, username: account.username });
+    if (Object.hasOwn(accounts, key))
+      throw new ImportError({ kind: IMPORT_PROBLEMS.DUPLICATE_ACCOUNT, username: account.username });
     accounts[key] = account;
   }
 
   const master: Master = {
     version: FORMAT_VERSION,
     accounts,
-    lastImportAt: date(raw.lastImportAt, "lastImportAt"),
+    lastImportAt: date(raw.lastImportAt, 'lastImportAt'),
   };
-  if (raw.lastSavedAt !== undefined) master.lastSavedAt = date(raw.lastSavedAt, "lastSavedAt");
+  if (raw.lastSavedAt !== undefined) master.lastSavedAt = date(raw.lastSavedAt, 'lastSavedAt');
   return master;
 }

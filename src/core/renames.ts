@@ -1,5 +1,12 @@
-import { followExists, planOf, setPlan } from "./actions.ts";
-import { ACTION_TYPES, PLAN_STATES, type Account, type ExportEntry, type ReadonlyAccount, type RenameSuggestion } from "./types.ts";
+import { followExists, planOf, setPlan } from './actions.ts';
+import {
+  ACTION_TYPES,
+  PLAN_STATES,
+  type Account,
+  type ExportEntry,
+  type ReadonlyAccount,
+  type RenameSuggestion,
+} from './types.ts';
 
 /** A rename found by an import: the old account's key and the suggestion to put on it. */
 export interface FoundRename {
@@ -10,7 +17,7 @@ export interface FoundRename {
 /** The follow dates that identify an account across a rename; null when a date is unknown (no match then). */
 function signature(following: number | null | undefined, followedBy: number | null | undefined): string | null {
   if (following === null || followedBy === null || followedBy === undefined) return null;
-  return `${following ?? "-"}:${followedBy}`;
+  return `${following ?? '-'}:${followedBy}`;
 }
 
 /** Signature → account key, for signatures seen exactly once; one shared by two accounts is ambiguous and dropped. */
@@ -35,19 +42,26 @@ export function findRenames(
   following: ReadonlyMap<string, ExportEntry>,
   followers: ReadonlyMap<string, ExportEntry>,
 ): FoundRename[] {
-  const gone = unique(Object.entries(accounts)
-    .filter(([key, account]) => account.followedBy !== null && !followers.has(key) && !following.has(key))
-    .map(([key, account]) => [key, signature(account.following?.since, account.followedBy?.since)] as const));
-  const appeared = unique([...followers]
-    .filter(([key]) => !Object.hasOwn(accounts, key))
-    .map(([key, entry]) => [key, signature(following.get(key)?.since, entry.since)] as const));
+  const gone = unique(
+    Object.entries(accounts)
+      .filter(([key, account]) => account.followedBy !== null && !followers.has(key) && !following.has(key))
+      .map(([key, account]) => [key, signature(account.following?.since, account.followedBy?.since)] as const),
+  );
+  const appeared = unique(
+    [...followers]
+      .filter(([key]) => !Object.hasOwn(accounts, key))
+      .map(([key, entry]) => [key, signature(following.get(key)?.since, entry.since)] as const),
+  );
 
   const found: FoundRename[] = [];
   for (const [sig, from] of gone) {
     const to = appeared.get(sig);
     const old = accounts[from];
     if (to === undefined || !old) continue;
-    found.push({ from, suggestion: { to, plans: Object.values(ACTION_TYPES).filter(type => planOf(old, type) !== undefined) } });
+    found.push({
+      from,
+      suggestion: { to, plans: Object.values(ACTION_TYPES).filter(type => planOf(old, type) !== undefined) },
+    });
   }
   return found;
 }
@@ -66,7 +80,7 @@ export function settleRenameSuggestions(accounts: Record<string, Account>): void
 }
 
 /** Joins merged notes. Notes are edited in a one-line field, which would drop a line break. */
-const NOTE_SEPARATOR = " · ";
+const NOTE_SEPARATOR = ' · ';
 
 /**
  * WRITE (to `target`): moves the old account's review work onto its new name. Tags are combined,

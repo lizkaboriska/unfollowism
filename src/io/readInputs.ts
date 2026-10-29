@@ -1,4 +1,4 @@
-import { BlobReader, TextWriter, ZipReader } from "@zip.js/zip.js";
+import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
 
 /**
  * A text file from the user's selection, with its path inside a zip or folder when known.
@@ -21,8 +21,12 @@ function readArrayBuffer(file: Blob): Promise<ArrayBuffer> {
   // Blob.arrayBuffer() is missing in some test environments; FileReader works everywhere.
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => { resolve(reader.result as ArrayBuffer); };
-    reader.onerror = () => { reject(reader.error ?? new Error("Could not read file")); };
+    reader.onload = () => {
+      resolve(reader.result as ArrayBuffer);
+    };
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Could not read file'));
+    };
     reader.readAsArrayBuffer(file);
   });
 }
@@ -36,10 +40,11 @@ async function readZip(file: File, path: string): Promise<InputText[]> {
   try {
     const result: InputText[] = [];
     for (const entry of await zip.getEntries()) {
-      if (entry.directory || entry.filename.startsWith("__MACOSX/")) continue;
+      if (entry.directory || entry.filename.startsWith('__MACOSX/')) continue;
       const entryPath = `${path}/${entry.filename}`;
-      if (HTML_FILE.test(entry.filename)) result.push({ path: entryPath, text: "" });
-      else if (JSON_FILE.test(entry.filename)) result.push({ path: entryPath, text: await entry.getData(new TextWriter()) });
+      if (HTML_FILE.test(entry.filename)) result.push({ path: entryPath, text: '' });
+      else if (JSON_FILE.test(entry.filename))
+        result.push({ path: entryPath, text: await entry.getData(new TextWriter()) });
     }
     return result;
   } finally {
@@ -55,7 +60,7 @@ export async function readInputs(files: readonly File[]): Promise<InputText[]> {
   for (const file of files) {
     const path = displayPath(file);
     if (/\.zip$/i.test(file.name)) {
-      result.push(...await readZip(file, path));
+      result.push(...(await readZip(file, path)));
     } else if (JSON_FILE.test(file.name) || HTML_FILE.test(file.name)) {
       result.push({ path, text: decoder.decode(await readArrayBuffer(file)) });
     }

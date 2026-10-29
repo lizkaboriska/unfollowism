@@ -1,9 +1,16 @@
-import { IMPORT_PROBLEMS, ImportError, isRecord, parseFollowersJson, parseFollowingJson, type ExportBundle } from "../core/index.ts";
-import type { InputText } from "./readInputs.ts";
+import {
+  IMPORT_PROBLEMS,
+  ImportError,
+  isRecord,
+  parseFollowersJson,
+  parseFollowingJson,
+  type ExportBundle,
+} from '../core/index.ts';
+import type { InputText } from './readInputs.ts';
 
 export const IMPORT_WARNINGS = {
-  MASTER_OLDER_THAN_LAST_SAVE: "masterOlderThanLastSave",
-  NO_MASTER_BUT_SAVED_BEFORE: "noMasterButSavedBefore",
+  MASTER_OLDER_THAN_LAST_SAVE: 'masterOlderThanLastSave',
+  NO_MASTER_BUT_SAVED_BEFORE: 'noMasterButSavedBefore',
 } as const;
 
 export type ImportWarning =
@@ -36,7 +43,7 @@ export interface ImportSelection {
 const FOLLOWERS_NAME = /(^|\/)followers_(\d+)\.json$/i;
 
 function baseName(path: string): string {
-  return path.split("/").at(-1) ?? path;
+  return path.split('/').at(-1) ?? path;
 }
 
 function followerChunkNumber(path: string): number {
@@ -74,7 +81,8 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     const data = parseJson(input.text);
 
     if (isRecord(data) && Array.isArray(data.relationships_following)) {
-      if (following) throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_FOLLOWING_FILES, paths: [following.path, input.path] });
+      if (following)
+        throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_FOLLOWING_FILES, paths: [following.path, input.path] });
       following = { path: input.path, data };
     } else if (Array.isArray(data) && FOLLOWERS_NAME.test(input.path)) {
       followers.push({ path: input.path, data });
@@ -89,12 +97,13 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     if (seenChunks.has(name)) throw new ImportError({ kind: IMPORT_PROBLEMS.DUPLICATE_FOLLOWER_FILE, name });
     seenChunks.add(name);
   }
-  if (masters.length > 1) throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_MASTERS, names: masters.map(m => baseName(m.path)) });
+  if (masters.length > 1)
+    throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_MASTERS, names: masters.map(m => baseName(m.path)) });
 
   if ((!following || !followers.length) && htmlCount) throw new ImportError({ kind: IMPORT_PROBLEMS.HTML_EXPORT });
 
   const master = masters[0] ?? null;
-  const masterSavedAt = typeof master?.data.lastSavedAt === "string" ? master.data.lastSavedAt : null;
+  const masterSavedAt = typeof master?.data.lastSavedAt === 'string' ? master.data.lastSavedAt : null;
   const recognized: RecognizedFiles = {
     hasFollowing: following !== null,
     followerFileCount: followers.length,
@@ -109,7 +118,11 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     if (!master) {
       warnings.push({ kind: IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE, lastKnownSavedAt });
     } else if (!masterSavedAt || Date.parse(masterSavedAt) < Date.parse(lastKnownSavedAt)) {
-      warnings.push({ kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE, fileSavedAt: masterSavedAt, lastKnownSavedAt });
+      warnings.push({
+        kind: IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE,
+        fileSavedAt: masterSavedAt,
+        lastKnownSavedAt,
+      });
     }
   }
 

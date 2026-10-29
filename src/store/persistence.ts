@@ -1,10 +1,18 @@
-import type { ListenerMiddlewareInstance } from "@reduxjs/toolkit";
-import { createDict, toAccountRecord, toMasterFile, type AccountRecord, type ChangedAccounts, type DeepReadonly, type Master } from "../core/index.ts";
-import type { TabMeta } from "../io/tabStore.ts";
-import type { StoreDeps } from "./deps.ts";
-import { persistenceFailed, persistenceRecovered, type MasterState } from "./masterSlice.ts";
-import { restoreTab } from "./thunks.ts";
-import type { AppDispatch, RootState } from "./index.ts";
+import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
+import {
+  createDict,
+  toAccountRecord,
+  toMasterFile,
+  type AccountRecord,
+  type ChangedAccounts,
+  type DeepReadonly,
+  type Master,
+} from '../core/index.ts';
+import type { TabMeta } from '../io/tabStore.ts';
+import type { StoreDeps } from './deps.ts';
+import { persistenceFailed, persistenceRecovered, type MasterState } from './masterSlice.ts';
+import { restoreTab } from './thunks.ts';
+import type { AppDispatch, RootState } from './index.ts';
 
 type Accounts = DeepReadonly<ChangedAccounts>;
 
@@ -24,7 +32,11 @@ function toMeta(state: MasterState, storedAt: string): TabMeta {
  * Accounts whose object differs from what was last stored (null = removed). Only looks at edited accounts.
  * `savedAt` is the stored base's, so a reloaded account matches its base again (see toAccountRecord).
  */
-function newlyChanged(stored: Accounts | null, current: Accounts, savedAt: string | undefined): Record<string, AccountRecord | null> {
+function newlyChanged(
+  stored: Accounts | null,
+  current: Accounts,
+  savedAt: string | undefined,
+): Record<string, AccountRecord | null> {
   const records = createDict<AccountRecord | null>();
   if (stored === current) return records;
   for (const [key, account] of Object.entries(current)) {
@@ -66,7 +78,11 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
   });
 
   /** True when storage now holds the latest state (or there is nothing to store). */
-  async function writeLatest(api: { getState: () => RootState; extra: StoreDeps; dispatch: AppDispatch }): Promise<boolean> {
+  async function writeLatest(api: {
+    getState: () => RootState;
+    extra: StoreDeps;
+    dispatch: AppDispatch;
+  }): Promise<boolean> {
     const state = api.getState().master;
     const { base, changed, savedChanged } = state;
     if (!base) return true;
@@ -91,7 +107,8 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       return true;
     } catch (error) {
       console.error("Writing the tab's backup to browser storage failed:", error);
-      // Storage may now hold anything (or nothing, if the tab's data was deleted): the next write starts over with replace.
+      // Storage may now hold anything (or nothing, if the tab's data was deleted): the next write starts over with
+      // replace.
       storedBase = null;
       storedChanged = null;
       storedSaved = null;
