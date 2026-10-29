@@ -25,6 +25,17 @@ export function App({ deps }: { deps: StoreDeps }) {
     void dispatch(restoreTab()).finally(() => { setRestoring(false); });
   }, [dispatch]);
 
+  // A file dropped anywhere but the import drop zone would be opened by the browser, leaving the app.
+  useEffect(() => {
+    const keepPage = (event: Event) => { event.preventDefault(); };
+    window.addEventListener("dragover", keepPage);
+    window.addEventListener("drop", keepPage);
+    return () => {
+      window.removeEventListener("dragover", keepPage);
+      window.removeEventListener("drop", keepPage);
+    };
+  }, []);
+
   if (restoring && !hasProject) {
     return (
       <Box maxW="5xl" mx="auto" px="4" py="8">

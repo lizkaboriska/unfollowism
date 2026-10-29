@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { ChakraProvider } from "@chakra-ui/react";
 import { Provider } from "react-redux";
@@ -117,6 +117,22 @@ test("a missing Followers file is shown and Import stays disabled", async () => 
   expect(await screen.findByText(/^Following ✓ · Followers ✗/)).toBeInTheDocument();
   expect(screen.getByText(/followers_1\.json .* is missing/)).toBeInTheDocument();
   expect(importButton()).toBeDisabled();
+});
+
+/** Whether the browser would do its default for a file dragged over / dropped on `target` (fireEvent: false = prevented). */
+const browserHandlesDrop = (target: Element) =>
+  ["dragover", "drop"].some(type => fireEvent(target, new Event(type, { bubbles: true, cancelable: true })));
+
+test("a dropped file is never opened by the browser; dropping on the zone adds it", async () => {
+  const { user } = await renderApp();
+  expect(browserHandlesDrop(importButton())).toBe(false); // next to the zone
+
+  fireEvent.drop(screen.getByText("Drop your Instagram export here"), { dataTransfer: { files: exportFiles() } });
+  expect(await screen.findByText(/^Following ✓ · Followers ✓/)).toBeInTheDocument();
+
+  await user.click(importButton());
+  await findRow("alice");
+  expect(browserHandlesDrop(row("alice"))).toBe(false); // the main view has no drop zone at all
 });
 
 const masterJson = (savedAt: string, name = "instagram_master_tracker.json") =>
