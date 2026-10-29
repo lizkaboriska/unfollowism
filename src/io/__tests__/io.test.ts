@@ -168,6 +168,26 @@ describe.each([
     expect(await db.tabIds()).toEqual(["a"]);
   });
 
+  test("a removed account (null record) is kept and read back as null", async () => {
+    const tab = open().forTab("a");
+    await tab.replace(BASE, META, { changed: { bob: null }, saved: {} });
+    await tab.update(META, { changed: {}, removed: [], saved: { bob: null } });
+    const loaded = must(await tab.load());
+    expect(Object.keys(loaded.changed)).toEqual(["bob"]);
+    expect(loaded.changed.bob).toBeNull();
+    expect(loaded.saved.bob).toBeNull();
+  });
+
+  test("an account keyed __proto__ comes back as an ordinary account", async () => {
+    const tab = open().forTab("a");
+    const records = JSON.parse('{"__proto__":{"username":"__proto__"}}') as TabWrites["changed"]; // a literal would set the prototype
+    await tab.replace(BASE, META, { changed: records, saved: records });
+    const loaded = must(await tab.load());
+    expect(Object.keys(loaded.changed)).toEqual(["__proto__"]);
+    expect(Object.keys(loaded.saved)).toEqual(["__proto__"]);
+    expect(Object.getOwnPropertyDescriptor(loaded.changed, "__proto__")?.value).toEqual({ username: "__proto__" });
+  });
+
   test("replace drops the tab's earlier changes", async () => {
     const tab = open().forTab("a");
     await tab.replace(BASE, META, NOTHING);
