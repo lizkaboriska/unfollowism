@@ -23,7 +23,8 @@ async function openTabStore(): Promise<TabStore> {
     if (typeof indexedDB === "undefined") throw new Error("IndexedDB unavailable");
     const database = openIndexedDbTabDatabase();
     return database.forTab(await claimTab(database, browserTabEnvironment()));
-  } catch {
+  } catch (error) {
+    console.error("Browser storage unavailable, keeping work in memory only:", error);
     return createMemoryTabDatabase().forTab("memory");
   }
 }

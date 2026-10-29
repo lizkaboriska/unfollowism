@@ -89,7 +89,8 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       storedSaved = savedChanged;
       if (api.getState().master.persistenceFailed) api.dispatch(persistenceRecovered());
       return true;
-    } catch {
+    } catch (error) {
+      console.error("Writing the tab's backup to browser storage failed:", error);
       // Storage may now hold anything (or nothing, if the tab's data was deleted): the next write starts over with replace.
       storedBase = null;
       storedChanged = null;
