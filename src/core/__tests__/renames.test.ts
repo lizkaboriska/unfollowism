@@ -1,5 +1,6 @@
 import {
   ACTION_TYPES,
+  DecisionKind,
   FIELD_TYPES,
   FOLLOW_CHANGES,
   IMPORT_PROBLEMS,
@@ -11,6 +12,7 @@ import {
   parseFollowersJson,
   parseFollowingJson,
   parseMaster,
+  planOf,
   stringifyMasterFile,
   toMasterFile,
   type ExportBundle,
@@ -188,9 +190,11 @@ test('an account only I follow is never suggested (it shows in I unfollowed)', (
 
 test('plans on a renamed account are remembered and not reported as done', () => {
   const raw = first(master => {
-    must(master.accounts.alice).toUnfollow = PLAN_STATES.PLANNED;
-    must(master.accounts.alice).toRemove = PLAN_STATES.DONE;
-    must(master.accounts.bob).toUnfollow = PLAN_STATES.PLANNED;
+    must(master.accounts.alice).decision = {
+      kind: DecisionKind.QUEUED,
+      plans: { unfollow: PLAN_STATES.PLANNED, removeFollower: PLAN_STATES.DONE },
+    };
+    must(master.accounts.bob).decision = { kind: DecisionKind.QUEUED, plans: { unfollow: PLAN_STATES.PLANNED } };
   });
   const result = importExport(
     raw,
@@ -205,7 +209,7 @@ test('plans on a renamed account are remembered and not reported as done', () =>
   );
   expect(suggestions(result)).toEqual({ alice: { to: 'alice_new', plans: [UNFOLLOW, REMOVE_FOLLOWER] } });
   expect(result.summary.plans.completed).toEqual({ [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 }); // only bob's unfollow
-  expect(result.master.accounts.alice?.toUnfollow).toBeUndefined();
+  expect(planOf(must(result.master.accounts.alice), UNFOLLOW)).toBeUndefined();
 });
 
 test('an open suggestion is saved in the master, read back, and kept in Lost followers until decided', () => {
@@ -268,32 +272,49 @@ test('a suggestion in the file is read strictly', () => {
   });
 });
 
-test('confirming moves tags, notes, reviewed and plans to the new name', () => {
+test('confirming moves tags, notes, the decision and plans to the new name', () => {
   const target = createAccount('alice_new');
   target.following = { since: 101 };
   target.followedBy = { since: 201 };
   target.review.tags = ['friend'];
   target.review.notes = 'new note';
   const old = createAccount('alice');
-  old.review = { reviewed: true, unavailable: true, tags: ['artist', 'friend'], notes: 'old note' };
+  old.decision = { kind: DecisionKind.KEPT }; // its plans were cleared by the import and kept on the suggestion
+  old.review = { unavailable: true, tags: ['artist', 'friend'], notes: 'old note' };
   old.renameSuggestion = { to: 'alice_new', plans: [UNFOLLOW, REMOVE_FOLLOWER] };
 
   mergeRenamed(target, old);
   expect(target.review).toEqual({
-    reviewed: true,
     unavailable: false,
     tags: ['friend', 'artist'],
     notes: 'new note · old note',
   });
-  expect(target.toUnfollow).toBe(PLAN_STATES.PLANNED);
-  expect(target.toRemove).toBe(PLAN_STATES.PLANNED);
+  expect(target.decision).toEqual({
+    kind: DecisionKind.QUEUED,
+    plans: { unfollow: PLAN_STATES.PLANNED, removeFollower: PLAN_STATES.PLANNED },
+  });
 
   const followerOnly = createAccount('carol_2');
   followerOnly.followedBy = { since: 203 };
   const carol = createAccount('carol');
   carol.renameSuggestion = { to: 'carol_2', plans: [UNFOLLOW] };
   mergeRenamed(followerOnly, carol);
-  expect(followerOnly.toUnfollow).toBeUndefined(); // I don't follow the new name: nothing to unfollow
+  expect(planOf(followerOnly, UNFOLLOW)).toBeUndefined(); // I don't follow the new name: nothing to unfollow
+  expect(followerOnly.decision).toBeUndefined(); // carol was undecided, so the new name still needs a decision
+});
+
+test("confirming carries the old name's decision over when the new name has none", () => {
+  const target = createAccount('dave_new');
+  const old = createAccount('dave');
+  old.decision = { kind: DecisionKind.KEPT };
+  mergeRenamed(target, old);
+  expect(target.decision).toEqual({ kind: DecisionKind.KEPT });
+
+  const decided = createAccount('erin_new');
+  decided.followedBy = { since: 1 };
+  decided.decision = { kind: DecisionKind.QUEUED, plans: { removeFollower: PLAN_STATES.PLANNED } };
+  mergeRenamed(decided, old);
+  expect(decided.decision.kind).toBe(DecisionKind.QUEUED); // the new name's own decision wins
 });
 
 test('confirming with only one note keeps it as it is', () => {

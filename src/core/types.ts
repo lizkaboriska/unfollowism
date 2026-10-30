@@ -20,8 +20,13 @@ export const REVIEW_SCOPES = {
 } as const;
 export type ReviewScope = ValueOf<typeof REVIEW_SCOPES>;
 
-export const REVIEW_STATUSES = { ALL: 'all', NEEDS_REVIEW: 'needsReview', REVIEWED: 'reviewed' } as const;
-export type ReviewStatusFilter = ValueOf<typeof REVIEW_STATUSES>;
+/** The "Your decision" filter. */
+export enum DecisionFilter {
+  ANY = 'any',
+  NEEDS_DECISION = 'needsDecision',
+  KEPT = 'kept',
+  QUEUED = 'queued',
+}
 
 // A user tag may be any string (even "untagged"), so the filter is structured rather than a sentinel string.
 export const TAG_FILTER_KINDS = { ALL: 'all', UNTAGGED: 'untagged', TAG: 'tag' } as const;
@@ -42,6 +47,22 @@ export type Relationship = ValueOf<typeof RELATIONSHIPS>;
 export const PLAN_STATES = { PLANNED: 'planned', DONE: 'done' } as const;
 export type PlanState = ValueOf<typeof PLAN_STATES>;
 
+export enum DecisionKind {
+  KEPT = 'kept',
+  QUEUED = 'queued',
+}
+
+/** The Instagram actions you queued for an account. At least one is set. */
+export interface Plans {
+  unfollow?: PlanState;
+  removeFollower?: PlanState;
+}
+
+/** What you decided about an account. */
+export type Decision =
+  | { kind: DecisionKind.KEPT } // no change in Instagram
+  | { kind: DecisionKind.QUEUED; plans: Plans }; // one or both actions queued
+
 /**
  * What changed since the master you imported was saved (or everything, without a saved master),
  * by the date an import first noticed the change. New follows also count by Instagram's own date
@@ -56,8 +77,6 @@ export const FOLLOW_CHANGES = {
 export type FollowChange = ValueOf<typeof FOLLOW_CHANGES>;
 
 export interface Review {
-  /** Whether the account currently counts as reviewed. Resetting it keeps everything else. */
-  reviewed: boolean;
   /** The account seems deleted, disabled or otherwise unavailable. */
   unavailable: boolean;
   tags: string[];
@@ -76,11 +95,12 @@ export interface Account {
   following: Follow | null;
   /** They follow you (as of the latest export); null when they don't. */
   followedBy: Follow | null;
+  /**
+   * What you decided; absent = needs a decision. A queued plan is cleared by the import that no longer finds its
+   * follow (see settlePlans).
+   */
+  decision?: Decision;
   review: Review;
-  /** You plan to unfollow them; absent when not marked. Cleared by the import that no longer finds the follow. */
-  toUnfollow?: PlanState;
-  /** You plan to remove them as a follower; absent when not marked. Cleared like toUnfollow. */
-  toRemove?: PlanState;
   /**
    * When an import first found you following them; absent while you don't. Instagram's own date can't
    * tell whether a follow is newer than the last save: one made after the export was built still predates the save.

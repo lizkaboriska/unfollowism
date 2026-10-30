@@ -1,7 +1,7 @@
 import { createReview } from './review.ts';
-import type { Account, ReadonlyAccount } from './types.ts';
+import { DecisionKind, type Account, type Decision, type DeepReadonly, type ReadonlyAccount } from './types.ts';
 
-/** A new account with no follows, review or plans yet. */
+/** A new account with no follows, decision or review yet. */
 export function createAccount(username: string): Account {
   return { username, following: null, followedBy: null, review: createReview() };
 }
@@ -14,11 +14,8 @@ export function copyAccount(account: ReadonlyAccount): Account {
     followedBy: account.followedBy && { ...account.followedBy },
     review: { ...account.review, tags: [...account.review.tags] },
   };
-  if (account.toUnfollow) {
-    copy.toUnfollow = account.toUnfollow;
-  }
-  if (account.toRemove) {
-    copy.toRemove = account.toRemove;
+  if (account.decision) {
+    copy.decision = copyDecision(account.decision);
   }
   if (account.followedSeenAt) {
     copy.followedSeenAt = account.followedSeenAt;
@@ -55,4 +52,11 @@ export function accountOf<A extends ReadonlyAccount>(
   key: string,
 ): A | undefined {
   return Object.hasOwn(changed, key) ? (changed[key] ?? undefined) : base[key];
+}
+
+/** A mutable copy of a decision. */
+export function copyDecision(decision: DeepReadonly<Decision>): Decision {
+  return decision.kind === DecisionKind.KEPT
+    ? { kind: DecisionKind.KEPT }
+    : { kind: decision.kind, plans: { ...decision.plans } };
 }

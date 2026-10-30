@@ -2,7 +2,7 @@
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
 import { must } from '../core/__tests__/helpers.ts';
-import { importExport, stringifyMasterFile, toMasterFile } from '../core/index.ts';
+import { DecisionKind, importExport, stringifyMasterFile, toMasterFile } from '../core/index.ts';
 import { analyzeImport } from '../io/analyzeImport.ts';
 import { memoryLastSaved } from '../io/lastSaved.ts';
 import { createMemoryTabDatabase } from '../io/tabStore.ts';
@@ -76,7 +76,7 @@ async function run(total: number) {
   const store = makeStore(deps);
   const rows: [string, number, number][] = [];
 
-  // A saved master from an earlier import, with 10% of accounts reviewed (built directly, not via thousands of
+  // A saved master from an earlier import, with 10% of accounts kept (built directly, not via thousands of
   // actions).
   const first = must(analyzeImport(exportTexts(total), null).prepared);
   const earlier = importExport(null, first.bundle, '2026-09-01T00:00:00.000Z').master;
@@ -84,7 +84,8 @@ async function run(total: number) {
   for (let i = 0; i < keys.length; i += 10) {
     const account = earlier.accounts[keys[i] ?? ''];
     if (account) {
-      account.review = { reviewed: true, unavailable: false, tags: ['artist'], notes: '' };
+      account.decision = { kind: DecisionKind.KEPT };
+      account.review = { unavailable: false, tags: ['artist'], notes: '' };
     }
   }
   const masterText = stringifyMasterFile(toMasterFile({ ...earlier, lastSavedAt: '2026-09-02T00:00:00.000Z' }));

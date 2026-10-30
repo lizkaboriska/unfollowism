@@ -2,6 +2,7 @@ import { FIELD_TYPES, IMPORT_PROBLEMS, type FieldType, type ImportProblem } from
 
 const EXPECTED: Record<Exclude<FieldType, typeof FIELD_TYPES.ONE_OF>, string> = {
   [FIELD_TYPES.OBJECT]: 'an object',
+  [FIELD_TYPES.NON_EMPTY_OBJECT]: 'an object with at least one entry',
   [FIELD_TYPES.LIST]: 'a list',
   [FIELD_TYPES.TEXT]: 'text',
   [FIELD_TYPES.NON_EMPTY_TEXT]: 'non-empty text',

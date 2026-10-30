@@ -2,7 +2,7 @@ import { TextReader, Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip.
 import { IDBDatabase, IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 
 import { followersFile, followingFile, must, problemOf } from '../../core/__tests__/helpers.ts';
-import { IMPORT_PROBLEMS, type MasterFile } from '../../core/index.ts';
+import { DecisionKind, IMPORT_PROBLEMS, type MasterFile } from '../../core/index.ts';
 import { IMPORT_WARNINGS, analyzeImport } from '../analyzeImport.ts';
 import { masterFileName } from '../download.ts';
 import { localStorageLastSaved } from '../lastSaved.ts';
@@ -200,7 +200,7 @@ describe.each([
     await tab.replace(BASE, META, NOTHING);
     await tab.update(
       { ...META, revision: 3 },
-      edited({ bob: { username: 'bob', review: { reviewed: true, unavailable: false, tags: [], notes: '' } } }),
+      edited({ bob: { username: 'bob', decision: { kind: DecisionKind.KEPT } } }),
     );
     await tab.update({ ...META, revision: 4 }, edited({ constructor: { username: 'constructor', followerSince: 5 } }));
 
@@ -301,15 +301,16 @@ describe('IndexedDB tab store', () => {
     expect(transaction.mock.calls[0]?.[0]).not.toContain('tabs');
   });
 
-  test('a v3 database (meta kept with the master) is migrated, keeping the stored work', async () => {
+  test('data from an older database version is dropped, not migrated', async () => {
     const factory = new IDBFactory();
     await new Promise<void>((resolve, reject) => {
-      const open = factory.open('unfollowism', 3);
+      const open = factory.open('unfollowism', 4);
       open.onupgradeneeded = () => {
         const database = open.result;
-        database.createObjectStore('tabs').put({ base: BASE, meta: META }, 'a');
+        database.createObjectStore('tabs').put(BASE, 'a');
+        database.createObjectStore('meta').put(META, 'a');
         database.createObjectStore('accounts').put({ username: 'bob' }, ['a', 'bob']);
-        database.createObjectStore('savedAccounts').put({ username: 'bob', followerSince: 1 }, ['a', 'bob']);
+        database.createObjectStore('savedAccounts');
       };
       open.onsuccess = () => {
         open.result.close();
@@ -321,14 +322,9 @@ describe('IndexedDB tab store', () => {
     });
 
     const tab = openIndexedDbTabDatabase(factory, IDBKeyRange).forTab('a');
-    expect(await tab.load()).toEqual({
-      base: BASE,
-      meta: META,
-      changed: { bob: { username: 'bob' } },
-      saved: { bob: { username: 'bob', followerSince: 1 } },
-    });
-    await tab.update({ ...META, revision: 3 }, edited({}));
-    expect(must(await tab.load()).meta.revision).toBe(3);
+    expect(await tab.load()).toBeNull();
+    await tab.replace(BASE, META, NOTHING);
+    expect(must(await tab.load()).base).toEqual(BASE);
   });
 });
 

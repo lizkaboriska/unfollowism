@@ -17,15 +17,11 @@ import { ResetButton, SaveButton } from './saveAndReset.tsx';
 import { CATEGORY_LABELS, changeLine } from './sessionText.ts';
 import { plural } from './statusText.ts';
 
-/** Accounts listed at most; a big Reset scope can touch thousands. */
+/** Accounts listed at most; a big tag rename or delete can touch thousands. */
 const MAX_ACCOUNTS = 200;
 
 /** Drawer tabs; "Other" changes (notes, unavailable) show under All. */
-const TAB_CATEGORIES: readonly SessionCategory[] = [
-  SESSION_CATEGORIES.REVIEWS,
-  SESSION_CATEGORIES.TAGS,
-  SESSION_CATEGORIES.ACTIONS,
-];
+const TAB_CATEGORIES: readonly SessionCategory[] = [SESSION_CATEGORIES.DECISIONS, SESSION_CATEGORIES.TAGS];
 
 interface TagFocus {
   tag: string;

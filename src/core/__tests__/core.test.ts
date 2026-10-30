@@ -1,12 +1,13 @@
 import {
   ACTION_TYPES,
+  DecisionFilter,
+  DecisionKind,
   FIELD_TYPES,
   FOLLOW_CHANGES,
   IMPORT_PROBLEMS,
   PLAN_STATES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
-  REVIEW_STATUSES,
   TAG_FILTER_KINDS,
   buildSessionDiff,
   createReview,
@@ -23,14 +24,16 @@ import {
   relationshipStats,
   reviewScopeAccounts,
   reviewScopeStats,
-  reviewStatusMatches,
+  decisionMatches,
   scopeMatches,
   stringifyMasterFile,
   tagMatches,
   toMasterFile,
   type ExportBundle,
+  type Decision,
   type FieldType,
   type Master,
+  type Plans,
 } from '../index.ts';
 
 import { deepFreeze, followersFile, followingFile, must, problemOf } from './helpers.ts';
@@ -62,7 +65,7 @@ describe('read functions never write (safe on frozen Redux state)', () => {
   test('all selector-side helpers work on a deep-frozen master', () => {
     const master = freshMaster();
     must(master.accounts.alice).review.tags = ['artist'];
-    must(master.accounts.bob).toUnfollow = PLAN_STATES.DONE;
+    must(master.accounts.bob).decision = { kind: DecisionKind.QUEUED, plans: { unfollow: PLAN_STATES.DONE } };
     must(master.accounts.bob).unfollowedMeSeenAt = T1;
     const frozen = deepFreeze(master);
     const alice = must(frozen.accounts.alice);
@@ -72,11 +75,11 @@ describe('read functions never write (safe on frozen Redux state)', () => {
       scopeMatches(alice, REVIEW_SCOPES.MUTUAL);
       tagMatches(alice, { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' });
       tagMatches(alice, { kind: TAG_FILTER_KINDS.UNTAGGED });
-      reviewStatusMatches(alice, REVIEW_STATUSES.NEEDS_REVIEW);
+      decisionMatches(alice, DecisionFilter.NEEDS_DECISION);
       reviewScopeAccounts(frozen, {
         scope: REVIEW_SCOPES.ALL_ACCOUNTS,
         tag: { kind: TAG_FILTER_KINDS.ALL },
-        reviewStatus: REVIEW_STATUSES.ALL,
+        decision: DecisionFilter.ANY,
         query: 'a',
       });
       reviewScopeStats(frozen, { scope: REVIEW_SCOPES.FOLLOWING });
@@ -92,11 +95,11 @@ describe('read functions never write (safe on frozen Redux state)', () => {
 });
 
 describe('master file', () => {
-  /** A saved master file as it comes out of JSON.parse, with one reviewed account, a plan and a stopped follow. */
+  /** A saved master file as it comes out of JSON.parse, with one tagged account, a plan and a stopped follow. */
   function saved(): Record<string, unknown> & { accounts: Record<string, Record<string, unknown>> } {
     const master = freshMaster();
-    must(master.accounts.bob).review = { reviewed: true, unavailable: false, tags: ['artist'], notes: '' };
-    must(master.accounts.bob).toUnfollow = PLAN_STATES.PLANNED;
+    must(master.accounts.bob).review = { unavailable: false, tags: ['artist'], notes: '' };
+    must(master.accounts.bob).decision = { kind: DecisionKind.QUEUED, plans: { unfollow: PLAN_STATES.PLANNED } };
     must(master.accounts.carol).unfollowedSeenAt = T1;
     return asFile({ ...master, lastSavedAt: T2 }) as ReturnType<typeof saved>;
   }
@@ -108,8 +111,8 @@ describe('master file', () => {
       bob: {
         username: 'bob',
         followingSince: 1_700_000_000,
-        review: { reviewed: true, unavailable: false, tags: ['artist'], notes: '' },
-        toUnfollow: PLAN_STATES.PLANNED,
+        decision: { kind: DecisionKind.QUEUED, plans: { unfollow: PLAN_STATES.PLANNED } },
+        review: { unavailable: false, tags: ['artist'], notes: '' },
       },
       carol: { username: 'carol', followerSince: 1_700_000_000, unfollowedSeenAt: T1 },
     });
@@ -170,9 +173,9 @@ describe('master file', () => {
     expect(problemOf(() => parseMaster(raw))).toEqual(invalid('accounts.bob.review.tags', FIELD_TYPES.LIST));
 
     const raw2 = saved();
-    must(raw2.accounts.bob).toUnfollow = true;
+    must(raw2.accounts.bob).decision = { kind: DecisionKind.QUEUED, plans: { unfollow: true } };
     expect(problemOf(() => parseMaster(raw2))).toEqual({
-      ...invalid('accounts.bob.toUnfollow', FIELD_TYPES.ONE_OF),
+      ...invalid('accounts.bob.decision.plans.unfollow', FIELD_TYPES.ONE_OF),
       options: ['planned', 'done'],
     });
 
@@ -199,6 +202,42 @@ describe('master file', () => {
     expect(problemOf(() => parseMaster(raw2))).toEqual({
       kind: IMPORT_PROBLEMS.UNKNOWN_FIELD,
       path: 'accounts.bob.review.rating',
+    });
+  });
+
+  test('reads and writes each decision: needs a decision, kept, queued', () => {
+    const raw = saved();
+    must(raw.accounts.alice).decision = { kind: DecisionKind.KEPT };
+    const master = parseMaster(raw);
+    expect(master.accounts.alice?.decision).toEqual({ kind: DecisionKind.KEPT });
+    expect(master.accounts.bob?.decision).toEqual({
+      kind: DecisionKind.QUEUED,
+      plans: { unfollow: PLAN_STATES.PLANNED },
+    });
+    expect(master.accounts.carol?.decision).toBeUndefined();
+    expect(asFile(master)).toEqual(raw);
+  });
+
+  test('rejects a decision that means nothing instead of guessing', () => {
+    const withDecision = (decision: unknown) => {
+      const raw = saved();
+      must(raw.accounts.bob).decision = decision;
+      return () => parseMaster(raw);
+    };
+    expect(problemOf(withDecision({ kind: 'maybe' }))).toEqual({
+      ...invalid('accounts.bob.decision.kind', FIELD_TYPES.ONE_OF),
+      options: ['kept', 'queued'],
+    });
+    expect(problemOf(withDecision({ kind: DecisionKind.QUEUED, plans: {} }))).toEqual(
+      invalid('accounts.bob.decision.plans', FIELD_TYPES.NON_EMPTY_OBJECT),
+    );
+    expect(problemOf(withDecision({ kind: DecisionKind.KEPT, plans: { unfollow: 'planned' } }))).toEqual({
+      kind: IMPORT_PROBLEMS.UNKNOWN_FIELD,
+      path: 'accounts.bob.decision.plans',
+    });
+    expect(problemOf(withDecision({ kind: DecisionKind.QUEUED, plans: { block: 'planned' } }))).toEqual({
+      kind: IMPORT_PROBLEMS.UNKNOWN_FIELD,
+      path: 'accounts.bob.decision.plans.block',
     });
   });
 
@@ -303,7 +342,8 @@ describe('importExport', () => {
 
   test('a later export dates stopped follows and keeps review data', () => {
     const saved = freshMaster();
-    must(saved.accounts.bob).review = { reviewed: true, unavailable: false, tags: ['artist'], notes: 'hi' };
+    must(saved.accounts.bob).decision = { kind: DecisionKind.KEPT };
+    must(saved.accounts.bob).review = { unavailable: false, tags: ['artist'], notes: 'hi' };
     const result = importExport(
       savedAtT1(saved),
       bundle(followingFile(['alice']), followersFile(['alice'], ['dave', AFTER_T1])),
@@ -390,18 +430,21 @@ describe('importExport', () => {
 
   test('plans are settled against the export and make the import dirty', () => {
     const saved = freshMaster();
-    must(saved.accounts.bob).toUnfollow = PLAN_STATES.DONE; // really unfollowed
-    must(saved.accounts.alice).toUnfollow = PLAN_STATES.DONE; // marked done, but still followed
-    must(saved.accounts.carol).toRemove = PLAN_STATES.PLANNED; // not done yet
+    const queued = (plans: Plans): Decision => ({ kind: DecisionKind.QUEUED, plans });
+    must(saved.accounts.bob).decision = queued({ unfollow: PLAN_STATES.DONE }); // really unfollowed
+    must(saved.accounts.alice).decision = queued({ unfollow: PLAN_STATES.DONE }); // marked done, but still followed
+    must(saved.accounts.carol).decision = queued({ removeFollower: PLAN_STATES.PLANNED }); // not done yet
     const same = bundle(followingFile(['Alice']), followersFile(['alice'], ['carol']));
     const result = importExport(savedAtT1(saved), same, T2);
     expect(result.summary.plans).toEqual({
       completed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
       reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
     });
-    expect(result.master.accounts.bob?.toUnfollow).toBeUndefined();
-    expect(result.master.accounts.alice?.toUnfollow).toBe(PLAN_STATES.PLANNED);
-    expect(result.master.accounts.carol?.toRemove).toBe(PLAN_STATES.PLANNED);
+    expect(planOf(must(result.master.accounts.bob), UNFOLLOW)).toBeUndefined();
+    // Its only plan happened, so it counts as decided (agreed rule: settled → Kept).
+    expect(result.master.accounts.bob?.decision).toEqual({ kind: DecisionKind.KEPT });
+    expect(planOf(must(result.master.accounts.alice), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
+    expect(planOf(must(result.master.accounts.carol), REMOVE_FOLLOWER)).toBe(PLAN_STATES.PLANNED);
     expect(result.dirty).toBe(true);
   });
 

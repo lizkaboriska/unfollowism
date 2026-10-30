@@ -5,11 +5,11 @@ import { useDebouncedCallback } from 'use-debounce';
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
-  PLAN_FIELDS,
   PLAN_STATES,
   findTag,
   followChangeMatches,
   followExists,
+  isKept,
   planOf,
   relationshipOf,
   type ActionType,
@@ -17,7 +17,7 @@ import {
   type ReadonlyAccount,
 } from '../core/index.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { setNote, setPlan, setReviewed, setUnavailable, toggleTag } from '../store/masterSlice.ts';
+import { setKept, setNote, setPlan, setUnavailable, toggleTag } from '../store/masterSlice.ts';
 import { selectAccount, selectChangesSince, selectTags } from '../store/selectors.ts';
 
 import { formatSince } from './dates.ts';
@@ -25,7 +25,7 @@ import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from './labels.
 import { ProfileLink } from './ProfileLink.tsx';
 import { RenameSuggestion } from './RenameSuggestion.tsx';
 
-/** `name` identifies the field to the browser (e.g. "reviewed-bob"); the app itself doesn't read it. */
+/** `name` identifies the field to the browser (e.g. "kept-bob"); the app itself doesn't read it. */
 function CheckboxField({
   name,
   label,
@@ -127,7 +127,7 @@ function PlanControl({ account, type }: { account: ReadonlyAccount; type: Action
   }
   return (
     <CheckboxField
-      name={`${PLAN_FIELDS[type]}-${account.username}`}
+      name={`${type}-${account.username}`}
       label={PLAN_LABELS[type].checkbox}
       checked={plan !== undefined}
       onChange={checked =>
@@ -227,10 +227,10 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
         <Stack gap="3" flex="2" minW="0">
           <HStack gap="4" wrap="wrap">
             <CheckboxField
-              name={`reviewed-${username}`}
-              label="Reviewed"
-              checked={review.reviewed}
-              onChange={reviewed => dispatch(setReviewed({ username, reviewed }))}
+              name={`kept-${username}`}
+              label="Kept"
+              checked={isKept(account)}
+              onChange={kept => dispatch(setKept({ username, kept }))}
             />
             <CheckboxField
               name={`unavailable-${username}`}

@@ -6,13 +6,16 @@ import {
   PLAN_STATES,
   REVIEW_SCOPES,
   SESSION_CHANGES,
-  REVIEW_STATUSES,
+  DecisionFilter,
+  DecisionKind,
   TAG_FILTER_KINDS,
+  isKept,
   parseMaster,
+  planOf,
   toMasterFile,
 } from '../../core/index.ts';
 import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
-import { LIST_VIEWS, setQuery, setReviewStatus, setScope, setTagFilter, setView } from '../filtersSlice.ts';
+import { LIST_VIEWS, setDecisionFilter, setQuery, setScope, setTagFilter, setView } from '../filtersSlice.ts';
 import { selectListKeys } from '../listSlice.ts';
 import {
   confirmRename,
@@ -20,10 +23,10 @@ import {
   dismissRename,
   renameTag,
   resetChanges,
-  resetScope,
+  keepInstead,
   setNote,
   setPlan,
-  setReviewed,
+  setKept,
   setUnavailable,
   toggleTag,
 } from '../masterSlice.ts';
@@ -110,51 +113,88 @@ describe('import', () => {
 });
 
 describe('edits', () => {
-  test('reviewed: ticks and unticks; repeating the same value or unknown accounts are a no-op', async () => {
+  test('kept: keeps and un-keeps; repeating the same value or unknown accounts are a no-op', async () => {
     const t = await importedStore();
     const r0 = t.store.getState().master.revision;
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
-    expect(account(t, 'bob').review.reviewed).toBe(true);
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: false }));
-    expect(account(t, 'bob').review.reviewed).toBe(false);
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
+    expect(account(t, 'bob').decision).toEqual({ kind: DecisionKind.KEPT });
+    t.store.dispatch(setKept({ username: 'bob', kept: false }));
+    expect(account(t, 'bob').decision).toBeUndefined();
     expect(t.store.getState().master.revision).toBe(r0 + 2);
 
-    t.store.dispatch(setReviewed({ username: 'nobody', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'nobody', kept: true }));
     expect(t.store.getState().master.revision).toBe(r0 + 2);
   });
 
-  test('unavailable: marking also reviews; clearing does not un-review', async () => {
+  test('unavailable: marking keeps an undecided account; clearing changes no decision', async () => {
     const t = await importedStore();
     t.store.dispatch(setUnavailable({ username: 'bob', unavailable: true }));
-    expect(account(t, 'bob').review).toMatchObject({ unavailable: true, reviewed: true });
+    expect(account(t, 'bob')).toMatchObject({ decision: { kind: DecisionKind.KEPT }, review: { unavailable: true } });
     t.store.dispatch(setUnavailable({ username: 'bob', unavailable: false }));
-    expect(account(t, 'bob').review).toMatchObject({ unavailable: false, reviewed: true });
+    expect(account(t, 'bob')).toMatchObject({ decision: { kind: DecisionKind.KEPT }, review: { unavailable: false } });
+
+    // An account you already queued stays queued.
+    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setUnavailable({ username: 'alice', unavailable: true }));
+    expect(planOf(account(t, 'alice'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
   });
 
-  test('plans: marking plans and reviews; done and back; cancelling; ineligible is ignored', async () => {
+  test('plans: queuing decides; done and back; undoing the last plan undecides; ineligible is ignored', async () => {
     const t = await importedStore();
     const stats = () => selectPlanStats(t.store.getState());
     t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    expect(account(t, 'bob').toUnfollow).toBe(PLAN_STATES.PLANNED);
+    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
+    expect(account(t, 'bob').decision?.kind).toBe(DecisionKind.QUEUED);
     expect(stats().planned[UNFOLLOW]).toBe(1);
-    expect(account(t, 'bob').review.reviewed).toBe(true);
 
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: false }));
     t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
-    expect(account(t, 'bob').toUnfollow).toBe(PLAN_STATES.DONE);
-    expect(account(t, 'bob').review.reviewed).toBe(false); // only a new plan reviews
+    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.DONE);
     expect(stats()).toMatchObject({ planned: { [UNFOLLOW]: 0 }, done: { [UNFOLLOW]: 1 } });
 
     t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    expect(account(t, 'bob').toUnfollow).toBe(PLAN_STATES.PLANNED);
+    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
     t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: null }));
-    expect(account(t, 'bob').toUnfollow).toBeUndefined();
+    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBeUndefined();
+    expect(account(t, 'bob').decision).toBeUndefined();
 
     const r = t.store.getState().master.revision;
     // bob doesn't follow you
     t.store.dispatch(setPlan({ username: 'bob', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
     t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: null })); // nothing to cancel
+    expect(t.store.getState().master.revision).toBe(r);
+  });
+
+  test('Keep clears plans; queuing a kept account turns it into queued', async () => {
+    const t = await importedStore();
+    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setKept({ username: 'alice', kept: true }));
+    expect(account(t, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
+    expect(selectPlanStats(t.store.getState()).planned).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 });
+
+    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    expect(account(t, 'alice').decision).toEqual({
+      kind: DecisionKind.QUEUED,
+      plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED },
+    });
+  });
+
+  test('Keep instead (To do) drops one plan; with none left the account is Kept', async () => {
+    const t = await importedStore();
+    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
+
+    t.store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW }));
+    expect(account(t, 'alice').decision).toEqual({
+      kind: DecisionKind.QUEUED,
+      plans: { [REMOVE_FOLLOWER]: PLAN_STATES.DONE },
+    });
+    t.store.dispatch(keepInstead({ username: 'alice', type: REMOVE_FOLLOWER }));
+    expect(account(t, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
+
+    const r = t.store.getState().master.revision;
+    t.store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW })); // nothing queued: no-op
     expect(t.store.getState().master.revision).toBe(r);
   });
 
@@ -170,51 +210,12 @@ describe('edits', () => {
     t.store.dispatch(setNote({ username: 'carol', note: 'hi' }));
     expect(t.store.getState().master.revision).toBe(r);
   });
-
-  test('reset scope only resets matching reviewed accounts and switches to Needs review', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'alice', reviewed: true })); // mutual
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true })); // not following back
-    t.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
-    t.store.dispatch(setQuery('zzz')); // ignored by reset
-
-    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.MUTUAL, tag: { kind: TAG_FILTER_KINDS.ALL } }));
-    expect(account(t, 'alice').review).toMatchObject({ reviewed: false, tags: ['artist'] });
-    expect(account(t, 'bob').review.reviewed).toBe(true);
-    expect(t.store.getState().filters.reviewStatus).toBe(REVIEW_STATUSES.NEEDS_REVIEW);
-  });
-
-  test('reset scope follows the tag and keeps tags, notes and plans', async () => {
-    const t = await importedStore();
-    for (const username of ['alice', 'bob', 'carol']) {
-      t.store.dispatch(setReviewed({ username, reviewed: true }));
-    }
-    t.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
-    t.store.dispatch(setNote({ username: 'alice', note: 'keep this' }));
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-
-    t.store.dispatch(
-      resetScope({ scope: REVIEW_SCOPES.FOLLOWING, tag: { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' } }),
-    );
-    expect(account(t, 'alice').review).toEqual({
-      reviewed: false,
-      unavailable: false,
-      tags: ['artist'],
-      notes: 'keep this',
-    });
-    expect(account(t, 'bob')).toMatchObject({
-      review: { reviewed: false, tags: ['artist'] },
-      toUnfollow: PLAN_STATES.PLANNED,
-    });
-    expect(account(t, 'carol').review.reviewed).toBe(true); // no artist tag
-  });
 });
 
 describe('save', () => {
   test('downloads a master that re-imports unchanged; the session baseline is kept', async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     t.setNow('2026-10-27T14:05:09.000Z');
     await t.store.dispatch(saveMaster()).unwrap();
 
@@ -232,7 +233,7 @@ describe('save', () => {
 
   test('the unsaved changes list covers only what came after the last save', async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     await t.store.dispatch(saveMaster()).unwrap();
     t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
     t.store.dispatch(setNote({ username: 'carol', note: 'x' }));
@@ -323,21 +324,23 @@ describe('save', () => {
 
 describe('reset changes', () => {
   const review = (t: Awaited<ReturnType<typeof importedStore>>, key: string) => account(t, key).review;
+  const kept = (t: Awaited<ReturnType<typeof importedStore>>, key: string) => isKept(account(t, key));
 
   test("goes back to the last save, with that save's status", async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     await t.store.dispatch(saveMaster()).unwrap();
     const savedStatus = t.store.getState().master.status;
 
     t.store.dispatch(setNote({ username: 'bob', note: 'after save' }));
-    t.store.dispatch(setReviewed({ username: 'carol', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'carol', kept: true }));
     expect(selectUnsavedAccountCount(t.store.getState())).toBe(2);
 
     t.store.dispatch(resetChanges());
     const s = t.store.getState();
-    expect(review(t, 'bob')).toMatchObject({ reviewed: true, notes: '' });
-    expect(review(t, 'carol').reviewed).toBe(false);
+    expect(kept(t, 'bob')).toBe(true);
+    expect(review(t, 'bob').notes).toBe('');
+    expect(kept(t, 'carol')).toBe(false);
     expect(selectIsDirty(s)).toBe(false);
     expect(selectUnsavedAccountCount(s)).toBe(0);
     expect(s.master.status).toEqual(savedStatus);
@@ -353,11 +356,11 @@ describe('reset changes', () => {
     const t2 = makeTestStore();
     await t2.store.dispatch(importPrepared(prepared({ master: saved }))).unwrap(); // clean import
     const importStatus = t2.store.getState().master.status;
-    t2.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t2.store.dispatch(setKept({ username: 'bob', kept: true }));
     t2.store.dispatch(resetChanges());
 
     const s = t2.store.getState();
-    expect(review(t2, 'bob').reviewed).toBe(false);
+    expect(kept(t2, 'bob')).toBe(false);
     expect(Object.keys(s.master.changed)).toEqual([]);
     expect(selectIsDirty(s)).toBe(false);
     expect(s.master.status).toEqual(importStatus);
@@ -365,9 +368,9 @@ describe('reset changes', () => {
 
   test('an import that was never saved stays unsaved after a reset', async () => {
     const t = await importedStore(); // a new master: not in any file yet
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     t.store.dispatch(resetChanges());
-    expect(review(t, 'bob').reviewed).toBe(false);
+    expect(kept(t, 'bob')).toBe(false);
     expect(selectIsDirty(t.store.getState())).toBe(true);
   });
 
@@ -387,7 +390,7 @@ describe('reset changes', () => {
 
   test('accounts changed back to their saved state are not counted', async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     t.store.dispatch(setNote({ username: 'carol', note: 'x' }));
     t.store.dispatch(setNote({ username: 'carol', note: '' }));
     expect(selectUnsavedAccountCount(t.store.getState())).toBe(1);
@@ -407,7 +410,7 @@ describe('reset changes', () => {
 
   test('works after a reload', async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     await t.store.dispatch(saveMaster()).unwrap();
     t.store.dispatch(setNote({ username: 'bob', note: 'after save' }));
     t.store.dispatch(setNote({ username: 'carol', note: 'after save' }));
@@ -417,7 +420,8 @@ describe('reset changes', () => {
     await reloaded.store.dispatch(restoreTab());
     expect(selectUnsavedAccountCount(reloaded.store.getState())).toBe(2);
     reloaded.store.dispatch(resetChanges());
-    expect(review(reloaded, 'bob')).toMatchObject({ reviewed: true, notes: '' });
+    expect(kept(reloaded, 'bob')).toBe(true);
+    expect(review(reloaded, 'bob').notes).toBe('');
     expect(review(reloaded, 'carol').notes).toBe('');
     expect(selectIsDirty(reloaded.store.getState())).toBe(false);
     await flushPersistence();
@@ -475,8 +479,8 @@ describe('list refresh', () => {
     const shown = () => selectListKeys(t.store.getState());
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // import
 
-    t.store.dispatch(setReviewStatus(REVIEW_STATUSES.NEEDS_REVIEW));
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // an edit doesn't move cards
     t.store.dispatch(setQuery(''));
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // same filters: same list
@@ -485,12 +489,7 @@ describe('list refresh', () => {
 
     t.store.dispatch(setQuery(''));
     t.store.dispatch(resetChanges());
-    expect(shown()).toEqual(['alice', 'bob', 'carol']); // bob needs review again
-
-    t.store.dispatch(setReviewed({ username: 'alice', reviewed: true }));
-    t.store.dispatch(setReviewStatus(REVIEW_STATUSES.ALL));
-    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.FOLLOWING, tag: { kind: TAG_FILTER_KINDS.ALL } }));
-    expect(shown()).toEqual(['alice', 'bob', 'carol']);
+    expect(shown()).toEqual(['alice', 'bob', 'carol']); // bob needs a decision again
     await flushPersistence();
 
     const reloaded = makeTestStore({ tab: t.tab });
@@ -502,7 +501,7 @@ describe('list refresh', () => {
 describe('reload safety net', () => {
   test('a reload puts back the work, including the session baseline', async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
     t.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
     await flushPersistence();
 
@@ -552,10 +551,8 @@ describe('reload safety net', () => {
 
     t.store.dispatch(setNote({ username: 'bob', note: 'x' }));
     await flushPersistence();
-    // nothing reviewed: no change
-    t.store.dispatch(resetScope({ scope: REVIEW_SCOPES.FOLLOWING, tag: { kind: TAG_FILTER_KINDS.ALL } }));
-    t.store.dispatch(setReviewed({ username: 'alice', reviewed: true }));
-    t.store.dispatch(setReviewed({ username: 'carol', reviewed: true }));
+    t.store.dispatch(setKept({ username: 'alice', kept: true }));
+    t.store.dispatch(setKept({ username: 'carol', kept: true }));
     await flushPersistence();
     expect(writes.slice(1)).toEqual([
       write(WRITES.UPDATE, { accounts: ['bob'] }),
@@ -580,7 +577,7 @@ describe('reload safety net', () => {
 
   test('restoring after a reload writes nothing', async () => {
     const first = await importedStore();
-    first.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
+    first.store.dispatch(setKept({ username: 'bob', kept: true }));
     await flushPersistence();
 
     const { tab, writes } = recordingTab(first.tab);
@@ -736,7 +733,7 @@ describe('storage write failures', () => {
 
 describe('renames', () => {
   /**
-   * carol (follows me, reviewed, tagged, noted, planned for removal) is saved, then shows up as carol_2 with the same
+   * carol (follows me, tagged, noted, queued for removal) is saved, then shows up as carol_2 with the same
    * date.
    */
   async function renamedStore() {
@@ -759,7 +756,6 @@ describe('renames', () => {
       .unwrap();
     t.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
     t.store.dispatch(setNote({ username: 'carol', note: 'old note' }));
-    // also marks reviewed
     t.store.dispatch(setPlan({ username: 'carol', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
     await t.store.dispatch(saveMaster()).unwrap();
     const master: unknown = JSON.parse(must(t.downloads[0]).text);
@@ -800,8 +796,8 @@ describe('renames', () => {
 
     expect(selectAccount(state, 'carol')).toBeUndefined();
     expect(account(t, 'carol_2')).toMatchObject({
-      review: { reviewed: true, tags: ['artist'], notes: 'old note' },
-      toRemove: PLAN_STATES.PLANNED,
+      decision: { kind: DecisionKind.QUEUED, plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED } },
+      review: { tags: ['artist'], notes: 'old note' },
     });
     expect(selectListKeys(state)).toEqual([]); // the old card leaves the list
     expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(0);
@@ -888,7 +884,7 @@ describe('renames', () => {
 });
 
 describe('selectors', () => {
-  test('visible accounts follow scope, status, tag and search, sorted by username', async () => {
+  test('visible accounts follow scope, decision, tag and search, sorted by username', async () => {
     const t = await importedStore();
     const keys = () => selectVisibleAccountKeys(t.store.getState());
     expect(keys()).toEqual(['alice', 'bob', 'carol']); // I follow
@@ -900,8 +896,8 @@ describe('selectors', () => {
     t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'artist' }));
     expect(keys()).toEqual(['dave']);
     t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
-    t.store.dispatch(setReviewStatus(REVIEW_STATUSES.NEEDS_REVIEW));
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
+    t.store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
     expect(keys()).toEqual(['alice', 'carol']);
     t.store.dispatch(setQuery(' CAR '));
     expect(keys()).toEqual(['carol']);
@@ -965,8 +961,14 @@ describe('selectors', () => {
 
   test('scope stats follow scope and tag', async () => {
     const t = await importedStore();
-    t.store.dispatch(setReviewed({ username: 'bob', reviewed: true }));
-    expect(selectScopeStats(t.store.getState())).toEqual({ total: 3, reviewed: 1, needsReview: 2, unavailable: 0 });
+    t.store.dispatch(setKept({ username: 'bob', kept: true }));
+    expect(selectScopeStats(t.store.getState())).toEqual({
+      total: 3,
+      needsDecision: 2,
+      kept: 1,
+      queued: 0,
+      unavailable: 0,
+    });
   });
 
   test('selector results are read-only at compile time', async () => {
@@ -974,7 +976,7 @@ describe('selectors', () => {
     const alice = account(t, 'alice');
     expect(() => {
       // @ts-expect-error state handed to components must not be writable
-      alice.review.reviewed = true;
+      alice.review.unavailable = true;
     }).toThrow(TypeError); // and Immer has frozen it at runtime too
   });
 });

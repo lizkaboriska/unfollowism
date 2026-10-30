@@ -3,6 +3,7 @@ import type { ValueOf } from './types.ts';
 /** What a master file field should have been. */
 export const FIELD_TYPES = {
   OBJECT: 'object',
+  NON_EMPTY_OBJECT: 'nonEmptyObject',
   LIST: 'list',
   TEXT: 'text',
   NON_EMPTY_TEXT: 'nonEmptyText',

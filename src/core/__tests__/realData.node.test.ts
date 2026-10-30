@@ -11,6 +11,7 @@ import {
   parseFollowersJson,
   parseFollowingJson,
   parseMaster,
+  planOf,
   stringifyMasterFile,
   toMasterFile,
   usernameKey,
@@ -54,7 +55,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     const master = read(MASTER);
     const planned = new Set(
       Object.entries(parseMaster(master).accounts)
-        .filter(([, a]) => a.toUnfollow !== undefined)
+        .filter(([, a]) => planOf(a, ACTION_TYPES.UNFOLLOW) !== undefined)
         .map(([key]) => key),
     );
     expect(planned.size).toBeGreaterThan(0);
@@ -76,7 +77,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
       expect(result.master.accounts[key]).toMatchObject({ following: null, unfollowedSeenAt: NOW });
     }
     for (const key of planned) {
-      expect(result.master.accounts[key]?.toUnfollow).toBeUndefined();
+      expect(planOf(must(result.master.accounts[key]), ACTION_TYPES.UNFOLLOW)).toBeUndefined();
     }
     for (const key of left) {
       expect(result.master.accounts[key]).toMatchObject({ followedBy: null, unfollowedMeSeenAt: NOW });

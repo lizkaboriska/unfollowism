@@ -1,15 +1,18 @@
+import { copyDecision } from './account.ts';
 import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from './importProblems.ts';
 import { createReview } from './review.ts';
 import {
   ACTION_TYPES,
+  DecisionKind,
   FORMAT_VERSION,
   PLAN_STATES,
   type Account,
   type ActionType,
   type DeepReadonly,
+  type Decision,
   type Follow,
   type Master,
-  type PlanState,
+  type Plans,
   type ReadonlyAccount,
   type RenameSuggestion,
   type Review,
@@ -34,11 +37,10 @@ export interface AccountRecord {
   followingSince?: number | null;
   /** Present when they follow you; null when the export gave no time. */
   followerSince?: number | null;
-  /** Omitted while it is the default (never reviewed, no tags, no notes). */
+  /** Omitted while the account needs a decision. */
+  decision?: Decision;
+  /** Omitted while it is the default (available, no tags, no notes). */
   review?: Review;
-  /** Present only while marked. */
-  toUnfollow?: PlanState;
-  toRemove?: PlanState;
   /** Present only while after `lastSavedAt` (see keptSeenAt). */
   followedSeenAt?: string;
   followedMeSeenAt?: string;
@@ -53,7 +55,7 @@ export interface AccountRecord {
 // ── Writing ──────────────────────────────────────────────────────────────────
 
 function isDefaultReview(r: DeepReadonly<Review>): boolean {
-  return !r.reviewed && !r.unavailable && r.tags.length === 0 && r.notes === '';
+  return !r.unavailable && r.tags.length === 0 && r.notes === '';
 }
 
 /**
@@ -75,14 +77,11 @@ export function toAccountRecord(account: ReadonlyAccount, savedAt: string | unde
   if (followedBy) {
     out.followerSince = followedBy.since;
   }
+  if (account.decision) {
+    out.decision = copyDecision(account.decision);
+  }
   if (!isDefaultReview(review)) {
     out.review = { ...review, tags: [...review.tags] };
-  }
-  if (account.toUnfollow) {
-    out.toUnfollow = account.toUnfollow;
-  }
-  if (account.toRemove) {
-    out.toRemove = account.toRemove;
   }
   if (keptSeenAt(account.followedSeenAt, savedAt)) {
     out.followedSeenAt = account.followedSeenAt;
@@ -205,18 +204,12 @@ function strings(value: unknown, path: string): string[] {
   return array(value, path).map((item, i) => str(item, `${path}[${i}]`));
 }
 
-const REVIEW_FIELDS: ReadonlySet<string> = new Set([
-  'reviewed',
-  'unavailable',
-  'tags',
-  'notes',
-] satisfies (keyof Review)[]);
+const REVIEW_FIELDS: ReadonlySet<string> = new Set(['unavailable', 'tags', 'notes'] satisfies (keyof Review)[]);
 
 function parseReview(value: unknown, path: string): Review {
   const r = record(value, path);
   rejectUnknownFields(r, REVIEW_FIELDS, path);
   return {
-    reviewed: bool(r.reviewed, `${path}.reviewed`),
     unavailable: bool(r.unavailable, `${path}.unavailable`),
     tags: strings(r.tags, `${path}.tags`),
     notes: str(r.notes, `${path}.notes`),
@@ -244,13 +237,39 @@ function parseRenameSuggestion(value: unknown, path: string): RenameSuggestion {
   return { to: nonEmptyStr(r.to, `${path}.to`), plans };
 }
 
+const KEPT_FIELDS: ReadonlySet<string> = new Set(['kind']);
+const QUEUED_FIELDS: ReadonlySet<string> = new Set(['kind', 'plans']);
+const PLAN_FIELDS: ReadonlySet<string> = new Set(Object.values(ACTION_TYPES));
+
+/** Kept, or queued with at least one plan. */
+function parseDecision(value: unknown, path: string): Decision {
+  const r = record(value, path);
+  const kind = oneOf(r.kind, DecisionKind, `${path}.kind`);
+  if (kind === DecisionKind.KEPT) {
+    rejectUnknownFields(r, KEPT_FIELDS, path);
+    return { kind };
+  }
+  rejectUnknownFields(r, QUEUED_FIELDS, path);
+  const raw = record(r.plans, `${path}.plans`);
+  rejectUnknownFields(raw, PLAN_FIELDS, `${path}.plans`);
+  const plans: Plans = {};
+  for (const type of Object.values(ACTION_TYPES)) {
+    if (raw[type] !== undefined) {
+      plans[type] = oneOf(raw[type], PLAN_STATES, `${path}.plans.${type}`);
+    }
+  }
+  if (Object.keys(plans).length === 0) {
+    fail(`${path}.plans`, FIELD_TYPES.NON_EMPTY_OBJECT);
+  }
+  return { kind, plans };
+}
+
 const ACCOUNT_FIELDS: ReadonlySet<string> = new Set([
   'username',
   'followingSince',
   'followerSince',
+  'decision',
   'review',
-  'toUnfollow',
-  'toRemove',
   'followedSeenAt',
   'followedMeSeenAt',
   'unfollowedSeenAt',
@@ -268,11 +287,8 @@ export function fromAccountRecord(value: unknown, path: string): Account {
     followedBy: follow('followerSince' in r, r.followerSince, `${path}.followerSince`),
     review: r.review === undefined ? createReview() : parseReview(r.review, `${path}.review`),
   };
-  if (r.toUnfollow !== undefined) {
-    account.toUnfollow = oneOf(r.toUnfollow, PLAN_STATES, `${path}.toUnfollow`);
-  }
-  if (r.toRemove !== undefined) {
-    account.toRemove = oneOf(r.toRemove, PLAN_STATES, `${path}.toRemove`);
+  if (r.decision !== undefined) {
+    account.decision = parseDecision(r.decision, `${path}.decision`);
   }
   if (r.followedSeenAt !== undefined) {
     account.followedSeenAt = date(r.followedSeenAt, `${path}.followedSeenAt`);

@@ -22,7 +22,9 @@ export function SummaryLine() {
   let text: string;
   if (view === LIST_VIEWS.REVIEW) {
     const scope = scopeDescription(filters.scope, filters.tag);
-    text = `${scopeStats.needsReview} need review · ${scopeStats.reviewed} reviewed · ${scopeStats.total} in ${scope}`;
+    text =
+      `${scopeStats.needsDecision} need a decision · ${scopeStats.kept} kept · ${scopeStats.queued} queued · ` +
+      `${scopeStats.total} in ${scope}`;
   } else if (isFollowChangeView(view)) {
     const period = since ? `since your last save (${formatDate(since)})` : 'since you started';
     text = `${plural(shown, 'account')} ${CHANGE_SUMMARY_PHRASES[view]} ${period}`;

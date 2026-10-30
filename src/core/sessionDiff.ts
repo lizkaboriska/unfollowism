@@ -1,17 +1,13 @@
-import { planOf } from './actions.ts';
+import { copyDecision } from './account.ts';
 import { createReview } from './review.ts';
-import { ACTION_TYPES, PLAN_STATES, type ActionType, type ReadonlyAccounts, type ValueOf } from './types.ts';
+import type { Decision, ReadonlyAccounts, ValueOf } from './types.ts';
 import { usernameKey } from './util.ts';
 
 export const SESSION_CHANGES = {
-  REVIEWED: 'reviewed',
-  UNREVIEWED: 'unreviewed',
+  /** Kept, queued, a plan marked done, or back to needing a decision. */
+  DECISION_CHANGED: 'decisionChanged',
   TAG_ADDED: 'tagAdded',
   TAG_REMOVED: 'tagRemoved',
-  ACTION_MARKED: 'actionMarked',
-  ACTION_DONE: 'actionDone',
-  ACTION_UNDONE: 'actionUndone',
-  ACTION_CANCELLED: 'actionCancelled',
   UNAVAILABLE_MARKED: 'unavailableMarked',
   UNAVAILABLE_CLEARED: 'unavailableCleared',
   NOTE_EDITED: 'noteEdited',
@@ -23,30 +19,22 @@ export const SESSION_CHANGES = {
 export type SessionChangeType = ValueOf<typeof SESSION_CHANGES>;
 
 export type TagChangeType = typeof SESSION_CHANGES.TAG_ADDED | typeof SESSION_CHANGES.TAG_REMOVED;
-type ActionChangeType =
-  | typeof SESSION_CHANGES.ACTION_MARKED
-  | typeof SESSION_CHANGES.ACTION_DONE
-  | typeof SESSION_CHANGES.ACTION_UNDONE
-  | typeof SESSION_CHANGES.ACTION_CANCELLED;
+type DecisionChangeType = typeof SESSION_CHANGES.DECISION_CHANGED;
 
 /** One net change to one account since the session started. Wording is up to the UI. */
 export type SessionChange =
   | { type: TagChangeType; tag: string }
-  | { type: ActionChangeType; action: ActionType }
-  | { type: Exclude<SessionChangeType, TagChangeType | ActionChangeType> };
+  /** `null` = needs a decision. */
+  | { type: DecisionChangeType; from: Decision | null; to: Decision | null }
+  | { type: Exclude<SessionChangeType, TagChangeType | DecisionChangeType> };
 
-export const SESSION_CATEGORIES = { REVIEWS: 'reviews', TAGS: 'tags', ACTIONS: 'actions', OTHER: 'other' } as const;
+export const SESSION_CATEGORIES = { DECISIONS: 'decisions', TAGS: 'tags', OTHER: 'other' } as const;
 export type SessionCategory = ValueOf<typeof SESSION_CATEGORIES>;
 
 export const SESSION_CHANGE_CATEGORY: Readonly<Record<SessionChangeType, SessionCategory>> = {
-  [SESSION_CHANGES.REVIEWED]: SESSION_CATEGORIES.REVIEWS,
-  [SESSION_CHANGES.UNREVIEWED]: SESSION_CATEGORIES.REVIEWS,
+  [SESSION_CHANGES.DECISION_CHANGED]: SESSION_CATEGORIES.DECISIONS,
   [SESSION_CHANGES.TAG_ADDED]: SESSION_CATEGORIES.TAGS,
   [SESSION_CHANGES.TAG_REMOVED]: SESSION_CATEGORIES.TAGS,
-  [SESSION_CHANGES.ACTION_MARKED]: SESSION_CATEGORIES.ACTIONS,
-  [SESSION_CHANGES.ACTION_DONE]: SESSION_CATEGORIES.ACTIONS,
-  [SESSION_CHANGES.ACTION_UNDONE]: SESSION_CATEGORIES.ACTIONS,
-  [SESSION_CHANGES.ACTION_CANCELLED]: SESSION_CATEGORIES.ACTIONS,
   [SESSION_CHANGES.UNAVAILABLE_MARKED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.UNAVAILABLE_CLEARED]: SESSION_CATEGORIES.OTHER,
   [SESSION_CHANGES.NOTE_EDITED]: SESSION_CATEGORIES.OTHER,
@@ -78,8 +66,14 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
     const after = afterAccount?.review ?? createReview();
     const changes: SessionChange[] = [];
 
-    if (before.reviewed !== after.reviewed) {
-      changes.push({ type: after.reviewed ? SESSION_CHANGES.REVIEWED : SESSION_CHANGES.UNREVIEWED });
+    const decisionBefore = beforeAccount?.decision ?? null;
+    const decisionAfter = afterAccount?.decision ?? null;
+    if (JSON.stringify(decisionBefore) !== JSON.stringify(decisionAfter)) {
+      changes.push({
+        type: SESSION_CHANGES.DECISION_CHANGED,
+        from: decisionBefore && copyDecision(decisionBefore),
+        to: decisionAfter && copyDecision(decisionAfter),
+      });
     }
     if (before.unavailable !== after.unavailable) {
       changes.push({
@@ -101,28 +95,6 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
     }
     if (beforeAccount?.renameSuggestion && !afterAccount?.renameSuggestion) {
       changes.push({ type: SESSION_CHANGES.RENAME_DISMISSED });
-    }
-
-    // Plans are only settled on import, which starts a new session, so a plan that went away was cancelled.
-    for (const action of Object.values(ACTION_TYPES)) {
-      const was = beforeAccount && planOf(beforeAccount, action);
-      const is = afterAccount && planOf(afterAccount, action);
-      if (was === is) {
-        continue;
-      }
-      if (is === undefined) {
-        changes.push({ type: SESSION_CHANGES.ACTION_CANCELLED, action });
-      } else if (was === undefined) {
-        changes.push({
-          type: is === PLAN_STATES.DONE ? SESSION_CHANGES.ACTION_DONE : SESSION_CHANGES.ACTION_MARKED,
-          action,
-        });
-      } else {
-        changes.push({
-          type: is === PLAN_STATES.DONE ? SESSION_CHANGES.ACTION_DONE : SESSION_CHANGES.ACTION_UNDONE,
-          action,
-        });
-      }
     }
 
     if (changes.length) {
@@ -163,9 +135,8 @@ function tagCounts(accounts: readonly SessionAccountChanges[], type: TagChangeTy
 
 export function summarizeSession(accounts: readonly SessionAccountChanges[]): SessionSummary {
   const byCategory: Record<SessionCategory, number> = {
-    [SESSION_CATEGORIES.REVIEWS]: 0,
+    [SESSION_CATEGORIES.DECISIONS]: 0,
     [SESSION_CATEGORIES.TAGS]: 0,
-    [SESSION_CATEGORIES.ACTIONS]: 0,
     [SESSION_CATEGORIES.OTHER]: 0,
   };
   let changeCount = 0;

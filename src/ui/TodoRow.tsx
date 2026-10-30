@@ -11,7 +11,7 @@ import {
   type PlanState,
 } from '../core/index.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { setPlan } from '../store/masterSlice.ts';
+import { keepInstead, setPlan } from '../store/masterSlice.ts';
 import { selectAccount } from '../store/selectors.ts';
 
 import { formatSince } from './dates.ts';
@@ -21,7 +21,7 @@ import { ProfileLink } from './ProfileLink.tsx';
 /**
  * One account in a To do list: open Instagram, do it there, then Mark done (or Keep, after
  * a change of mind). The row stays until the list refreshes, so both can be undone.
- * Its tags are shown to help decide; editing them, notes and review ticks happen on the full card.
+ * Its tags are shown to help decide; editing them, notes and decisions happen on the full card.
  */
 export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey: string; type: ActionType }) {
   const dispatch = useAppDispatch();
@@ -64,7 +64,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
               <Button size="sm" colorPalette="pink" onClick={() => set(PLAN_STATES.DONE)}>
                 Mark done
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => set(null)}>
+              <Button size="sm" variant="ghost" onClick={() => dispatch(keepInstead({ username, type }))}>
                 Keep
               </Button>
             </>

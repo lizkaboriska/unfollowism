@@ -1,8 +1,10 @@
+import { decisionMatches } from './decision.ts';
 import {
+  DecisionFilter,
+  DecisionKind,
   FOLLOW_CHANGES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
-  REVIEW_STATUSES,
   TAG_FILTER_KINDS,
   type Account,
   type DeepReadonly,
@@ -13,7 +15,6 @@ import {
   type ReadonlyAccount,
   type Relationship,
   type ReviewScope,
-  type ReviewStatusFilter,
   type TagFilter,
 } from './types.ts';
 import { usernameKey } from './util.ts';
@@ -153,17 +154,6 @@ export function tagMatches(account: ReadonlyAccount, tag: TagFilter): boolean {
   }
 }
 
-export function reviewStatusMatches(account: ReadonlyAccount, status: ReviewStatusFilter): boolean {
-  switch (status) {
-    case REVIEW_STATUSES.ALL:
-      return true;
-    case REVIEW_STATUSES.REVIEWED:
-      return account.review.reviewed;
-    case REVIEW_STATUSES.NEEDS_REVIEW:
-      return !account.review.reviewed;
-  }
-}
-
 export function queryMatches(account: ReadonlyAccount, query: string): boolean {
   const q = query.trim().toLowerCase();
   return !q || usernameKey(account.username).includes(q);
@@ -172,33 +162,22 @@ export function queryMatches(account: ReadonlyAccount, query: string): boolean {
 export interface ScopeQuery {
   scope: ReviewScope;
   tag?: TagFilter;
-  reviewStatus?: ReviewStatusFilter;
+  decision?: DecisionFilter;
   query?: string;
 }
 
 /** Generic so it returns mutable accounts when given mutable ones (reducers) and readonly ones otherwise. */
 export function reviewScopeAccounts<A extends ReadonlyAccount>(
   source: { readonly accounts: Readonly<Record<string, A>> },
-  { scope, tag = ALL_TAGS, reviewStatus = REVIEW_STATUSES.ALL, query = '' }: ScopeQuery,
+  { scope, tag = ALL_TAGS, decision = DecisionFilter.ANY, query = '' }: ScopeQuery,
 ): A[] {
   return Object.values(source.accounts).filter(
     account =>
       scopeMatches(account, scope) &&
       tagMatches(account, tag) &&
-      reviewStatusMatches(account, reviewStatus) &&
+      decisionMatches(account, decision) &&
       queryMatches(account, query),
   );
-}
-
-/**
- * Whether Reset scope un-reviews this account: reviewed, in the scope and matching the tag.
- * Search and the review-status filter don't apply. The reset changes only `reviewed`.
- */
-export function inResetScope(
-  account: ReadonlyAccount,
-  { scope, tag }: { scope: ReviewScope; tag: TagFilter },
-): boolean {
-  return account.review.reviewed && scopeMatches(account, scope) && tagMatches(account, tag);
 }
 
 export interface RelationshipStats {
@@ -248,21 +227,34 @@ export function relationshipStats(source: DeepReadonly<Pick<Master, 'accounts'>>
 
 export interface ScopeStats {
   total: number;
-  reviewed: number;
-  needsReview: number;
+  needsDecision: number;
+  kept: number;
+  queued: number;
   unavailable: number;
+}
+
+/** WRITE (to `stats`): adds (sign 1) or removes (sign -1) one account. */
+export function countInScopeStats(stats: ScopeStats, account: ReadonlyAccount, sign: 1 | -1): void {
+  stats.total += sign;
+  if (account.decision === undefined) {
+    stats.needsDecision += sign;
+  } else if (account.decision.kind === DecisionKind.KEPT) {
+    stats.kept += sign;
+  } else {
+    stats.queued += sign;
+  }
+  if (account.review.unavailable) {
+    stats.unavailable += sign;
+  }
 }
 
 export function reviewScopeStats(
   source: DeepReadonly<Pick<Master, 'accounts'>>,
   { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter },
 ): ScopeStats {
-  const scoped = reviewScopeAccounts(source, { scope, tag });
-  const reviewed = scoped.filter(a => a.review.reviewed).length;
-  return {
-    total: scoped.length,
-    reviewed,
-    needsReview: scoped.length - reviewed,
-    unavailable: scoped.filter(a => a.review.unavailable).length,
-  };
+  const stats: ScopeStats = { total: 0, needsDecision: 0, kept: 0, queued: 0, unavailable: 0 };
+  for (const account of reviewScopeAccounts(source, { scope, tag })) {
+    countInScopeStats(stats, account, 1);
+  }
+  return stats;
 }

@@ -1,55 +1,13 @@
+import { followExists, keep, planOf, setPlan } from './decision.ts';
 import {
   ACTION_TYPES,
   PLAN_STATES,
-  type Account,
   type ActionType,
   type DeepReadonly,
-  type Follow,
   type Master,
   type PlanState,
   type ReadonlyAccount,
 } from './types.ts';
-
-/** The account field that holds each action's plan. */
-export const PLAN_FIELDS = {
-  [ACTION_TYPES.UNFOLLOW]: 'toUnfollow',
-  [ACTION_TYPES.REMOVE_FOLLOWER]: 'toRemove',
-} as const satisfies Record<ActionType, keyof Account>;
-
-/** The plan for an action, or undefined when it isn't marked. */
-export function planOf(account: ReadonlyAccount, type: ActionType): PlanState | undefined {
-  return account[PLAN_FIELDS[type]];
-}
-
-/** The follow the action ends (you follow them / they follow you), as of the latest export; null when there is none. */
-export function followOf(account: ReadonlyAccount, type: ActionType): DeepReadonly<Follow> | null {
-  return type === ACTION_TYPES.UNFOLLOW ? account.following : account.followedBy;
-}
-
-/** Whether the follow the action ends still exists. A new plan needs it. */
-export function followExists(account: ReadonlyAccount, type: ActionType): boolean {
-  return followOf(account, type) !== null;
-}
-
-/**
- * WRITE: sets the plan (undefined = not marked). Planning requires the follow to exist; throws otherwise (a caller
- * bug).
- */
-export function setPlan(account: Account, type: ActionType, state: PlanState | undefined): void {
-  const field = PLAN_FIELDS[type];
-  if (state === undefined) {
-    if (type === ACTION_TYPES.UNFOLLOW) {
-      delete account.toUnfollow;
-    } else {
-      delete account.toRemove;
-    }
-    return;
-  }
-  if (account[field] === undefined && !followExists(account, type)) {
-    throw new Error(`setPlan: no follow for ${type}`);
-  }
-  account[field] = state;
-}
 
 export type ActionCounts = Record<ActionType, number>;
 
@@ -69,8 +27,9 @@ export interface PlanOutcomes {
 }
 
 /**
- * WRITE: after an import has updated the follows, settles every plan against them.
- * Plans on `uncounted` accounts (likely renames) are cleared like the rest but not reported as done.
+ * WRITE: after an import has updated the follows, settles every plan against them. An account whose last plan
+ * happened becomes Kept. Plans on `uncounted` accounts (likely renames) are cleared like the rest but not reported as
+ * done.
  */
 export function settlePlans(
   source: Pick<Master, 'accounts'>,
@@ -78,6 +37,7 @@ export function settlePlans(
 ): PlanOutcomes {
   const outcomes: PlanOutcomes = { completed: emptyActionCounts(), reopened: emptyActionCounts() };
   for (const [key, account] of Object.entries(source.accounts)) {
+    let completed = false;
     for (const type of Object.values(ACTION_TYPES)) {
       const plan = planOf(account, type);
       if (plan === undefined) {
@@ -85,6 +45,7 @@ export function settlePlans(
       }
       if (!followExists(account, type)) {
         setPlan(account, type, undefined);
+        completed = true;
         if (!uncounted.has(key)) {
           outcomes.completed[type] += 1;
         }
@@ -92,6 +53,10 @@ export function settlePlans(
         setPlan(account, type, PLAN_STATES.PLANNED);
         outcomes.reopened[type] += 1;
       }
+    }
+    // Every plan happened: you acted on the account, so it counts as decided.
+    if (completed && account.decision === undefined) {
+      keep(account);
     }
   }
   return outcomes;

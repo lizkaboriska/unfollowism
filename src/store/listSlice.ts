@@ -2,7 +2,7 @@ import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from
 
 import type { StoreDeps } from './deps.ts';
 import type { AppDispatch, RootState } from './index.ts';
-import { confirmRename, resetChanges, resetScope } from './masterSlice.ts';
+import { confirmRename, resetChanges } from './masterSlice.ts';
 import { selectVisibleAccountKeys } from './selectors.ts';
 
 /**
@@ -36,7 +36,6 @@ export function startListRefresh(listener: ListenerMiddlewareInstance<RootState,
       current.filters !== previous.filters ||
       current.master.base !== previous.master.base ||
       resetChanges.match(action) ||
-      resetScope.match(action) ||
       confirmRename.match(action),
     effect: (_action, api) => {
       api.dispatch(listRefreshed(selectVisibleAccountKeys(api.getState())));

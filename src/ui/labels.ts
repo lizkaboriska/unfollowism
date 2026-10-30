@@ -1,22 +1,21 @@
 import {
   ACTION_TYPES,
+  DecisionFilter,
   FOLLOW_CHANGES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
-  REVIEW_STATUSES,
   TAG_FILTER_KINDS,
   type ActionType,
   type FollowChange,
   type Relationship,
   type ReviewScope,
-  type ReviewStatusFilter,
   type TagFilter,
 } from '../core/index.ts';
 
 export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   [RELATIONSHIPS.MUTUAL]: 'Mutual',
   [RELATIONSHIPS.NOT_FOLLOWING_BACK]: 'Not following back',
-  [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: 'Follows me only',
+  [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: 'Follows you only',
   [RELATIONSHIPS.NEITHER]: 'Neither',
 };
 
@@ -25,15 +24,16 @@ export const SCOPE_LABELS: Record<ReviewScope, string> = {
   [REVIEW_SCOPES.FOLLOWERS]: 'People who follow me',
   [REVIEW_SCOPES.MUTUAL]: 'Mutual',
   [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 'Not following back',
-  [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 'Follows me only',
-  [REVIEW_SCOPES.ALL_CURRENT]: 'All current accounts',
-  [REVIEW_SCOPES.ALL_ACCOUNTS]: 'All accounts + history',
+  [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 'Follows you only',
+  [REVIEW_SCOPES.ALL_CURRENT]: 'Everyone now',
+  [REVIEW_SCOPES.ALL_ACCOUNTS]: 'Everyone incl. past accounts',
 };
 
-export const STATUS_LABELS: Record<ReviewStatusFilter, string> = {
-  [REVIEW_STATUSES.ALL]: 'All',
-  [REVIEW_STATUSES.NEEDS_REVIEW]: 'Needs review',
-  [REVIEW_STATUSES.REVIEWED]: 'Reviewed',
+export const DECISION_FILTER_LABELS: Record<DecisionFilter, string> = {
+  [DecisionFilter.ANY]: 'Any',
+  [DecisionFilter.NEEDS_DECISION]: 'Needs a decision',
+  [DecisionFilter.KEPT]: 'Kept',
+  [DecisionFilter.QUEUED]: 'Queued',
 };
 
 /** Tab names for the change lists. */
@@ -66,7 +66,7 @@ export const PLAN_LABELS: Record<ActionType, { checkbox: string; todo: string; s
   [ACTION_TYPES.REMOVE_FOLLOWER]: { checkbox: 'To remove', todo: 'Remove', summary: 'to remove' },
 };
 
-/** "I follow · artist": the scope and tag the Review tab (and Reset scope) covers. */
+/** "I follow · artist": the scope and tag the Review tab covers. */
 export function scopeDescription(scope: ReviewScope, tag: TagFilter): string {
   if (tag.kind === TAG_FILTER_KINDS.ALL) {
     return SCOPE_LABELS[scope];

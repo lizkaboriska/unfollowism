@@ -21,13 +21,14 @@ You work in rounds. Each round:
    from it) **and the master file you saved last time**. Files can come from different folders:
    add them one after another. They are recognized by their content, so renaming them is fine.
 3. **Review.** The tabs show:
-   - **Review**: everyone, by scope (I follow, People who follow me, Mutual, …), status and tag.
+   - **Review**: everyone, by scope (I follow, People who follow me, Mutual, …), your decision and tag.
    - **New follows**: people you followed since your last save.
    - **To do**: accounts you marked **To unfollow** or **To remove**. Do it on Instagram
      (the name opens their profile), then tick **Done**.
    - **I unfollowed / New followers / Lost followers**: what changed since your last save.
 
-   Tag accounts, add notes, tick **Reviewed**.
+   Tag accounts, add notes, and decide: tick **Kept** to keep an account as it is, or queue it **To unfollow** /
+   **To remove**.
 4. **Save.** Click **Save master** to download `unfollowism_master_<date>.json`. That file
    is your record: keep it and add it to your next import. Saving also ends the round:
    "new" and "since your last save" count from it next time.

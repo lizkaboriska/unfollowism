@@ -5,12 +5,14 @@ import {
   copyAccount,
   createDict,
   followExists,
-  inResetScope,
+  isKept,
+  keep,
   mergeRenamed,
   planOf,
   removeTagFrom,
   renameTagOn,
   setPlan as applyPlan,
+  undecide,
   usernameKey,
   type Account,
   type ActionType,
@@ -18,8 +20,6 @@ import {
   type Master,
   type PlanState,
   type ReadonlyAccount,
-  type ReviewScope,
-  type TagFilter,
 } from '../core/index.ts';
 
 import {
@@ -154,23 +154,45 @@ export const masterSlice = createSlice({
   name: 'master',
   initialState,
   reducers: {
-    setReviewed(state, { payload }: PayloadAction<{ username: string; reviewed: boolean }>) {
-      if (accountBefore(state, payload.username)?.review.reviewed === payload.reviewed) {
+    /** Keep (clears any plans), or back to needing a decision. */
+    setKept(state, { payload }: PayloadAction<{ username: string; kept: boolean }>) {
+      const before = accountBefore(state, payload.username);
+      if (!before || isKept(before) === payload.kept) {
         return;
       }
       editAccount(state, payload.username, account => {
-        account.review.reviewed = payload.reviewed;
+        if (payload.kept) {
+          keep(account);
+        } else {
+          undecide(account);
+        }
       });
     },
-    /** Marking unavailable also marks the account reviewed; clearing it does not un-review. */
+    /**
+     * Removes one plan, keeping the account as it is ("Keep instead" in To do): with no plan left it becomes Kept, not
+     * undecided.
+     */
+    keepInstead(state, { payload }: PayloadAction<{ username: string; type: ActionType }>) {
+      const before = accountBefore(state, payload.username);
+      if (!before || planOf(before, payload.type) === undefined) {
+        return;
+      }
+      editAccount(state, payload.username, account => {
+        applyPlan(account, payload.type, undefined);
+        if (account.decision === undefined) {
+          keep(account);
+        }
+      });
+    },
+    /** Marking unavailable means you looked: an undecided account becomes Kept. Clearing it changes no decision. */
     setUnavailable(state, { payload }: PayloadAction<{ username: string; unavailable: boolean }>) {
       if (accountBefore(state, payload.username)?.review.unavailable === payload.unavailable) {
         return;
       }
       editAccount(state, payload.username, account => {
         account.review.unavailable = payload.unavailable;
-        if (payload.unavailable) {
-          account.review.reviewed = true;
+        if (payload.unavailable && account.decision === undefined) {
+          keep(account);
         }
       });
     },
@@ -194,8 +216,8 @@ export const masterSlice = createSlice({
       });
     },
     /**
-     * Plans an Instagram action (planned → done after doing it by hand), or cancels it with
-     * `state: null`. A new plan also marks the account reviewed.
+     * Queues an Instagram action (planned → done after doing it by hand), or removes the plan with `state: null`.
+     * Queuing turns Kept into queued; removing the last plan leaves the account needing a decision.
      */
     setPlan(state, { payload }: PayloadAction<PlanPayload>) {
       const before = accountBefore(state, payload.username);
@@ -212,30 +234,7 @@ export const masterSlice = createSlice({
       } // the UI only offers eligible actions
       editAccount(state, payload.username, account => {
         applyPlan(account, payload.type, next);
-        if (current === undefined) {
-          account.review.reviewed = true;
-        }
       });
-    },
-    /** Un-reviews the accounts inResetScope picks; everything else on them is kept. */
-    resetScope(state, { payload }: PayloadAction<{ scope: ReviewScope; tag: TagFilter }>) {
-      const before = original(state);
-      const base = before.base;
-      if (!base) {
-        return;
-      }
-      const targets = Object.keys(base.accounts).filter(key => {
-        const account = accountOf<ReadonlyAccount>(base.accounts, before.changed, key);
-        return !!account && inResetScope(account, payload);
-      });
-      for (const key of targets) {
-        applyEdit(state, key, account => {
-          account.review.reviewed = false;
-        });
-      }
-      if (targets.length) {
-        state.revision += 1;
-      }
     },
     /** Renames a tag on every account that has it. Renaming onto an existing tag merges the two. */
     renameTag(state, { payload }: PayloadAction<{ from: string; to: string }>) {
@@ -370,12 +369,12 @@ export const masterSlice = createSlice({
 });
 
 export const {
-  setReviewed,
+  setKept,
+  keepInstead,
   setUnavailable,
   toggleTag,
   setNote,
   setPlan,
-  resetScope,
   renameTag,
   deleteTag,
   confirmRename,

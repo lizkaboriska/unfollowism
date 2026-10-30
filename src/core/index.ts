@@ -4,6 +4,7 @@ export * from './review.ts';
 export * from './account.ts';
 export * from './parse.ts';
 export * from './scopes.ts';
+export * from './decision.ts';
 export * from './actions.ts';
 export * from './sessionDiff.ts';
 export * from './importProblems.ts';

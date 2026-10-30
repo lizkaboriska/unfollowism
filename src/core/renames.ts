@@ -1,4 +1,4 @@
-import { followExists, planOf, setPlan } from './actions.ts';
+import { followExists, keep, planOf, setPlan } from './decision.ts';
 import {
   ACTION_TYPES,
   PLAN_STATES,
@@ -98,7 +98,7 @@ const NOTE_SEPARATOR = ' · ';
 
 /**
  * WRITE (to `target`): moves the old account's review work onto its new name. Tags are combined,
- * notes joined with NOTE_SEPARATOR, reviewed if either was. The old account's plans (kept on its suggestion)
+ * notes joined with NOTE_SEPARATOR, Kept if either was decided. The old account's plans (kept on its suggestion)
  * come back as planned where that follow exists on the new name. Unavailable is not moved: the
  * account clearly still exists.
  */
@@ -110,7 +110,9 @@ export function mergeRenamed(target: Account, old: ReadonlyAccount): void {
     }
   }
   review.notes = [review.notes, old.review.notes].filter(Boolean).join(NOTE_SEPARATOR);
-  review.reviewed ||= old.review.reviewed;
+  if (target.decision === undefined && old.decision !== undefined) {
+    keep(target);
+  }
   for (const type of old.renameSuggestion?.plans ?? []) {
     if (planOf(target, type) === undefined && followExists(target, type)) {
       setPlan(target, type, PLAN_STATES.PLANNED);

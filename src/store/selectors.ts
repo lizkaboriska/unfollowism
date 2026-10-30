@@ -5,6 +5,7 @@ import {
   PLAN_STATES,
   accountOf,
   buildSessionDiff,
+  countInScopeStats,
   countPlans,
   countTags,
   followChangeCounts,
@@ -15,10 +16,10 @@ import {
   tagCounts,
   tagsInUse,
   createDict,
+  decisionMatches,
   queryMatches,
   relationshipStats,
   reviewScopeStats,
-  reviewStatusMatches,
   sameAccountData,
   scopeMatches,
   tagMatches,
@@ -84,19 +85,12 @@ export const selectScopeStats = createSelector(
       if (!account || !scopeMatches(account, scope) || !tagMatches(account, tag)) {
         return;
       }
-      stats.total += sign;
-      if (account.review.reviewed) {
-        stats.reviewed += sign;
-      }
-      if (account.review.unavailable) {
-        stats.unavailable += sign;
-      }
+      countInScopeStats(stats, account, sign);
     };
     for (const [key, account] of Object.entries(changed)) {
       count(base[key], -1);
       count(account ?? undefined, 1);
     }
-    stats.needsReview = stats.total - stats.reviewed;
     return stats;
   },
 );
@@ -183,7 +177,7 @@ export const selectVisibleAccountKeys = createSelector(
       return (
         !!account &&
         viewMatches(account, filters, since) &&
-        (isPlanView(filters.view) || reviewStatusMatches(account, filters.reviewStatus)) &&
+        (isPlanView(filters.view) || decisionMatches(account, filters.decision)) &&
         tagMatches(account, filters.tag) &&
         queryMatches(account, filters.query)
       );

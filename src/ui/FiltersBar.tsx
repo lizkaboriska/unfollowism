@@ -1,24 +1,14 @@
-import { Button, Input, Stack } from '@chakra-ui/react';
+import { Input, Stack } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 
-import {
-  REVIEW_SCOPES,
-  REVIEW_STATUSES,
-  TAG_FILTER_KINDS,
-  type ReviewScope,
-  type ReviewStatusFilter,
-  type TagFilter,
-} from '../core/index.ts';
-import { LIST_VIEWS, isPlanView, setQuery, setReviewStatus, setScope, setTagFilter } from '../store/filtersSlice.ts';
+import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type ReviewScope, type TagFilter } from '../core/index.ts';
+import { LIST_VIEWS, isPlanView, setDecisionFilter, setQuery, setScope, setTagFilter } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { resetScope } from '../store/masterSlice.ts';
-import { selectScopeStats, selectTagCounts, selectTags } from '../store/selectors.ts';
+import { selectTagCounts, selectTags } from '../store/selectors.ts';
 
-import { useConfirm } from './dialogHooks.ts';
 import { FilterSelect, type FilterOption } from './FilterSelect.tsx';
-import { SCOPE_LABELS, STATUS_LABELS, scopeDescription } from './labels.ts';
+import { DECISION_FILTER_LABELS, SCOPE_LABELS } from './labels.ts';
 import { ManageTagsDialog } from './ManageTagsDialog.tsx';
-import { plural } from './statusText.ts';
 
 // A tag can be any text (even "untagged"), so the tag select uses positions as option values.
 const ALL_TAGS_VALUE = 'all';
@@ -31,9 +21,9 @@ const SCOPE_OPTIONS: readonly FilterOption<ReviewScope>[] = Object.values(REVIEW
   value: scope,
   label: SCOPE_LABELS[scope],
 }));
-const STATUS_OPTIONS: readonly FilterOption<ReviewStatusFilter>[] = Object.values(REVIEW_STATUSES).map(status => ({
-  value: status,
-  label: STATUS_LABELS[status],
+const DECISION_OPTIONS: readonly FilterOption<DecisionFilter>[] = Object.values(DecisionFilter).map(decision => ({
+  value: decision,
+  label: DECISION_FILTER_LABELS[decision],
 }));
 
 function tagFilterValue(tag: TagFilter, tags: readonly string[]): string {
@@ -56,11 +46,9 @@ function tagFilterOf(value: string, tags: readonly string[]): TagFilter {
 
 export function FiltersBar() {
   const dispatch = useAppDispatch();
-  const confirm = useConfirm();
   const filters = useAppSelector(s => s.filters);
   const tags = useAppSelector(selectTags);
   const tagCounts = useAppSelector(selectTagCounts);
-  const reviewedInScope = useAppSelector(selectScopeStats).reviewed;
   const inReview = filters.view === LIST_VIEWS.REVIEW;
   const [tagsOpen, setTagsOpen] = useState(false);
 
@@ -87,21 +75,6 @@ export function FiltersBar() {
     }
   }
 
-  async function onResetScope() {
-    const scope = scopeDescription(filters.scope, filters.tag);
-    const confirmed = await confirm({
-      title: 'Reset reviewed?',
-      body:
-        `Reset reviewed for ${plural(reviewedInScope, 'account')} matching ${scope}? ` +
-        'Only the Reviewed tick is cleared; tags, notes and plans stay.',
-      confirmLabel: 'Reset',
-      destructive: true,
-    });
-    if (confirmed) {
-      dispatch(resetScope({ scope: filters.scope, tag: filters.tag }));
-    }
-  }
-
   return (
     <Stack direction={{ base: 'column', md: 'row' }} gap="2" align={{ base: 'stretch', md: 'center' }} wrap="wrap">
       <Input
@@ -125,11 +98,11 @@ export function FiltersBar() {
       )}
       {!isPlanView(filters.view) && (
         <FilterSelect
-          name="status"
-          label="Status"
-          options={STATUS_OPTIONS}
-          value={filters.reviewStatus}
-          onChange={value => dispatch(setReviewStatus(value))}
+          name="decision"
+          label="Your decision"
+          options={DECISION_OPTIONS}
+          value={filters.decision}
+          onChange={value => dispatch(setDecisionFilter(value))}
         />
       )}
       <FilterSelect
@@ -145,17 +118,6 @@ export function FiltersBar() {
           setTagsOpen(false);
         }}
       />
-      {inReview && (
-        <Button
-          size="sm"
-          variant="outline"
-          colorPalette="yellow"
-          disabled={reviewedInScope === 0}
-          onClick={() => void onResetScope()}
-        >
-          Reset scope
-        </Button>
-      )}
     </Stack>
   );
 }

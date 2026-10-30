@@ -53,7 +53,8 @@ export interface TabDatabase {
 }
 
 const DB_NAME = 'unfollowism';
-const DB_VERSION = 4; // v1 held a single whole-session record; v2 had no saved accounts; v3 kept meta in the tabs row
+// Bump on any change of the stored shape: older data is dropped, not migrated.
+const DB_VERSION = 5;
 const TABS = 'tabs'; // tabId → base
 const META = 'meta'; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.
 const ACCOUNTS = 'accounts'; // [tabId, accountKey] → AccountRecord
@@ -85,25 +86,6 @@ function committed(tx: IDBTransaction): Promise<void> {
   });
 }
 
-/**
- * v3 kept each tab's meta with its base, as { base, meta }: moves the meta to its own store. Runs in the upgrade
- * transaction.
- */
-function migrateFromV3(database: IDBDatabase, upgrade: IDBTransaction): void {
-  const metas = database.createObjectStore(META);
-  const request = upgrade.objectStore(TABS).openCursor();
-  request.onsuccess = () => {
-    const cursor = request.result;
-    if (!cursor) {
-      return;
-    }
-    const row = cursor.value as { base: unknown; meta: TabMeta };
-    metas.put(row.meta, cursor.key);
-    cursor.update(row.base);
-    cursor.continue();
-  };
-}
-
 export function openIndexedDbTabDatabase(
   factory: IDBFactory = indexedDB,
   keyRange: typeof IDBKeyRange = IDBKeyRange,
@@ -118,12 +100,8 @@ export function openIndexedDbTabDatabase(
   function db(): Promise<IDBDatabase> {
     dbPromise ??= new Promise((resolve, reject) => {
       const open = factory.open(DB_NAME, DB_VERSION);
-      open.onupgradeneeded = event => {
+      open.onupgradeneeded = () => {
         const database = open.result;
-        if (event.oldVersion === 3 && open.transaction) {
-          migrateFromV3(database, open.transaction);
-          return;
-        }
         for (const name of [...database.objectStoreNames]) {
           database.deleteObjectStore(name);
         }

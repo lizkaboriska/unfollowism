@@ -2,19 +2,18 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 import {
   ACTION_TYPES,
+  DecisionFilter,
   FOLLOW_CHANGES,
   REVIEW_SCOPES,
-  REVIEW_STATUSES,
   TAG_FILTER_KINDS,
   type ActionType,
   type FollowChange,
   type ReviewScope,
-  type ReviewStatusFilter,
   type TagFilter,
   type ValueOf,
 } from '../core/index.ts';
 
-import { renameTag, resetScope } from './masterSlice.ts';
+import { renameTag } from './masterSlice.ts';
 
 /** Which list the main view shows: the review queue, a change since the last save, or a list of planned actions. */
 export const LIST_VIEWS = {
@@ -28,10 +27,7 @@ export const LIST_VIEWS = {
 } as const;
 export type ListView = ValueOf<typeof LIST_VIEWS>;
 
-/**
- * The To do lists, and the action each one lists. Status doesn't apply there: planning an action marks the account
- * reviewed.
- */
+/** The To do lists, and the action each one lists. The decision filter doesn't apply there: they're all queued. */
 export const PLAN_VIEW_ACTIONS = {
   [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
   [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
@@ -55,16 +51,16 @@ export function isFollowChangeView(view: ListView): view is FollowChange {
 
 export interface FiltersState {
   scope: ReviewScope;
-  reviewStatus: ReviewStatusFilter;
+  decision: DecisionFilter;
   tag: TagFilter;
   query: string;
-  /** Only REVIEW uses `scope`; status applies everywhere except the To do lists; tag and search apply to every view. */
+  /** Only REVIEW uses `scope`; decision applies except in To do lists; tag and search apply to every view. */
   view: ListView;
 }
 
 const initialState: FiltersState = {
   scope: REVIEW_SCOPES.FOLLOWING,
-  reviewStatus: REVIEW_STATUSES.ALL,
+  decision: DecisionFilter.ANY,
   tag: { kind: TAG_FILTER_KINDS.ALL },
   query: '',
   view: LIST_VIEWS.REVIEW,
@@ -77,8 +73,8 @@ export const filtersSlice = createSlice({
     setScope(state, { payload }: PayloadAction<ReviewScope>) {
       state.scope = payload;
     },
-    setReviewStatus(state, { payload }: PayloadAction<ReviewStatusFilter>) {
-      state.reviewStatus = payload;
+    setDecisionFilter(state, { payload }: PayloadAction<DecisionFilter>) {
+      state.decision = payload;
     },
     setTagFilter(state, { payload }: PayloadAction<TagFilter>) {
       state.tag = payload;
@@ -92,10 +88,6 @@ export const filtersSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      // After a reset, show what now needs review.
-      .addCase(resetScope, state => {
-        state.reviewStatus = REVIEW_STATUSES.NEEDS_REVIEW;
-      })
       // The filter follows a renamed tag. A tag that no longer exists is handled by tagFilterCleanup.ts.
       .addCase(renameTag, (state, { payload }) => {
         if (state.tag.kind === TAG_FILTER_KINDS.TAG && state.tag.tag === payload.from) {
@@ -105,4 +97,4 @@ export const filtersSlice = createSlice({
   },
 });
 
-export const { setScope, setReviewStatus, setTagFilter, setQuery, setView } = filtersSlice.actions;
+export const { setScope, setDecisionFilter, setTagFilter, setQuery, setView } = filtersSlice.actions;
