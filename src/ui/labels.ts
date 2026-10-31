@@ -20,8 +20,8 @@ export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
 };
 
 export const SCOPE_LABELS: Record<ReviewScope, string> = {
-  [REVIEW_SCOPES.FOLLOWING]: 'I follow',
-  [REVIEW_SCOPES.FOLLOWERS]: 'People who follow me',
+  [REVIEW_SCOPES.FOLLOWING]: 'Following',
+  [REVIEW_SCOPES.FOLLOWERS]: 'Followers',
   [REVIEW_SCOPES.MUTUAL]: 'Mutual',
   [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 'Not following back',
   [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 'Follows you only',
@@ -66,10 +66,14 @@ export const PLAN_LABELS: Record<ActionType, { checkbox: string; todo: string; s
   [ACTION_TYPES.REMOVE_FOLLOWER]: { checkbox: 'To remove', todo: 'Remove', summary: 'to remove' },
 };
 
-/** "I follow · artist": the scope and tag the Review tab covers. */
-export function scopeDescription(scope: ReviewScope, tag: TagFilter): string {
-  if (tag.kind === TAG_FILTER_KINDS.ALL) {
-    return SCOPE_LABELS[scope];
+/** The tag filter's option and chip label: "Any tag", "No tags" or the tag itself. */
+export function tagFilterLabel(tag: TagFilter): string {
+  switch (tag.kind) {
+    case TAG_FILTER_KINDS.ALL:
+      return 'Any tag';
+    case TAG_FILTER_KINDS.UNTAGGED:
+      return 'No tags';
+    case TAG_FILTER_KINDS.TAG:
+      return tag.tag;
   }
-  return `${SCOPE_LABELS[scope]} · ${tag.kind === TAG_FILTER_KINDS.UNTAGGED ? 'untagged' : tag.tag}`;
 }

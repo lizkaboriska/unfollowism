@@ -17,7 +17,6 @@ import {
   parseFollowersJson,
   relationshipStats,
   reviewScopeAccounts,
-  reviewScopeStats,
   scopeMatches,
   setPlan,
   settlePlans,
@@ -61,20 +60,6 @@ test('scope stats describe whichever audit queue is selected', () => {
     notFollowingBack: 1,
     followsYouOnly: 1,
     currentAccounts: 3,
-  });
-  expect(reviewScopeStats(state, { scope: REVIEW_SCOPES.FOLLOWING })).toEqual({
-    total: 2,
-    needsDecision: 1,
-    kept: 1,
-    queued: 0,
-    unavailable: 0,
-  });
-  expect(reviewScopeStats(state, { scope: REVIEW_SCOPES.FOLLOWERS })).toEqual({
-    total: 2,
-    needsDecision: 1,
-    kept: 1,
-    queued: 0,
-    unavailable: 0,
   });
 });
 

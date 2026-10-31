@@ -1,13 +1,13 @@
 import { Input, Stack } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 
-import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type ReviewScope, type TagFilter } from '../core/index.ts';
-import { LIST_VIEWS, isPlanView, setDecisionFilter, setQuery, setScope, setTagFilter } from '../store/filtersSlice.ts';
+import { DecisionFilter, TAG_FILTER_KINDS, type TagFilter } from '../core/index.ts';
+import { isPlanView, setDecisionFilter, setQuery, setTagFilter } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectTagCounts, selectTags } from '../store/selectors.ts';
 
 import { FilterSelect, type FilterOption } from './FilterSelect.tsx';
-import { DECISION_FILTER_LABELS, SCOPE_LABELS } from './labels.ts';
+import { DECISION_FILTER_LABELS, tagFilterLabel } from './labels.ts';
 import { ManageTagsDialog } from './ManageTagsDialog.tsx';
 
 // A tag can be any text (even "untagged"), so the tag select uses positions as option values.
@@ -17,10 +17,6 @@ const UNTAGGED_VALUE = 'untagged';
 const MANAGE_TAGS_VALUE = 'manage';
 const tagValue = (index: number) => `tag-${index}`;
 
-const SCOPE_OPTIONS: readonly FilterOption<ReviewScope>[] = Object.values(REVIEW_SCOPES).map(scope => ({
-  value: scope,
-  label: SCOPE_LABELS[scope],
-}));
 const DECISION_OPTIONS: readonly FilterOption<DecisionFilter>[] = Object.values(DecisionFilter).map(decision => ({
   value: decision,
   label: DECISION_FILTER_LABELS[decision],
@@ -44,18 +40,18 @@ function tagFilterOf(value: string, tags: readonly string[]): TagFilter {
   return tag === undefined ? { kind: TAG_FILTER_KINDS.ALL } : { kind: TAG_FILTER_KINDS.TAG, tag };
 }
 
+/** The filter row of the change and To do tabs (Review has its own list controls and Filter sheet). */
 export function FiltersBar() {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(s => s.filters);
   const tags = useAppSelector(selectTags);
   const tagCounts = useAppSelector(selectTagCounts);
-  const inReview = filters.view === LIST_VIEWS.REVIEW;
   const [tagsOpen, setTagsOpen] = useState(false);
 
   const tagOptions = useMemo(
     (): FilterOption[] => [
-      { value: ALL_TAGS_VALUE, label: 'All tags' },
-      { value: UNTAGGED_VALUE, label: 'Untagged' },
+      { value: ALL_TAGS_VALUE, label: tagFilterLabel({ kind: TAG_FILTER_KINDS.ALL }) },
+      { value: UNTAGGED_VALUE, label: tagFilterLabel({ kind: TAG_FILTER_KINDS.UNTAGGED }) },
       ...tags.map((tag, i) => ({
         value: tagValue(i),
         label: tag,
@@ -87,15 +83,6 @@ export function FiltersBar() {
         value={filters.query}
         onChange={e => dispatch(setQuery(e.currentTarget.value))}
       />
-      {inReview && (
-        <FilterSelect
-          name="scope"
-          label="Scope"
-          options={SCOPE_OPTIONS}
-          value={filters.scope}
-          onChange={value => dispatch(setScope(value))}
-        />
-      )}
       {!isPlanView(filters.view) && (
         <FilterSelect
           name="decision"

@@ -15,7 +15,16 @@ import {
   toMasterFile,
 } from '../../core/index.ts';
 import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
-import { LIST_VIEWS, setDecisionFilter, setQuery, setScope, setTagFilter, setView } from '../filtersSlice.ts';
+import {
+  LIST_VIEWS,
+  applyFilters,
+  clearFilters,
+  setDecisionFilter,
+  setQuery,
+  setScope,
+  setTagFilter,
+  setView,
+} from '../filtersSlice.ts';
 import { selectListKeys } from '../listSlice.ts';
 import {
   confirmRename,
@@ -38,10 +47,11 @@ import {
   selectPlanStats,
   selectTagCounts,
   selectTags,
-  selectScopeStats,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectVisibleAccountKeys,
+  selectMatchingCount,
+  selectScopeTotals,
 } from '../selectors.ts';
 import { STATUS_EVENTS } from '../statuses.ts';
 import { importPrepared, restoreTab, saveMaster } from '../thunks.ts';
@@ -473,6 +483,36 @@ describe('tags', () => {
   });
 });
 
+describe('filters', () => {
+  test('the Filter sheet applies list, tag and decision at once; Clear all keeps the list', async () => {
+    const t = await importedStore();
+    t.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
+    t.store.dispatch(setQuery('a'));
+    t.store.dispatch(
+      applyFilters({
+        scope: REVIEW_SCOPES.MUTUAL,
+        tag: { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' },
+        decision: DecisionFilter.NEEDS_DECISION,
+      }),
+    );
+    expect(t.store.getState().filters).toMatchObject({
+      scope: REVIEW_SCOPES.MUTUAL,
+      tag: { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' },
+      decision: DecisionFilter.NEEDS_DECISION,
+      query: 'a',
+    });
+    expect(selectListKeys(t.store.getState())).toEqual(['alice']);
+
+    t.store.dispatch(clearFilters());
+    expect(t.store.getState().filters).toMatchObject({
+      scope: REVIEW_SCOPES.MUTUAL,
+      tag: { kind: TAG_FILTER_KINDS.ALL },
+      decision: DecisionFilter.ANY,
+      query: 'a',
+    });
+  });
+});
+
 describe('list refresh', () => {
   test('the shown list changes on filter change, import, restore and resets, never on an edit', async () => {
     const t = await importedStore();
@@ -787,6 +827,7 @@ describe('renames', () => {
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
     expect(state.master.status).toMatchObject({ summary: { plans: { completed: { [REMOVE_FOLLOWER]: 0 } } } });
     expect(selectListKeys(state)).toEqual(['carol']);
+    expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(4); // alice, bob, carol (past), carol_2
   });
 
   test('confirming moves the work to the new name, removes the old account, and saves without it', async () => {
@@ -800,6 +841,7 @@ describe('renames', () => {
       review: { tags: ['artist'], notes: 'old note' },
     });
     expect(selectListKeys(state)).toEqual([]); // the old card leaves the list
+    expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(3); // carol is gone, carol_2 stays
     expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(0);
     expect(selectTagCounts(state).artist).toBe(1);
     expect(selectPlanStats(state)[PLAN_STATES.PLANNED][REMOVE_FOLLOWER]).toBe(1);
@@ -959,16 +1001,35 @@ describe('selectors', () => {
     expect(selectAccount(after, 'bob')).not.toBe(selectAccount(before, 'bob'));
   });
 
-  test('scope stats follow scope and tag', async () => {
-    const t = await importedStore();
+  test('per-list totals count each list whatever the other filters; edits never change them', async () => {
+    const t = await importedStore(); // following Alice, bob, carol; followers alice, dave
+    const totals = {
+      [REVIEW_SCOPES.FOLLOWING]: 3,
+      [REVIEW_SCOPES.FOLLOWERS]: 2,
+      [REVIEW_SCOPES.MUTUAL]: 1,
+      [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 2,
+      [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 1,
+      [REVIEW_SCOPES.ALL_CURRENT]: 4,
+      [REVIEW_SCOPES.ALL_ACCOUNTS]: 4,
+    };
+    expect(selectScopeTotals(t.store.getState())).toEqual(totals);
     t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    expect(selectScopeStats(t.store.getState())).toEqual({
-      total: 3,
-      needsDecision: 2,
-      kept: 1,
-      queued: 0,
-      unavailable: 0,
-    });
+    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
+    t.store.dispatch(setDecisionFilter(DecisionFilter.KEPT));
+    expect(selectScopeTotals(t.store.getState())).toEqual(totals);
+  });
+
+  test('the matching count reads any filters (the Filter sheet draft) and leaves the list alone', async () => {
+    const t = await importedStore();
+    t.store.dispatch(setKept({ username: 'alice', kept: true }));
+    const state = t.store.getState();
+    const draft = (choice: Partial<typeof state.filters>) =>
+      selectMatchingCount(state, { ...state.filters, ...choice });
+    expect(draft({})).toBe(3); // Following, as shown
+    expect(draft({ scope: REVIEW_SCOPES.FOLLOWERS })).toBe(2);
+    expect(draft({ scope: REVIEW_SCOPES.FOLLOWERS, decision: DecisionFilter.NEEDS_DECISION })).toBe(1); // dave
+    expect(draft({ scope: REVIEW_SCOPES.ALL_CURRENT, query: 'a' })).toBe(3); // alice, carol, dave
+    expect(selectListKeys(state)).toEqual(['alice', 'bob', 'carol']);
   });
 
   test('selector results are read-only at compile time', async () => {

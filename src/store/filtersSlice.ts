@@ -58,10 +58,18 @@ export interface FiltersState {
   view: ListView;
 }
 
+/** What the Filter sheet sets in one go: the list and the filters that narrow it. */
+export type FilterChoice = Pick<FiltersState, 'scope' | 'tag' | 'decision'>;
+
+/** Tag and decision when nothing narrows the list. The list (scope) is never "cleared": something is always shown. */
+export const NO_FILTERS = {
+  tag: { kind: TAG_FILTER_KINDS.ALL },
+  decision: DecisionFilter.ANY,
+} as const satisfies Pick<FiltersState, 'tag' | 'decision'>;
+
 const initialState: FiltersState = {
   scope: REVIEW_SCOPES.FOLLOWING,
-  decision: DecisionFilter.ANY,
-  tag: { kind: TAG_FILTER_KINDS.ALL },
+  ...NO_FILTERS,
   query: '',
   view: LIST_VIEWS.REVIEW,
 };
@@ -85,6 +93,15 @@ export const filtersSlice = createSlice({
     setView(state, { payload }: PayloadAction<ListView>) {
       state.view = payload;
     },
+    applyFilters(state, { payload }: PayloadAction<FilterChoice>) {
+      state.scope = payload.scope;
+      state.tag = payload.tag;
+      state.decision = payload.decision;
+    },
+    clearFilters(state) {
+      state.tag = NO_FILTERS.tag;
+      state.decision = NO_FILTERS.decision;
+    },
   },
   extraReducers: builder => {
     builder
@@ -97,4 +114,5 @@ export const filtersSlice = createSlice({
   },
 });
 
-export const { setScope, setDecisionFilter, setTagFilter, setQuery, setView } = filtersSlice.actions;
+export const { setScope, setDecisionFilter, setTagFilter, setQuery, setView, applyFilters, clearFilters } =
+  filtersSlice.actions;

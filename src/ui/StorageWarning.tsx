@@ -11,9 +11,14 @@ export function StorageWarning({ durable }: { durable: boolean }) {
     return null;
   }
   return (
-    <Alert.Root status="warning">
-      <Alert.Indicator />
-      <Alert.Title>This browser isn't keeping your work: a reload would lose it. Save master to be safe.</Alert.Title>
+    <Alert.Root status="warning" role="alert">
+      <Alert.Content>
+        <Alert.Title textStyle="control">⚠ This browser can't keep your work</Alert.Title>
+        <Alert.Description color="fg.muted">
+          Its storage is unavailable or full, so a reload would lose your edits. Tap Save at the top so your decisions
+          don't get lost.
+        </Alert.Description>
+      </Alert.Content>
     </Alert.Root>
   );
 }

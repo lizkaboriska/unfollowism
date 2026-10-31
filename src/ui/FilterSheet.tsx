@@ -1,0 +1,203 @@
+import { Box, Button, CloseButton, Drawer, HStack, Portal, Stack, Text, Wrap } from '@chakra-ui/react';
+import { useState, type ReactNode } from 'react';
+
+import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '../core/index.ts';
+import { NO_FILTERS, applyFilters, type FilterChoice } from '../store/filtersSlice.ts';
+import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
+import { selectMatchingCount, selectScopeTotals, selectTags } from '../store/selectors.ts';
+
+import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from './labels.ts';
+import { ManageTagsDialog } from './ManageTagsDialog.tsx';
+import { plural } from './statusText.ts';
+
+function sameTag(a: TagFilter, b: TagFilter): boolean {
+  return a.kind === b.kind && (a.kind !== TAG_FILTER_KINDS.TAG || (b.kind === TAG_FILTER_KINDS.TAG && a.tag === b.tag));
+}
+
+function Group({ legend, aside, children }: { legend: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <Box as="fieldset">
+      <HStack justify="space-between" mb="2">
+        <Text as="legend" textStyle="control">
+          {legend}
+        </Text>
+        {aside}
+      </HStack>
+      {children}
+    </Box>
+  );
+}
+
+/** One choice of a group: selected = black fill. */
+function Choice({ label, pressed, onClick }: { label: string; pressed: boolean; onClick: () => void }) {
+  return (
+    <Button size="sm" h="8" variant={pressed ? 'solid' : 'outline'} aria-pressed={pressed} onClick={onClick}>
+      {label}
+    </Button>
+  );
+}
+
+/**
+ * The choices are a draft: the list behind the sheet changes only on "Show N accounts", and closing forgets them.
+ * Reset clears the filters but keeps the list, like "Clear all".
+ */
+function FilterChoices({ onClose }: { onClose: () => void }) {
+  const dispatch = useAppDispatch();
+  const filters = useAppSelector(s => s.filters);
+  const tags = useAppSelector(selectTags);
+  const totals = useAppSelector(selectScopeTotals);
+  const [draft, setDraft] = useState<FilterChoice>({
+    scope: filters.scope,
+    tag: filters.tag,
+    decision: filters.decision,
+  });
+  // Manage tags can rename or delete the drafted tag: then the draft falls back to any tag.
+  const draftTag =
+    draft.tag.kind === TAG_FILTER_KINDS.TAG && !tags.includes(draft.tag.tag) ? NO_FILTERS.tag : draft.tag;
+  const choice: FilterChoice = { ...draft, tag: draftTag };
+  const matching = useAppSelector(s => selectMatchingCount(s, { ...filters, ...choice }));
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const choose = (choice: Partial<FilterChoice>) => {
+    setDraft(current => ({ ...current, ...choice }));
+  };
+  const tagChoices: TagFilter[] = [
+    NO_FILTERS.tag,
+    { kind: TAG_FILTER_KINDS.UNTAGGED },
+    ...tags.map((tag): TagFilter => ({ kind: TAG_FILTER_KINDS.TAG, tag })),
+  ];
+
+  return (
+    <>
+      <Drawer.Body>
+        <Stack gap="5">
+          <Group legend="Show">
+            <Stack gap="0">
+              {Object.values(REVIEW_SCOPES).map((scope, i) => {
+                const pressed = draft.scope === scope;
+                return (
+                  <Button
+                    key={scope}
+                    variant={pressed ? 'solid' : 'outline'}
+                    aria-pressed={pressed}
+                    justifyContent="space-between"
+                    mt={i === 0 ? '0' : '-1px'}
+                    onClick={() => {
+                      choose({ scope });
+                    }}
+                  >
+                    <span>{SCOPE_LABELS[scope]}</span>
+                    <Text as="span" textStyle="small" color={pressed ? 'paper' : 'fg.muted'}>
+                      {totals[scope]}
+                    </Text>
+                  </Button>
+                );
+              })}
+            </Stack>
+          </Group>
+          <Group
+            legend="Tag"
+            aside={
+              <Button
+                variant="plain"
+                h="auto"
+                p="0"
+                textStyle="body"
+                textDecoration="underline"
+                textUnderlineOffset="3px"
+                onClick={() => {
+                  setTagsOpen(true);
+                }}
+              >
+                Manage tags
+              </Button>
+            }
+          >
+            <Wrap gap="2">
+              {tagChoices.map(tag => (
+                <Choice
+                  key={tag.kind === TAG_FILTER_KINDS.TAG ? `tag:${tag.tag}` : tag.kind}
+                  label={tagFilterLabel(tag)}
+                  pressed={sameTag(draftTag, tag)}
+                  onClick={() => {
+                    choose({ tag });
+                  }}
+                />
+              ))}
+            </Wrap>
+          </Group>
+          <Group legend="Your decision">
+            <Wrap gap="2">
+              {Object.values(DecisionFilter).map(decision => (
+                <Choice
+                  key={decision}
+                  label={DECISION_FILTER_LABELS[decision]}
+                  pressed={draft.decision === decision}
+                  onClick={() => {
+                    choose({ decision });
+                  }}
+                />
+              ))}
+            </Wrap>
+          </Group>
+          <Text color="fg.muted">Filters change what you see, not your decisions.</Text>
+        </Stack>
+      </Drawer.Body>
+      <Drawer.Footer>
+        <Button
+          variant="outline"
+          onClick={() => {
+            choose(NO_FILTERS);
+          }}
+        >
+          Reset
+        </Button>
+        <Button
+          flex="1"
+          onClick={() => {
+            dispatch(applyFilters(choice));
+            onClose();
+          }}
+        >
+          Show {plural(matching, 'account')}
+        </Button>
+      </Drawer.Footer>
+      <ManageTagsDialog
+        open={tagsOpen}
+        onClose={() => {
+          setTagsOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
+export function FilterSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Drawer.Root
+      open={open}
+      onOpenChange={e => {
+        if (!e.open) {
+          onClose();
+        }
+      }}
+      placement="bottom"
+      lazyMount
+      unmountOnExit
+    >
+      <Portal>
+        <Drawer.Backdrop />
+        <Drawer.Positioner>
+          <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
+            <Drawer.Header>
+              <Drawer.Title textStyle="sheetTitle">Filter</Drawer.Title>
+            </Drawer.Header>
+            <FilterChoices onClose={onClose} />
+            <Drawer.CloseTrigger asChild>
+              <CloseButton variant="outline" aria-label="Close" />
+            </Drawer.CloseTrigger>
+          </Drawer.Content>
+        </Drawer.Positioner>
+      </Portal>
+    </Drawer.Root>
+  );
+}

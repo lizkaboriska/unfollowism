@@ -23,7 +23,6 @@ import {
   relationshipOf,
   relationshipStats,
   reviewScopeAccounts,
-  reviewScopeStats,
   decisionMatches,
   scopeMatches,
   stringifyMasterFile,
@@ -82,7 +81,6 @@ describe('read functions never write (safe on frozen Redux state)', () => {
         decision: DecisionFilter.ANY,
         query: 'a',
       });
-      reviewScopeStats(frozen, { scope: REVIEW_SCOPES.FOLLOWING });
       relationshipStats(frozen);
       planStats(frozen);
       planOf(alice, UNFOLLOW);

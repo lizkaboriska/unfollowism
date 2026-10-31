@@ -7,7 +7,7 @@ import { Provider } from 'react-redux';
 import { App } from './App.tsx';
 import { followersFile, followingFile, must } from './core/__tests__/helpers.ts';
 import { memoryLastSaved } from './io/lastSaved.ts';
-import { openIndexedDbTabDatabase, type TabStore } from './io/tabStore.ts';
+import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from './io/tabStore.ts';
 import type { StoreDeps } from './store/deps.ts';
 import { makeStore } from './store/index.ts';
 import { system } from './theme.ts';
@@ -64,11 +64,35 @@ async function importFiles(user: UserEvent, files: File[]) {
   await user.click(importButton());
 }
 
-/** Opens a filter dropdown and picks an option by its label (a tag's count after the label is ignored). */
+/** A regex for an option's label, ignoring a count after it ("Mutual 3", "artist 2"). */
+const optionName = (label: string) => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\d*$`);
+
+/** Opens a filter dropdown of the change and To do tabs and picks an option by its label. */
 async function chooseFilter(user: UserEvent, name: string, option: string) {
   await user.click(screen.getByRole('combobox', { name }));
-  const escaped = option.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  await user.click(await screen.findByRole('option', { name: new RegExp(`^${escaped}\\s*\\d*$`) }));
+  await user.click(await screen.findByRole('option', { name: optionName(option) }));
+}
+
+/** Review: opens the Filter sheet. */
+async function openFilterSheet(user: UserEvent) {
+  await user.click(screen.getByRole('button', { name: /^Filter( \d)?$/ }));
+  return screen.findByRole('dialog', { name: 'Filter' });
+}
+
+async function sheetClosed() {
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name: 'Filter' })).not.toBeInTheDocument();
+  });
+}
+
+/** Review: picks options in the Filter sheet (list, tag, decision) and applies them with "Show N accounts". */
+async function applyFilters(user: UserEvent, ...options: string[]) {
+  const sheet = await openFilterSheet(user);
+  for (const option of options) {
+    await user.click(within(sheet).getByRole('button', { name: optionName(option) }));
+  }
+  await user.click(within(sheet).getByRole('button', { name: /^Show \d+ accounts?$/ }));
+  await sheetClosed();
 }
 
 /** Creates a tag on a card with "+ tag" (new masters start without tags). */
@@ -80,6 +104,10 @@ async function newTag(user: UserEvent, username: string, tag: string) {
 const row = (username: string) => screen.getByRole('article', { name: `@${username}` });
 const findRow = (username: string) => screen.findByRole('article', { name: `@${username}` });
 const queryRow = (username: string) => screen.queryByRole('article', { name: `@${username}` });
+/** A number in the Review stats box, by its label. */
+const stat = (label: string) =>
+  within(screen.getByRole('region', { name: 'Your numbers' })).getByText(label).previousElementSibling?.textContent;
+const listChip = () => screen.getByRole('button', { name: /^Showing .*\. Change list$/ });
 const keptBox = (username: string) => within(row(username)).getByRole('checkbox', { name: 'Kept' });
 
 test('starts on the import screen', async () => {
@@ -111,10 +139,11 @@ test('import → review → save works end to end', async () => {
 
   expect(await screen.findByText(/Started a new master/)).toBeInTheDocument();
   expect(screen.queryByText('Drop your Instagram export here')).not.toBeInTheDocument();
-  expect(screen.getByText('Following 2')).toBeInTheDocument();
-  expect(screen.getByText('Mutual 1')).toBeInTheDocument();
+  expect(stat('Following')).toBe('2');
+  expect(stat('Mutual')).toBe('1');
   expect(row('alice')).toBeInTheDocument();
-  expect(queryRow('carol')).not.toBeInTheDocument(); // the Review tab starts on "I follow"
+  expect(queryRow('carol')).not.toBeInTheDocument(); // the Review tab starts on "Following"
+  expect(listChip()).toHaveTextContent('Following ▾');
 
   await user.click(keptBox('bob'));
   await user.click(screen.getByRole('button', { name: 'Save master' }));
@@ -288,6 +317,17 @@ test('importing over unsaved work asks first', async () => {
   });
 });
 
+test("a browser that can't keep the work warns on Review, once something is imported", async () => {
+  const { user } = await renderApp({ tab: createMemoryTabDatabase().forTab('memory') });
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // nothing to lose yet
+  await importFiles(user, exportFiles());
+  await findRow('bob');
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    "⚠ This browser can't keep your workIts storage is unavailable or full, so a reload would lose your edits. " +
+      "Tap Save at the top so your decisions don't get lost.",
+  );
+});
+
 test('a reload silently continues where the tab left off', async () => {
   const first = await renderApp();
   await importFiles(first.user, exportFiles());
@@ -402,12 +442,12 @@ describe('main view', () => {
     await user.click(tab(/^New followers \(2\)$/));
     expect(shown()).toEqual(['@alice', '@carol']);
     expect(screen.getByText('2 accounts started following you since you started')).toBeInTheDocument();
-    expect(screen.queryByRole('combobox', { name: 'Scope' })).not.toBeInTheDocument(); // scope is Review-only
+    expect(screen.queryByRole('button', { name: /Change list$/ })).not.toBeInTheDocument(); // the list is Review-only
   });
 
   test('search, status and tag narrow the list and are kept across tabs', async () => {
     const { user } = await imported();
-    await user.type(screen.getByRole('textbox', { name: 'Search username' }), 'bo');
+    await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'bo');
     expect(shown()).toEqual(['@bob']);
     await user.click(tab(/^New follows/));
     expect(shown()).toEqual(['@bob']);
@@ -416,23 +456,103 @@ describe('main view', () => {
     await newTag(user, 'alice', 'artist');
     await choose(user, 'Tag', 'artist');
     expect(shown()).toEqual(['@alice']);
-    await choose(user, 'Tag', 'Untagged');
+    await choose(user, 'Tag', 'No tags');
     expect(shown()).toEqual(['@bob']);
+    await user.click(tab(/^Review$/));
+    expect(shown()).toEqual(['@bob']);
+    expect(screen.getByRole('button', { name: 'Remove filter No tags' })).toBeInTheDocument();
+  });
+
+  test('Review top: heading, your numbers, and the links switch the list', async () => {
+    const { user } = await imported();
+    expect(screen.getByRole('heading', { level: 1, name: 'Review' })).toBeInTheDocument();
+    expect(screen.getByText(/^Imported .+ · no saved master yet$/)).toBeInTheDocument();
+    expect([stat('Following'), stat('Followers'), stat('Mutual')]).toEqual(['2', '2', '1']);
+
+    await user.click(screen.getByRole('button', { name: '1 not following back' }));
+    expect(listChip()).toHaveTextContent('Not following back ▾');
+    expect(shown()).toEqual(['@bob']);
+    await user.click(screen.getByRole('button', { name: '1 follow you only' }));
+    expect(listChip()).toHaveTextContent('Follows you only ▾');
+    expect(shown()).toEqual(['@carol']);
+    expect(screen.getByText('1 account')).toBeInTheDocument();
+  });
+
+  test('Filter sheet: choices apply only on Show N accounts; × forgets them; the list chip opens it', async () => {
+    const { user } = await imported();
+    const sheet = await openFilterSheet(user);
+    const option = (label: string) => within(sheet).getByRole('button', { name: optionName(label) });
+    expect(option('Following')).toHaveTextContent('Following2');
+    expect(option('Following')).toHaveAttribute('aria-pressed', 'true');
+    expect(option('Everyone now')).toHaveTextContent('Everyone now3');
+    expect(option('Any tag')).toHaveAttribute('aria-pressed', 'true');
+    expect(option('Any')).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Show 2 accounts' })).toBeInTheDocument();
+
+    await user.click(option('Mutual'));
+    await user.click(option('Needs a decision'));
+    expect(option('Mutual')).toHaveAttribute('aria-pressed', 'true');
+    expect(option('Following')).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByRole('button', { name: 'Show 1 account' })).toBeInTheDocument(); // counts the draft
+    // the list behind doesn't change yet (it's hidden from screen readers while the sheet is open)
+    const behind = screen.queryAllByRole('article', { hidden: true }).map(card => card.getAttribute('aria-label'));
+    expect(behind).toEqual(['@alice', '@bob']);
+
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await sheetClosed();
+    expect(shown()).toEqual(['@alice', '@bob']); // closing forgets the choices
+    expect(listChip()).toHaveTextContent('Following ▾');
+
+    await user.click(listChip());
+    expect(await screen.findByRole('dialog', { name: 'Filter' })).toBeInTheDocument();
+  });
+
+  test('filter chips: the Filter count and Clear all cover tag and decision, never the list', async () => {
+    const { user } = await imported();
+    await newTag(user, 'alice', 'artist');
+    await applyFilters(user, 'Mutual');
+    expect(shown()).toEqual(['@alice']);
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument(); // a list isn't a filter
+
+    await applyFilters(user, 'Following', 'Needs a decision');
+    expect(screen.getByRole('button', { name: 'Filter 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear all' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove filter Needs a decision' }));
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+
+    await applyFilters(user, 'Mutual', 'artist', 'Needs a decision');
+    expect(screen.getByRole('button', { name: 'Filter 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove filter artist' })).toBeInTheDocument();
+    await user.click(keptBox('alice'));
+    await user.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Remove filter/ })).not.toBeInTheDocument();
+    expect(listChip()).toHaveTextContent('Mutual ▾'); // Clear all keeps the list
+    expect(shown()).toEqual(['@alice']);
+
+    // Reset in the sheet does the same: filters back to any, the list stays.
+    const sheet = await openFilterSheet(user);
+    await user.click(within(sheet).getByRole('button', { name: optionName('artist') }));
+    await user.click(within(sheet).getByRole('button', { name: 'Kept' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Reset' }));
+    expect(within(sheet).getByRole('button', { name: 'Any tag' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Any' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: optionName('Mutual') })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('a ticked card stays until the list refreshes', async () => {
     const { user } = await imported();
-    await choose(user, 'Your decision', 'Needs a decision');
+    await applyFilters(user, 'Needs a decision');
     await user.click(keptBox('bob'));
     expect(shown()).toEqual(['@alice', '@bob']); // still there while you work
-    await choose(user, 'Your decision', 'Any');
-    await choose(user, 'Your decision', 'Needs a decision');
+    await applyFilters(user, 'Any');
+    await applyFilters(user, 'Needs a decision');
     expect(shown()).toEqual(['@alice']);
   });
 
   test('plans: offered only when the follow exists; To do → Mark done leaves the list on refresh', async () => {
     const { user } = await imported();
-    await choose(user, 'Scope', 'Everyone now');
+    await applyFilters(user, 'Everyone now');
     // bob doesn't follow me
     expect(within(row('bob')).queryByRole('checkbox', { name: 'To remove' })).not.toBeInTheDocument();
     // I don't follow carol
@@ -441,7 +561,7 @@ describe('main view', () => {
 
     await user.click(within(row('bob')).getByRole('checkbox', { name: 'To unfollow' }));
     expect(keptBox('bob')).not.toBeChecked(); // queuing is the decision: queued, not Kept
-    await choose(user, 'Your decision', 'Needs a decision');
+    await applyFilters(user, 'Needs a decision');
     await user.click(tab(/^To do \(1\)$/));
     expect(shown()).toEqual(['@bob']); // the decision filter doesn't apply in To do…
     expect(screen.queryByRole('combobox', { name: 'Your decision' })).not.toBeInTheDocument(); // …so it's hidden there
@@ -460,7 +580,7 @@ describe('main view', () => {
     await user.click(within(row('bob')).getByRole('button', { name: 'Mark done' }));
     await user.click(tab(/^Review$/));
     expect(tab(/^To do \(0\)$/)).toBeDisabled();
-    await choose(user, 'Your decision', 'Any');
+    await applyFilters(user, 'Any');
     expect(within(row('bob')).getByRole('checkbox', { name: 'To unfollow' })).toBeChecked(); // full card: a plain tick…
     expect(within(row('bob')).queryByRole('checkbox', { name: 'Done' })).not.toBeInTheDocument(); // …no Done
   });
@@ -620,7 +740,8 @@ describe('tags', () => {
 
   test('Manage tags: rename, merge and delete, with counts', async () => {
     const { user } = await imported();
-    await chooseFilter(user, 'Tag', 'Manage tags…');
+    let sheet = await openFilterSheet(user);
+    await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
     expect(await screen.findByText(/No tags yet/)).toBeInTheDocument();
     await user.click(
       within(screen.getByRole('dialog', { name: 'Manage tags' })).getByRole('button', { name: /close/i }),
@@ -628,11 +749,14 @@ describe('tags', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
     });
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await sheetClosed();
 
     await newTag(user, 'alice', 'dog');
     await newTag(user, 'bob', 'dog');
     await newTag(user, 'bob', 'illustration');
-    await chooseFilter(user, 'Tag', 'Manage tags…');
+    sheet = await openFilterSheet(user);
+    await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
     const dialog = await screen.findByRole('dialog', { name: 'Manage tags' });
     expect(within(dialog).getByText('2 accounts')).toBeInTheDocument();
 
@@ -669,6 +793,8 @@ describe('tags', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
     });
+    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await sheetClosed();
     expect(tagButtons('alice')).toEqual([]);
     expect(tagButtons('bob')).toEqual([]);
   });
@@ -695,7 +821,7 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
     ]),
   );
   await findRow('alice');
-  await chooseFilter(user, 'Scope', 'People who follow me');
+  await applyFilters(user, 'Followers');
   await findRow('carol');
   await user.click(keptBox('carol'));
   await user.click(screen.getByRole('button', { name: 'Save master' }));
@@ -734,7 +860,7 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   expect(tabButton(/^Lost followers \(0\)$/)).toBeInTheDocument();
 
   await user.click(tabButton(/^Review$/));
-  await chooseFilter(user, 'Scope', 'People who follow me'); // filters start fresh after the reload
+  await applyFilters(user, 'Followers'); // filters start fresh after the reload
   await findRow('carol_2');
   expect(keptBox('carol_2')).toBeChecked();
 });

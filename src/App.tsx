@@ -2,6 +2,7 @@ import { Box, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from './store/deps.ts';
+import { LIST_VIEWS } from './store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { selectHasProject } from './store/selectors.ts';
 import { restoreTab } from './store/thunks.ts';
@@ -9,7 +10,7 @@ import { AccountList } from './ui/AccountList.tsx';
 import { FiltersBar } from './ui/FiltersBar.tsx';
 import { Header } from './ui/Header.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
-import { RelationshipCounts } from './ui/RelationshipCounts.tsx';
+import { ReviewTop } from './ui/ReviewTop.tsx';
 import { StatusLine } from './ui/StatusLine.tsx';
 import { StorageWarning } from './ui/StorageWarning.tsx';
 import { SummaryLine } from './ui/SummaryLine.tsx';
@@ -18,6 +19,7 @@ import { ViewTabs } from './ui/ViewTabs.tsx';
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
+  const inReview = useAppSelector(s => s.filters.view === LIST_VIEWS.REVIEW);
   const [importOpen, setImportOpen] = useState(false);
   const [restoring, setRestoring] = useState(true);
 
@@ -82,10 +84,15 @@ export function App({ deps }: { deps: StoreDeps }) {
           <>
             <StorageWarning durable={deps.tab.durable} />
             <StatusLine />
-            <RelationshipCounts />
             <ViewTabs />
-            <FiltersBar />
-            <SummaryLine />
+            {inReview ? (
+              <ReviewTop />
+            ) : (
+              <>
+                <FiltersBar />
+                <SummaryLine />
+              </>
+            )}
             <AccountList />
           </>
         )}

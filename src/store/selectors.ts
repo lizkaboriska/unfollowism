@@ -3,9 +3,9 @@ import { createSelector } from '@reduxjs/toolkit';
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
+  REVIEW_SCOPES,
   accountOf,
   buildSessionDiff,
-  countInScopeStats,
   countPlans,
   countTags,
   followChangeCounts,
@@ -19,7 +19,6 @@ import {
   decisionMatches,
   queryMatches,
   relationshipStats,
-  reviewScopeStats,
   sameAccountData,
   scopeMatches,
   tagMatches,
@@ -30,7 +29,7 @@ import {
   type PlanStats,
   type ReadonlyAccount,
   type ReadonlyAccounts,
-  type ScopeStats,
+  type ReviewScope,
   type TagCounts,
 } from '../core/index.ts';
 
@@ -68,31 +67,6 @@ export const selectSortedKeys = createSelector([selectBaseAccounts], (accounts):
 /** Who follows whom. Once per import: edits never change relationships. */
 export const selectRelationshipStats = createSelector([selectBaseAccounts], accounts =>
   relationshipStats({ accounts }),
-);
-
-const selectScope = (s: RootState) => s.filters.scope;
-const selectTag = (s: RootState) => s.filters.tag;
-const selectBaseScopeStats = createSelector([selectBaseAccounts, selectScope, selectTag], (accounts, scope, tag) =>
-  reviewScopeStats({ accounts }, { scope, tag }),
-);
-
-/** Review counts for the selected scope + tag: imported counts, adjusted by the edited accounts. */
-export const selectScopeStats = createSelector(
-  [selectBaseScopeStats, selectBaseAccounts, selectChanged, selectScope, selectTag],
-  (baseStats, base, changed, scope, tag): ScopeStats => {
-    const stats = { ...baseStats };
-    const count = (account: ReadonlyAccount | undefined, sign: 1 | -1) => {
-      if (!account || !scopeMatches(account, scope) || !tagMatches(account, tag)) {
-        return;
-      }
-      countInScopeStats(stats, account, sign);
-    };
-    for (const [key, account] of Object.entries(changed)) {
-      count(base[key], -1);
-      count(account ?? undefined, 1);
-    }
-    return stats;
-  },
 );
 
 const selectBasePlanStats = createSelector([selectBaseAccounts], accounts => planStats({ accounts }));
@@ -160,6 +134,16 @@ function viewMatches(account: ReadonlyAccount, filters: FiltersState, since: str
   return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) === PLAN_STATES.PLANNED;
 }
 
+/** Whether the account is listed with these filters: view, decision (not in To do), tag and search. */
+function accountVisible(account: ReadonlyAccount, filters: FiltersState, since: string | null): boolean {
+  return (
+    viewMatches(account, filters, since) &&
+    (isPlanView(filters.view) || decisionMatches(account, filters.decision)) &&
+    tagMatches(account, filters.tag) &&
+    queryMatches(account, filters.query)
+  );
+}
+
 function sameKeys(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((key, i) => key === b[i]);
 }
@@ -174,15 +158,68 @@ export const selectVisibleAccountKeys = createSelector(
   (keys, base, changed, filters, since): readonly string[] =>
     keys.filter(key => {
       const account = accountOf(base, changed, key);
-      return (
-        !!account &&
-        viewMatches(account, filters, since) &&
-        (isPlanView(filters.view) || decisionMatches(account, filters.decision)) &&
-        tagMatches(account, filters.tag) &&
-        queryMatches(account, filters.query)
-      );
+      return !!account && accountVisible(account, filters, since);
     }),
   { memoizeOptions: { resultEqualityCheck: sameKeys } },
+);
+
+/** How many accounts other filters would list (the Filter sheet's "Show N accounts"), as of now. */
+export function selectMatchingCount(s: RootState, filters: FiltersState): number {
+  const base = selectBaseAccounts(s);
+  const changed = selectChanged(s);
+  const since = selectChangesSince(s);
+  let count = 0;
+  for (const key of selectSortedKeys(s)) {
+    const account = accountOf(base, changed, key);
+    if (account && accountVisible(account, filters, since)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export type ScopeTotals = Record<ReviewScope, number>;
+
+function countScopes(totals: ScopeTotals, account: ReadonlyAccount, sign: 1 | -1): void {
+  for (const scope of Object.values(REVIEW_SCOPES)) {
+    if (scopeMatches(account, scope)) {
+      totals[scope] += sign;
+    }
+  }
+}
+
+const selectBaseScopeTotals = createSelector([selectBaseAccounts], (accounts): ScopeTotals => {
+  const totals: ScopeTotals = {
+    [REVIEW_SCOPES.FOLLOWING]: 0,
+    [REVIEW_SCOPES.FOLLOWERS]: 0,
+    [REVIEW_SCOPES.MUTUAL]: 0,
+    [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 0,
+    [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 0,
+    [REVIEW_SCOPES.ALL_CURRENT]: 0,
+    [REVIEW_SCOPES.ALL_ACCOUNTS]: 0,
+  };
+  for (const account of Object.values(accounts)) {
+    countScopes(totals, account, 1);
+  }
+  return totals;
+});
+
+/** Accounts per list (scope), ignoring the other filters: imported counts, adjusted by removed accounts. */
+export const selectScopeTotals = createSelector(
+  [selectBaseScopeTotals, selectBaseAccounts, selectChanged],
+  (baseTotals, base, changed): ScopeTotals => {
+    const totals = { ...baseTotals };
+    for (const [key, account] of Object.entries(changed)) {
+      const before = base[key];
+      if (before) {
+        countScopes(totals, before, -1);
+      }
+      if (account) {
+        countScopes(totals, account, 1);
+      }
+    }
+    return totals;
+  },
 );
 
 /**

@@ -12,7 +12,7 @@ import { setNote } from '../store/masterSlice.ts';
 import {
   selectAccount,
   selectRelationshipStats,
-  selectScopeStats,
+  selectScopeTotals,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectVisibleAccountKeys,
@@ -100,7 +100,7 @@ async function run(total: number) {
   const [, firstRenderMs] = time(() => {
     selectVisibleAccountKeys(store.getState());
     selectRelationshipStats(store.getState());
-    selectScopeStats(store.getState());
+    selectScopeTotals(store.getState());
     selectUnsavedAccountCount(store.getState());
     selectUnsavedDiff(store.getState());
   });
@@ -116,7 +116,7 @@ async function run(total: number) {
   const [, listMs] = time(() => store.dispatch(setQuery('a'))); // the list refreshes only on filter changes like this
   const [, statsMs] = time(() => {
     selectRelationshipStats(store.getState());
-    selectScopeStats(store.getState());
+    selectScopeTotals(store.getState());
     selectUnsavedAccountCount(store.getState());
   });
   const [, diffMs] = time(() => selectUnsavedDiff(store.getState()));

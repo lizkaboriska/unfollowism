@@ -1,7 +1,6 @@
 import { decisionMatches } from './decision.ts';
 import {
   DecisionFilter,
-  DecisionKind,
   FOLLOW_CHANGES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
@@ -221,40 +220,6 @@ export function relationshipStats(source: DeepReadonly<Pick<Master, 'accounts'>>
       case RELATIONSHIPS.NEITHER:
         break;
     }
-  }
-  return stats;
-}
-
-export interface ScopeStats {
-  total: number;
-  needsDecision: number;
-  kept: number;
-  queued: number;
-  unavailable: number;
-}
-
-/** WRITE (to `stats`): adds (sign 1) or removes (sign -1) one account. */
-export function countInScopeStats(stats: ScopeStats, account: ReadonlyAccount, sign: 1 | -1): void {
-  stats.total += sign;
-  if (account.decision === undefined) {
-    stats.needsDecision += sign;
-  } else if (account.decision.kind === DecisionKind.KEPT) {
-    stats.kept += sign;
-  } else {
-    stats.queued += sign;
-  }
-  if (account.review.unavailable) {
-    stats.unavailable += sign;
-  }
-}
-
-export function reviewScopeStats(
-  source: DeepReadonly<Pick<Master, 'accounts'>>,
-  { scope, tag = ALL_TAGS }: { scope: ReviewScope; tag?: TagFilter },
-): ScopeStats {
-  const stats: ScopeStats = { total: 0, needsDecision: 0, kept: 0, queued: 0, unavailable: 0 };
-  for (const account of reviewScopeAccounts(source, { scope, tag })) {
-    countInScopeStats(stats, account, 1);
   }
   return stats;
 }
