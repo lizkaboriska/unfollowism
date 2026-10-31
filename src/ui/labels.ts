@@ -2,11 +2,13 @@ import {
   ACTION_TYPES,
   DecisionFilter,
   FOLLOW_CHANGES,
+  PLAN_STATES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
   type ActionType,
   type FollowChange,
+  type PlanState,
   type Relationship,
   type ReviewScope,
   type TagFilter,
@@ -17,6 +19,14 @@ export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   [RELATIONSHIPS.NOT_FOLLOWING_BACK]: 'Not following back',
   [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: 'Follows you only',
   [RELATIONSHIPS.NEITHER]: 'Neither',
+};
+
+/** Under a name in the account sheet: what the relationship means. */
+export const RELATIONSHIP_NOTES: Record<Relationship, string> = {
+  [RELATIONSHIPS.MUTUAL]: 'Mutual · you follow each other',
+  [RELATIONSHIPS.NOT_FOLLOWING_BACK]: 'Not following back · you follow them',
+  [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: 'Follows you only · they follow you',
+  [RELATIONSHIPS.NEITHER]: 'Not in this export',
 };
 
 export const SCOPE_LABELS: Record<ReviewScope, string> = {
@@ -59,6 +69,26 @@ export const CHANGE_SUMMARY_PHRASES: Record<FollowChange, string> = {
   [FOLLOW_CHANGES.NEW_FOLLOWERS]: 'started following you',
   [FOLLOW_CHANGES.LOST_FOLLOWERS]: 'stopped following you',
 };
+
+/** A queued plan by name: "Unfollow", "Removal". */
+const PLAN_NOUNS: Record<ActionType, string> = {
+  [ACTION_TYPES.UNFOLLOW]: 'Unfollow',
+  [ACTION_TYPES.REMOVE_FOLLOWER]: 'Removal',
+};
+const PLAN_STATE_WORDS: Record<PlanState, string> = {
+  [PLAN_STATES.PLANNED]: 'queued',
+  [PLAN_STATES.DONE]: 'done',
+};
+
+/** "Unfollow queued", "Removal done". */
+export function planText(type: ActionType, state: PlanState): string {
+  return `${PLAN_NOUNS[type]} ${PLAN_STATE_WORDS[state]}`;
+}
+
+/** The button that queues a plan: "Queue unfollow", "Queue removal". */
+export function queueText(type: ActionType): string {
+  return `Queue ${PLAN_NOUNS[type].toLowerCase()}`;
+}
 
 /** Checkbox and To do switch wording per planned action. */
 export const PLAN_LABELS: Record<ActionType, { checkbox: string; todo: string; summary: string }> = {

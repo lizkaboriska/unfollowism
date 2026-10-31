@@ -10,6 +10,7 @@ import { AccountList } from './ui/AccountList.tsx';
 import { FiltersBar } from './ui/FiltersBar.tsx';
 import { Header } from './ui/Header.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
+import { ReviewList } from './ui/ReviewList.tsx';
 import { ReviewTop } from './ui/ReviewTop.tsx';
 import { StatusLine } from './ui/StatusLine.tsx';
 import { StorageWarning } from './ui/StorageWarning.tsx';
@@ -93,7 +94,7 @@ export function App({ deps }: { deps: StoreDeps }) {
                 <SummaryLine />
               </>
             )}
-            <AccountList />
+            {inReview ? <ReviewList /> : <AccountList />}
           </>
         )}
       </Stack>

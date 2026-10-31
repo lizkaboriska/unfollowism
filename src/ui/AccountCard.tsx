@@ -1,12 +1,10 @@
-import { Badge, Box, Button, Checkbox, HStack, Input, Stack, Text } from '@chakra-ui/react';
-import { memo, useState, type KeyboardEvent } from 'react';
-import { useDebouncedCallback } from 'use-debounce';
+import { Badge, Box, Button, Checkbox, HStack, Stack, Text } from '@chakra-ui/react';
+import { memo } from 'react';
 
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
   PLAN_STATES,
-  findTag,
   followChangeMatches,
   followExists,
   isKept,
@@ -17,9 +15,10 @@ import {
   type ReadonlyAccount,
 } from '../core/index.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { setKept, setNote, setPlan, setUnavailable, toggleTag } from '../store/masterSlice.ts';
+import { setKept, setPlan, setUnavailable, toggleTag } from '../store/masterSlice.ts';
 import { selectAccount, selectChangesSince, selectTags } from '../store/selectors.ts';
 
+import { NewTag, NoteField } from './accountFields.tsx';
 import { formatSince } from './dates.ts';
 import { CHANGE_BADGE_LABELS, PLAN_LABELS, RELATIONSHIP_LABELS } from './labels.ts';
 import { ProfileLink } from './ProfileLink.tsx';
@@ -61,61 +60,6 @@ function sinceText(prefix: string, follow: Follow | null): string | null {
 }
 
 /**
- * "+ tag": a new tag is created by adding it to an account (a tag nobody has doesn't exist).
- * A name matching an existing tag in any letter case reuses that tag.
- */
-function NewTag({ username, tags, has }: { username: string; tags: readonly string[]; has: readonly string[] }) {
-  const dispatch = useAppDispatch();
-  const [draft, setDraft] = useState<string | null>(null); // null = closed
-  if (draft === null) {
-    return (
-      <Button
-        size="xs"
-        variant="ghost"
-        onClick={() => {
-          setDraft('');
-        }}
-      >
-        + tag
-      </Button>
-    );
-  }
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Escape') {
-      setDraft(null);
-    }
-    if (event.key !== 'Enter' || draft === null) {
-      return;
-    }
-    const name = draft.trim();
-    const tag = findTag(tags, name) ?? name;
-    if (tag && !has.includes(tag)) {
-      dispatch(toggleTag({ username, tag }));
-    }
-    setDraft(null);
-  }
-  return (
-    <Input
-      size="xs"
-      width="32"
-      autoFocus
-      name={`newTag-${username}`}
-      autoComplete="off"
-      placeholder="new tag…"
-      aria-label={`New tag for @${username}`}
-      value={draft}
-      onChange={e => {
-        setDraft(e.currentTarget.value);
-      }}
-      onKeyDown={onKeyDown}
-      onBlur={() => {
-        setDraft(null);
-      }}
-    />
-  );
-}
-
-/**
  * "To unfollow" / "To remove" as a plain tick; unticking cancels the plan. Offered only while
  * the follow exists, or when already marked. Marking it done happens in the To do list.
  */
@@ -133,50 +77,6 @@ function PlanControl({ account, type }: { account: ReadonlyAccount; type: Action
       onChange={checked =>
         dispatch(setPlan({ username: account.username, type, state: checked ? PLAN_STATES.PLANNED : null }))
       }
-    />
-  );
-}
-
-/** How long typing must pause before the note is stored. */
-const NOTE_DEBOUNCE_MS = 300;
-
-/**
- * The note, stored after a pause in typing (or on leaving the field) rather than on every letter.
- * Shows what you type at once; a change from elsewhere (Reset changes, a confirmed rename) shows when you're not
- * typing.
- */
-function NoteField({ username, note }: { username: string; note: string }) {
-  const dispatch = useAppDispatch();
-  const [draft, setDraft] = useState(note);
-  // flushOnExit: a card scrolled away (or a page closed) mid-typing still stores the note.
-  const storeNote = useDebouncedCallback(
-    (value: string) => dispatch(setNote({ username, note: value })),
-    NOTE_DEBOUNCE_MS,
-    { flushOnExit: true },
-  );
-
-  // The stored note changed (from typing here, or from elsewhere): show it unless more typing is on its way.
-  const [shownNote, setShownNote] = useState(note);
-  if (note !== shownNote) {
-    setShownNote(note);
-    if (!storeNote.isPending()) {
-      setDraft(note);
-    }
-  }
-
-  return (
-    <Input
-      size="sm"
-      name={`note-${username}`}
-      autoComplete="off"
-      placeholder="Add note…"
-      aria-label={`Note for @${username}`}
-      value={draft}
-      onChange={e => {
-        setDraft(e.currentTarget.value);
-        storeNote(e.currentTarget.value);
-      }}
-      onBlur={() => storeNote.flush()}
     />
   );
 }

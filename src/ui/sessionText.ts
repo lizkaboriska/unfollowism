@@ -1,26 +1,15 @@
 import {
   ACTION_TYPES,
   DecisionKind,
-  PLAN_STATES,
   SESSION_CATEGORIES,
   SESSION_CHANGES,
-  type ActionType,
   type Decision,
   type DeepReadonly,
-  type PlanState,
   type SessionCategory,
   type SessionChange,
 } from '../core/index.ts';
 
-/** How a queued plan is named in change lines: "Unfollow queued", "Removal done". */
-const PLAN_NOUNS: Record<ActionType, string> = {
-  [ACTION_TYPES.UNFOLLOW]: 'Unfollow',
-  [ACTION_TYPES.REMOVE_FOLLOWER]: 'Removal',
-};
-const PLAN_STATE_WORDS: Record<PlanState, string> = {
-  [PLAN_STATES.PLANNED]: 'queued',
-  [PLAN_STATES.DONE]: 'done',
-};
+import { planText } from './labels.ts';
 
 /** "Needs a decision", "Kept", "Unfollow queued", "Unfollow done + Removal queued". `null` = needs a decision. */
 export function decisionText(decision: DeepReadonly<Decision> | null): string {
@@ -33,7 +22,7 @@ export function decisionText(decision: DeepReadonly<Decision> | null): string {
   return Object.values(ACTION_TYPES)
     .flatMap(type => {
       const plan = decision.plans[type];
-      return plan === undefined ? [] : [`${PLAN_NOUNS[type]} ${PLAN_STATE_WORDS[plan]}`];
+      return plan === undefined ? [] : [planText(type, plan)];
     })
     .join(' + ');
 }

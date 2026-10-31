@@ -1,6 +1,6 @@
 import { Box, Text } from '@chakra-ui/react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
 import { PLAN_VIEW_ACTIONS, isPlanView } from '../store/filtersSlice.ts';
 import { useAppSelector } from '../store/hooks.ts';
@@ -14,12 +14,19 @@ const ESTIMATED_CARD_HEIGHT = 190;
 const ESTIMATED_ROW_HEIGHT = 72;
 const CARD_GAP = 12;
 
+/** How a list draws its accounts, when it isn't the default (full cards, compact rows in To do). */
+export interface ListItems {
+  render: (accountKey: string) => ReactNode;
+  estimatedHeight: number;
+  empty: ReactNode;
+}
+
 /**
  * Only the cards near the screen are rendered, so 100k accounts scroll like 100. Uses the
  * page's own scrollbar; `scrollMargin` is where the list starts on the page.
- * The To do lists show compact rows for their action; every other view shows full cards.
+ * The To do lists show compact rows for their action; the change lists show full cards; Review passes its own.
  */
-export function AccountList() {
+export function AccountList({ items }: { items?: ListItems }) {
   const keys = useAppSelector(selectListKeys);
   const todoAction = useAppSelector(s => (isPlanView(s.filters.view) ? PLAN_VIEW_ACTIONS[s.filters.view] : undefined));
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -49,7 +56,7 @@ export function AccountList() {
 
   const virtualizer = useWindowVirtualizer({
     count: keys.length,
-    estimateSize: () => (todoAction ? ESTIMATED_ROW_HEIGHT : ESTIMATED_CARD_HEIGHT),
+    estimateSize: () => items?.estimatedHeight ?? (todoAction ? ESTIMATED_ROW_HEIGHT : ESTIMATED_CARD_HEIGHT),
     gap: CARD_GAP,
     overscan: 6,
     scrollMargin,
@@ -57,7 +64,7 @@ export function AccountList() {
   });
 
   if (!hasList) {
-    return <Text color="fg.muted">No accounts match the current filters.</Text>;
+    return items?.empty ?? <Text color="fg.muted">No accounts match the current filters.</Text>;
   }
 
   return (
@@ -73,7 +80,9 @@ export function AccountList() {
           width="100%"
           transform={`translateY(${item.start - scrollMargin}px)`}
         >
-          {todoAction ? (
+          {items ? (
+            items.render(keys[item.index] ?? '')
+          ) : todoAction ? (
             <TodoRow accountKey={keys[item.index] ?? ''} type={todoAction} />
           ) : (
             <AccountCard accountKey={keys[item.index] ?? ''} />
