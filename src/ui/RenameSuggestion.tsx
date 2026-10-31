@@ -22,12 +22,12 @@ export function RenameSuggestion({ accountKey }: { accountKey: string }) {
   }
 
   return (
-    <Box borderWidth="1px" borderColor="pink.200" bg="pink.50" borderRadius="md" p="2">
+    <Box borderWidth="1px" p="2">
       <Text fontSize="sm">
         Looks renamed to <ProfileLink username={newName} />: same follow dates.
       </Text>
       <HStack gap="2" mt="2" wrap="wrap">
-        <Button size="xs" colorPalette="pink" onClick={() => dispatch(confirmRename({ from: accountKey }))}>
+        <Button size="xs" onClick={() => dispatch(confirmRename({ from: accountKey }))}>
           Move to @{newName}
         </Button>
         <Button size="xs" variant="ghost" onClick={() => dispatch(dismissRename({ from: accountKey }))}>

@@ -40,7 +40,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
       : `${type === ACTION_TYPES.UNFOLLOW ? 'You followed' : 'Followed you'} ${formatSince(follow.since)}`;
 
   return (
-    <Box as="article" aria-label={`@${username}`} borderWidth="1px" borderRadius="lg" bg="white" px="4" py="3">
+    <Box as="article" aria-label={`@${username}`} borderWidth="1px" px="4" py="3">
       <Stack direction={{ base: 'column', sm: 'row' }} gap="2" align={{ base: 'stretch', sm: 'center' }}>
         <Stack gap="0" flex="1" minW="0">
           <ProfileLink username={username} />
@@ -52,7 +52,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
               </Text>
             )}
             {account.review.tags.map(tag => (
-              <Badge key={tag} size="sm" variant="outline" colorPalette="pink">
+              <Badge key={tag} size="sm" variant="outline">
                 {tag}
               </Badge>
             ))}
@@ -61,7 +61,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
         <HStack gap="2" justify={{ base: 'flex-start', sm: 'flex-end' }}>
           {plan === PLAN_STATES.PLANNED && (
             <>
-              <Button size="sm" colorPalette="pink" onClick={() => set(PLAN_STATES.DONE)}>
+              <Button size="sm" onClick={() => set(PLAN_STATES.DONE)}>
                 Mark done
               </Button>
               <Button size="sm" variant="ghost" onClick={() => dispatch(keepInstead({ username, type }))}>
@@ -71,9 +71,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
           )}
           {plan === PLAN_STATES.DONE && (
             <>
-              <Text color="green.700" fontWeight="medium">
-                ✓ Done
-              </Text>
+              <Text fontWeight="medium">✓ Done</Text>
               <Button size="sm" variant="ghost" onClick={() => set(PLAN_STATES.PLANNED)}>
                 Undo
               </Button>

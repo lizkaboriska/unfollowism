@@ -98,7 +98,7 @@ function TagLines() {
                     }
                   }}
                 />
-                <Button size="sm" colorPalette="pink" onClick={() => void save(editing)}>
+                <Button size="sm" onClick={() => void save(editing)}>
                   Save
                 </Button>
                 <Button
@@ -112,7 +112,7 @@ function TagLines() {
                 </Button>
               </HStack>
               {editing.error && (
-                <Text fontSize="sm" color="red.600">
+                <Text fontSize="sm" color="fg.error">
                   {editing.error}
                 </Text>
               )}
@@ -135,7 +135,7 @@ function TagLines() {
                 >
                   Rename
                 </Button>
-                <Button size="xs" variant="outline" colorPalette="red" onClick={() => void remove(tag)}>
+                <Button size="xs" variant="outline" colorPalette="danger" onClick={() => void remove(tag)}>
                   Delete
                 </Button>
               </HStack>

@@ -30,13 +30,7 @@ interface TagFocus {
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <Button
-      size="xs"
-      variant={active ? 'solid' : 'ghost'}
-      colorPalette={active ? 'pink' : 'gray'}
-      aria-pressed={active}
-      onClick={onClick}
-    >
+    <Button size="xs" variant={active ? 'solid' : 'ghost'} aria-pressed={active} onClick={onClick}>
       {label}
     </Button>
   );
@@ -80,8 +74,8 @@ function UnsavedChanges() {
       </Text>
       <SimpleGrid columns={4} gap="2">
         {Object.values(SESSION_CATEGORIES).map(c => (
-          <Box key={c} borderWidth="1px" borderRadius="md" p="2" textAlign="center">
-            <Text fontWeight="bold">{summary.byCategory[c]}</Text>
+          <Box key={c} borderWidth="1px" p="2" textAlign="center">
+            <Text textStyle="number">{summary.byCategory[c]}</Text>
             <Text fontSize="xs" color="fg.muted">
               {CATEGORY_LABELS[c]}
             </Text>
@@ -117,7 +111,7 @@ function UnsavedChanges() {
               <Button
                 key={`${row.type}:${row.tag}`}
                 size="sm"
-                variant={focused ? 'subtle' : 'outline'}
+                variant={focused ? 'solid' : 'outline'}
                 justifyContent="space-between"
                 aria-pressed={focused}
                 onClick={() => {

@@ -197,25 +197,15 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
   );
 
   return (
-    <Box
-      as="article"
-      aria-label={`@${username}`}
-      borderWidth="1px"
-      borderRadius="lg"
-      bg="white"
-      p="4"
-      opacity={review.unavailable ? 0.6 : 1}
-    >
+    <Box as="article" aria-label={`@${username}`} borderWidth="1px" p="4" opacity={review.unavailable ? 0.6 : 1}>
       <Stack direction={{ base: 'column', md: 'row' }} gap="4">
         <Stack gap="1" flex="1" minW="0">
           <ProfileLink username={username} />
           <HStack gap="1" wrap="wrap">
             <Badge>{RELATIONSHIP_LABELS[relationshipOf(account)]}</Badge>
-            {review.unavailable && <Badge colorPalette="gray">Unavailable</Badge>}
+            {review.unavailable && <Badge>Unavailable</Badge>}
             {changes.map(change => (
-              <Badge key={change} colorPalette="pink">
-                {CHANGE_BADGE_LABELS[change]}
-              </Badge>
+              <Badge key={change}>{CHANGE_BADGE_LABELS[change]}</Badge>
             ))}
           </HStack>
           <Text fontSize="sm" color="fg.muted">
@@ -250,7 +240,6 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
                   key={tag}
                   size="xs"
                   variant={on ? 'solid' : 'outline'}
-                  colorPalette={on ? 'pink' : 'gray'}
                   aria-pressed={on}
                   onClick={() => dispatch(toggleTag({ username, tag }))}
                 >

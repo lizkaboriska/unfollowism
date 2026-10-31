@@ -11,15 +11,15 @@ export function RelationshipCounts() {
   const stats = useAppSelector(selectRelationshipStats);
   return (
     <HStack gap="2" wrap="wrap">
-      <Badge colorPalette="purple">Following {stats.following}</Badge>
-      <Badge colorPalette="blue">Followers {stats.followers}</Badge>
-      <Badge colorPalette="green">
+      <Badge>Following {stats.following}</Badge>
+      <Badge>Followers {stats.followers}</Badge>
+      <Badge>
         {RELATIONSHIP_LABELS[RELATIONSHIPS.MUTUAL]} {stats.mutual}
       </Badge>
-      <Badge colorPalette="red">
+      <Badge>
         {RELATIONSHIP_LABELS[RELATIONSHIPS.NOT_FOLLOWING_BACK]} {stats.notFollowingBack}
       </Badge>
-      <Badge colorPalette="blue">
+      <Badge>
         {RELATIONSHIP_LABELS[RELATIONSHIPS.FOLLOWS_YOU_ONLY]} {stats.followsYouOnly}
       </Badge>
     </HStack>

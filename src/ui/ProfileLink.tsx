@@ -11,7 +11,7 @@ export function ProfileLink({ username }: { username: string }) {
       href={profileUrl(username)}
       target="_blank"
       rel="noopener noreferrer"
-      fontWeight="semibold"
+      textStyle="name"
       onClick={openProfilePopup}
       wordBreak="break-all"
     >

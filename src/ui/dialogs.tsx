@@ -68,7 +68,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                       Cancel
                     </Button>
                     <Button
-                      colorPalette={dialog.destructive ? 'red' : 'pink'}
+                      colorPalette={dialog.destructive ? 'danger' : 'ink'}
                       onClick={() => {
                         close(true);
                       }}
@@ -78,7 +78,6 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                   </>
                 ) : (
                   <Button
-                    colorPalette="pink"
                     onClick={() => {
                       close(true);
                     }}

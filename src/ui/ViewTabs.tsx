@@ -34,7 +34,6 @@ function Tab({
     <Button
       size="sm"
       variant={active ? 'solid' : 'outline'}
-      colorPalette={active ? 'pink' : 'gray'}
       aria-pressed={active}
       // An empty list can't be opened, unless it's the one being shown (it emptied while working through it).
       disabled={count === 0 && !active}

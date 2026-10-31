@@ -212,9 +212,7 @@ export function ImportScreen({
       <Box
         borderWidth="2px"
         borderStyle="dashed"
-        borderColor={dragging ? 'pink.500' : 'border'}
-        bg={dragging ? 'pink.50' : 'transparent'}
-        borderRadius="lg"
+        borderColor={dragging ? 'accent' : 'border'}
         px="4"
         py="10"
         textAlign="center"
@@ -276,7 +274,7 @@ export function ImportScreen({
               </IconButton>
               <Text truncate>{c.name}</Text>
               {c.readError && (
-                <Text color="red.600" fontSize="sm">
+                <Text color="fg.error" fontSize="sm">
                   {c.readError}
                 </Text>
               )}
@@ -327,12 +325,7 @@ export function ImportScreen({
       )}
 
       <HStack>
-        <Button
-          colorPalette="pink"
-          disabled={!selection?.prepared || reading > 0}
-          loading={importing}
-          onClick={() => void onImport()}
-        >
+        <Button disabled={!selection?.prepared || reading > 0} loading={importing} onClick={() => void onImport()}>
           Import
         </Button>
         {onCancel && (
