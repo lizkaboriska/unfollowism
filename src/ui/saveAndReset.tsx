@@ -1,16 +1,15 @@
 import { Button, type ButtonProps } from '@chakra-ui/react';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { resetChanges } from '../store/masterSlice.ts';
-import { selectHasProject, selectIsDirty, selectUnsavedAccountCount } from '../store/selectors.ts';
+import { selectHasProject, selectIsDirty } from '../store/selectors.ts';
 import { SAVE_STATUSES } from '../store/statuses.ts';
 import { saveMaster } from '../store/thunks.ts';
 
-import { useConfirm } from './dialogHooks.ts';
-import { plural } from './statusText.ts';
+import { useResetChanges } from './resetHooks.ts';
 
-/** Save master and Reset changes, shared by the header and the Unsaved changes drawer. */
+/** Save and Reset changes, shared by the header and the Unsaved changes drawer. */
 
+/** Black while there is something to save, outlined once saved. */
 export function SaveButton(props: ButtonProps) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
@@ -18,39 +17,21 @@ export function SaveButton(props: ButtonProps) {
   const saving = useAppSelector(s => s.master.saveStatus === SAVE_STATUSES.SAVING);
   return (
     <Button
-      variant="outline"
+      variant={dirty ? 'solid' : 'outline'}
       {...props}
       loading={saving}
       disabled={!hasProject || !dirty}
       onClick={() => void dispatch(saveMaster())}
     >
-      Save master
+      Save
     </Button>
   );
 }
 
 export function ResetButton(props: ButtonProps) {
-  const dispatch = useAppDispatch();
-  const confirm = useConfirm();
-  const unsavedCount = useAppSelector(selectUnsavedAccountCount);
-  const saving = useAppSelector(s => s.master.saveStatus === SAVE_STATUSES.SAVING);
-
-  async function onReset() {
-    const confirmed = await confirm({
-      title: 'Reset changes?',
-      body:
-        `Changes to ${plural(unsavedCount, 'account')} since your last save ` +
-        "(or since the import, if you haven't saved since) will be undone.",
-      confirmLabel: 'Reset',
-      destructive: true,
-    });
-    if (confirmed) {
-      dispatch(resetChanges());
-    }
-  }
-
+  const { canReset, reset } = useResetChanges();
   return (
-    <Button variant="outline" {...props} disabled={unsavedCount === 0 || saving} onClick={() => void onReset()}>
+    <Button variant="outline" {...props} disabled={!canReset} onClick={() => void reset()}>
       Reset changes
     </Button>
   );

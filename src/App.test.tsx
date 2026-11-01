@@ -149,6 +149,31 @@ const keepButton = (username: string) => within(row(username)).getByRole('button
 const isKept = (username: string) => keepButton(username).getAttribute('aria-pressed') === 'true';
 /** Review card: a button by its text, e.g. "Queue unfollow" or "✓ Unfollow queued". */
 const cardButton = (username: string, name: string) => within(row(username)).getByRole('button', { name });
+const saveButton = () => screen.getByRole('button', { name: 'Save' });
+/** Review · Changes · To do; a count follows the label ("To do 2") and is hidden at 0. */
+const navItem = (name: RegExp) =>
+  within(screen.getByRole('navigation', { name: 'Main' })).getByRole('button', { name });
+
+/** Opens the header's ⋯ menu and returns one of its items, once the menu has taken focus (a frame after opening). */
+async function menuItem(user: UserEvent, name: string) {
+  await user.click(screen.getByRole('button', { name: 'More' }));
+  await waitFor(() => {
+    expect(screen.getByRole('menu')).toHaveFocus();
+  });
+  return screen.getByRole('menuitem', { name });
+}
+
+/**
+ * Picks a ⋯ menu item with the keyboard. A click can't: the menu highlights items on pointer moves only once the
+ * pointer was last used, and jsdom puts every pointer event at (0, 0), so after typing no move ever counts.
+ */
+async function fromMenu(user: UserEvent, name: string) {
+  const item = await menuItem(user, name);
+  for (let presses = 0; !item.hasAttribute('data-highlighted') && presses < 5; presses++) {
+    await user.keyboard('{ArrowDown}');
+  }
+  await user.keyboard('{Enter}');
+}
 
 test('starts on the import screen', async () => {
   await renderApp();
@@ -156,9 +181,10 @@ test('starts on the import screen', async () => {
   expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Choose files' })).toBeEnabled();
   expect(importButton()).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Save master' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Reset changes' })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: 'Import files' })).not.toBeInTheDocument();
+  // nothing to save or change yet: no Save, no ⋯ menu, no navigation
+  expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
 });
 
 test('the ? button explains how to get the export', async () => {
@@ -186,7 +212,8 @@ test('import → review → save works end to end', async () => {
   expect(listChip()).toHaveTextContent('Following ▾');
 
   await user.click(keepButton('bob'));
-  await user.click(screen.getByRole('button', { name: 'Save master' }));
+  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
+  await user.click(saveButton());
   await waitFor(() => {
     expect(downloads).toHaveLength(1);
   });
@@ -194,7 +221,8 @@ test('import → review → save works end to end', async () => {
     accounts: Record<string, { decision?: { kind: string } }>;
   };
   expect(saved.accounts.bob?.decision).toEqual({ kind: 'kept' });
-  expect(screen.getByText('Saved')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'All decisions saved' })).toBeInTheDocument();
+  expect(saveButton()).toBeDisabled();
 });
 
 test('a missing Followers file is shown and Import stays disabled', async () => {
@@ -325,13 +353,26 @@ test('an older master is warned about as soon as it is added', async () => {
   expect(importButton()).toBeEnabled();
 });
 
-test('Import files can be cancelled', async () => {
+test('Import new files can be cancelled', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
-  await user.click(await screen.findByRole('button', { name: 'Import files' }));
+  await findRow('bob');
+  expect(screen.getByRole('button', { name: '● New import not saved' })).toBeInTheDocument();
+  await fromMenu(user, 'Import new files');
   expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(row('bob')).toBeInTheDocument();
+  await user.click(keepButton('bob'));
+  await fromMenu(user, 'Reset changes'); // the menu still works once the header is back
+  expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+});
+
+test('Manage tags opens from the ⋯ menu', async () => {
+  const { user } = await renderApp();
+  await importFiles(user, exportFiles());
+  await findRow('bob');
+  await fromMenu(user, 'Manage tags');
+  expect(await screen.findByRole('dialog', { name: 'Manage tags' })).toBeInTheDocument();
 });
 
 test('importing over unsaved work asks first', async () => {
@@ -340,7 +381,7 @@ test('importing over unsaved work asks first', async () => {
   await findRow('bob');
   await user.click(keepButton('bob'));
 
-  await user.click(screen.getByRole('button', { name: 'Import files' }));
+  await fromMenu(user, 'Import new files');
   await importFiles(user, exportFiles());
   const dialog = await screen.findByRole('alertdialog');
   expect(within(dialog).getByText('Discard unsaved changes?')).toBeInTheDocument();
@@ -380,7 +421,7 @@ test('a reload silently continues where the tab left off', async () => {
 
   await renderApp({ tab: first.tab }); // same tab storage, fresh page
   expect(await findRow('bob')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Unsaved changes (1)' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
   expect(isKept('bob')).toBe(true);
 });
 
@@ -418,7 +459,7 @@ test("work that can't be restored after a reload is reported on the import scree
 
   await importFiles(user, exportFiles());
   expect(await findRow('bob')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Import files' }));
+  await fromMenu(user, 'Import new files');
   expect(screen.queryByText(/couldn't be restored/)).not.toBeInTheDocument();
 });
 
@@ -433,18 +474,25 @@ test("Import shows that it's working", async () => {
   expect(await findRow('bob')).toBeInTheDocument();
 });
 
-test('Reset changes asks first, then undoes unsaved work', async () => {
+test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow('bob');
-  const reset = screen.getByRole('button', { name: 'Reset changes' });
-  expect(reset).toBeDisabled();
+  const resetDisabled = async () => {
+    const disabled = (await menuItem(user, 'Reset changes')).hasAttribute('data-disabled');
+    await user.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+    return disabled;
+  };
+  expect(await resetDisabled()).toBe(true);
 
   await user.click(keepButton('bob'));
   expect(isKept('bob')).toBe(true);
-  expect(reset).toBeEnabled();
+  expect(await resetDisabled()).toBe(false);
 
-  await user.click(reset);
+  await fromMenu(user, 'Reset changes');
   const dialog = await screen.findByRole('alertdialog');
   expect(within(dialog).getByText(/Changes to 1 account since your last save/)).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
@@ -453,12 +501,12 @@ test('Reset changes asks first, then undoes unsaved work', async () => {
   });
   expect(isKept('bob')).toBe(true);
 
-  await user.click(reset);
+  await fromMenu(user, 'Reset changes');
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' }));
   await waitFor(() => {
     expect(isKept('bob')).toBe(false);
   });
-  expect(reset).toBeDisabled();
+  expect(await resetDisabled()).toBe(true);
 });
 
 describe('main view', () => {
@@ -473,12 +521,16 @@ describe('main view', () => {
   const choose = (user: UserEvent, name: string, option: string) => chooseFilter(user, name, option);
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 
-  test('tabs switch lists; empty tabs are disabled', async () => {
+  test('the navigation switches pages; empty lists inside a page are disabled', async () => {
     const { user } = await imported();
     expect(shown()).toEqual(['@alice', '@bob']);
-    expect(tab(/^I unfollowed \(0\)$/)).toBeDisabled();
-    expect(tab(/^To do \(0\)$/)).toBeDisabled();
+    expect(navItem(/^Review$/)).toHaveAttribute('aria-current', 'page');
+    expect(navItem(/^To do$/)).toBeEnabled(); // nothing queued: no count, but it still opens
 
+    await user.click(navItem(/^Changes 4$/)); // 2 new follows + 2 new followers
+    expect(navItem(/^Changes 4$/)).toHaveAttribute('aria-current', 'page');
+    expect(tab(/^New follows \(2\)$/)).toHaveAttribute('aria-pressed', 'true');
+    expect(tab(/^I unfollowed \(0\)$/)).toBeDisabled();
     await user.click(tab(/^New followers \(2\)$/));
     expect(shown()).toEqual(['@alice', '@carol']);
     expect(screen.getByText('2 accounts started following you since you started')).toBeInTheDocument();
@@ -489,7 +541,7 @@ describe('main view', () => {
     const { user } = await imported();
     await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'bo');
     expect(shown()).toEqual(['@bob']);
-    await user.click(tab(/^New follows/));
+    await user.click(navItem(/^Changes/)); // opens New follows
     expect(shown()).toEqual(['@bob']);
     await user.clear(screen.getByRole('textbox', { name: 'Search username' }));
 
@@ -498,7 +550,7 @@ describe('main view', () => {
     expect(shown()).toEqual(['@alice']);
     await choose(user, 'Tag', 'No tags');
     expect(shown()).toEqual(['@bob']);
-    await user.click(tab(/^Review$/));
+    await user.click(navItem(/^Review$/));
     expect(shown()).toEqual(['@bob']);
     expect(screen.getByRole('button', { name: 'Remove filter No tags' })).toBeInTheDocument();
   });
@@ -611,7 +663,7 @@ describe('main view', () => {
     expect(isKept('bob')).toBe(false); // queuing is the decision: queued, not Kept
     expect(cardButton('bob', '✓ Unfollow queued')).toHaveAttribute('aria-pressed', 'true');
     await applyFilters(user, 'Needs a decision');
-    await user.click(tab(/^To do \(1\)$/));
+    await user.click(navItem(/^To do 1$/));
     expect(shown()).toEqual(['@bob']); // the decision filter doesn't apply in To do…
     expect(screen.queryByRole('combobox', { name: 'Your decision' })).not.toBeInTheDocument(); // …so it's hidden there
     expect(screen.getByText('1 to unfollow')).toBeInTheDocument();
@@ -627,8 +679,8 @@ describe('main view', () => {
     await user.click(within(row('bob')).getByRole('button', { name: 'Undo' }));
     expect(screen.getByText('1 to unfollow')).toBeInTheDocument();
     await user.click(within(row('bob')).getByRole('button', { name: 'Mark done' }));
-    await user.click(tab(/^Review$/));
-    expect(tab(/^To do \(0\)$/)).toBeDisabled();
+    await user.click(navItem(/^Review$/));
+    expect(navItem(/^To do$/)).toBeInTheDocument(); // the count is hidden at 0
     await applyFilters(user, 'Any');
     // marked done in To do, waiting for the next import: the card says so; tapping it would undo the plan
     expect(cardButton('bob', '✓ Unfollow done')).toHaveAttribute('aria-pressed', 'true');
@@ -639,19 +691,19 @@ describe('main view', () => {
     await newTag(user, 'alice', 'artist');
     await user.click(cardButton('alice', 'Queue unfollow'));
     await user.click(cardButton('bob', 'Queue unfollow'));
-    await user.click(tab(/^To do \(2\)$/));
+    await user.click(navItem(/^To do 2$/));
     expect(within(row('alice')).getByText('artist')).toBeInTheDocument(); // its tags, read-only
     expect(within(row('alice')).queryByRole('button', { name: 'artist' })).not.toBeInTheDocument();
 
     await user.click(within(row('alice')).getByRole('button', { name: 'Keep' }));
     expect(within(row('alice')).getByText('Kept')).toBeInTheDocument();
-    expect(tab(/^To do \(1\)$/)).toBeInTheDocument();
+    expect(navItem(/^To do 1$/)).toBeInTheDocument();
     await user.click(within(row('alice')).getByRole('button', { name: 'Undo' }));
-    expect(tab(/^To do \(2\)$/)).toBeInTheDocument();
+    expect(navItem(/^To do 2$/)).toBeInTheDocument();
 
     await user.click(within(row('alice')).getByRole('button', { name: 'Keep' }));
-    await user.click(tab(/^Review$/)); // refresh the list
-    await user.click(tab(/^To do \(1\)$/));
+    await user.click(navItem(/^Review$/)); // refresh the list
+    await user.click(navItem(/^To do 1$/));
     expect(shown()).toEqual(['@bob']);
   });
 
@@ -661,7 +713,7 @@ describe('main view', () => {
     const sheet = await openAccount(user, 'bob');
     await user.type(within(sheet).getByRole('textbox', { name: 'Note for @bob' }), 'met at a show');
     await closeAccount(user, 'bob'); // closing mid-pause still stores the note
-    await user.click(screen.getByRole('button', { name: 'Save master' }));
+    await user.click(saveButton());
     await waitFor(() => {
       expect(downloads).toHaveLength(1);
     });
@@ -844,7 +896,7 @@ describe('unsaved changes drawer', () => {
     await user.click(within(sheet).getByRole('button', { name: 'home' })); // back again: no net change
     await closeAccount(user, 'alice');
 
-    await user.click(screen.getByRole('button', { name: 'Unsaved changes (2)' }));
+    await user.click(screen.getByRole('button', { name: '● Unsaved · 2 changed accounts' }));
     const d = await finishedOpening(waitFor(drawer));
     // alice: kept; bob: dog + unfollow queued (one decision change)
     expect(within(d).getByText('2 accounts · 3 changes')).toBeInTheDocument();
@@ -865,7 +917,7 @@ describe('unsaved changes drawer', () => {
         .map(link => link.textContent),
     ).toEqual(['@bob ↗']);
 
-    await user.click(within(d).getByRole('button', { name: 'Save master' }));
+    await user.click(within(d).getByRole('button', { name: 'Save' }));
     await waitFor(() => {
       expect(downloads).toHaveLength(1);
     });
@@ -875,7 +927,7 @@ describe('unsaved changes drawer', () => {
   test("Reset changes in the drawer undoes what's listed", async () => {
     const { user } = await imported();
     await user.click(keepButton('bob'));
-    await user.click(screen.getByRole('button', { name: 'Unsaved changes (1)' }));
+    await user.click(screen.getByRole('button', { name: '● Unsaved · 1 changed account' }));
     await user.click(within(await finishedOpening(waitFor(drawer))).getByRole('button', { name: 'Reset changes' }));
     const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
     await user.click(within(confirmReset).getByRole('button', { name: 'Reset' }));
@@ -1015,12 +1067,12 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   await applyFilters(user, 'Followers');
   await findRow('carol');
   await user.click(keepButton('carol'));
-  await user.click(screen.getByRole('button', { name: 'Save master' }));
+  await user.click(saveButton());
   await waitFor(() => {
     expect(downloads).toHaveLength(1);
   });
 
-  await user.click(screen.getByRole('button', { name: 'Import files' }));
+  await fromMenu(user, 'Import new files');
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
   await importFiles(user, [
     master,
@@ -1041,7 +1093,8 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   first.unmount();
   user = (await renderApp({ tab: first.tab, now })).user;
 
-  await user.click(await screen.findByRole('button', { name: /^Lost followers \(1\)$/ }));
+  await user.click(await screen.findByRole('button', { name: /^Changes/ }));
+  await user.click(screen.getByRole('button', { name: /^Lost followers \(1\)$/ }));
   const card = await findRow('carol');
   expect(within(card).getByText(/Looks renamed to/)).toBeInTheDocument();
   await user.click(within(card).getByRole('button', { name: 'Move to @carol_2' }));
@@ -1050,7 +1103,7 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   });
   expect(tabButton(/^Lost followers \(0\)$/)).toBeInTheDocument();
 
-  await user.click(tabButton(/^Review$/));
+  await user.click(navItem(/^Review$/));
   await applyFilters(user, 'Followers'); // filters start fresh after the reload
   await findRow('carol_2');
   expect(isKept('carol_2')).toBe(true);

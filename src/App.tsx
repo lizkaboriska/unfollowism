@@ -1,4 +1,4 @@
-import { Box, Stack, Text } from '@chakra-ui/react';
+import { Box, HStack, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from './store/deps.ts';
@@ -7,15 +7,16 @@ import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { selectHasProject } from './store/selectors.ts';
 import { restoreTab } from './store/thunks.ts';
 import { AccountList } from './ui/AccountList.tsx';
+import { AppHeader } from './ui/AppHeader.tsx';
+import { AppNav } from './ui/AppNav.tsx';
 import { FiltersBar } from './ui/FiltersBar.tsx';
-import { Header } from './ui/Header.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
 import { ReviewList } from './ui/ReviewList.tsx';
 import { ReviewTop } from './ui/ReviewTop.tsx';
 import { StatusLine } from './ui/StatusLine.tsx';
 import { StorageWarning } from './ui/StorageWarning.tsx';
 import { SummaryLine } from './ui/SummaryLine.tsx';
-import { ViewTabs } from './ui/ViewTabs.tsx';
+import { ViewSwitch } from './ui/ViewSwitch.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
@@ -46,7 +47,7 @@ export function App({ deps }: { deps: StoreDeps }) {
 
   if (restoring && !hasProject) {
     return (
-      <Box maxW="5xl" mx="auto" px="4" py="8">
+      <Box maxW="5xl" mx="auto" p="5">
         <Text color="fg.muted">Loading your work…</Text>
       </Box>
     );
@@ -55,19 +56,18 @@ export function App({ deps }: { deps: StoreDeps }) {
   const showImport = !hasProject || importOpen;
 
   return (
-    <Box maxW="5xl" mx="auto" px="4" py="8">
-      <Stack gap="5">
-        <Header
-          {...(showImport
-            ? {}
-            : {
-                onImportNew: () => {
-                  setImportOpen(true);
-                },
-              })}
-        />
-
-        {showImport ? (
+    <Box minH="100dvh">
+      <AppHeader
+        {...(showImport
+          ? {}
+          : {
+              onImportNew: () => {
+                setImportOpen(true);
+              },
+            })}
+      />
+      {showImport ? (
+        <Box maxW="5xl" mx="auto" p="5">
           <ImportScreen
             lastSaved={deps.lastSaved}
             onImported={() => {
@@ -81,23 +81,27 @@ export function App({ deps }: { deps: StoreDeps }) {
                 }
               : {})}
           />
-        ) : (
-          <>
+        </Box>
+      ) : (
+        // The bottom nav covers the end of the page on a phone, so the page leaves room for it.
+        <HStack maxW="5xl" mx="auto" p="5" pb={{ base: '84px', md: '5' }} gap="5" align="flex-start">
+          <AppNav />
+          <Stack gap="4" flex="1" minW="0">
             <StorageWarning durable={deps.tab.durable} />
             <StatusLine />
-            <ViewTabs />
             {inReview ? (
               <ReviewTop />
             ) : (
               <>
+                <ViewSwitch />
                 <FiltersBar />
                 <SummaryLine />
               </>
             )}
             {inReview ? <ReviewList /> : <AccountList />}
-          </>
-        )}
-      </Stack>
+          </Stack>
+        </HStack>
+      )}
     </Box>
   );
 }

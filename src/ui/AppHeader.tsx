@@ -1,0 +1,69 @@
+import { Box, Button, HStack, Heading, Text } from '@chakra-ui/react';
+import { useState } from 'react';
+
+import { useAppSelector } from '../store/hooks.ts';
+import { selectHasProject, selectIsDirty, selectUnsavedAccountCount } from '../store/selectors.ts';
+
+import { AppMenu } from './AppMenu.tsx';
+import { SaveButton } from './saveAndReset.tsx';
+import { plural } from './statusText.ts';
+import { UnsavedDrawer } from './UnsavedDrawer.tsx';
+
+/**
+ * App name, whether the work is saved, Save and the ⋯ menu. `onImportNew` is given on the main view: it adds the
+ * menu, and the unsaved line becomes a button that opens the list of unsaved changes.
+ */
+export function AppHeader({ onImportNew }: { onImportNew?: () => void }) {
+  const hasProject = useAppSelector(selectHasProject);
+  const dirty = useAppSelector(selectIsDirty);
+  const unsavedCount = useAppSelector(selectUnsavedAccountCount);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const indicator = !dirty
+    ? 'All decisions saved'
+    : unsavedCount
+      ? `● Unsaved · ${plural(unsavedCount, 'changed account')}`
+      : '● New import not saved';
+  const color = dirty ? 'accent' : 'fg.muted';
+
+  return (
+    <HStack as="header" h="72px" px="5" justify="space-between" borderBottomWidth="1px" gap="3">
+      <Box>
+        <Heading textStyle="appName" lineHeight="1">
+          Unfollowism
+        </Heading>
+        {hasProject &&
+          (onImportNew ? (
+            <Button
+              variant="plain"
+              h="auto"
+              p="0"
+              textStyle="small"
+              color={color}
+              onClick={() => {
+                setDrawerOpen(true);
+              }}
+            >
+              {indicator}
+            </Button>
+          ) : (
+            <Text textStyle="small" color={color}>
+              {indicator}
+            </Text>
+          ))}
+      </Box>
+      {hasProject && (
+        <HStack gap="1.5">
+          <SaveButton h="10" />
+          {onImportNew && <AppMenu onImportNew={onImportNew} />}
+        </HStack>
+      )}
+      <UnsavedDrawer
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+        }}
+      />
+    </HStack>
+  );
+}
