@@ -4,6 +4,8 @@ Keep your Instagram following intentional, using your own Instagram data export:
 see who you followed and who followed you since last time, tag the people you follow,
 and keep a to-do list of accounts to unfollow or remove by hand.
 
+**Open the app: [unfollowism.pages.dev](https://unfollowism.pages.dev)**
+
 Everything runs in your browser. Your files are never uploaded anywhere.
 
 Unfollowism is an independent project, not affiliated with Instagram or Meta.
@@ -42,7 +44,7 @@ but closing the tab does not, so save before you close.
 
 ## Development
 
-Requires Node.js 22.13 or newer.
+Requires Node.js 22.13 or newer. `.nvmrc` pins the version used by CI and deploys (`nvm use` picks it up).
 
 ```sh
 npm ci            # install dependencies
@@ -56,8 +58,16 @@ npm run dev       # start the dev server at http://localhost:5173 (hot reload)
 | `npm run test:perf` | Timing benchmark with 100k and 500k accounts |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
+| `npm run format:check` | Check Prettier formatting (`npm run format` fixes it) |
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build locally |
+
+### CI and deploys
+
+- Every pull request runs typecheck, lint + format check, tests and build in parallel
+  ([`ci.yml`](.github/workflows/ci.yml)). `main` only accepts changes once `all-checks-passed` is green.
+- Cloudflare Pages deploys every push to `main` to [unfollowism.pages.dev](https://unfollowism.pages.dev),
+  and every other branch to a preview URL, which it posts as a comment on the pull request.
 
 ### Project layout
 
