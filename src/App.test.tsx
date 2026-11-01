@@ -757,6 +757,40 @@ describe('main view', () => {
     expect(shown()).toEqual(['@bob']);
   });
 
+  test('a mutual with both plans is in both tabs; each is done on its own', async () => {
+    const { user } = await imported();
+    const sheet = await openAccount(user, 'alice');
+    await user.click(within(sheet).getByRole('button', { name: 'Queue unfollow' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Queue removal' }));
+    await closeAccount(user, 'alice');
+
+    await user.click(navItem(/^To do 2$/));
+    expect(screen.getByRole('tab', { name: 'Unfollow 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Remove follower 1' })).toBeInTheDocument();
+    expect(screen.getByText('0 of 2 done')).toBeInTheDocument();
+    expect(shown()).toEqual(['@alice']);
+
+    await user.click(within(row('alice')).getByRole('button', { name: '✓ Mark done' }));
+    expect(screen.getByText('1 of 2 done')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Remove follower 1' }));
+    expect(within(row('alice')).getByRole('button', { name: '✓ Mark done' })).toBeInTheDocument(); // still queued
+  });
+
+  test('Reset changes while All done shows updates the page', async () => {
+    const { user } = await imported();
+    await user.click(cardButton('bob', 'Queue unfollow'));
+    await user.click(navItem(/^To do 1$/));
+    await user.click(within(row('bob')).getByRole('button', { name: '✓ Mark done' }));
+    await user.click(navItem(/^Review$/));
+    await user.click(navItem(/^To do$/));
+    expect(screen.getByRole('heading', { name: 'All done, for now' })).toBeInTheDocument();
+
+    // Nothing was saved, so Reset goes back to the import, where nothing was queued.
+    await fromMenu(user, 'Reset changes');
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' }));
+    expect(await screen.findByRole('heading', { name: 'Nothing queued' })).toBeInTheDocument();
+  });
+
   test('tags and notes end up in the saved master', async () => {
     const { user, downloads } = await imported();
     await newTag(user, 'bob', 'dog');
