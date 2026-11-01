@@ -1,13 +1,13 @@
 import { Input, Stack } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 
-import { DecisionFilter, TAG_FILTER_KINDS, type TagFilter } from '../core/index.ts';
-import { isPlanView, setDecisionFilter, setQuery, setTagFilter } from '../store/filtersSlice.ts';
+import { TAG_FILTER_KINDS, type TagFilter } from '../core/index.ts';
+import { setQuery, setTagFilter } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectTagCounts, selectTags } from '../store/selectors.ts';
 
 import { FilterSelect, type FilterOption } from './FilterSelect.tsx';
-import { DECISION_FILTER_LABELS, tagFilterLabel } from './labels.ts';
+import { tagFilterLabel } from './labels.ts';
 import { ManageTagsDialog } from './ManageTagsDialog.tsx';
 
 // A tag can be any text (even "untagged"), so the tag select uses positions as option values.
@@ -16,11 +16,6 @@ const UNTAGGED_VALUE = 'untagged';
 /** The last line of the tag list opens Manage tags instead of filtering. */
 const MANAGE_TAGS_VALUE = 'manage';
 const tagValue = (index: number) => `tag-${index}`;
-
-const DECISION_OPTIONS: readonly FilterOption<DecisionFilter>[] = Object.values(DecisionFilter).map(decision => ({
-  value: decision,
-  label: DECISION_FILTER_LABELS[decision],
-}));
 
 function tagFilterValue(tag: TagFilter, tags: readonly string[]): string {
   if (tag.kind === TAG_FILTER_KINDS.ALL) {
@@ -40,7 +35,7 @@ function tagFilterOf(value: string, tags: readonly string[]): TagFilter {
   return tag === undefined ? { kind: TAG_FILTER_KINDS.ALL } : { kind: TAG_FILTER_KINDS.TAG, tag };
 }
 
-/** The filter row of the change and To do tabs (Review has its own list controls and Filter sheet). */
+/** The filter row of the To do lists: search and tag (Review has its own list controls and Filter sheet). */
 export function FiltersBar() {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(s => s.filters);
@@ -83,15 +78,6 @@ export function FiltersBar() {
         value={filters.query}
         onChange={e => dispatch(setQuery(e.currentTarget.value))}
       />
-      {!isPlanView(filters.view) && (
-        <FilterSelect
-          name="decision"
-          label="Your decision"
-          options={DECISION_OPTIONS}
-          value={filters.decision}
-          onChange={value => dispatch(setDecisionFilter(value))}
-        />
-      )}
       <FilterSelect
         name="tag"
         label="Tag"

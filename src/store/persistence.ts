@@ -7,6 +7,7 @@ import {
   type AccountRecord,
   type ChangedAccounts,
   type DeepReadonly,
+  type ImportFacts,
   type Master,
 } from '../core/index.ts';
 import type { TabMeta } from '../io/tabStore.ts';
@@ -21,12 +22,13 @@ type Accounts = DeepReadonly<ChangedAccounts>;
 /** Waits before each retry of a failed write. */
 export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
 
-function toMeta(state: MasterState, storedAt: string): TabMeta {
+function toMeta(state: MasterState, importFacts: ImportFacts, storedAt: string): TabMeta {
   return {
     revision: state.revision,
     savedRevision: state.savedRevision,
     ...(state.savedAt === null ? {} : { lastSavedAt: state.savedAt }),
     storedAt,
+    importFacts,
   };
 }
 
@@ -92,11 +94,11 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     dispatch: AppDispatch;
   }): Promise<boolean> {
     const state = api.getState().master;
-    const { base, changed, savedChanged } = state;
-    if (!base) {
+    const { base, changed, savedChanged, importFacts } = state;
+    if (!base || !importFacts) {
       return true;
     }
-    const meta = toMeta(state, api.extra.now().toISOString());
+    const meta = toMeta(state, importFacts, api.extra.now().toISOString());
     try {
       if (base !== storedBase) {
         await api.extra.tab.replace(toMasterFile(base), meta, {

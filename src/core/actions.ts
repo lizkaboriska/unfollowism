@@ -8,6 +8,7 @@ import {
   type PlanState,
   type ReadonlyAccount,
 } from './types.ts';
+import { createDict } from './util.ts';
 
 export type ActionCounts = Record<ActionType, number>;
 
@@ -28,6 +29,8 @@ export interface PlanOutcomes {
 
 export interface SettledDecisions {
   plans: PlanOutcomes;
+  /** Account key → the plans this import found done (the counted ones in `plans.completed`). */
+  completedPlans: Record<string, ActionType[]>;
   /** Decisions the export made out of date (see settleDecisions): taken back to none. */
   undecided: number;
 }
@@ -49,6 +52,7 @@ export function settleDecisions(
   }: { uncounted?: ReadonlySet<string>; lostFollowers?: ReadonlySet<string> } = {},
 ): SettledDecisions {
   const outcomes: PlanOutcomes = { completed: emptyActionCounts(), reopened: emptyActionCounts() };
+  const completedPlans = createDict<ActionType[]>();
   let undecided = 0;
   for (const [key, account] of Object.entries(source.accounts)) {
     // Before plans settle: a removal you did turns into Kept below, and must not count as them leaving.
@@ -64,6 +68,7 @@ export function settleDecisions(
         completed = true;
         if (!uncounted.has(key)) {
           outcomes.completed[type] += 1;
+          (completedPlans[key] ??= []).push(type);
         }
       } else if (plan === PLAN_STATES.DONE) {
         setPlan(account, type, PLAN_STATES.PLANNED);
@@ -82,7 +87,7 @@ export function settleDecisions(
       undecided += 1;
     }
   }
-  return { plans: outcomes, undecided };
+  return { plans: outcomes, completedPlans, undecided };
 }
 
 export type PlanStats = Record<PlanState, ActionCounts>;

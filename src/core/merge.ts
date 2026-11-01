@@ -5,7 +5,7 @@ import { parseMaster } from './masterFile.ts';
 import { dedupeAccounts } from './parse.ts';
 import { findRenames, settleRenameSuggestions } from './renames.ts';
 import { followChangeCounts, setFollows, type FollowChangeCounts } from './scopes.ts';
-import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type Master } from './types.ts';
+import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type ImportFacts, type Master } from './types.ts';
 import { createDict, usernameKey } from './util.ts';
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
@@ -29,6 +29,7 @@ export interface ImportSummary {
 export interface ImportResult {
   master: Master;
   summary: ImportSummary;
+  facts: ImportFacts;
   isNewMaster: boolean;
   /** Whether the imported state differs from the master file and should be saved. */
   dirty: boolean;
@@ -64,7 +65,7 @@ export function mergeExports(
   bundle: ExportBundle,
   now: string,
   saved: boolean,
-): { exportChanged: boolean } & SettledDecisions {
+): { exportChanged: boolean; followingBefore: number; followersBefore: number } & SettledDecisions {
   const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
   const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
   const renames = findRenames(accounts, following, followers);
@@ -118,7 +119,12 @@ export function mergeExports(
       lostFollowers: new Set([...previousFollowers].filter(key => !followers.has(key))),
     },
   );
-  return { exportChanged, ...settled };
+  return {
+    exportChanged,
+    followingBefore: previousFollowing.size,
+    followersBefore: previousFollowers.size,
+    ...settled,
+  };
 }
 
 /**
@@ -136,7 +142,12 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const { exportChanged, plans, undecided } = mergeExports(accounts, bundle, now, base?.lastSavedAt !== undefined);
+  const { exportChanged, plans, completedPlans, undecided, followingBefore, followersBefore } = mergeExports(
+    accounts,
+    bundle,
+    now,
+    base?.lastSavedAt !== undefined,
+  );
   const summary: ImportSummary = {
     exportChanged,
     followingCount: Object.values(accounts).filter(a => a.following).length,
@@ -157,6 +168,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   return {
     master,
     summary,
+    facts: { followingBefore, followersBefore, completedPlans },
     isNewMaster,
     dirty: isNewMaster || exportChanged || decisionsSettled,
     followerFileCount: bundle.followerFileCount,

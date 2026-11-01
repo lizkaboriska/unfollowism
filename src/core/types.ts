@@ -156,3 +156,15 @@ export type DeepReadonly<T> = T extends (infer U)[]
   : T extends object
     ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
     : T;
+
+/**
+ * What only the import itself can know, for the Changes page until the next import (never in the master file):
+ * the compare box's "before" numbers and the "You unfollowed" / "You removed" badges.
+ */
+export interface ImportFacts {
+  /** How many you followed, and how many followed you, in the master before this export. */
+  followingBefore: number;
+  followersBefore: number;
+  /** Account key → the plans this import found done. */
+  completedPlans: Record<string, ActionType[]>;
+}

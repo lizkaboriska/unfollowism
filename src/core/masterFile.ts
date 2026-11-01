@@ -11,6 +11,7 @@ import {
   type DeepReadonly,
   type Decision,
   type Follow,
+  type ImportFacts,
   type Master,
   type Plans,
   type ReadonlyAccount,
@@ -313,6 +314,26 @@ export function fromAccountRecord(value: unknown, path: string): Account {
  * storage). Accepts only the current format and returns a fresh working master.
  * Unknown top-level fields are dropped; unknown account fields are rejected. Never mutates `raw`.
  */
+const IMPORT_FACTS_FIELDS: ReadonlySet<string> = new Set([
+  'followingBefore',
+  'followersBefore',
+  'completedPlans',
+] satisfies (keyof ImportFacts)[]);
+
+/** Strict reader for ImportFacts as stored in the tab's backup (they are never in the master file). */
+export function parseImportFacts(value: unknown, path: string): ImportFacts {
+  const r = record(value, path);
+  rejectUnknownFields(r, IMPORT_FACTS_FIELDS, path);
+  const count = (field: string) =>
+    numOrNull(r[field], `${path}.${field}`) ?? fail(`${path}.${field}`, FIELD_TYPES.NUMBER_OR_NULL);
+  const completedPlans = createDict<ActionType[]>();
+  for (const [key, types] of Object.entries(record(r.completedPlans, `${path}.completedPlans`))) {
+    const itemPath = `${path}.completedPlans.${key}`;
+    completedPlans[key] = array(types, itemPath).map((type, i) => oneOf(type, ACTION_TYPES, `${itemPath}[${i}]`));
+  }
+  return { followingBefore: count('followingBefore'), followersBefore: count('followersBefore'), completedPlans };
+}
+
 export function parseMaster(raw: unknown): Master {
   if (!isRecord(raw) || !isRecord(raw.accounts)) {
     throw new ImportError({ kind: IMPORT_PROBLEMS.NOT_A_MASTER });

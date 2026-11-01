@@ -4,11 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 
 import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
+import { useAppSelector } from '../../store/hooks.ts';
 import { resetChanges } from '../../store/masterSlice.ts';
 import { selectAccount } from '../../store/selectors.ts';
 import { importPrepared } from '../../store/thunks.ts';
 import { system } from '../../theme.ts';
-import { AccountCard } from '../AccountCard.tsx';
+import { NoteField } from '../accountFields.tsx';
+
+/** The note field as the account sheet shows it: fed from the store. */
+function BobNote() {
+  const note = useAppSelector(s => selectAccount(s, 'bob')?.review.notes ?? '');
+  return <NoteField username="bob" note={note} />;
+}
 
 async function card() {
   const { store } = makeTestStore();
@@ -16,7 +23,7 @@ async function card() {
   render(
     <ChakraProvider value={system}>
       <Provider store={store}>
-        <AccountCard accountKey="bob" />
+        <BobNote />
         <button>elsewhere</button>
       </Provider>
     </ChakraProvider>,

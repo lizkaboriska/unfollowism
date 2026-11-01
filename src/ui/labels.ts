@@ -46,28 +46,18 @@ export const DECISION_FILTER_LABELS: Record<DecisionFilter, string> = {
   [DecisionFilter.QUEUED]: 'Queued',
 };
 
-/** Tab names for the change lists. */
-export const CHANGE_TAB_LABELS: Record<FollowChange, string> = {
-  [FOLLOW_CHANGES.NEW_FOLLOWS]: 'New follows',
-  [FOLLOW_CHANGES.UNFOLLOWED]: 'I unfollowed',
+/** Section headings on the Changes page. */
+export const CHANGE_SECTION_TITLES: Record<FollowChange, string> = {
   [FOLLOW_CHANGES.NEW_FOLLOWERS]: 'New followers',
-  [FOLLOW_CHANGES.LOST_FOLLOWERS]: 'Lost followers',
+  [FOLLOW_CHANGES.LOST_FOLLOWERS]: 'No longer follow you',
+  [FOLLOW_CHANGES.NEW_FOLLOWS]: 'You started following',
+  [FOLLOW_CHANGES.UNFOLLOWED]: 'You stopped following',
 };
 
-/** Card badges for the same changes. */
-export const CHANGE_BADGE_LABELS: Record<FollowChange, string> = {
-  [FOLLOW_CHANGES.NEW_FOLLOWS]: 'New follow',
-  [FOLLOW_CHANGES.UNFOLLOWED]: 'Unfollowed',
-  [FOLLOW_CHANGES.NEW_FOLLOWERS]: 'New follower',
-  [FOLLOW_CHANGES.LOST_FOLLOWERS]: 'Lost follower',
-};
-
-/** Summary-line wording: "5 accounts <phrase> since your last save". */
-export const CHANGE_SUMMARY_PHRASES: Record<FollowChange, string> = {
-  [FOLLOW_CHANGES.NEW_FOLLOWS]: 'you followed',
-  [FOLLOW_CHANGES.UNFOLLOWED]: 'you unfollowed',
-  [FOLLOW_CHANGES.NEW_FOLLOWERS]: 'started following you',
-  [FOLLOW_CHANGES.LOST_FOLLOWERS]: 'stopped following you',
+/** Row badge on Changes for a plan the import found done: why they're in the list. */
+export const COMPLETED_PLAN_BADGES: Record<ActionType, string> = {
+  [ACTION_TYPES.UNFOLLOW]: 'You unfollowed',
+  [ACTION_TYPES.REMOVE_FOLLOWER]: 'You removed',
 };
 
 /** A queued plan by name: "Unfollow", "Removal". */

@@ -8,7 +8,7 @@ import { setNote, toggleTag } from '../store/masterSlice.ts';
 
 import { OWN_ESCAPE } from './ownEscape.ts';
 
-// Fields shared by the account card (change tabs) and the account sheet (Review).
+// Fields of the account sheet (Review and Changes).
 
 /**
  * "+ tag": a new tag is created by adding it to an account (a tag nobody has doesn't exist).

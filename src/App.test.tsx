@@ -68,7 +68,7 @@ async function importFiles(user: UserEvent, files: File[]) {
 /** A regex for an option's label, ignoring a count after it ("Mutual 3", "artist 2"). */
 const optionName = (label: string) => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\d*$`);
 
-/** Opens a filter dropdown of the change and To do tabs and picks an option by its label. */
+/** Opens a filter dropdown of To do and picks an option by its label. */
 async function chooseFilter(user: UserEvent, name: string, option: string) {
   await user.click(screen.getByRole('combobox', { name }));
   await user.click(await screen.findByRole('option', { name: optionName(option) }));
@@ -131,12 +131,6 @@ async function newTag(user: UserEvent, username: string, tag: string) {
   await closeAccount(user, username);
 }
 
-/** Change tabs: creates a tag with "+ tag" on the old card. */
-async function newTagOnCard(user: UserEvent, username: string, tag: string) {
-  await user.click(within(row(username)).getByRole('button', { name: '+ tag' }));
-  await user.type(within(row(username)).getByRole('textbox', { name: `New tag for @${username}` }), `${tag}{Enter}`);
-}
-
 const row = (username: string) => screen.getByRole('article', { name: `@${username}` });
 const findRow = (username: string) => screen.findByRole('article', { name: `@${username}` });
 const queryRow = (username: string) => screen.queryByRole('article', { name: `@${username}` });
@@ -150,6 +144,21 @@ const isKept = (username: string) => keepButton(username).getAttribute('aria-pre
 /** Review card: a button by its text, e.g. "Queue unfollow" or "✓ Unfollow queued". */
 const cardButton = (username: string, name: string) => within(row(username)).getByRole('button', { name });
 const saveButton = () => screen.getByRole('button', { name: 'Save' });
+/** Changes: a section by its heading, and the usernames of its rows. */
+const section = (title: string) => screen.getByRole('region', { name: title });
+const rowsOf = (title: string) =>
+  within(section(title))
+    .getAllByRole('listitem')
+    .map(item => item.getAttribute('aria-label'));
+
+/** An export with these usernames in following and followers (default dates). */
+const exportOf = (following: string[], followers: string[]) => {
+  const entries = (names: string[]) => names.map((name): [string] => [name]);
+  return [
+    new File([JSON.stringify(followingFile(...entries(following)))], 'following.json', { type: 'application/json' }),
+    new File([JSON.stringify(followersFile(...entries(followers)))], 'followers_1.json', { type: 'application/json' }),
+  ];
+};
 /** Review · Changes · To do; a count follows the label ("To do 2") and is hidden at 0. */
 const navItem = (name: RegExp) =>
   within(screen.getByRole('navigation', { name: 'Main' })).getByRole('button', { name });
@@ -521,31 +530,34 @@ describe('main view', () => {
   const choose = (user: UserEvent, name: string, option: string) => chooseFilter(user, name, option);
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 
-  test('the navigation switches pages; empty lists inside a page are disabled', async () => {
+  test('the navigation switches pages; empty lists inside To do are disabled', async () => {
     const { user } = await imported();
     expect(shown()).toEqual(['@alice', '@bob']);
     expect(navItem(/^Review$/)).toHaveAttribute('aria-current', 'page');
-    expect(navItem(/^To do$/)).toBeEnabled(); // nothing queued: no count, but it still opens
 
-    await user.click(navItem(/^Changes 4$/)); // 2 new follows + 2 new followers
-    expect(navItem(/^Changes 4$/)).toHaveAttribute('aria-current', 'page');
-    expect(tab(/^New follows \(2\)$/)).toHaveAttribute('aria-pressed', 'true');
-    expect(tab(/^I unfollowed \(0\)$/)).toBeDisabled();
-    await user.click(tab(/^New followers \(2\)$/));
-    expect(shown()).toEqual(['@alice', '@carol']);
-    expect(screen.getByText('2 accounts started following you since you started')).toBeInTheDocument();
+    // No saved master yet: nothing to compare with, so no count and no sections.
+    await user.click(navItem(/^Changes$/));
+    expect(navItem(/^Changes$/)).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText(/^Nothing to compare yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Compared files' })).not.toBeInTheDocument();
+
+    await user.click(navItem(/^To do$/)); // nothing queued: no count, but it still opens
+    expect(tab(/^Unfollow \(0\)$/)).toHaveAttribute('aria-pressed', 'true');
+    expect(tab(/^Remove \(0\)$/)).toBeDisabled();
     expect(screen.queryByRole('button', { name: /Change list$/ })).not.toBeInTheDocument(); // the list is Review-only
   });
 
-  test('search, status and tag narrow the list and are kept across tabs', async () => {
+  test('search and tag filters are kept between Review and To do', async () => {
     const { user } = await imported();
+    await newTag(user, 'alice', 'artist');
+    await user.click(cardButton('alice', 'Queue unfollow'));
+    await user.click(cardButton('bob', 'Queue unfollow'));
     await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'bo');
     expect(shown()).toEqual(['@bob']);
-    await user.click(navItem(/^Changes/)); // opens New follows
+    await user.click(navItem(/^To do 2$/));
     expect(shown()).toEqual(['@bob']);
     await user.clear(screen.getByRole('textbox', { name: 'Search username' }));
 
-    await newTagOnCard(user, 'alice', 'artist');
     await choose(user, 'Tag', 'artist');
     expect(shown()).toEqual(['@alice']);
     await choose(user, 'Tag', 'No tags');
@@ -985,10 +997,9 @@ describe('tags', () => {
     const { user } = await imported();
     let sheet = await openFilterSheet(user);
     await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
-    expect(await screen.findByText(/No tags yet/)).toBeInTheDocument();
-    await user.click(
-      within(screen.getByRole('dialog', { name: 'Manage tags' })).getByRole('button', { name: /close/i }),
-    );
+    const empty = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
+    expect(within(empty).getByText(/No tags yet/)).toBeInTheDocument();
+    await user.click(within(empty).getByRole('button', { name: /close/i }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
     });
@@ -1000,7 +1011,7 @@ describe('tags', () => {
     await newTag(user, 'bob', 'illustration');
     sheet = await openFilterSheet(user);
     await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Manage tags' });
+    const dialog = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
     expect(within(dialog).getByText('2 accounts')).toBeInTheDocument();
 
     // Rename: an empty name is refused, a new name applies to every account with the tag.
@@ -1043,12 +1054,58 @@ describe('tags', () => {
   });
 });
 
+test('Changes compares with the saved master: numbers, sections, badges, Show all and the sheet', async () => {
+  let clock = Date.parse('2026-10-27T12:00:00.000Z');
+  const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });
+  await importFiles(user, exportOf(['alice', 'bob', 'dan'], ['alice', 'carol']));
+  await findRow('alice');
+  await user.click(cardButton('bob', 'Queue unfollow'));
+  await user.click(saveButton());
+  await waitFor(() => {
+    expect(downloads).toHaveLength(1);
+  });
+
+  // You unfollowed bob as planned, followed four new accounts; carol left.
+  await fromMenu(user, 'Import new files');
+  const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
+  await importFiles(user, [master, ...exportOf(['alice', 'dan', 'gus', 'hal', 'ivy', 'jo'], ['alice'])]);
+  await findRow('alice');
+  await user.click(navItem(/^Changes 6$/));
+
+  expect(screen.getByText(/^6 changes since /)).toBeInTheDocument();
+  const compared = screen.getByRole('region', { name: 'Compared files' });
+  expect(within(compared).getByText('3 → 6')).toBeInTheDocument(); // following
+  expect(within(compared).getByText('2 → 1')).toBeInTheDocument(); // followers
+  const sectionTitles = screen
+    .getAllByRole('region')
+    .filter(region => region.hasAttribute('aria-labelledby'))
+    .map(region => within(region).getByRole('heading').textContent);
+  // New followers is empty, so hidden.
+  expect(sectionTitles).toEqual(['No longer follow you', 'You started following', 'You stopped following']);
+  expect(rowsOf('No longer follow you')).toEqual(['@carol']);
+  expect(within(section('You stopped following')).getByText('You unfollowed')).toBeInTheDocument();
+
+  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
+  await user.click(screen.getByRole('button', { name: 'Show all 4' }));
+  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy', '@jo']);
+  await user.click(screen.getByRole('button', { name: 'Show fewer' }));
+  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
+
+  // A row opens the account sheet. A queued plan shows on the row; Kept doesn't (nothing left to do).
+  const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
+  await user.click(screen.getByRole('button', { name: 'Open @gus' }));
+  let sheet = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Queue unfollow' }));
+  await closeAccount(user, 'gus');
+  expect(gus()).toHaveTextContent('@gusUnfollow queued');
+  await user.click(screen.getByRole('button', { name: 'Open @gus' }));
+  sheet = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
+  await user.click(within(sheet).getByRole('button', { name: 'Keep' }));
+  await closeAccount(user, 'gus');
+  expect(gus()).not.toHaveTextContent(/Kept|queued/);
+});
+
 test('someone you kept who stops following you needs a decision again; past accounts have none', async () => {
-  const entries = (names: string[]) => names.map((name): [string] => [name]);
-  const exportOf = (following: string[], followers: string[]) => [
-    new File([JSON.stringify(followingFile(...entries(following)))], 'following.json', { type: 'application/json' }),
-    new File([JSON.stringify(followersFile(...entries(followers)))], 'followers_1.json', { type: 'application/json' }),
-  ];
   let clock = Date.parse('2026-10-27T12:00:00.000Z');
   const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });
   await importFiles(user, exportOf(['alice', 'bob'], ['alice', 'carol']));
@@ -1074,14 +1131,13 @@ test('someone you kept who stops following you needs a decision again; past acco
   expect(within(sheet).queryByText('Your decision')).not.toBeInTheDocument();
 });
 
-test('a renamed follower is suggested in Lost followers, and confirming moves its work', async () => {
-  const exportOf = (followers: [string, number][]) => [
+test('a renamed follower is suggested in No longer follow you, and confirming moves its work', async () => {
+  const datedExport = (followers: [string, number][]) => [
     new File([JSON.stringify(followingFile(['alice', 101], ['bob', 102]))], 'following.json', {
       type: 'application/json',
     }),
     new File([JSON.stringify(followersFile(...followers))], 'followers_1.json', { type: 'application/json' }),
   ];
-  const tabButton = (name: RegExp) => screen.getByRole('button', { name });
   let clock = Date.parse('2026-10-27T12:00:00.000Z');
   const now = () => new Date((clock += 60_000)); // the next import comes after the save
   const first = await renderApp({ now });
@@ -1089,7 +1145,7 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   let user = first.user;
   await importFiles(
     user,
-    exportOf([
+    datedExport([
       ['alice', 201],
       ['carol', 203],
     ]),
@@ -1107,13 +1163,13 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
   await importFiles(user, [
     master,
-    ...exportOf([
+    ...datedExport([
       ['alice', 201],
       ['carol_2', 203],
     ]),
   ]);
   expect(await findRow('carol_2')).toBeInTheDocument();
-  expect(screen.queryByText(/Looks renamed/)).not.toBeInTheDocument(); // only in Lost followers
+  expect(screen.queryByText(/Looks renamed/)).not.toBeInTheDocument(); // only in No longer follow you, on Changes
 
   // A reload keeps the suggestion, like any unsaved edit.
   await waitFor(async () => {
@@ -1125,14 +1181,13 @@ test('a renamed follower is suggested in Lost followers, and confirming moves it
   user = (await renderApp({ tab: first.tab, now })).user;
 
   await user.click(await screen.findByRole('button', { name: /^Changes/ }));
-  await user.click(screen.getByRole('button', { name: /^Lost followers \(1\)$/ }));
-  const card = await findRow('carol');
-  expect(within(card).getByText(/Looks renamed to/)).toBeInTheDocument();
+  expect(rowsOf('No longer follow you')).toEqual(['@carol']);
+  const card = within(section('No longer follow you')).getByRole('listitem', { name: '@carol' });
+  expect(within(card).getByRole('note')).toHaveTextContent('⚠ Looks renamed to @carol_2: same follow dates.');
   await user.click(within(card).getByRole('button', { name: 'Move to @carol_2' }));
   await waitFor(() => {
-    expect(queryRow('carol')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'No longer follow you' })).not.toBeInTheDocument();
   });
-  expect(tabButton(/^Lost followers \(0\)$/)).toBeInTheDocument();
 
   await user.click(navItem(/^Review$/));
   await applyFilters(user, 'Followers'); // filters start fresh after the reload

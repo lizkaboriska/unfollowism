@@ -6,9 +6,11 @@ import {
   createDict,
   fromAccountRecord,
   importExport,
+  parseImportFacts,
   parseMaster,
   stringifyMasterFile,
   toMasterFile,
+  type ImportFacts,
   type Account,
   type ChangedAccounts,
   type ImportProblem,
@@ -98,6 +100,7 @@ export interface RestoredSession {
   base: Master;
   changed: ChangedAccounts;
   savedChanged: ChangedAccounts;
+  importFacts: ImportFacts;
   savedAt: string | null;
   revision: number;
   savedRevision: number;
@@ -126,6 +129,7 @@ function reviveTab(stored: StoredTab): RestoredSession {
     base,
     changed,
     savedChanged,
+    importFacts: parseImportFacts(meta.importFacts, 'importFacts'),
     savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
     revision: meta.revision,
     savedRevision: meta.savedRevision,

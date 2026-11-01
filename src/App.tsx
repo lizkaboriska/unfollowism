@@ -2,13 +2,14 @@ import { Box, HStack, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from './store/deps.ts';
-import { LIST_VIEWS } from './store/filtersSlice.ts';
+import { LIST_VIEWS, isPlanView } from './store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { selectHasProject } from './store/selectors.ts';
 import { restoreTab } from './store/thunks.ts';
 import { AccountList } from './ui/AccountList.tsx';
 import { AppHeader } from './ui/AppHeader.tsx';
 import { AppNav } from './ui/AppNav.tsx';
+import { ChangesPage } from './ui/ChangesPage.tsx';
 import { FiltersBar } from './ui/FiltersBar.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
 import { ReviewList } from './ui/ReviewList.tsx';
@@ -21,7 +22,7 @@ import { ViewSwitch } from './ui/ViewSwitch.tsx';
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
-  const inReview = useAppSelector(s => s.filters.view === LIST_VIEWS.REVIEW);
+  const view = useAppSelector(s => s.filters.view);
   const [importOpen, setImportOpen] = useState(false);
   const [restoring, setRestoring] = useState(true);
 
@@ -89,16 +90,21 @@ export function App({ deps }: { deps: StoreDeps }) {
           <Stack gap="4" flex="1" minW="0">
             <StorageWarning durable={deps.tab.durable} />
             <StatusLine />
-            {inReview ? (
-              <ReviewTop />
-            ) : (
+            {view === LIST_VIEWS.REVIEW && (
+              <>
+                <ReviewTop />
+                <ReviewList />
+              </>
+            )}
+            {view === LIST_VIEWS.CHANGES && <ChangesPage />}
+            {isPlanView(view) && (
               <>
                 <ViewSwitch />
                 <FiltersBar />
                 <SummaryLine />
+                <AccountList />
               </>
             )}
-            {inReview ? <ReviewList /> : <AccountList />}
           </Stack>
         </HStack>
       )}

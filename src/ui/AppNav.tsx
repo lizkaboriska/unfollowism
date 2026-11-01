@@ -1,9 +1,9 @@
 import { Box, Button, Text } from '@chakra-ui/react';
 
-import { LIST_VIEWS, setView, type ListView } from '../store/filtersSlice.ts';
+import { LIST_VIEWS, isPlanView, setView } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
-import { CHANGE_VIEWS, TODO_VIEWS, useViewCount } from './viewCounts.ts';
+import { TODO_VIEWS, useChangesTotal, useTodoCount } from './viewCounts.ts';
 
 function NavItem({
   label,
@@ -47,13 +47,13 @@ function NavItem({
 export function AppNav() {
   const dispatch = useAppDispatch();
   const view = useAppSelector(s => s.filters.view);
-  const count = useViewCount();
-  const total = (views: readonly ListView[]) => views.reduce((sum, v) => sum + count(v), 0);
+  const todoCount = useTodoCount();
+  const changesTotal = useChangesTotal();
 
-  /** Opens a page on its first list with accounts, else its first list; on its own page it stays where it is. */
-  function openPage(views: readonly ListView[]) {
-    if (!views.includes(view)) {
-      dispatch(setView(views.find(v => count(v) > 0) ?? views[0] ?? LIST_VIEWS.REVIEW));
+  /** Opens To do on its first list with accounts, else its first list; on To do it stays where it is. */
+  function openTodo() {
+    if (!isPlanView(view)) {
+      dispatch(setView(TODO_VIEWS.find(v => todoCount(v) > 0) ?? LIST_VIEWS.TO_UNFOLLOW));
     }
   }
 
@@ -85,19 +85,15 @@ export function AppNav() {
       />
       <NavItem
         label="Changes"
-        count={total(CHANGE_VIEWS)}
-        active={CHANGE_VIEWS.includes(view)}
-        onClick={() => {
-          openPage(CHANGE_VIEWS);
-        }}
+        count={changesTotal}
+        active={view === LIST_VIEWS.CHANGES}
+        onClick={() => dispatch(setView(LIST_VIEWS.CHANGES))}
       />
       <NavItem
         label="To do"
-        count={total(TODO_VIEWS)}
-        active={TODO_VIEWS.includes(view)}
-        onClick={() => {
-          openPage(TODO_VIEWS);
-        }}
+        count={TODO_VIEWS.reduce((sum, v) => sum + todoCount(v), 0)}
+        active={isPlanView(view)}
+        onClick={openTodo}
       />
     </Box>
   );

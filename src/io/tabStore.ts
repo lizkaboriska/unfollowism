@@ -1,4 +1,4 @@
-import type { AccountRecord, MasterFile } from '../core/index.ts';
+import type { AccountRecord, ImportFacts, MasterFile } from '../core/index.ts';
 
 /**
  * Per-tab safety net so a reload doesn't lose work. For each open tab it keeps the
@@ -14,6 +14,8 @@ export interface TabMeta {
   lastSavedAt?: string;
   /** When this tab's data was last written. */
   storedAt: string;
+  /** What the import found besides the master (see ImportFacts). */
+  importFacts: ImportFacts;
 }
 
 export interface StoredTab {
@@ -54,7 +56,7 @@ export interface TabDatabase {
 
 const DB_NAME = 'unfollowism';
 // Bump on any change of the stored shape: older data is dropped, not migrated.
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const TABS = 'tabs'; // tabId → base
 const META = 'meta'; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.
 const ACCOUNTS = 'accounts'; // [tabId, accountKey] → AccountRecord

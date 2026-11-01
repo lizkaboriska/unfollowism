@@ -18,6 +18,7 @@ import {
   type Account,
   type ActionType,
   type ChangedAccounts,
+  type ImportFacts,
   type Master,
   type PlanState,
   type ReadonlyAccount,
@@ -47,6 +48,8 @@ export interface MasterState {
    * it.
    */
   savedChanged: ChangedAccounts;
+  /** What the import found besides the master, for the Changes page; null with nothing imported. */
+  importFacts: ImportFacts | null;
   /** lastSavedAt of the master (from the imported file, then from each save). */
   savedAt: string | null;
   /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
@@ -74,6 +77,7 @@ const initialState: MasterState = {
   base: null,
   changed: createDict<Account | null>(),
   savedChanged: createDict<Account | null>(),
+  importFacts: null,
   savedAt: null,
   revision: 0,
   savedRevision: 0,
@@ -315,6 +319,7 @@ export const masterSlice = createSlice({
         state.base = payload.base;
         state.changed = payload.changed;
         state.savedChanged = payload.savedChanged;
+        state.importFacts = payload.importFacts;
         state.savedAt = payload.savedAt;
         state.revision = payload.revision;
         state.savedRevision = payload.savedRevision;
@@ -333,6 +338,7 @@ export const masterSlice = createSlice({
         state.base = payload.master;
         state.changed = createDict<Account | null>();
         state.savedChanged = state.changed;
+        state.importFacts = payload.facts;
         state.savedAt = payload.master.lastSavedAt ?? null;
         state.revision = 0;
         state.savedRevision = payload.dirty ? UNSAVED_IMPORT : 0;

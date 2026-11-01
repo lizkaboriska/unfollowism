@@ -1,38 +1,20 @@
 import { Button, HStack } from '@chakra-ui/react';
 
-import { PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, setView, type ListView } from '../store/filtersSlice.ts';
+import { PLAN_VIEW_ACTIONS, setView } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { selectChangesSince } from '../store/selectors.ts';
 
-import { formatDate } from './dates.ts';
-import { CHANGE_TAB_LABELS, PLAN_LABELS } from './labels.ts';
-import { CHANGE_VIEWS, TODO_VIEWS, useViewCount } from './viewCounts.ts';
+import { PLAN_LABELS } from './labels.ts';
+import { TODO_VIEWS, useTodoCount } from './viewCounts.ts';
 
-function viewLabel(view: ListView): string {
-  if (isFollowChangeView(view)) {
-    return CHANGE_TAB_LABELS[view];
-  }
-  return isPlanView(view) ? PLAN_LABELS[PLAN_VIEW_ACTIONS[view]].todo : '';
-}
-
-/** The lists inside the Changes and To do pages, until those pages get their own design. */
+/** The two lists inside the To do page, until it gets its own design. */
 export function ViewSwitch() {
   const dispatch = useAppDispatch();
   const view = useAppSelector(s => s.filters.view);
-  const since = useAppSelector(selectChangesSince);
-  const count = useViewCount();
-
-  const changes = CHANGE_VIEWS.includes(view);
-  const views = changes ? CHANGE_VIEWS : TODO_VIEWS;
-  const title = changes
-    ? since
-      ? `Since your last save on ${formatDate(since)}`
-      : 'Since you started'
-    : 'Accounts you plan to unfollow or remove';
+  const count = useTodoCount();
 
   return (
     <HStack gap="2" wrap="wrap">
-      {views.map(v => (
+      {TODO_VIEWS.map(v => (
         <Button
           key={v}
           size="sm"
@@ -40,10 +22,10 @@ export function ViewSwitch() {
           aria-pressed={v === view}
           // An empty list can't be opened, unless it's the one being shown (it emptied while working through it).
           disabled={count(v) === 0 && v !== view}
-          title={title}
+          title="Accounts you plan to unfollow or remove"
           onClick={() => dispatch(setView(v))}
         >
-          {viewLabel(v)} ({count(v)})
+          {PLAN_LABELS[PLAN_VIEW_ACTIONS[v]].todo} ({count(v)})
         </Button>
       ))}
     </HStack>

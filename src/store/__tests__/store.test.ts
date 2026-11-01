@@ -25,6 +25,7 @@ import {
   setTagFilter,
   setView,
 } from '../filtersSlice.ts';
+import type { RootState } from '../index.ts';
 import { selectListKeys } from '../listSlice.ts';
 import {
   confirmRename,
@@ -49,6 +50,7 @@ import {
   selectTags,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
+  selectChangeSections,
   selectVisibleAccountKeys,
   selectMatchingCount,
   selectScopeTotals,
@@ -557,6 +559,24 @@ describe('reload safety net', () => {
     expect(selectUnsavedDiff(after)).toEqual(selectUnsavedDiff(before));
   });
 
+  test('what the import found besides the master (compare numbers, done plans) survives a reload', async () => {
+    const t = await importedStore();
+    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    const master: unknown = JSON.parse(must(t.downloads[0]).text);
+    await t.store.dispatch(importPrepared(prepared({ following: [['Alice'], ['carol']], master }))).unwrap();
+    expect(t.store.getState().master.importFacts).toEqual({
+      followingBefore: 3,
+      followersBefore: 2,
+      completedPlans: { bob: [UNFOLLOW] },
+    });
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ tab: t.tab });
+    await reloaded.store.dispatch(restoreTab());
+    expect(reloaded.store.getState().master.importFacts).toEqual(t.store.getState().master.importFacts);
+  });
+
   test('a __proto__ account and tag survive edits, a save and a reload', async () => {
     const t = makeTestStore();
     await t.store.dispatch(importPrepared(prepared({ following: [['__proto__'], ['bob']] }))).unwrap();
@@ -651,6 +671,7 @@ describe('reload safety net', () => {
         revision: 1,
         savedRevision: 0,
         storedAt: 'x',
+        importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
       },
       { changed: {}, saved: {} },
     );
@@ -772,6 +793,7 @@ describe('storage write failures', () => {
 });
 
 describe('renames', () => {
+  const lostFollowers = (state: RootState) => selectChangeSections(state)[FOLLOW_CHANGES.LOST_FOLLOWERS];
   /**
    * carol (follows me, tagged, noted, queued for removal) is saved, then shows up as carol_2 with the same
    * date.
@@ -817,7 +839,6 @@ describe('renames', () => {
         ),
       )
       .unwrap();
-    t.store.dispatch(setView(LIST_VIEWS.LOST_FOLLOWERS));
     return t;
   }
 
@@ -826,7 +847,7 @@ describe('renames', () => {
     const state = t.store.getState();
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
     expect(state.master.status).toMatchObject({ summary: { plans: { completed: { [REMOVE_FOLLOWER]: 0 } } } });
-    expect(selectListKeys(state)).toEqual(['carol']);
+    expect(lostFollowers(state)).toEqual(['carol']);
     expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(4); // alice, bob, carol (past), carol_2
   });
 
@@ -840,7 +861,7 @@ describe('renames', () => {
       decision: { kind: DecisionKind.QUEUED, plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED } },
       review: { tags: ['artist'], notes: 'old note' },
     });
-    expect(selectListKeys(state)).toEqual([]); // the old card leaves the list
+    expect(lostFollowers(state)).toEqual([]); // the old account leaves No longer follow you
     expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(3); // carol is gone, carol_2 stays
     expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(0);
     expect(selectTagCounts(state).artist).toBe(1);
@@ -862,7 +883,7 @@ describe('renames', () => {
     t.store.dispatch(resetChanges());
     expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
     expect(account(t, 'carol_2').review.tags).toEqual([]);
-    expect(selectListKeys(t.store.getState())).toEqual(['carol']);
+    expect(lostFollowers(t.store.getState())).toEqual(['carol']);
   });
 
   test('Not a rename is an edit like unticking a box: unsaved, listed, undone by Reset', async () => {
@@ -921,7 +942,7 @@ describe('renames', () => {
       )
       .unwrap();
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
-    expect(selectListKeys(t.store.getState())).toEqual(['carol']);
+    expect(lostFollowers(t.store.getState())).toEqual(['carol']);
   });
 });
 
@@ -945,7 +966,7 @@ describe('selectors', () => {
     expect(keys()).toEqual(['carol']);
   });
 
-  test('change views list what changed since the imported master was saved, regardless of scope', async () => {
+  test('Changes sections list what changed since the imported master was saved, regardless of scope', async () => {
     const t = await importedStore();
     await t.store.dispatch(saveMaster()).unwrap(); // saved at 12:00
     const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
@@ -963,15 +984,13 @@ describe('selectors', () => {
       )
       .unwrap();
 
-    const keys = (view: Parameters<typeof setView>[0]) => {
-      t.store.dispatch(setView(view));
-      return selectVisibleAccountKeys(t.store.getState());
-    };
-    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS)); // ignored outside the review view
-    expect(keys(LIST_VIEWS.NEW_FOLLOWS)).toEqual(['erin']);
-    expect(keys(LIST_VIEWS.UNFOLLOWED)).toEqual(['bob', 'carol']);
-    expect(keys(LIST_VIEWS.NEW_FOLLOWERS)).toEqual(['erin']);
-    expect(keys(LIST_VIEWS.LOST_FOLLOWERS)).toEqual(['dave']);
+    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS)); // the Review list doesn't narrow Changes
+    expect(selectChangeSections(t.store.getState())).toEqual({
+      [FOLLOW_CHANGES.NEW_FOLLOWS]: ['erin'],
+      [FOLLOW_CHANGES.UNFOLLOWED]: ['bob', 'carol'],
+      [FOLLOW_CHANGES.NEW_FOLLOWERS]: ['erin'],
+      [FOLLOW_CHANGES.LOST_FOLLOWERS]: ['dave'],
+    });
     expect(selectFollowChangeCounts(t.store.getState())).toEqual({
       [FOLLOW_CHANGES.NEW_FOLLOWS]: 1,
       [FOLLOW_CHANGES.UNFOLLOWED]: 2,

@@ -3,11 +3,9 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import {
   ACTION_TYPES,
   DecisionFilter,
-  FOLLOW_CHANGES,
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
   type ActionType,
-  type FollowChange,
   type ReviewScope,
   type TagFilter,
   type ValueOf,
@@ -15,13 +13,13 @@ import {
 
 import { renameTag } from './masterSlice.ts';
 
-/** Which list the main view shows: the review queue, a change since the last save, or a list of planned actions. */
+/**
+ * Which page the main view shows: the review queue, what changed since the last save (its own sections, not a
+ * filtered list), or a list of planned actions.
+ */
 export const LIST_VIEWS = {
   REVIEW: 'review',
-  NEW_FOLLOWS: FOLLOW_CHANGES.NEW_FOLLOWS,
-  UNFOLLOWED: FOLLOW_CHANGES.UNFOLLOWED,
-  NEW_FOLLOWERS: FOLLOW_CHANGES.NEW_FOLLOWERS,
-  LOST_FOLLOWERS: FOLLOW_CHANGES.LOST_FOLLOWERS,
+  CHANGES: 'changes',
   TO_UNFOLLOW: 'toUnfollow',
   TO_REMOVE: 'toRemove',
 } as const;
@@ -42,11 +40,6 @@ export const ACTION_PLAN_VIEWS = {
 
 export function isPlanView(view: ListView): view is PlanView {
   return Object.hasOwn(PLAN_VIEW_ACTIONS, view);
-}
-
-const FOLLOW_CHANGE_VALUES: readonly string[] = Object.values(FOLLOW_CHANGES);
-export function isFollowChangeView(view: ListView): view is FollowChange {
-  return FOLLOW_CHANGE_VALUES.includes(view);
 }
 
 export interface FiltersState {

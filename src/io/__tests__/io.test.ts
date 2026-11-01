@@ -179,7 +179,12 @@ describe('analyzeImport', () => {
   });
 });
 
-const META: TabMeta = { revision: 2, savedRevision: 0, storedAt: '2026-10-27T12:00:00Z' };
+const META: TabMeta = {
+  revision: 2,
+  savedRevision: 0,
+  storedAt: '2026-10-27T12:00:00Z',
+  importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
+};
 const NOTHING: TabWrites = { changed: {}, saved: {} };
 const edited = (changed: TabWrites['changed']) => ({ changed, removed: [], saved: {} });
 const BASE: MasterFile = {

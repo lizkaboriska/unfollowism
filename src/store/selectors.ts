@@ -8,7 +8,6 @@ import {
   buildSessionDiff,
   countPlans,
   countTags,
-  followChangeCounts,
   followChangeMatches,
   planOf,
   planStats,
@@ -25,6 +24,7 @@ import {
   type Account,
   type ChangedAccounts,
   type DeepReadonly,
+  type FollowChange,
   type FollowChangeCounts,
   type PlanStats,
   type ReadonlyAccount,
@@ -33,7 +33,7 @@ import {
   type TagCounts,
 } from '../core/index.ts';
 
-import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isFollowChangeView, isPlanView, type FiltersState } from './filtersSlice.ts';
+import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isPlanView, type FiltersState } from './filtersSlice.ts';
 import type { RootState } from './index.ts';
 import { UNSAVED_IMPORT } from './masterSlice.ts';
 
@@ -95,49 +95,67 @@ export const selectPlanStats = createSelector(
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
 export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
 
-const selectBaseFollowChangeCounts = createSelector(
-  [selectBaseAccounts, selectChangesSince],
-  (accounts, since): FollowChangeCounts => followChangeCounts({ accounts }, since),
+export type ChangeSections = Record<FollowChange, readonly string[]>;
+
+/** One value per change list. */
+function byChange<T>(make: (change: FollowChange) => T): Record<FollowChange, T> {
+  return Object.fromEntries(Object.values(FOLLOW_CHANGES).map(change => [change, make(change)])) as Record<
+    FollowChange,
+    T
+  >;
+}
+
+/** The Changes page's sections as imported: account keys in username order. Once per import. */
+const selectBaseChangeSections = createSelector(
+  [selectSortedKeys, selectBaseAccounts, selectChangesSince],
+  (keys, accounts, since): ChangeSections =>
+    byChange(change =>
+      keys.filter(key => {
+        const account = accounts[key];
+        return !!account && followChangeMatches(account, change, since);
+      }),
+    ),
 );
 
 /**
- * Sizes of the change lists: imported counts, adjusted by the edited accounts. Edits never change
- * follows, but a removed account leaves its lists, and deciding a rename takes it out of Lost followers.
+ * The Changes page's sections now. Edits never change follows, so an edit can only take an account out: a removed
+ * account (a confirmed rename) leaves its lists, and deciding a rename takes it out of No longer follow you. Only the
+ * listed accounts are checked again, never all of them.
  */
-export const selectFollowChangeCounts = createSelector(
-  [selectBaseFollowChangeCounts, selectBaseAccounts, selectChanged, selectChangesSince],
-  (baseCounts, base, changed, since): FollowChangeCounts => {
-    const counts = { ...baseCounts };
-    for (const [key, account] of Object.entries(changed)) {
-      for (const change of Object.values(FOLLOW_CHANGES)) {
-        const before = base[key];
-        if (before && followChangeMatches(before, change, since)) {
-          counts[change] -= 1;
+export const selectChangeSections = createSelector(
+  [selectBaseChangeSections, selectChanged, selectChangesSince],
+  (sections, changed, since): ChangeSections =>
+    byChange(change =>
+      sections[change].filter(key => {
+        if (!Object.hasOwn(changed, key)) {
+          return true;
         }
-        if (account && followChangeMatches(account, change, since)) {
-          counts[change] += 1;
-        }
-      }
-    }
-    return counts;
-  },
+        const account = changed[key];
+        return !!account && followChangeMatches(account, change, since);
+      }),
+    ),
+);
+
+/** Sizes of the change lists. */
+export const selectFollowChangeCounts = createSelector([selectChangeSections], (sections): FollowChangeCounts =>
+  byChange(change => sections[change].length),
 );
 
 /** Whether the account belongs to the selected view (before status, tag and search filters). */
-function viewMatches(account: ReadonlyAccount, filters: FiltersState, since: string | null): boolean {
+function viewMatches(account: ReadonlyAccount, filters: FiltersState): boolean {
   if (filters.view === LIST_VIEWS.REVIEW) {
     return scopeMatches(account, filters.scope);
   }
-  if (isFollowChangeView(filters.view)) {
-    return followChangeMatches(account, filters.view, since);
+  if (filters.view === LIST_VIEWS.CHANGES) {
+    return false; // Changes shows its own sections (selectChangeSections)
   }
   return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) === PLAN_STATES.PLANNED;
 }
 
 /** Whether the account is listed with these filters: view, decision (not in To do), tag and search. */
-function accountVisible(account: ReadonlyAccount, filters: FiltersState, since: string | null): boolean {
+function accountVisible(account: ReadonlyAccount, filters: FiltersState): boolean {
   return (
-    viewMatches(account, filters, since) &&
+    viewMatches(account, filters) &&
     (isPlanView(filters.view) || decisionMatches(account, filters.decision)) &&
     tagMatches(account, filters.tag) &&
     queryMatches(account, filters.query)
@@ -154,11 +172,11 @@ function sameKeys(a: readonly string[], b: readonly string[]): boolean {
  * (listSlice.ts), which decides when to recompute it.
  */
 export const selectVisibleAccountKeys = createSelector(
-  [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters, selectChangesSince],
-  (keys, base, changed, filters, since): readonly string[] =>
+  [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters],
+  (keys, base, changed, filters): readonly string[] =>
     keys.filter(key => {
       const account = accountOf(base, changed, key);
-      return !!account && accountVisible(account, filters, since);
+      return !!account && accountVisible(account, filters);
     }),
   { memoizeOptions: { resultEqualityCheck: sameKeys } },
 );
@@ -167,11 +185,10 @@ export const selectVisibleAccountKeys = createSelector(
 export function selectMatchingCount(s: RootState, filters: FiltersState): number {
   const base = selectBaseAccounts(s);
   const changed = selectChanged(s);
-  const since = selectChangesSince(s);
   let count = 0;
   for (const key of selectSortedKeys(s)) {
     const account = accountOf(base, changed, key);
-    if (account && accountVisible(account, filters, since)) {
+    if (account && accountVisible(account, filters)) {
       count += 1;
     }
   }

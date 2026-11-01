@@ -438,6 +438,8 @@ describe('importExport', () => {
       completed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
       reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
     });
+    // The Changes page's facts: counts in the master before this export, and whose plan was found done.
+    expect(result.facts).toEqual({ followingBefore: 2, followersBefore: 2, completedPlans: { bob: [UNFOLLOW] } });
     expect(planOf(must(result.master.accounts.bob), UNFOLLOW)).toBeUndefined();
     // Its only plan happened and bob doesn't follow you: nothing is left to decide.
     expect(result.master.accounts.bob?.decision).toBeUndefined();
