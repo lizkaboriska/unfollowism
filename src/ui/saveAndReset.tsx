@@ -6,6 +6,9 @@ import { SAVE_STATUSES } from '../store/statuses.ts';
 import { saveMaster } from '../store/thunks.ts';
 
 import { useResetChanges } from './resetHooks.tsx';
+import { toaster } from './toasts.ts';
+
+export const SAVED_TOAST = '✓ Master file downloaded. Keep it for your next import.';
 
 /** Save and Reset changes, shared by the header and the Unsaved changes drawer. */
 
@@ -21,7 +24,13 @@ export function SaveButton(props: ButtonProps) {
       {...props}
       loading={saving}
       disabled={!hasProject || !dirty}
-      onClick={() => void dispatch(saveMaster())}
+      onClick={() =>
+        void dispatch(saveMaster()).then(result => {
+          if (saveMaster.fulfilled.match(result)) {
+            toaster.create({ title: SAVED_TOAST });
+          }
+        })
+      }
     >
       Save
     </Button>

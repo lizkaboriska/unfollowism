@@ -284,7 +284,7 @@ describe('save', () => {
     await saving;
 
     expect(selectIsDirty(t.store.getState())).toBe(true);
-    expect(t.store.getState().master.status).toMatchObject({ type: STATUS_EVENTS.SAVED, changedWhileSaving: true });
+    expect(t.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVED });
   });
 
   test('a second save while one is running is ignored', async () => {
@@ -386,7 +386,7 @@ describe('reset changes', () => {
     expect(selectIsDirty(t.store.getState())).toBe(true);
   });
 
-  test("the save message drops the 'changed while saving' note, since those changes are undone", async () => {
+  test('Reset after a save undoes edits made while saving', async () => {
     const gate = deferred();
     const t = makeTestStore({ download: () => gate.promise });
     await t.store.dispatch(importPrepared(prepared())).unwrap();
@@ -396,7 +396,7 @@ describe('reset changes', () => {
     await saving;
 
     t.store.dispatch(resetChanges());
-    expect(t.store.getState().master.status).toMatchObject({ type: STATUS_EVENTS.SAVED, changedWhileSaving: false });
+    expect(t.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVED });
     expect(review(t, 'bob').notes).toBe('');
   });
 

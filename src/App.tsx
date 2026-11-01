@@ -14,6 +14,7 @@ import { ReviewList } from './ui/ReviewList.tsx';
 import { ReviewTop } from './ui/ReviewTop.tsx';
 import { StatusLine } from './ui/StatusLine.tsx';
 import { StorageWarning } from './ui/StorageWarning.tsx';
+import { Toaster } from './ui/Toaster.tsx';
 import { TodoPage } from './ui/TodoPage.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {
@@ -55,6 +56,7 @@ export function App({ deps }: { deps: StoreDeps }) {
 
   return (
     <Box minH="100dvh">
+      <Toaster />
       <AppHeader
         {...(showImport
           ? {}

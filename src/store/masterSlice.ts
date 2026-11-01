@@ -361,12 +361,8 @@ export const masterSlice = createSlice({
         state.savedRevision = payload.revision;
         state.savedAt = payload.savedAt;
         state.savedChanged = payload.changed;
-        state.status = {
-          type: STATUS_EVENTS.SAVED,
-          filename: payload.filename,
-          changedWhileSaving: state.revision !== payload.revision,
-        };
-        state.savedStatus = { type: STATUS_EVENTS.SAVED, filename: payload.filename, changedWhileSaving: false };
+        state.status = { type: STATUS_EVENTS.SAVED };
+        state.savedStatus = { type: STATUS_EVENTS.SAVED };
       })
       .addCase(saveMaster.rejected, (state, { error, meta }) => {
         if (meta.condition) {

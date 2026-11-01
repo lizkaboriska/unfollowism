@@ -13,17 +13,27 @@ import { makeStore } from './store/index.ts';
 import { system } from './theme.ts';
 import { formatSince } from './ui/dates.ts';
 import { DialogProvider } from './ui/dialogs.tsx';
+import { SAVED_TOAST } from './ui/saveAndReset.tsx';
+import { toaster } from './ui/toasts.ts';
+
+// Toasts live outside React; clear them so one test's toast never shows in the next.
+afterEach(() => {
+  toaster.remove();
+});
 
 async function renderApp({
   tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1'),
   lastSaved = memoryLastSaved(),
   waitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
+  /** Called before each download; throw to make the save fail. */
+  beforeDownload = () => undefined,
 } = {}) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now,
     download: (filename, text) => {
+      beforeDownload();
       downloads.push({ filename, text });
     },
     tab,
@@ -226,6 +236,35 @@ test('import → review → save works end to end', async () => {
   expect(saved.accounts.bob?.decision).toEqual({ kind: 'kept' });
   expect(screen.getByRole('button', { name: 'All decisions saved' })).toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
+  expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
+  expect(screen.queryByText(/Started a new master/)).not.toBeInTheDocument(); // the import message gives way
+});
+
+test('a failed save shows a warning that stays until a save works', async () => {
+  let failing = true;
+  const { downloads, user } = await renderApp({
+    beforeDownload: () => {
+      if (failing) {
+        throw new Error('disk full');
+      }
+    },
+  });
+  await importFiles(user, exportFiles());
+  await findRow('bob');
+  await user.click(keepButton('bob'));
+  await user.click(saveButton());
+
+  const warning = await screen.findByRole('alert');
+  expect(within(warning).getByText("⚠ Couldn't save the master file")).toBeInTheDocument();
+  expect(within(warning).getByText('Try Save again. Error: disk full')).toBeInTheDocument();
+  expect(screen.queryByText(SAVED_TOAST)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
+
+  failing = false;
+  await user.click(saveButton());
+  expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
+  expect(downloads).toHaveLength(1);
+  expect(screen.queryByText("⚠ Couldn't save the master file")).not.toBeInTheDocument();
 });
 
 test('a missing Followers file is shown and Import stays disabled', async () => {
