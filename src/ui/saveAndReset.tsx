@@ -5,7 +5,7 @@ import { selectHasProject, selectIsDirty } from '../store/selectors.ts';
 import { SAVE_STATUSES } from '../store/statuses.ts';
 import { saveMaster } from '../store/thunks.ts';
 
-import { useResetChanges } from './resetHooks.ts';
+import { useResetChanges } from './resetHooks.tsx';
 
 /** Save and Reset changes, shared by the header and the Unsaved changes drawer. */
 

@@ -497,7 +497,9 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
 
   await fromMenu(user, 'Reset changes');
   const dialog = await screen.findByRole('alertdialog');
-  expect(within(dialog).getByText(/Changes to 1 account since your last save/)).toBeInTheDocument();
+  // Started from an export only: nothing was saved yet, so Reset goes back to the import.
+  expect(within(dialog).getByText('Your changes to 1 account since the import will be undone.')).toBeInTheDocument();
+  expect(within(dialog).getByText('Instagram stays as it is.')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -505,11 +507,22 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
   expect(isKept('bob')).toBe(true);
 
   await fromMenu(user, 'Reset changes');
-  await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' }));
+  await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset changes' }));
   await waitFor(() => {
     expect(isKept('bob')).toBe(false);
   });
   expect(await resetDisabled()).toBe(true);
+
+  // Once saved, the dialog speaks of the last save and the saved master file.
+  await user.click(keepButton('bob'));
+  await user.click(saveButton());
+  await user.click(keepButton('alice'));
+  await fromMenu(user, 'Reset changes');
+  const afterSave = await screen.findByRole('alertdialog');
+  expect(
+    within(afterSave).getByText('Your changes to 1 account since your last save will be undone.'),
+  ).toBeInTheDocument();
+  expect(within(afterSave).getByText('Your saved master file and Instagram stay as they are.')).toBeInTheDocument();
 });
 
 describe('main view', () => {
@@ -787,7 +800,7 @@ describe('main view', () => {
 
     // Nothing was saved, so Reset goes back to the import, where nothing was queued.
     await fromMenu(user, 'Reset changes');
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset changes' }));
     expect(await screen.findByRole('heading', { name: 'Nothing queued' })).toBeInTheDocument();
   });
 
@@ -1014,7 +1027,7 @@ describe('unsaved changes drawer', () => {
     await user.click(screen.getByRole('button', { name: '● Unsaved · 1 changed account' }));
     await user.click(within(await finishedOpening(waitFor(drawer))).getByRole('button', { name: 'Reset changes' }));
     const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
-    await user.click(within(confirmReset).getByRole('button', { name: 'Reset' }));
+    await user.click(within(confirmReset).getByRole('button', { name: 'Reset changes' }));
     expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
   });
 });

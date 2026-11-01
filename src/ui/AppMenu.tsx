@@ -2,7 +2,7 @@ import { Button, Menu, Portal } from '@chakra-ui/react';
 import { useState } from 'react';
 
 import { ManageTagsDialog } from './ManageTagsDialog.tsx';
-import { useResetChanges } from './resetHooks.ts';
+import { useResetChanges } from './resetHooks.tsx';
 
 const ROW = { h: '12', px: '3.5', textStyle: 'control' } as const;
 
