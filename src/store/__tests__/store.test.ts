@@ -999,13 +999,15 @@ describe('selectors', () => {
     });
   });
 
-  test('plan views list planned actions; done ones leave the list', async () => {
+  test('To do tabs list their plans, queued first, then done; Review filters do not apply', async () => {
     const t = await importedStore();
-    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setPlan({ username: 'carol', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
     t.store.dispatch(setPlan({ username: 'dave', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    t.store.dispatch(setQuery('zzz')); // matches nobody
     t.store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
-    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(['alice']);
+    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(['bob', 'carol', 'alice']);
     t.store.dispatch(setView(LIST_VIEWS.TO_REMOVE));
     expect(selectVisibleAccountKeys(t.store.getState())).toEqual(['dave']);
   });

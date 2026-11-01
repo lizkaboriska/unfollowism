@@ -6,9 +6,11 @@ import {
   RELATIONSHIPS,
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
+  relationshipOf,
   type ActionType,
   type FollowChange,
   type PlanState,
+  type ReadonlyAccount,
   type Relationship,
   type ReviewScope,
   type TagFilter,
@@ -28,6 +30,12 @@ export const RELATIONSHIP_NOTES: Record<Relationship, string> = {
   [RELATIONSHIPS.FOLLOWS_YOU_ONLY]: 'Follows you only · they follow you',
   [RELATIONSHIPS.NEITHER]: 'Not in this export',
 };
+
+/** The relationship under a name on a card or row; a past account says it's not in this export. */
+export function relationshipNote(account: ReadonlyAccount): string {
+  const relationship = relationshipOf(account);
+  return relationship === RELATIONSHIPS.NEITHER ? RELATIONSHIP_NOTES[relationship] : RELATIONSHIP_LABELS[relationship];
+}
 
 export const SCOPE_LABELS: Record<ReviewScope, string> = {
   [REVIEW_SCOPES.FOLLOWING]: 'Following',
@@ -80,10 +88,14 @@ export function queueText(type: ActionType): string {
   return `Queue ${PLAN_NOUNS[type].toLowerCase()}`;
 }
 
-/** Checkbox and To do switch wording per planned action. */
-export const PLAN_LABELS: Record<ActionType, { checkbox: string; todo: string; summary: string }> = {
-  [ACTION_TYPES.UNFOLLOW]: { checkbox: 'To unfollow', todo: 'Unfollow', summary: 'to unfollow' },
-  [ACTION_TYPES.REMOVE_FOLLOWER]: { checkbox: 'To remove', todo: 'Remove', summary: 'to remove' },
+/** A To do tab per action: its label, what it says when empty, and when everything in it is done. */
+export const TODO_LABELS: Record<ActionType, { tab: string; empty: string; allDone: string }> = {
+  [ACTION_TYPES.UNFOLLOW]: { tab: 'Unfollow', empty: 'No unfollows queued.', allDone: 'All unfollows done' },
+  [ACTION_TYPES.REMOVE_FOLLOWER]: {
+    tab: 'Remove follower',
+    empty: 'No removals queued.',
+    allDone: 'All removals done',
+  },
 };
 
 /** The tag filter's option and chip label: "Any tag", "No tags" or the tag itself. */

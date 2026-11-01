@@ -68,12 +68,6 @@ async function importFiles(user: UserEvent, files: File[]) {
 /** A regex for an option's label, ignoring a count after it ("Mutual 3", "artist 2"). */
 const optionName = (label: string) => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\d*$`);
 
-/** Opens a filter dropdown of To do and picks an option by its label. */
-async function chooseFilter(user: UserEvent, name: string, option: string) {
-  await user.click(screen.getByRole('combobox', { name }));
-  await user.click(await screen.findByRole('option', { name: optionName(option) }));
-}
-
 /**
  * Waits until a sheet, drawer or dialog has finished opening. One frame after it appears, it hides the page behind
  * it from assistive tech and starts accepting clicks. Before that frame a dialog opened over it would be hidden too,
@@ -526,11 +520,9 @@ describe('main view', () => {
     await findRow('bob');
     return t;
   }
-  const tab = (name: RegExp) => screen.getByRole('button', { name });
-  const choose = (user: UserEvent, name: string, option: string) => chooseFilter(user, name, option);
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 
-  test('the navigation switches pages; empty lists inside To do are disabled', async () => {
+  test('the navigation switches pages; To do with nothing queued says so', async () => {
     const { user } = await imported();
     expect(shown()).toEqual(['@alice', '@bob']);
     expect(navItem(/^Review$/)).toHaveAttribute('aria-current', 'page');
@@ -542,29 +534,30 @@ describe('main view', () => {
     expect(screen.queryByRole('region', { name: 'Compared files' })).not.toBeInTheDocument();
 
     await user.click(navItem(/^To do$/)); // nothing queued: no count, but it still opens
-    expect(tab(/^Unfollow \(0\)$/)).toHaveAttribute('aria-pressed', 'true');
-    expect(tab(/^Remove \(0\)$/)).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Nothing queued' })).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument(); // nothing to track
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Change list$/ })).not.toBeInTheDocument(); // the list is Review-only
+    await user.click(screen.getByRole('button', { name: 'Back to Review' }));
+    expect(navItem(/^Review$/)).toHaveAttribute('aria-current', 'page');
   });
 
-  test('search and tag filters are kept between Review and To do', async () => {
+  test('To do lists everything queued, whatever the search and filters in Review', async () => {
     const { user } = await imported();
     await newTag(user, 'alice', 'artist');
     await user.click(cardButton('alice', 'Queue unfollow'));
     await user.click(cardButton('bob', 'Queue unfollow'));
-    await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'bo');
-    expect(shown()).toEqual(['@bob']);
-    await user.click(navItem(/^To do 2$/));
-    expect(shown()).toEqual(['@bob']);
-    await user.clear(screen.getByRole('textbox', { name: 'Search username' }));
-
-    await choose(user, 'Tag', 'artist');
+    await applyFilters(user, 'artist');
+    await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'al');
     expect(shown()).toEqual(['@alice']);
-    await choose(user, 'Tag', 'No tags');
-    expect(shown()).toEqual(['@bob']);
-    await user.click(navItem(/^Review$/));
-    expect(shown()).toEqual(['@bob']);
-    expect(screen.getByRole('button', { name: 'Remove filter No tags' })).toBeInTheDocument();
+
+    await user.click(navItem(/^To do 2$/));
+    expect(shown()).toEqual(['@alice', '@bob']);
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument(); // To do has no search or filters
+
+    await user.click(navItem(/^Review$/)); // Review keeps them
+    expect(shown()).toEqual(['@alice']);
+    expect(screen.getByRole('button', { name: 'Remove filter artist' })).toBeInTheDocument();
   });
 
   test('Review top: heading, your numbers, and the links switch the list', async () => {
@@ -654,7 +647,7 @@ describe('main view', () => {
     expect(shown()).toEqual(['@alice']);
   });
 
-  test('plans: offered only when the follow exists; To do → Mark done leaves the list on refresh', async () => {
+  test('plans: offered only when the follow exists; To do → Mark done, Undo, All done', async () => {
     const { user } = await imported();
     await applyFilters(user, 'Everyone now');
     // The sheet offers each plan whose follow exists: alice (mutual) both, bob only unfollow, carol only removal.
@@ -676,45 +669,90 @@ describe('main view', () => {
     expect(cardButton('bob', '✓ Unfollow queued')).toHaveAttribute('aria-pressed', 'true');
     await applyFilters(user, 'Needs a decision');
     await user.click(navItem(/^To do 1$/));
-    expect(shown()).toEqual(['@bob']); // the decision filter doesn't apply in To do…
-    expect(screen.queryByRole('combobox', { name: 'Your decision' })).not.toBeInTheDocument(); // …so it's hidden there
-    expect(screen.getByText('1 to unfollow')).toBeInTheDocument();
+    expect(shown()).toEqual(['@bob']);
+    expect(screen.getByRole('tab', { name: 'Unfollow 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Remove follower' })).toBeInTheDocument(); // count hidden at 0
+    expect(screen.getByText('0 of 1 done')).toBeInTheDocument();
+    expect(within(row('bob')).getByText('Not following back')).toBeInTheDocument();
+    expect(within(row('bob')).getByRole('link', { name: 'Open in Instagram ↗' })).toHaveAttribute(
+      'href',
+      'https://www.instagram.com/bob',
+    );
+    expect(within(row('bob')).queryByRole('textbox')).not.toBeInTheDocument(); // notes are edited in Review
 
-    // a compact row: no tags and no note
-    expect(within(row('bob')).queryByRole('button', { name: 'dog' })).not.toBeInTheDocument();
-    expect(within(row('bob')).queryByRole('textbox')).not.toBeInTheDocument();
-    await user.click(within(row('bob')).getByRole('button', { name: 'Mark done' }));
+    await user.click(within(row('bob')).getByRole('button', { name: '✓ Mark done' }));
     expect(within(row('bob')).getByText('✓ Done')).toBeInTheDocument();
-    expect(screen.getByText('0 to unfollow · 1 done, waiting for the next import')).toBeInTheDocument();
-    expect(shown()).toEqual(['@bob']); // stays until the list refreshes
+    expect(within(row('bob')).queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('1 of 1 done')).toBeInTheDocument();
+    expect(screen.getByText('All unfollows done')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Unfollow' })).toBeInTheDocument(); // nothing left in it
+    expect(shown()).toEqual(['@bob']); // the tabs stay while you're on the page
 
     await user.click(within(row('bob')).getByRole('button', { name: 'Undo' }));
-    expect(screen.getByText('1 to unfollow')).toBeInTheDocument();
-    await user.click(within(row('bob')).getByRole('button', { name: 'Mark done' }));
+    expect(screen.getByText('0 of 1 done')).toBeInTheDocument();
+    await user.click(within(row('bob')).getByRole('button', { name: '✓ Mark done' }));
     await user.click(navItem(/^Review$/));
     expect(navItem(/^To do$/)).toBeInTheDocument(); // the count is hidden at 0
     await applyFilters(user, 'Any');
     // marked done in To do, waiting for the next import: the card says so; tapping it would undo the plan
     expect(cardButton('bob', '✓ Unfollow done')).toHaveAttribute('aria-pressed', 'true');
+
+    // Coming back with nothing left: All done. The done plans can still be viewed and undone until the next import.
+    await user.click(navItem(/^To do$/));
+    expect(screen.getByRole('heading', { name: 'All done, for now' })).toBeInTheDocument();
+    expect(screen.getByText('1 of 1 done')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View completed · 1' }));
+    expect(shown()).toEqual(['@bob']);
+    expect(within(row('bob')).getByText('✓ Done')).toBeInTheDocument();
+    await user.click(navItem(/^Review$/));
+    await user.click(navItem(/^To do$/));
+    expect(screen.getByRole('heading', { name: 'All done, for now' })).toBeInTheDocument(); // not remembered
   });
 
-  test('To do → Keep removes the plan; Undo brings it back', async () => {
+  test('To do opens on Unfollow, or on Remove follower when no unfollows are left; done rows move down', async () => {
+    const { user } = await imported();
+    await applyFilters(user, 'Everyone now');
+    await user.click(cardButton('carol', 'Queue removal'));
+    await user.click(navItem(/^To do 1$/));
+    expect(screen.getByRole('tab', { name: 'Remove follower 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(shown()).toEqual(['@carol']);
+    await user.click(screen.getByRole('tab', { name: 'Unfollow' }));
+    expect(screen.getByText('No unfollows queued.')).toBeInTheDocument();
+
+    await user.click(navItem(/^Review$/));
+    await user.click(cardButton('alice', 'Queue unfollow'));
+    await user.click(cardButton('bob', 'Queue unfollow'));
+    await user.click(navItem(/^To do 3$/));
+    expect(screen.getByRole('tab', { name: 'Unfollow 2' })).toHaveAttribute('aria-selected', 'true');
+    expect(shown()).toEqual(['@alice', '@bob']);
+
+    await user.click(within(row('alice')).getByRole('button', { name: '✓ Mark done' }));
+    expect(shown()).toEqual(['@alice', '@bob']); // no jump under your finger
+    await user.click(screen.getByRole('tab', { name: 'Remove follower 1' }));
+    await user.click(screen.getByRole('tab', { name: 'Unfollow 1' }));
+    expect(shown()).toEqual(['@bob', '@alice']); // done at the bottom once the list refreshes
+  });
+
+  test('To do → Keep instead removes the plan; Undo brings it back', async () => {
     const { user } = await imported();
     await newTag(user, 'alice', 'artist');
     await user.click(cardButton('alice', 'Queue unfollow'));
     await user.click(cardButton('bob', 'Queue unfollow'));
     await user.click(navItem(/^To do 2$/));
-    expect(within(row('alice')).getByText('artist')).toBeInTheDocument(); // its tags, read-only
+    expect(within(row('alice')).getByText('#artist')).toBeInTheDocument(); // its tags, read-only
     expect(within(row('alice')).queryByRole('button', { name: 'artist' })).not.toBeInTheDocument();
+    expect(screen.getByText('0 of 2 done')).toBeInTheDocument();
 
-    await user.click(within(row('alice')).getByRole('button', { name: 'Keep' }));
-    expect(within(row('alice')).getByText('Kept')).toBeInTheDocument();
+    await user.click(within(row('alice')).getByRole('button', { name: 'Keep instead' }));
+    expect(within(row('alice')).getByText('Kept')).toBeInTheDocument(); // stays, so it can be undone
     expect(navItem(/^To do 1$/)).toBeInTheDocument();
+    expect(screen.getByText('0 of 1 done')).toBeInTheDocument();
     await user.click(within(row('alice')).getByRole('button', { name: 'Undo' }));
     expect(navItem(/^To do 2$/)).toBeInTheDocument();
 
-    await user.click(within(row('alice')).getByRole('button', { name: 'Keep' }));
+    await user.click(within(row('alice')).getByRole('button', { name: 'Keep instead' }));
     await user.click(navItem(/^Review$/)); // refresh the list
+    expect(isKept('alice')).toBe(true);
     await user.click(navItem(/^To do 1$/));
     expect(shown()).toEqual(['@bob']);
   });

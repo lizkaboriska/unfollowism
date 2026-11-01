@@ -25,7 +25,7 @@ export const LIST_VIEWS = {
 } as const;
 export type ListView = ValueOf<typeof LIST_VIEWS>;
 
-/** The To do lists, and the action each one lists. The decision filter doesn't apply there: they're all queued. */
+/** The To do tabs, and the action each one lists, queued or done. Review's filters don't apply there. */
 export const PLAN_VIEW_ACTIONS = {
   [LIST_VIEWS.TO_UNFOLLOW]: ACTION_TYPES.UNFOLLOW,
   [LIST_VIEWS.TO_REMOVE]: ACTION_TYPES.REMOVE_FOLLOWER,
@@ -47,7 +47,7 @@ export interface FiltersState {
   decision: DecisionFilter;
   tag: TagFilter;
   query: string;
-  /** Only REVIEW uses `scope`; decision applies except in To do lists; tag and search apply to every view. */
+  /** Only REVIEW uses scope, decision, tag and search; they're kept while another page is open. */
   view: ListView;
 }
 
