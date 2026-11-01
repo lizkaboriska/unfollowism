@@ -439,8 +439,8 @@ describe('importExport', () => {
       reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
     });
     expect(planOf(must(result.master.accounts.bob), UNFOLLOW)).toBeUndefined();
-    // Its only plan happened, so it counts as decided (agreed rule: settled → Kept).
-    expect(result.master.accounts.bob?.decision).toEqual({ kind: DecisionKind.KEPT });
+    // Its only plan happened and bob doesn't follow you: nothing is left to decide.
+    expect(result.master.accounts.bob?.decision).toBeUndefined();
     expect(planOf(must(result.master.accounts.alice), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
     expect(planOf(must(result.master.accounts.carol), REMOVE_FOLLOWER)).toBe(PLAN_STATES.PLANNED);
     expect(result.dirty).toBe(true);

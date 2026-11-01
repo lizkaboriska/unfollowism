@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ACTION_TYPES,
   importExport,
+  isPastAccount,
   parseFollowersJson,
   parseFollowingJson,
   parseMaster,
@@ -37,18 +38,29 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     followerFileCount: followerRaws.length,
   });
 
-  test('your master + the export it came from: nothing changes, and it saves back byte for byte', () => {
-    const result = importExport(
-      read(MASTER),
+  test('your master + the export it came from: only past accounts lose a decision, then it saves back as is', () => {
+    const sameExport = () =>
       bundle(
         read('connections/following.json'),
         followerNames().map(n => read(`connections/${n}`)),
-      ),
-      NOW,
-    );
-    expect(result.summary.exportChanged).toBe(false);
-    expect(result.dirty).toBe(false);
-    expect(stringifyMasterFile(toMasterFile(result.master))).toBe(text(MASTER));
+      );
+    const first = importExport(read(MASTER), sameExport(), NOW);
+    expect(first.summary.exportChanged).toBe(false);
+    const before = parseMaster(read(MASTER)).accounts;
+    expect(Object.keys(first.master.accounts)).toEqual(Object.keys(before));
+    for (const [key, account] of Object.entries(first.master.accounts)) {
+      const old = must(before[key]);
+      if (old.decision !== undefined && account.decision === undefined) {
+        expect(isPastAccount(account), `${key} lost its decision`).toBe(true);
+        delete old.decision;
+      }
+      expect(account, key).toEqual(old);
+    }
+
+    const saved = stringifyMasterFile(toMasterFile(first.master));
+    const second = importExport(JSON.parse(saved), sameExport(), NOW);
+    expect(second.dirty).toBe(false);
+    expect(stringifyMasterFile(toMasterFile(second.master))).toBe(saved);
   });
 
   test('an export where every planned unfollow happened and 3 followers left', () => {

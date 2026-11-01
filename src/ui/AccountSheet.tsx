@@ -17,6 +17,7 @@ import {
   ACTION_TYPES,
   PLAN_STATES,
   followExists,
+  isPastAccount,
   planOf,
   profileUrl,
   relationshipOf,
@@ -82,19 +83,22 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
   const { username, review } = account;
   return (
     <Stack gap="5">
-      <Section legend="Your decision">
-        <Stack gap="2">
-          <KeepButton account={account} />
-          <SimpleGrid columns={2} gap="2">
-            {Object.values(ACTION_TYPES).map(type => (
-              <QueueToggle key={type} account={account} type={type} />
-            ))}
-          </SimpleGrid>
-          <Text textStyle="small" color="fg.muted">
-            Queue one or both. Keep clears them.
-          </Text>
-        </Stack>
-      </Section>
+      {/* A past account has nothing left to decide. */}
+      {!isPastAccount(account) && (
+        <Section legend="Your decision">
+          <Stack gap="2">
+            <KeepButton account={account} />
+            <SimpleGrid columns={2} gap="2">
+              {Object.values(ACTION_TYPES).map(type => (
+                <QueueToggle key={type} account={account} type={type} />
+              ))}
+            </SimpleGrid>
+            <Text textStyle="small" color="fg.muted">
+              Queue one or both. Keep clears them.
+            </Text>
+          </Stack>
+        </Section>
+      )}
       <Section legend="Tags">
         <Wrap gap="2" role="group" aria-label={`Tags for @${username}`}>
           {tags.map(tag => {

@@ -1,5 +1,5 @@
 import { createAccount } from './account.ts';
-import { settlePlans, totalOf, type PlanOutcomes } from './actions.ts';
+import { settleDecisions, totalOf, type PlanOutcomes, type SettledDecisions } from './actions.ts';
 import { IMPORT_PROBLEMS, ImportError } from './importProblems.ts';
 import { parseMaster } from './masterFile.ts';
 import { dedupeAccounts } from './parse.ts';
@@ -56,15 +56,15 @@ function redated(previous: Follow | null, entry: ExportEntry | undefined): boole
  * WRITE: applies a fresh export to the accounts (mutated in place): finds likely renames while
  * the old follow dates are still there, updates the follows, dates the ones that stopped (`now`),
  * and, when `accounts` come from a saved master (`saved`), the ones that appeared; puts rename
- * suggestions on the old accounts (dropping earlier ones that no longer hold), and settles planned
- * actions against the follows.
+ * suggestions on the old accounts (dropping earlier ones that no longer hold), and settles decisions
+ * against the follows.
  */
 export function mergeExports(
   accounts: Record<string, Account>,
   bundle: ExportBundle,
   now: string,
   saved: boolean,
-): { exportChanged: boolean; plans: PlanOutcomes } {
+): { exportChanged: boolean } & SettledDecisions {
   const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
   const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
   const renames = findRenames(accounts, following, followers);
@@ -111,12 +111,19 @@ export function mergeExports(
     }
   }
 
-  return { exportChanged, plans: settlePlans({ accounts }, new Set(renames.map(r => r.from))) };
+  const settled = settleDecisions(
+    { accounts },
+    {
+      uncounted: new Set(renames.map(r => r.from)),
+      lostFollowers: new Set([...previousFollowers].filter(key => !followers.has(key))),
+    },
+  );
+  return { exportChanged, ...settled };
 }
 
 /**
  * Pure: raw master (or null for a first-time user) + parsed export → new master.
- * parseMaster → mergeExports (incl. settlePlans), with an injected clock.
+ * parseMaster → mergeExports (incl. settleDecisions), with an injected clock.
  */
 export function importExport(rawMaster: unknown, bundle: ExportBundle, now: string): ImportResult {
   if (!bundle.following.length) {
@@ -129,7 +136,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const { exportChanged, plans } = mergeExports(accounts, bundle, now, base?.lastSavedAt !== undefined);
+  const { exportChanged, plans, undecided } = mergeExports(accounts, bundle, now, base?.lastSavedAt !== undefined);
   const summary: ImportSummary = {
     exportChanged,
     followingCount: Object.values(accounts).filter(a => a.following).length,
@@ -146,12 +153,12 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
     ...(base?.lastSavedAt === undefined ? {} : { lastSavedAt: base.lastSavedAt }),
   };
 
-  const plansSettled = totalOf(plans.completed) + totalOf(plans.reopened) > 0;
+  const decisionsSettled = totalOf(plans.completed) + totalOf(plans.reopened) + undecided > 0;
   return {
     master,
     summary,
     isNewMaster,
-    dirty: isNewMaster || exportChanged || plansSettled,
+    dirty: isNewMaster || exportChanged || decisionsSettled,
     followerFileCount: bundle.followerFileCount,
   };
 }

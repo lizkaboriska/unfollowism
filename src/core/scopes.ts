@@ -1,4 +1,4 @@
-import { decisionMatches } from './decision.ts';
+import { decisionMatches, isPastAccount } from './decision.ts';
 import {
   DecisionFilter,
   FOLLOW_CHANGES,
@@ -136,7 +136,7 @@ export function scopeMatches(account: ReadonlyAccount, scope: ReviewScope): bool
     case REVIEW_SCOPES.FOLLOWS_YOU_ONLY:
       return relationshipOf(account) === RELATIONSHIPS.FOLLOWS_YOU_ONLY;
     case REVIEW_SCOPES.ALL_CURRENT:
-      return account.following !== null || account.followedBy !== null;
+      return !isPastAccount(account);
     case REVIEW_SCOPES.ALL_ACCOUNTS:
       return true;
   }

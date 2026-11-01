@@ -1043,6 +1043,37 @@ describe('tags', () => {
   });
 });
 
+test('someone you kept who stops following you needs a decision again; past accounts have none', async () => {
+  const entries = (names: string[]) => names.map((name): [string] => [name]);
+  const exportOf = (following: string[], followers: string[]) => [
+    new File([JSON.stringify(followingFile(...entries(following)))], 'following.json', { type: 'application/json' }),
+    new File([JSON.stringify(followersFile(...entries(followers)))], 'followers_1.json', { type: 'application/json' }),
+  ];
+  let clock = Date.parse('2026-10-27T12:00:00.000Z');
+  const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });
+  await importFiles(user, exportOf(['alice', 'bob'], ['alice', 'carol']));
+  await findRow('alice');
+  await user.click(keepButton('alice'));
+  await user.click(keepButton('bob'));
+  await user.click(saveButton());
+  await waitFor(() => {
+    expect(downloads).toHaveLength(1);
+  });
+
+  // alice stops following you; you unfollow bob, who never followed you: bob is now a past account
+  await fromMenu(user, 'Import new files');
+  const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
+  await importFiles(user, [master, ...exportOf(['alice'], ['carol'])]);
+  await findRow('alice');
+  expect(isKept('alice')).toBe(false);
+  expect(queryRow('bob')).not.toBeInTheDocument(); // not in Following any more
+
+  await applyFilters(user, 'Everyone incl. past accounts');
+  expect(within(row('bob')).queryByRole('button', { name: /Keep|Kept/ })).not.toBeInTheDocument();
+  const sheet = await openAccount(user, 'bob');
+  expect(within(sheet).queryByText('Your decision')).not.toBeInTheDocument();
+});
+
 test('a renamed follower is suggested in Lost followers, and confirming moves its work', async () => {
   const exportOf = (followers: [string, number][]) => [
     new File([JSON.stringify(followingFile(['alice', 101], ['bob', 102]))], 'following.json', {

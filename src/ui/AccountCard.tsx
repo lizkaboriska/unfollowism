@@ -8,6 +8,7 @@ import {
   followChangeMatches,
   followExists,
   isKept,
+  isPastAccount,
   planOf,
   relationshipOf,
   type ActionType,
@@ -116,12 +117,14 @@ export const AccountCard = memo(function AccountCard({ accountKey }: { accountKe
 
         <Stack gap="3" flex="2" minW="0">
           <HStack gap="4" wrap="wrap">
-            <CheckboxField
-              name={`kept-${username}`}
-              label="Kept"
-              checked={isKept(account)}
-              onChange={kept => dispatch(setKept({ username, kept }))}
-            />
+            {!isPastAccount(account) && (
+              <CheckboxField
+                name={`kept-${username}`}
+                label="Kept"
+                checked={isKept(account)}
+                onChange={kept => dispatch(setKept({ username, kept }))}
+              />
+            )}
             <CheckboxField
               name={`unavailable-${username}`}
               label="Unavailable"

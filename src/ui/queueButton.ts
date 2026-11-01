@@ -14,7 +14,7 @@ const FOLLOWER_SCOPES: readonly ReviewScope[] = [REVIEW_SCOPES.FOLLOWERS, REVIEW
 
 /**
  * The one action a Review card offers to queue: removal in the follower lists, otherwise unfollow when you follow
- * them, else removal. Null when neither follow exists (a past account): the card then only offers Keep.
+ * them, else removal. Null when neither follow exists (a past account, which has no decision buttons).
  */
 export function offeredAction(account: ReadonlyAccount, scope: ReviewScope): ActionType | null {
   const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;

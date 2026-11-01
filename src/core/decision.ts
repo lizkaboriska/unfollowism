@@ -21,6 +21,14 @@ export function followExists(account: ReadonlyAccount, type: ActionType): boolea
   return followOf(account, type) !== null;
 }
 
+/**
+ * A past account: in neither list of the latest export (you don't follow each other any more, or it was deactivated).
+ * There is nothing left to decide, so it has no decision and can't get one.
+ */
+export function isPastAccount(account: ReadonlyAccount): boolean {
+  return account.following === null && account.followedBy === null;
+}
+
 /** The plan for an action, or undefined when it isn't queued. */
 export function planOf(account: ReadonlyAccount, type: ActionType): PlanState | undefined {
   return account.decision?.kind === DecisionKind.QUEUED ? account.decision.plans[type] : undefined;
@@ -65,7 +73,11 @@ export function setPlan(account: Account, type: ActionType, state: PlanState | u
   }
 }
 
+/** Past accounts match only Any: they don't need a decision, and any old one is gone. */
 export function decisionMatches(account: ReadonlyAccount, filter: DecisionFilter): boolean {
+  if (filter !== DecisionFilter.ANY && isPastAccount(account)) {
+    return false;
+  }
   switch (filter) {
     case DecisionFilter.ANY:
       return true;

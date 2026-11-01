@@ -1,4 +1,4 @@
-import { followExists, keep, planOf, setPlan } from './decision.ts';
+import { followExists, isKept, isPastAccount, keep, planOf, setPlan, undecide } from './decision.ts';
 import {
   ACTION_TYPES,
   PLAN_STATES,
@@ -26,17 +26,33 @@ export interface PlanOutcomes {
   reopened: ActionCounts;
 }
 
+export interface SettledDecisions {
+  plans: PlanOutcomes;
+  /** Decisions the export made out of date (see settleDecisions): taken back to none. */
+  undecided: number;
+}
+
 /**
- * WRITE: after an import has updated the follows, settles every plan against them. An account whose last plan
- * happened becomes Kept. Plans on `uncounted` accounts (likely renames) are cleared like the rest but not reported as
- * done.
+ * WRITE: after an import has updated the follows, settles every decision against them:
+ * - plans whose follow is gone are done and cleared; an account whose last plan happened becomes Kept while you are
+ *   still connected;
+ * - a Kept account in `lostFollowers` (they stopped following you in this export) needs a decision again;
+ * - a past account loses any decision: there is nothing left to decide.
+ * Plans on `uncounted` accounts (likely renames) are cleared like the rest but not reported as done. Accounts with
+ * a rename suggestion keep their decision, to move it to the new name.
  */
-export function settlePlans(
+export function settleDecisions(
   source: Pick<Master, 'accounts'>,
-  uncounted: ReadonlySet<string> = new Set(),
-): PlanOutcomes {
+  {
+    uncounted = new Set(),
+    lostFollowers = new Set(),
+  }: { uncounted?: ReadonlySet<string>; lostFollowers?: ReadonlySet<string> } = {},
+): SettledDecisions {
   const outcomes: PlanOutcomes = { completed: emptyActionCounts(), reopened: emptyActionCounts() };
+  let undecided = 0;
   for (const [key, account] of Object.entries(source.accounts)) {
+    // Before plans settle: a removal you did turns into Kept below, and must not count as them leaving.
+    const keptBefore = isKept(account);
     let completed = false;
     for (const type of Object.values(ACTION_TYPES)) {
       const plan = planOf(account, type);
@@ -55,11 +71,18 @@ export function settlePlans(
       }
     }
     // Every plan happened: you acted on the account, so it counts as decided.
-    if (completed && account.decision === undefined) {
+    if (completed && account.decision === undefined && !isPastAccount(account)) {
       keep(account);
     }
+    if (account.renameSuggestion !== undefined || account.decision === undefined) {
+      continue;
+    }
+    if (isPastAccount(account) || (keptBefore && lostFollowers.has(key))) {
+      undecide(account);
+      undecided += 1;
+    }
   }
-  return outcomes;
+  return { plans: outcomes, undecided };
 }
 
 export type PlanStats = Record<PlanState, ActionCounts>;

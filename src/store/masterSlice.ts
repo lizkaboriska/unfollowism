@@ -6,6 +6,7 @@ import {
   createDict,
   followExists,
   isKept,
+  isPastAccount,
   keep,
   mergeRenamed,
   planOf,
@@ -154,10 +155,10 @@ export const masterSlice = createSlice({
   name: 'master',
   initialState,
   reducers: {
-    /** Keep (clears any plans), or back to needing a decision. */
+    /** Keep (clears any plans), or back to needing a decision. A past account can't be kept: nothing to decide. */
     setKept(state, { payload }: PayloadAction<{ username: string; kept: boolean }>) {
       const before = accountBefore(state, payload.username);
-      if (!before || isKept(before) === payload.kept) {
+      if (!before || isKept(before) === payload.kept || (payload.kept && isPastAccount(before))) {
         return;
       }
       editAccount(state, payload.username, account => {
@@ -184,14 +185,17 @@ export const masterSlice = createSlice({
         }
       });
     },
-    /** Marking unavailable means you looked: an undecided account becomes Kept. Clearing it changes no decision. */
+    /**
+     * Marking unavailable means you looked: an undecided account becomes Kept, unless it's a past account. Clearing it
+     * changes no decision.
+     */
     setUnavailable(state, { payload }: PayloadAction<{ username: string; unavailable: boolean }>) {
       if (accountBefore(state, payload.username)?.review.unavailable === payload.unavailable) {
         return;
       }
       editAccount(state, payload.username, account => {
         account.review.unavailable = payload.unavailable;
-        if (payload.unavailable && account.decision === undefined) {
+        if (payload.unavailable && account.decision === undefined && !isPastAccount(account)) {
           keep(account);
         }
       });

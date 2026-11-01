@@ -1,7 +1,14 @@
 import { Box, Button, HStack, SimpleGrid, Text, chakra } from '@chakra-ui/react';
 import { memo } from 'react';
 
-import { PLAN_STATES, RELATIONSHIPS, isKept, relationshipOf, type ReadonlyAccount } from '../core/index.ts';
+import {
+  PLAN_STATES,
+  RELATIONSHIPS,
+  isKept,
+  isPastAccount,
+  relationshipOf,
+  type ReadonlyAccount,
+} from '../core/index.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { setKept, setPlan } from '../store/masterSlice.ts';
 import { selectAccount } from '../store/selectors.ts';
@@ -116,10 +123,13 @@ export const ReviewCard = memo(function ReviewCard({
           {review.tags.map(tag => `#${tag}`).join(' ')}
         </Text>
       )}
-      <SimpleGrid columns={2} gap="2" mt="2.5">
-        <KeepButton account={account} />
-        <QueueControl account={account} onOpen={open} />
-      </SimpleGrid>
+      {/* A past account has nothing left to decide. */}
+      {!isPastAccount(account) && (
+        <SimpleGrid columns={2} gap="2" mt="2.5">
+          <KeepButton account={account} />
+          <QueueControl account={account} onOpen={open} />
+        </SimpleGrid>
+      )}
     </Box>
   );
 });

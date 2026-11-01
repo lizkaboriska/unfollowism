@@ -9,7 +9,9 @@ import {
   SESSION_CHANGES,
   TAG_FILTER_KINDS,
   buildSessionDiff,
+  decisionMatches,
   dedupeAccounts,
+  isKept,
   keep,
   undecide,
   planOf,
@@ -19,7 +21,7 @@ import {
   reviewScopeAccounts,
   scopeMatches,
   setPlan,
-  settlePlans,
+  settleDecisions,
   summarizeSession,
   type Account,
 } from '../index.ts';
@@ -73,27 +75,79 @@ test('a planned unfollow is the decision, and is completed only once the follow 
   expect(planOf(a, UNFOLLOW)).toBe(PLANNED);
   expect(a.decision).toEqual({ kind: DecisionKind.QUEUED, plans: { unfollow: PLANNED } });
 
-  expect(settlePlans(state)).toEqual({ completed: none, reopened: none }); // still followed
+  expect(settleDecisions(state).plans).toEqual({ completed: none, reopened: none }); // still followed
   expect(planOf(a, UNFOLLOW)).toBe(PLANNED);
 
   follows(a, {});
-  expect(settlePlans(state)).toEqual({ completed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 }, reopened: none });
+  expect(settleDecisions(state).plans).toEqual({ completed: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 }, reopened: none });
   expect(planOf(a, UNFOLLOW)).toBeUndefined();
-  expect(a.decision, 'its only plan happened, so it counts as Kept').toEqual({ kind: DecisionKind.KEPT });
+  expect(a.decision, 'nothing is left between you: no decision').toBeUndefined();
+});
+
+test('a done plan leaves the account Kept while you are still connected', () => {
+  // A mutual: removed as a follower, still followed (the mixed case set in the sheet).
+  const a = follows(account(), { following: true, followedBy: true });
+  setPlan(a, REMOVE_FOLLOWER, PLANNED);
+  follows(a, { following: true });
+  // Your removal is why they left: it doesn't count as them leaving.
+  expect(settleDecisions(stateWith(a), { lostFollowers: new Set(['alice']) }).undecided).toBe(0);
+  expect(a.decision).toEqual({ kind: DecisionKind.KEPT });
+});
+
+test('a Kept account that stops following you needs a decision again; one you unfollowed stays Kept', () => {
+  const left = follows(account('left'), { following: true, followedBy: true });
+  const unfollowed = follows(account('unfollowed'), { following: true, followedBy: true });
+  keep(left);
+  keep(unfollowed);
+  follows(left, { following: true });
+  follows(unfollowed, { followedBy: true });
+  const settled = settleDecisions(stateWith(left, unfollowed), { lostFollowers: new Set(['left']) });
+  expect(settled.undecided).toBe(1);
+  expect(left.decision).toBeUndefined();
+  expect(isKept(unfollowed)).toBe(true);
+});
+
+test('a queued plan stays when they stop following you', () => {
+  const a = follows(account(), { following: true, followedBy: true });
+  setPlan(a, UNFOLLOW, PLANNED);
+  follows(a, { following: true });
+  expect(settleDecisions(stateWith(a), { lostFollowers: new Set(['alice']) }).undecided).toBe(0);
+  expect(planOf(a, UNFOLLOW)).toBe(PLANNED);
+});
+
+test('a past account loses its decision, unless it may be a rename', () => {
+  const past = follows(account('past'), {});
+  const renamed = follows(account('renamed'), {});
+  keep(past);
+  keep(renamed);
+  renamed.renameSuggestion = { to: 'renamed_2', plans: [] };
+  expect(settleDecisions(stateWith(past, renamed)).undecided).toBe(1);
+  expect(past.decision).toBeUndefined();
+  expect(isKept(renamed), 'kept to move to the new name').toBe(true);
+});
+
+test('past accounts match only the Any decision filter', () => {
+  const past = follows(account(), {});
+  for (const filter of Object.values(DecisionFilter)) {
+    expect(decisionMatches(past, filter), filter).toBe(filter === DecisionFilter.ANY);
+  }
 });
 
 test('remove follower is symmetric to unfollow', () => {
   const a = follows(account(), { followedBy: true });
   setPlan(a, REMOVE_FOLLOWER, PLANNED);
   follows(a, {});
-  expect(settlePlans(stateWith(a)).completed).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 1 });
+  expect(settleDecisions(stateWith(a)).plans.completed).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 1 });
   expect(planOf(a, REMOVE_FOLLOWER)).toBeUndefined();
 });
 
 test('a plan marked done that the export contradicts goes back to planned', () => {
   const a = follows(account(), { following: true });
   setPlan(a, UNFOLLOW, DONE);
-  expect(settlePlans(stateWith(a))).toEqual({ completed: none, reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 } });
+  expect(settleDecisions(stateWith(a)).plans).toEqual({
+    completed: none,
+    reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
+  });
   expect(planOf(a, UNFOLLOW)).toBe(PLANNED);
 });
 

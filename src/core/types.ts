@@ -97,7 +97,7 @@ export interface Account {
   followedBy: Follow | null;
   /**
    * What you decided; absent = needs a decision. A queued plan is cleared by the import that no longer finds its
-   * follow (see settlePlans).
+   * follow (see settleDecisions).
    */
   decision?: Decision;
   review: Review;
