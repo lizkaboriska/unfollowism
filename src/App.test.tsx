@@ -74,10 +74,24 @@ async function chooseFilter(user: UserEvent, name: string, option: string) {
   await user.click(await screen.findByRole('option', { name: optionName(option) }));
 }
 
+/**
+ * Waits until a sheet, drawer or dialog has finished opening. One frame after it appears, it hides the page behind
+ * it from assistive tech and starts accepting clicks. Before that frame a dialog opened over it would be hidden too,
+ * and a click on it would be ignored, so tests (faster than any hand) wait for it, as a user always does.
+ */
+async function finishedOpening(dialog: Promise<HTMLElement>): Promise<HTMLElement> {
+  const opened = await dialog;
+  await waitFor(() => {
+    expect(screen.queryByRole('heading', { name: 'Unfollowism' })).not.toBeInTheDocument();
+    expect(opened).toHaveStyle({ pointerEvents: 'auto' });
+  });
+  return opened;
+}
+
 /** Review: opens the Filter sheet. */
 async function openFilterSheet(user: UserEvent) {
   await user.click(screen.getByRole('button', { name: /^Filter( \d)?$/ }));
-  return screen.findByRole('dialog', { name: 'Filter' });
+  return finishedOpening(screen.findByRole('dialog', { name: 'Filter' }));
 }
 
 async function sheetClosed() {
@@ -99,7 +113,7 @@ async function applyFilters(user: UserEvent, ...options: string[]) {
 /** Review: opens an account's sheet from its card. */
 async function openAccount(user: UserEvent, username: string) {
   await user.click(within(row(username)).getByRole('button', { name: `Open @${username}` }));
-  return screen.findByRole('dialog', { name: `@${username}` });
+  return finishedOpening(screen.findByRole('dialog', { name: `@${username}` }));
 }
 
 async function closeAccount(user: UserEvent, username: string) {
@@ -831,7 +845,7 @@ describe('unsaved changes drawer', () => {
     await closeAccount(user, 'alice');
 
     await user.click(screen.getByRole('button', { name: 'Unsaved changes (2)' }));
-    const d = await waitFor(drawer);
+    const d = await finishedOpening(waitFor(drawer));
     // alice: kept; bob: dog + unfollow queued (one decision change)
     expect(within(d).getByText('2 accounts · 3 changes')).toBeInTheDocument();
     expect(within(d).getByText('Added tag dog')).toBeInTheDocument();
@@ -862,10 +876,9 @@ describe('unsaved changes drawer', () => {
     const { user } = await imported();
     await user.click(keepButton('bob'));
     await user.click(screen.getByRole('button', { name: 'Unsaved changes (1)' }));
-    await user.click(within(await waitFor(drawer)).getByRole('button', { name: 'Reset changes' }));
-    const confirmReset = within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' });
-    // A dialog opened over the drawer accepts clicks a moment after it appears; retry until it does.
-    await waitFor(() => user.click(confirmReset));
+    await user.click(within(await finishedOpening(waitFor(drawer))).getByRole('button', { name: 'Reset changes' }));
+    const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
+    await user.click(within(confirmReset).getByRole('button', { name: 'Reset' }));
     expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
   });
 });
