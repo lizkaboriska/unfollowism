@@ -234,7 +234,9 @@ test('import → review → save works end to end', async () => {
     accounts: Record<string, { decision?: { kind: string } }>;
   };
   expect(saved.accounts.bob?.decision).toEqual({ kind: 'kept' });
-  expect(screen.getByRole('button', { name: 'All decisions saved' })).toBeInTheDocument();
+  // Nothing to list once saved: plain text, not a link.
+  expect(screen.getByText('All decisions saved')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'All decisions saved' })).not.toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
   expect(screen.queryByText(/Started a new master/)).not.toBeInTheDocument(); // the import message gives way

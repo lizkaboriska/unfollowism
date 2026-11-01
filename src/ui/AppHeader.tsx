@@ -11,7 +11,7 @@ import { UnsavedDrawer } from './UnsavedDrawer.tsx';
 
 /**
  * App name, whether the work is saved, Save and the ⋯ menu. `onImportNew` is given on the main view: it adds the
- * menu, and the unsaved line becomes a button that opens the list of unsaved changes.
+ * menu, and while something is unsaved the line becomes an underlined link that opens the list of unsaved changes.
  */
 export function AppHeader({ onImportNew }: { onImportNew?: () => void }) {
   const hasProject = useAppSelector(selectHasProject);
@@ -33,13 +33,15 @@ export function AppHeader({ onImportNew }: { onImportNew?: () => void }) {
           Unfollowism
         </Heading>
         {hasProject &&
-          (onImportNew ? (
+          (onImportNew && dirty ? (
             <Button
               variant="plain"
               h="auto"
               p="0"
               textStyle="small"
               color={color}
+              textDecoration="underline"
+              textUnderlineOffset="3px"
               onClick={() => {
                 setDrawerOpen(true);
               }}
