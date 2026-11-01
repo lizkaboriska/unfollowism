@@ -2,15 +2,24 @@
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
 import { must } from '../core/__tests__/helpers.ts';
-import { DecisionKind, importExport, stringifyMasterFile, toMasterFile } from '../core/index.ts';
+import {
+  ACTION_TYPES,
+  DecisionKind,
+  PLAN_STATES,
+  importExport,
+  stringifyMasterFile,
+  toMasterFile,
+} from '../core/index.ts';
 import { analyzeImport } from '../io/analyzeImport.ts';
 import { memoryLastSaved } from '../io/lastSaved.ts';
 import { createMemoryTabDatabase } from '../io/tabStore.ts';
-import { setQuery } from '../store/filtersSlice.ts';
+import { LIST_VIEWS, setQuery, setView } from '../store/filtersSlice.ts';
 import { makeStore } from '../store/index.ts';
-import { setNote } from '../store/masterSlice.ts';
+import { selectListKeys } from '../store/listSlice.ts';
+import { setNote, setPlan } from '../store/masterSlice.ts';
 import {
   selectAccount,
+  selectPlanStats,
   selectRelationshipStats,
   selectScopeTotals,
   selectUnsavedDiff,
@@ -88,6 +97,14 @@ async function run(total: number) {
       account.review = { unavailable: false, tags: ['artist'], notes: '' };
     }
   }
+  // A big To do queue: an unfollow queued for every third account you follow (about 2,500).
+  keys.forEach((key, i) => {
+    const account = earlier.accounts[key];
+    if (account?.following && i % 3 === 1) {
+      account.decision = { kind: DecisionKind.QUEUED, plans: { unfollow: PLAN_STATES.PLANNED } };
+    }
+  });
+  const queued = keys.filter(key => earlier.accounts[key]?.decision?.kind === DecisionKind.QUEUED);
   const masterText = stringifyMasterFile(toMasterFile({ ...earlier, lastSavedAt: '2026-09-02T00:00:00.000Z' }));
 
   // Second import: a newer export plus the saved master (the normal monthly flow).
@@ -103,6 +120,7 @@ async function run(total: number) {
     selectScopeTotals(store.getState());
     selectUnsavedAccountCount(store.getState());
     selectUnsavedDiff(store.getState());
+    selectPlanStats(store.getState()); // the nav's To do count
   });
 
   // One edit, as when typing a note: reducer + the selectors the screen uses. Median of 20 keystrokes.
@@ -114,6 +132,15 @@ async function run(total: number) {
   store.dispatch(setNote({ username: someone, note: 'typing…' }));
   const editMs = keystrokes.sort((a, b) => a - b)[10] ?? 0;
   const [, listMs] = time(() => store.dispatch(setQuery('a'))); // the list refreshes only on filter changes like this
+  // To do: opening the Unfollow tab refreshes its list; marking a row done is one edit plus the progress counts.
+  const [, todoOpenMs] = time(() => store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW)));
+  const todoKey = queued[Math.floor(queued.length / 2)] ?? '';
+  const [, markDoneMs] = time(() => {
+    store.dispatch(setPlan({ username: todoKey, type: ACTION_TYPES.UNFOLLOW, state: PLAN_STATES.DONE }));
+    selectPlanStats(store.getState());
+  });
+  const todoRows = selectListKeys(store.getState()).length;
+  store.dispatch(setView(LIST_VIEWS.REVIEW));
   const [, statsMs] = time(() => {
     selectRelationshipStats(store.getState());
     selectScopeTotals(store.getState());
@@ -132,6 +159,8 @@ async function run(total: number) {
     ['first screen after import (sort + counts)', firstRenderMs, 0],
     ['one edit: reducer', editMs, 0],
     ['filter change: refresh list', listMs, 0],
+    ['open To do: refresh its list', todoOpenMs, 0],
+    ['To do: mark done + progress', markDoneMs, 0],
     ['one edit: stats', statsMs, 0],
     ['one edit: unsaved changes list', diffMs, 0],
     ['one edit: storage write', persistMs, 0],
@@ -139,13 +168,16 @@ async function run(total: number) {
     ['reload restore', restoreMs, 0],
   );
   // eslint-disable-next-line no-console -- printing the timing table is what `npm run test:perf` is for
-  console.log(`\n${total.toLocaleString()} accounts — master file ${mb(masterText.length)}`);
+  console.log(
+    `\n${total.toLocaleString()} accounts, ${todoRows.toLocaleString()} queued — master file ${mb(masterText.length)}`,
+  );
   for (const [label, ms] of rows) {
     // eslint-disable-next-line no-console -- see above
     console.log(`  ${label.padEnd(42)} ${ms.toFixed(1).padStart(9)} ms`);
   }
 
   expect(selectAccount(reloaded.getState(), someone)?.review.notes).toBe('typing…');
+  expect(todoRows).toBe(queued.length);
   return Object.fromEntries(rows.map(([label, ms]) => [label, ms]));
 }
 
@@ -156,6 +188,8 @@ test('100k accounts: fast', { timeout: 120_000 }, async () => {
   expect(t['one edit: unsaved changes list']).toBeLessThan(5);
   expect(t['one edit: storage write']).toBeLessThan(50);
   expect(t['filter change: refresh list']).toBeLessThan(50);
+  expect(t['open To do: refresh its list']).toBeLessThan(50);
+  expect(t['To do: mark done + progress']).toBeLessThan(5);
   expect(t['import (merge, settle plans)']).toBeLessThan(5_000);
   expect(t['save (serialize master)']).toBeLessThan(2_000);
   expect(t['reload restore']).toBeLessThan(3_000);

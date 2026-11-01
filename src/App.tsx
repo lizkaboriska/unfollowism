@@ -6,18 +6,15 @@ import { LIST_VIEWS, isPlanView } from './store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { selectHasProject } from './store/selectors.ts';
 import { restoreTab } from './store/thunks.ts';
-import { AccountList } from './ui/AccountList.tsx';
 import { AppHeader } from './ui/AppHeader.tsx';
 import { AppNav } from './ui/AppNav.tsx';
 import { ChangesPage } from './ui/ChangesPage.tsx';
-import { FiltersBar } from './ui/FiltersBar.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
 import { ReviewList } from './ui/ReviewList.tsx';
 import { ReviewTop } from './ui/ReviewTop.tsx';
 import { StatusLine } from './ui/StatusLine.tsx';
 import { StorageWarning } from './ui/StorageWarning.tsx';
-import { SummaryLine } from './ui/SummaryLine.tsx';
-import { ViewSwitch } from './ui/ViewSwitch.tsx';
+import { TodoPage } from './ui/TodoPage.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
@@ -97,14 +94,7 @@ export function App({ deps }: { deps: StoreDeps }) {
               </>
             )}
             {view === LIST_VIEWS.CHANGES && <ChangesPage />}
-            {isPlanView(view) && (
-              <>
-                <ViewSwitch />
-                <FiltersBar />
-                <SummaryLine />
-                <AccountList />
-              </>
-            )}
+            {isPlanView(view) && <TodoPage view={view} />}
           </Stack>
         </HStack>
       )}

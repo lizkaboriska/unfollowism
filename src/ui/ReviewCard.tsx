@@ -1,26 +1,13 @@
 import { Box, Button, HStack, SimpleGrid, Text, chakra } from '@chakra-ui/react';
 import { memo } from 'react';
 
-import {
-  PLAN_STATES,
-  RELATIONSHIPS,
-  isKept,
-  isPastAccount,
-  relationshipOf,
-  type ReadonlyAccount,
-} from '../core/index.ts';
+import { PLAN_STATES, isKept, isPastAccount, type ReadonlyAccount } from '../core/index.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { setKept, setPlan } from '../store/masterSlice.ts';
 import { selectAccount } from '../store/selectors.ts';
 
-import { RELATIONSHIP_LABELS, RELATIONSHIP_NOTES, planText, queueText } from './labels.ts';
+import { planText, queueText, relationshipNote } from './labels.ts';
 import { QueueButtonKind, queueButton } from './queueButton.ts';
-
-/** The relationship under the name; a past account says it's not in this export. */
-function relationshipNote(account: ReadonlyAccount): string {
-  const relationship = relationshipOf(account);
-  return relationship === RELATIONSHIPS.NEITHER ? RELATIONSHIP_NOTES[relationship] : RELATIONSHIP_LABELS[relationship];
-}
 
 /** Keep / ✓ Kept: black once kept; tapping it again takes the decision back. */
 export function KeepButton({ account }: { account: ReadonlyAccount }) {

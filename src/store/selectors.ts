@@ -141,25 +141,24 @@ export const selectFollowChangeCounts = createSelector([selectChangeSections], (
   byChange(change => sections[change].length),
 );
 
-/** Whether the account belongs to the selected view (before status, tag and search filters). */
-function viewMatches(account: ReadonlyAccount, filters: FiltersState): boolean {
+/**
+ * Whether the account is listed with these filters. Review: its list (scope), decision, tag and search. Changes
+ * shows its own sections (selectChangeSections). A To do tab lists every account with its plan, queued or done,
+ * whatever Review's filters: it has no search or filters of its own that could explain a hidden row.
+ */
+function accountVisible(account: ReadonlyAccount, filters: FiltersState): boolean {
   if (filters.view === LIST_VIEWS.REVIEW) {
-    return scopeMatches(account, filters.scope);
+    return (
+      scopeMatches(account, filters.scope) &&
+      decisionMatches(account, filters.decision) &&
+      tagMatches(account, filters.tag) &&
+      queryMatches(account, filters.query)
+    );
   }
   if (filters.view === LIST_VIEWS.CHANGES) {
-    return false; // Changes shows its own sections (selectChangeSections)
+    return false;
   }
-  return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) === PLAN_STATES.PLANNED;
-}
-
-/** Whether the account is listed with these filters: view, decision (not in To do), tag and search. */
-function accountVisible(account: ReadonlyAccount, filters: FiltersState): boolean {
-  return (
-    viewMatches(account, filters) &&
-    (isPlanView(filters.view) || decisionMatches(account, filters.decision)) &&
-    tagMatches(account, filters.tag) &&
-    queryMatches(account, filters.query)
-  );
+  return planOf(account, PLAN_VIEW_ACTIONS[filters.view]) !== undefined;
 }
 
 function sameKeys(a: readonly string[], b: readonly string[]): boolean {
@@ -167,17 +166,27 @@ function sameKeys(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /**
- * Account keys matching the tab and filters, in username order: one pass over the
- * pre-sorted keys. The list shown on screen is a snapshot of this taken by the list slice
- * (listSlice.ts), which decides when to recompute it.
+ * Account keys matching the tab and filters, in username order: one pass over the pre-sorted keys. In a To do tab
+ * the queued plans come first and the done ones after them. The list shown on screen is a snapshot of this taken by
+ * the list slice (listSlice.ts), which decides when to recompute it.
  */
 export const selectVisibleAccountKeys = createSelector(
   [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters],
-  (keys, base, changed, filters): readonly string[] =>
-    keys.filter(key => {
+  (keys, base, changed, filters): readonly string[] => {
+    const visible = keys.filter(key => {
       const account = accountOf(base, changed, key);
       return !!account && accountVisible(account, filters);
-    }),
+    });
+    if (!isPlanView(filters.view)) {
+      return visible;
+    }
+    const type = PLAN_VIEW_ACTIONS[filters.view];
+    const isDone = (key: string) => {
+      const account = accountOf(base, changed, key);
+      return !!account && planOf(account, type) === PLAN_STATES.DONE;
+    };
+    return [...visible.filter(key => !isDone(key)), ...visible.filter(isDone)];
+  },
   { memoizeOptions: { resultEqualityCheck: sameKeys } },
 );
 
