@@ -10,10 +10,10 @@ import { toaster } from './toasts.ts';
 
 export const SAVED_TOAST = '✓ Master file downloaded. Keep it for your next import.';
 
-/** Save and Reset changes, shared by the header and the Unsaved changes drawer. */
+/** Save and Reset changes, shared by the header and the Unsaved changes popup. */
 
-/** Black while there is something to save, outlined once saved. */
-export function SaveButton(props: ButtonProps) {
+/** Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked. */
+export function SaveButton({ onSaved, ...props }: ButtonProps & { onSaved?: () => void }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
   const dirty = useAppSelector(selectIsDirty);
@@ -28,6 +28,7 @@ export function SaveButton(props: ButtonProps) {
         void dispatch(saveMaster()).then(result => {
           if (saveMaster.fulfilled.match(result)) {
             toaster.create({ title: SAVED_TOAST });
+            onSaved?.();
           }
         })
       }
@@ -37,10 +38,23 @@ export function SaveButton(props: ButtonProps) {
   );
 }
 
-export function ResetButton(props: ButtonProps) {
+/** Outlined in red: it throws work away. `onReset` runs once the changes were reset. */
+export function ResetButton({ onReset, ...props }: ButtonProps & { onReset?: () => void }) {
   const { canReset, reset } = useResetChanges();
   return (
-    <Button variant="outline" {...props} disabled={!canReset} onClick={() => void reset()}>
+    <Button
+      variant="outline"
+      colorPalette="danger"
+      {...props}
+      disabled={!canReset}
+      onClick={() =>
+        void reset().then(done => {
+          if (done) {
+            onReset?.();
+          }
+        })
+      }
+    >
       Reset changes
     </Button>
   );

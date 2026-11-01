@@ -1015,17 +1015,25 @@ describe('Review cards and the account sheet', () => {
   });
 });
 
-describe('unsaved changes drawer', () => {
+describe('unsaved changes popup', () => {
   async function imported() {
     const t = await renderApp();
     await importFiles(t.user, exportFiles());
     await findRow('bob');
     return t;
   }
-  const drawer = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
+  const popup = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
+  async function openPopup(user: UserEvent, link: string) {
+    await user.click(screen.getByRole('button', { name: link }));
+    return finishedOpening(waitFor(popup));
+  }
+  const popupClosed = () =>
+    waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Unsaved changes' })).not.toBeInTheDocument();
+    });
 
-  test("lists net changes per account, by category, and only what isn't saved", async () => {
-    const { user, downloads } = await imported();
+  test("tag changes on top, other changes per account, only what isn't saved; a name opens the account", async () => {
+    const { user } = await imported();
     await user.click(keepButton('alice'));
     await newTag(user, 'bob', 'dog');
     await user.click(cardButton('bob', 'Queue unfollow'));
@@ -1034,42 +1042,92 @@ describe('unsaved changes drawer', () => {
     await user.click(within(sheet).getByRole('button', { name: 'home' })); // back again: no net change
     await closeAccount(user, 'alice');
 
-    await user.click(screen.getByRole('button', { name: '● Unsaved · 2 changed accounts' }));
-    const d = await finishedOpening(waitFor(drawer));
-    // alice: kept; bob: dog + unfollow queued (one decision change)
-    expect(within(d).getByText('2 accounts · 3 changes')).toBeInTheDocument();
-    expect(within(d).getByText('Added tag dog')).toBeInTheDocument();
-    expect(within(d).getByText('Needs a decision → Unfollow queued')).toBeInTheDocument();
-    expect(within(d).queryByText('Added tag home')).not.toBeInTheDocument();
+    const p = await openPopup(user, '● Unsaved · 2 changed accounts');
+    expect(within(p).getByText('2 changed accounts since the import')).toBeInTheDocument(); // never saved
+    const tagRow = within(p).getByRole('button', { name: /^\+ #dog tag/ });
+    expect(tagRow).toHaveTextContent('1 account ▾');
+    expect(within(p).queryByText(/#home/)).not.toBeInTheDocument();
+    expect(within(p).getAllByText('Needs a decision')).toHaveLength(2); // alice and bob: from …
+    expect(within(p).getByText('Kept')).toBeInTheDocument(); // … to the black chip
+    expect(within(p).getByText('Unfollow queued')).toBeInTheDocument(); // bob's tag is only in the tag row
 
-    await user.click(within(d).getByRole('button', { name: 'Decisions' }));
-    expect(within(d).queryByText('Added tag dog')).not.toBeInTheDocument();
-    expect(within(d).getByText('Needs a decision → Kept')).toBeInTheDocument();
-    expect(within(d).getByText('Needs a decision → Unfollow queued')).toBeInTheDocument();
-
-    await user.click(within(d).getByRole('button', { name: 'Tags' }));
-    await user.click(within(d).getByRole('button', { name: /^dog\s*\+1$/ }));
-    expect(
-      within(d)
-        .getAllByRole('link')
-        .map(link => link.textContent),
-    ).toEqual(['@bob ↗']);
-
-    await user.click(within(d).getByRole('button', { name: 'Save' }));
-    await waitFor(() => {
-      expect(downloads).toHaveLength(1);
-    });
-    expect(await within(d).findByText(/No edits since your last save/)).toBeInTheDocument();
+    await user.click(tagRow);
+    expect(tagRow).toHaveAttribute('aria-expanded', 'true');
+    expect(within(p).getAllByRole('button', { name: '@bob' })).toHaveLength(2); // in the tag row and his own block
+    await user.click(within(p).getAllByRole('button', { name: '@bob' })[0] as HTMLElement);
+    await popupClosed();
+    expect(await screen.findByRole('dialog', { name: '@bob' })).toBeInTheDocument();
   });
 
-  test("Reset changes in the drawer undoes what's listed", async () => {
+  test('a tag renamed on many accounts is one row that opens to 10 names, then Show all', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `user${String(i + 10)}`);
+    const accounts = Object.fromEntries(
+      names.map(name => [
+        name,
+        { username: name, followingSince: 1_700_000_000, review: { unavailable: false, tags: ['dog'], notes: '' } },
+      ]),
+    );
+    const savedAt = '2026-10-01T00:00:00.000Z';
+    const master = new File(
+      [JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts })],
+      'unfollowism_master.json',
+      { type: 'application/json' },
+    );
+    const { user } = await renderApp();
+    await importFiles(user, [master, ...exportOf(names, ['user10'])]);
+    await findRow('user10');
+
+    await fromMenu(user, 'Manage tags');
+    const tags = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
+    await user.click(within(must(within(tags).getByText('dog').parentElement)).getByRole('button', { name: 'Rename' }));
+    await user.type(within(tags).getByRole('textbox', { name: 'New name for dog' }), '{Control>}a{/Control}pet{Enter}');
+    await user.click(within(tags).getByRole('button', { name: /close/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
+    });
+
+    const p = await openPopup(user, '● Unsaved · 12 changed accounts');
+    expect(within(p).getByText('12 changed accounts since your last save')).toBeInTheDocument();
+    expect(within(p).queryByRole('heading', { name: 'Other changes' })).not.toBeInTheDocument();
+    const rowButton = within(p).getByRole('button', { name: /^#dog → #pet/ });
+    expect(rowButton).toHaveTextContent('12 accounts ▾');
+    const names_ = () => within(p).queryAllByRole('button', { name: /^@user/ });
+    expect(names_()).toHaveLength(0);
+
+    await user.click(rowButton);
+    expect(names_()).toHaveLength(10);
+    await user.click(within(p).getByRole('button', { name: 'Show all 12' }));
+    expect(names_()).toHaveLength(12);
+    expect(within(p).queryByRole('button', { name: /^Show all/ })).not.toBeInTheDocument();
+  });
+
+  test('Save in the popup saves and closes it', async () => {
+    const { user, downloads } = await imported();
+    await user.click(keepButton('bob'));
+    const p = await openPopup(user, '● Unsaved · 1 changed account');
+    await user.click(within(p).getByRole('button', { name: 'Save' }));
+    await popupClosed();
+    expect(downloads).toHaveLength(1);
+    expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
+  });
+
+  test('Reset changes in the popup asks, undoes what is listed and closes it', async () => {
     const { user } = await imported();
     await user.click(keepButton('bob'));
-    await user.click(screen.getByRole('button', { name: '● Unsaved · 1 changed account' }));
-    await user.click(within(await finishedOpening(waitFor(drawer))).getByRole('button', { name: 'Reset changes' }));
+    const p = await openPopup(user, '● Unsaved · 1 changed account');
+    await user.click(within(p).getByRole('button', { name: 'Reset changes' }));
     const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
     await user.click(within(confirmReset).getByRole('button', { name: 'Reset changes' }));
-    expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
+    await popupClosed();
+    expect(isKept('bob')).toBe(false);
+  });
+
+  test('only a new import: nothing per account, Save on, Reset off', async () => {
+    const { user } = await imported();
+    const p = await openPopup(user, '● New import not saved');
+    expect(within(p).getByText('New import, no account changes')).toBeInTheDocument();
+    expect(within(p).getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(within(p).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
   });
 });
 

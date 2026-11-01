@@ -8,8 +8,11 @@ import { SAVE_STATUSES } from '../store/statuses.ts';
 import { useConfirm } from './dialogHooks.ts';
 import { plural } from './statusText.ts';
 
-/** Reset changes, shared by the ⋯ menu and the Unsaved changes drawer: asks first, then goes back to the last save. */
-export function useResetChanges(): { canReset: boolean; reset: () => Promise<void> } {
+/**
+ * Reset changes, shared by the ⋯ menu and the Unsaved changes popup: asks first, then goes back to the last save.
+ * `reset` resolves true when the changes were reset.
+ */
+export function useResetChanges(): { canReset: boolean; reset: () => Promise<boolean> } {
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
   const unsavedCount = useAppSelector(selectUnsavedAccountCount);
@@ -37,6 +40,7 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<voi
     if (confirmed) {
       dispatch(resetChanges());
     }
+    return confirmed;
   }
 
   return { canReset: unsavedCount > 0 && !saving, reset };

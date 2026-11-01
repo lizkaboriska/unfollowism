@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectHasProject, selectIsDirty, selectUnsavedAccountCount } from '../store/selectors.ts';
 
+import { AccountSheet } from './AccountSheet.tsx';
 import { AppMenu } from './AppMenu.tsx';
 import { SaveButton } from './saveAndReset.tsx';
 import { plural } from './statusText.ts';
-import { UnsavedDrawer } from './UnsavedDrawer.tsx';
+import { UnsavedSheet } from './UnsavedSheet.tsx';
 
 /**
  * App name, whether the work is saved, Save and the ⋯ menu. `onImportNew` is given on the main view: it adds the
@@ -17,7 +18,9 @@ export function AppHeader({ onImportNew }: { onImportNew?: () => void }) {
   const hasProject = useAppSelector(selectHasProject);
   const dirty = useAppSelector(selectIsDirty);
   const unsavedCount = useAppSelector(selectUnsavedAccountCount);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unsavedOpen, setUnsavedOpen] = useState(false);
+  /** The account opened from the Unsaved changes popup. */
+  const [accountKey, setAccountKey] = useState<string | null>(null);
 
   const indicator = !dirty
     ? 'All decisions saved'
@@ -43,7 +46,7 @@ export function AppHeader({ onImportNew }: { onImportNew?: () => void }) {
               textDecoration="underline"
               textUnderlineOffset="3px"
               onClick={() => {
-                setDrawerOpen(true);
+                setUnsavedOpen(true);
               }}
             >
               {indicator}
@@ -60,10 +63,17 @@ export function AppHeader({ onImportNew }: { onImportNew?: () => void }) {
           {onImportNew && <AppMenu onImportNew={onImportNew} />}
         </HStack>
       )}
-      <UnsavedDrawer
-        open={drawerOpen}
+      <UnsavedSheet
+        open={unsavedOpen}
         onClose={() => {
-          setDrawerOpen(false);
+          setUnsavedOpen(false);
+        }}
+        onOpenAccount={setAccountKey}
+      />
+      <AccountSheet
+        accountKey={accountKey}
+        onClose={() => {
+          setAccountKey(null);
         }}
       />
     </HStack>

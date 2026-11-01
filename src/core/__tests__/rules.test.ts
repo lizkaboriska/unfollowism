@@ -5,10 +5,11 @@ import {
   DecisionKind,
   PLAN_STATES,
   REVIEW_SCOPES,
-  SESSION_CATEGORIES,
   SESSION_CHANGES,
   TAG_FILTER_KINDS,
+  TagChangeKind,
   buildSessionDiff,
+  groupSessionChanges,
   decisionMatches,
   dedupeAccounts,
   isKept,
@@ -22,7 +23,6 @@ import {
   scopeMatches,
   setPlan,
   settleDecisions,
-  summarizeSession,
   type Account,
 } from '../index.ts';
 
@@ -230,15 +230,6 @@ test('session diff reports only net decision, tag and metadata changes', () => {
       ],
     },
   ]);
-  const summary = summarizeSession(diff);
-  expect(summary.changedAccounts).toBe(1);
-  expect(summary.changeCount).toBe(3);
-  expect(summary.byCategory).toEqual({
-    [SESSION_CATEGORIES.DECISIONS]: 1,
-    [SESSION_CATEGORIES.TAGS]: 1,
-    [SESSION_CATEGORIES.OTHER]: 1,
-  });
-  expect(summary.tagsAdded).toEqual([{ tag: 'photography', count: 1 }]);
 });
 
 test('session diff ignores edits that end back at baseline', () => {
@@ -283,7 +274,7 @@ test('session diff reports a plan cancelled, done or undone as one decision chan
   ]);
 });
 
-test('session summary groups tag additions across accounts', () => {
+test('unsaved tag changes are grouped across accounts', () => {
   const a = follows(account('alice'), { following: true });
   const b = follows(account('bob'), { following: true });
   const baseline = accountsOf(a, b);
@@ -291,13 +282,12 @@ test('session summary groups tag additions across accounts', () => {
   must(current.alice).review.tags = ['artist'];
   must(current.bob).review.tags = ['artist', 'photography'];
 
-  const summary = summarizeSession(buildSessionDiff(baseline, current));
-  expect(summary.tagsAdded).toEqual([
-    { tag: 'artist', count: 2 },
-    { tag: 'photography', count: 1 },
+  const grouped = groupSessionChanges(buildSessionDiff(baseline, current));
+  expect(grouped.tagRows).toEqual([
+    { kind: TagChangeKind.ADDED, tag: 'artist', usernames: ['alice', 'bob'] },
+    { kind: TagChangeKind.ADDED, tag: 'photography', usernames: ['bob'] },
   ]);
-  expect(summary.byCategory[SESSION_CATEGORIES.TAGS]).toBe(3);
-  expect(summary.changedAccounts).toBe(2);
+  expect(grouped.accounts).toEqual([]); // only tags changed
 });
 
 test('plan stats count planned and done actions per type', () => {

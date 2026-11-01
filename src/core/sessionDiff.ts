@@ -28,20 +28,6 @@ export type SessionChange =
   | { type: DecisionChangeType; from: Decision | null; to: Decision | null }
   | { type: Exclude<SessionChangeType, TagChangeType | DecisionChangeType> };
 
-export const SESSION_CATEGORIES = { DECISIONS: 'decisions', TAGS: 'tags', OTHER: 'other' } as const;
-export type SessionCategory = ValueOf<typeof SESSION_CATEGORIES>;
-
-export const SESSION_CHANGE_CATEGORY: Readonly<Record<SessionChangeType, SessionCategory>> = {
-  [SESSION_CHANGES.DECISION_CHANGED]: SESSION_CATEGORIES.DECISIONS,
-  [SESSION_CHANGES.TAG_ADDED]: SESSION_CATEGORIES.TAGS,
-  [SESSION_CHANGES.TAG_REMOVED]: SESSION_CATEGORIES.TAGS,
-  [SESSION_CHANGES.UNAVAILABLE_MARKED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.UNAVAILABLE_CLEARED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.NOTE_EDITED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.ACCOUNT_REMOVED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.RENAME_DISMISSED]: SESSION_CATEGORIES.OTHER,
-};
-
 export interface SessionAccountChanges {
   username: string;
   changes: SessionChange[];
@@ -103,56 +89,6 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
   }
 
   return result.sort((a, b) => a.username.localeCompare(b.username));
-}
-
-export interface TagCount {
-  tag: string;
-  count: number;
-}
-
-export interface SessionSummary {
-  changedAccounts: number;
-  changeCount: number;
-  byCategory: Record<SessionCategory, number>;
-  /** Most frequent first. */
-  tagsAdded: TagCount[];
-  tagsRemoved: TagCount[];
-}
-
-function tagCounts(accounts: readonly SessionAccountChanges[], type: TagChangeType): TagCount[] {
-  const counts = new Map<string, number>();
-  for (const { changes } of accounts) {
-    for (const change of changes) {
-      if (change.type === type) {
-        counts.set(change.tag, (counts.get(change.tag) ?? 0) + 1);
-      }
-    }
-  }
-  return [...counts]
-    .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
-}
-
-export function summarizeSession(accounts: readonly SessionAccountChanges[]): SessionSummary {
-  const byCategory: Record<SessionCategory, number> = {
-    [SESSION_CATEGORIES.DECISIONS]: 0,
-    [SESSION_CATEGORIES.TAGS]: 0,
-    [SESSION_CATEGORIES.OTHER]: 0,
-  };
-  let changeCount = 0;
-  for (const { changes } of accounts) {
-    for (const change of changes) {
-      byCategory[SESSION_CHANGE_CATEGORY[change.type]] += 1;
-      changeCount += 1;
-    }
-  }
-  return {
-    changedAccounts: accounts.length,
-    changeCount,
-    byCategory,
-    tagsAdded: tagCounts(accounts, SESSION_CHANGES.TAG_ADDED),
-    tagsRemoved: tagCounts(accounts, SESSION_CHANGES.TAG_REMOVED),
-  };
 }
 
 export enum TagChangeKind {
