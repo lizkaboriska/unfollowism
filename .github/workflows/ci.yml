@@ -57,3 +57,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  # The single check required by the main ruleset; fails if any job above failed or was cancelled.
+  all-checks-passed:
+    if: always()
+    needs: [typecheck, lint, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        with:
+          jobs: ${{ toJSON(needs) }}
