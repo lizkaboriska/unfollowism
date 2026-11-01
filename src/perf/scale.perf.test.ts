@@ -6,6 +6,8 @@ import {
   ACTION_TYPES,
   DecisionKind,
   PLAN_STATES,
+  TagChangeKind,
+  groupSessionChanges,
   importExport,
   stringifyMasterFile,
   toMasterFile,
@@ -16,7 +18,7 @@ import { createMemoryTabDatabase } from '../io/tabStore.ts';
 import { LIST_VIEWS, setQuery, setView } from '../store/filtersSlice.ts';
 import { makeStore } from '../store/index.ts';
 import { selectListKeys } from '../store/listSlice.ts';
-import { setNote, setPlan } from '../store/masterSlice.ts';
+import { renameTag, setNote, setPlan } from '../store/masterSlice.ts';
 import {
   selectAccount,
   selectPlanStats,
@@ -148,6 +150,10 @@ async function run(total: number) {
   });
   const [, diffMs] = time(() => selectUnsavedDiff(store.getState()));
   const [, persistMs] = await timeAsync(flush);
+  // A tag on 10% of accounts renamed in Manage tags, then the Unsaved changes popup opened (diff + tag rows).
+  store.dispatch(renameTag({ from: 'artist', to: 'painter' }));
+  const [grouped, renamePopupMs] = time(() => groupSessionChanges(selectUnsavedDiff(store.getState())));
+  await flush();
 
   const [, saveMs] = await timeAsync(() => store.dispatch(saveMaster()).unwrap());
   const reloaded = makeStore({ ...deps, tab: database.forTab('t') });
@@ -164,6 +170,7 @@ async function run(total: number) {
     ['one edit: stats', statsMs, 0],
     ['one edit: unsaved changes list', diffMs, 0],
     ['one edit: storage write', persistMs, 0],
+    ['tag rename: unsaved changes popup', renamePopupMs, 0],
     ['save (serialize master)', saveMs, 0],
     ['reload restore', restoreMs, 0],
   );
@@ -178,6 +185,7 @@ async function run(total: number) {
 
   expect(selectAccount(reloaded.getState(), someone)?.review.notes).toBe('typing…');
   expect(todoRows).toBe(queued.length);
+  expect(grouped.tagRows[0]).toMatchObject({ kind: TagChangeKind.RENAMED, from: 'artist', to: 'painter' });
   return Object.fromEntries(rows.map(([label, ms]) => [label, ms]));
 }
 
@@ -190,6 +198,7 @@ test('100k accounts: fast', { timeout: 120_000 }, async () => {
   expect(t['filter change: refresh list']).toBeLessThan(50);
   expect(t['open To do: refresh its list']).toBeLessThan(50);
   expect(t['To do: mark done + progress']).toBeLessThan(5);
+  expect(t['tag rename: unsaved changes popup']).toBeLessThan(200);
   expect(t['import (merge, settle plans)']).toBeLessThan(5_000);
   expect(t['save (serialize master)']).toBeLessThan(2_000);
   expect(t['reload restore']).toBeLessThan(3_000);

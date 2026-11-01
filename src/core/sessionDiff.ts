@@ -154,3 +154,90 @@ export function summarizeSession(accounts: readonly SessionAccountChanges[]): Se
     tagsRemoved: tagCounts(accounts, SESSION_CHANGES.TAG_REMOVED),
   };
 }
+
+export enum TagChangeKind {
+  ADDED = 'added',
+  REMOVED = 'removed',
+  /** Exactly the accounts that lost one tag gained another: most likely Rename in Manage tags. */
+  RENAMED = 'renamed',
+}
+
+/** One tag change shared by several accounts. `usernames` keeps the diff's order (by username). */
+export type TagChangeRow =
+  | { kind: TagChangeKind.ADDED | TagChangeKind.REMOVED; tag: string; usernames: string[] }
+  | { kind: TagChangeKind.RENAMED; from: string; to: string; usernames: string[] };
+
+export interface GroupedSessionChanges {
+  /** Most accounts first, then by tag name. */
+  tagRows: TagChangeRow[];
+  /** Every other change, per account; an account whose only changes are tags is left out. */
+  accounts: SessionAccountChanges[];
+}
+
+const isTagChange = (change: SessionChange): change is { type: TagChangeType; tag: string } =>
+  change.type === SESSION_CHANGES.TAG_ADDED || change.type === SESSION_CHANGES.TAG_REMOVED;
+
+/** Splits the session diff into tag rows (one per tag, renames spotted) and the remaining per-account changes. */
+export function groupSessionChanges(diff: readonly SessionAccountChanges[]): GroupedSessionChanges {
+  const added = new Map<string, string[]>();
+  const removed = new Map<string, string[]>();
+  const accounts: SessionAccountChanges[] = [];
+
+  for (const { username, changes } of diff) {
+    const rest: SessionChange[] = [];
+    for (const change of changes) {
+      if (isTagChange(change)) {
+        const byTag = change.type === SESSION_CHANGES.TAG_ADDED ? added : removed;
+        const usernames = byTag.get(change.tag);
+        if (usernames) {
+          usernames.push(username);
+        } else {
+          byTag.set(change.tag, [username]);
+        }
+      } else {
+        rest.push(change);
+      }
+    }
+    if (rest.length) {
+      accounts.push({ username, changes: rest });
+    }
+  }
+
+  // A rename: one removed tag and one added tag with exactly the same accounts, and no other tag shares them.
+  const sameAccounts = new Map<string, { removed: string[]; added: string[] }>();
+  const group = (usernames: readonly string[]) => {
+    const key = usernames.join('\n'); // both lists follow the diff's order, so equal sets give equal keys
+    let entry = sameAccounts.get(key);
+    if (!entry) {
+      entry = { removed: [], added: [] };
+      sameAccounts.set(key, entry);
+    }
+    return entry;
+  };
+  for (const [tag, usernames] of removed) {
+    group(usernames).removed.push(tag);
+  }
+  for (const [tag, usernames] of added) {
+    group(usernames).added.push(tag);
+  }
+
+  const tagRows: TagChangeRow[] = [];
+  for (const entry of sameAccounts.values()) {
+    const [from, to] = [entry.removed[0], entry.added[0]];
+    if (entry.removed.length === 1 && entry.added.length === 1 && from !== undefined && to !== undefined) {
+      tagRows.push({ kind: TagChangeKind.RENAMED, from, to, usernames: removed.get(from) ?? [] });
+      removed.delete(from);
+      added.delete(to);
+    }
+  }
+  for (const [tag, usernames] of added) {
+    tagRows.push({ kind: TagChangeKind.ADDED, tag, usernames });
+  }
+  for (const [tag, usernames] of removed) {
+    tagRows.push({ kind: TagChangeKind.REMOVED, tag, usernames });
+  }
+
+  const rowTag = (row: TagChangeRow) => (row.kind === TagChangeKind.RENAMED ? row.from : row.tag);
+  tagRows.sort((a, b) => b.usernames.length - a.usernames.length || rowTag(a).localeCompare(rowTag(b)));
+  return { tagRows, accounts };
+}
