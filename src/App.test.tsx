@@ -885,7 +885,7 @@ describe('Review cards and the account sheet', () => {
     });
   });
 
-  test('the sheet: relationship, Unavailable (fades the card, counts as reviewed), dates', async () => {
+  test('the sheet: relationship, Unavailable (fades the card, keeps an undecided account), dates', async () => {
     const { user } = await imported();
     const sheet = await openAccount(user, 'bob');
     expect(within(sheet).getByText('Not following back · you follow them')).toBeInTheDocument();

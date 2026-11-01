@@ -886,7 +886,7 @@ describe('renames', () => {
     expect(lostFollowers(t.store.getState())).toEqual(['carol']);
   });
 
-  test('Not a rename is an edit like unticking a box: unsaved, listed, undone by Reset', async () => {
+  test('Not a rename is an ordinary edit: unsaved, listed, undone by Reset', async () => {
     const t = await renamedStore();
     t.store.dispatch(dismissRename({ from: 'carol' }));
     const state = t.store.getState();

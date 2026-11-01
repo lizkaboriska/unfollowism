@@ -48,7 +48,7 @@ test('review scopes support overlapping following/follower views', () => {
   expect(scopeMatches(followerOnly, REVIEW_SCOPES.FOLLOWING)).toBe(false);
 });
 
-test('scope stats describe whichever audit queue is selected', () => {
+test('scope stats count every list, whichever one is shown', () => {
   const mutual = follows(account('mutual'), { following: true, followedBy: true });
   keep(mutual);
   const notBack = follows(account('notback'), { following: true });

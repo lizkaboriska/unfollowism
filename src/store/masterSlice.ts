@@ -280,7 +280,7 @@ export const masterSlice = createSlice({
       state.changed[payload.from] = null;
       state.revision += 1;
     },
-    /** A suggested rename was wrong: the suggestion goes away, like unticking a box. Imports don't suggest it again. */
+    /** A suggested rename was wrong: the suggestion goes away, as an ordinary edit. Imports don't suggest it again. */
     dismissRename(state, { payload }: PayloadAction<{ from: string }>) {
       if (!accountBefore(state, payload.from)?.renameSuggestion) {
         return;
