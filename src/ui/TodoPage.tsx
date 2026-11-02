@@ -7,8 +7,8 @@ import { PLAN_VIEW_ACTIONS, type PlanView } from '@/entities/master/model/views.
 import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
 import { selectListKeys } from '@/features/filters/model/listSlice.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { AccountList, type ListItems } from '@/widgets/account-list/AccountList.tsx';
 
-import { AccountList, type ListItems } from './AccountList.tsx';
 import { TodoFinished } from './TodoFinished.tsx';
 import { TodoRow } from './TodoRow.tsx';
 import { TodoTabs } from './TodoTabs.tsx';

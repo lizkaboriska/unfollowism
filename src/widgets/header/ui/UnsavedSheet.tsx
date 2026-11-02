@@ -15,7 +15,8 @@ import { ResetButton } from '@/features/save-reset/ResetButton.tsx';
 import { SaveButton } from '@/features/save-reset/SaveButton.tsx';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
-import { selectUnsavedGroups } from '@/store/selectors.ts';
+
+import { selectUnsavedGroups } from '../model/selectors.ts';
 
 import { changeText, decisionText, tagRowText } from './sessionText.ts';
 

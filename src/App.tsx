@@ -6,18 +6,18 @@ import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { Toaster } from '@/shared/ui/Toaster.tsx';
+import { AppHeader } from '@/widgets/header/ui/AppHeader.tsx';
+import { AppNav } from '@/widgets/nav/AppNav.tsx';
+import { ReviewTop } from '@/widgets/review-top/ReviewTop.tsx';
+import { StatusLine } from '@/widgets/status/StatusLine.tsx';
+import { StorageWarning } from '@/widgets/status/StorageWarning.tsx';
 
 import type { StoreDeps } from './store/deps.ts';
 import { addressChanged } from './store/urlSync.ts';
-import { AppHeader } from './ui/AppHeader.tsx';
-import { AppNav } from './ui/AppNav.tsx';
 import { ChangesPage } from './ui/ChangesPage.tsx';
 import { ImportHero } from './ui/ImportHero.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
 import { ReviewList } from './ui/ReviewList.tsx';
-import { ReviewTop } from './ui/ReviewTop.tsx';
-import { StatusLine } from './ui/StatusLine.tsx';
-import { StorageWarning } from './ui/StorageWarning.tsx';
 import { TodoPage } from './ui/TodoPage.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {

@@ -5,8 +5,7 @@ import { PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from '@/entities/master/
 import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
 import { setView } from '@/features/filters/model/filtersSlice.ts';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
-
-import { useTodoCount } from './viewCounts.ts';
+import { useTodoCount } from '@/widgets/nav/viewCounts.ts';
 
 /**
  * Unfollow · Remove follower as one framed bar of two cells; the open tab is black. A count is what's still to do
