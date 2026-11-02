@@ -1,7 +1,6 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '@/entities/master/lib/analyzeImport.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
-
-import { plural } from './statusText.ts';
 
 /** What's missing before the selection can be imported, as a warning. Null when nothing is. */
 export function missingWarning({

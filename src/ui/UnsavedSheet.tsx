@@ -10,6 +10,7 @@ import {
   type TagChangeRow,
 } from '@/entities/master/lib/index.ts';
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
@@ -17,7 +18,6 @@ import { selectUnsavedGroups } from '../store/selectors.ts';
 
 import { ResetButton, SaveButton } from './saveAndReset.tsx';
 import { changeText, decisionText, tagRowText } from './sessionText.ts';
-import { plural } from './statusText.ts';
 
 /** Accounts listed at most; a big tag rename or delete can touch thousands. */
 const MAX_ACCOUNTS = 200;

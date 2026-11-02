@@ -3,13 +3,12 @@ import { useState, type ReactNode } from 'react';
 
 import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '@/entities/master/lib/index.ts';
 import { selectTags } from '@/entities/master/model/selectors.ts';
+import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities/master/ui/labels.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 
 import { NO_FILTERS, applyFilters, type FilterChoice } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectMatchingCount, selectScopeTotals } from '../store/selectors.ts';
-
-import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from './labels.ts';
-import { plural } from './statusText.ts';
 
 function sameTag(a: TagFilter, b: TagFilter): boolean {
   return a.kind === b.kind && (a.kind !== TAG_FILTER_KINDS.TAG || (b.kind === TAG_FILTER_KINDS.TAG && a.tag === b.tag));

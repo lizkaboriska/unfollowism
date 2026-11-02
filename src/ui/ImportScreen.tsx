@@ -12,6 +12,7 @@ import { ImportError } from '@/entities/master/lib/index.ts';
 import { selectIsDirty } from '@/entities/master/model/selectors.ts';
 import { IMPORT_STATUSES } from '@/entities/master/model/statuses.ts';
 import { importPrepared } from '@/entities/master/model/thunks.ts';
+import { errorMessage } from '@/entities/master/ui/statusText.ts';
 import { readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { useConfirm } from '@/shared/ui/dialogHooks.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
@@ -21,7 +22,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { importProblemText } from './importProblemText.ts';
 import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
-import { errorMessage } from './statusText.ts';
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
 interface ChosenFile {

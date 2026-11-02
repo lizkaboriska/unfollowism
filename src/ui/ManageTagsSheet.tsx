@@ -3,12 +3,12 @@ import { useState } from 'react';
 
 import { deleteTag } from '@/entities/master/model/masterSlice.ts';
 import { selectTagCounts, selectTags } from '@/entities/master/model/selectors.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 import { useConfirm } from '@/shared/ui/dialogHooks.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 import { RenameTagDialog } from './RenameTagDialog.tsx';
-import { plural } from './statusText.ts';
 
 const NEW_TAGS = 'New tags are made on an account: open it and tap + New tag.';
 const MENU_ROW = { h: '12', px: '3.5', textStyle: 'control' } as const;

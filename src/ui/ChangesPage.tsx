@@ -7,14 +7,14 @@ import {
   selectChangesSince,
   selectRelationshipStats,
 } from '@/entities/master/model/selectors.ts';
+import { CHANGE_SECTION_TITLES } from '@/entities/master/ui/labels.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 import { formatDate } from '@/shared/lib/dates.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
 
 import { AccountSheet } from './AccountSheet.tsx';
 import { ChangeRow } from './ChangeRow.tsx';
-import { CHANGE_SECTION_TITLES } from './labels.ts';
-import { plural } from './statusText.ts';
 
 /** Rows a section shows before "Show all". */
 const FIRST_ROWS = 3;

@@ -2,11 +2,11 @@ import { Tabs, Text } from '@chakra-ui/react';
 import type { ReactNode } from 'react';
 
 import { PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from '@/entities/master/model/views.ts';
+import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
 
 import { setView } from '../store/filtersSlice.ts';
 import { useAppDispatch } from '../store/hooks.ts';
 
-import { TODO_LABELS } from './labels.ts';
 import { useTodoCount } from './viewCounts.ts';
 
 /**

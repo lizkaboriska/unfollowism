@@ -10,10 +10,10 @@ import {
   type ReadonlyAccount,
 } from '@/entities/master/lib/index.ts';
 import { selectAccount } from '@/entities/master/model/selectors.ts';
+import { COMPLETED_PLAN_BADGES, planText } from '@/entities/master/ui/labels.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
 
-import { COMPLETED_PLAN_BADGES, planText } from './labels.ts';
 import { RenameSuggestion } from './RenameSuggestion.tsx';
 
 /** The plan whose completion explains why an account is in a change list. */

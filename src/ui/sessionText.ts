@@ -7,9 +7,8 @@ import {
   type SessionChange,
   type TagChangeRow,
 } from '@/entities/master/lib/index.ts';
+import { planText } from '@/entities/master/ui/labels.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
-
-import { planText } from './labels.ts';
 
 /** "Needs a decision", "Kept", "Unfollow queued", "Unfollow done + Removal queued". `null` = needs a decision. */
 export function decisionText(decision: DeepReadonly<Decision> | null): string {

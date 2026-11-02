@@ -3,11 +3,10 @@ import { Stack, Text } from '@chakra-ui/react';
 import { resetChanges } from '@/entities/master/model/masterSlice.ts';
 import { selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
 import { SAVE_STATUSES } from '@/entities/master/model/statuses.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 import { useConfirm } from '@/shared/ui/dialogHooks.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-
-import { plural } from './statusText.ts';
 
 /**
  * Reset changes, shared by the ⋯ menu and the Unsaved changes popup: asks first, then goes back to the last save.

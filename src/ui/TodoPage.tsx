@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import { PLAN_STATES, totalOf } from '@/entities/master/lib/index.ts';
 import { selectPlanStats } from '@/entities/master/model/selectors.ts';
 import { PLAN_VIEW_ACTIONS, type PlanView } from '@/entities/master/model/views.ts';
+import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';
 
 import { AccountList, type ListItems } from './AccountList.tsx';
-import { TODO_LABELS } from './labels.ts';
 import { TodoFinished } from './TodoFinished.tsx';
 import { TodoRow } from './TodoRow.tsx';
 import { TodoTabs } from './TodoTabs.tsx';

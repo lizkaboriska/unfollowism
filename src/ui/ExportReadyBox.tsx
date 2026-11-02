@@ -2,10 +2,10 @@ import { Box, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, type DragEvent, type ReactNode } from 'react';
 
 import type { RecognizedFiles } from '@/entities/master/lib/analyzeImport.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 import { formatDate } from '@/shared/lib/dates.ts';
 
 import { exportFilesText, type ExportFileInfo } from './importText.ts';
-import { plural } from './statusText.ts';
 
 /** Handlers that let files be dropped on a box; `dragging` turns its frame blue. */
 export interface DropTarget {

@@ -4,11 +4,11 @@ import { memo, type ReactNode } from 'react';
 import { PLAN_STATES, planOf, profileUrl, type ActionType, type PlanState } from '@/entities/master/lib/index.ts';
 import { keepInstead, setPlan } from '@/entities/master/model/masterSlice.ts';
 import { selectAccount } from '@/entities/master/model/selectors.ts';
+import { relationshipNote } from '@/entities/master/ui/labels.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 import { openProfilePopup } from './instagramLink.ts';
-import { relationshipNote } from './labels.ts';
 
 /** An underlined text button: "Keep instead", "Undo". */
 function TextButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {

@@ -3,13 +3,12 @@ import { useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
 import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
+import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities/master/ui/labels.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 
 import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';
-
-import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from './labels.ts';
-import { plural } from './statusText.ts';
 
 interface Chip {
   /** Which filter: a tag can be named like a decision ("Kept"). */

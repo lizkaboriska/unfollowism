@@ -2,13 +2,13 @@ import { Box, Button, HStack, Heading, Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
+import { plural } from '@/entities/master/ui/statusText.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
 
 import { AccountSheet } from './AccountSheet.tsx';
 import { AppMenu } from './AppMenu.tsx';
 import { SaveButton } from './saveAndReset.tsx';
-import { plural } from './statusText.ts';
 import { UnsavedSheet } from './UnsavedSheet.tsx';
 
 /**
