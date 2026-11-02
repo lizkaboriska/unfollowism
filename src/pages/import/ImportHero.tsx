@@ -1,6 +1,6 @@
 import { Box, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 
-import { useAlert } from '@/shared/ui/dialogHooks.ts';
+import { useAlert } from '@/shared/ui/useAlert.ts';
 
 const HELP = (
   <Stack gap="3">

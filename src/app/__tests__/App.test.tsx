@@ -12,7 +12,7 @@ import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
 import { formatSince } from '@/shared/lib/dates.ts';
-import { DialogProvider } from '@/shared/ui/dialogs.tsx';
+import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';

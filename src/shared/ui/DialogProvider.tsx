@@ -1,7 +1,13 @@
 import { Button, Dialog, Portal } from '@chakra-ui/react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 
-import { DIALOG_KINDS, DialogContext, type ConfirmOptions, type DialogKind, type OpenDialogFn } from './dialogHooks.ts';
+import {
+  DIALOG_KINDS,
+  DialogContext,
+  type ConfirmOptions,
+  type DialogKind,
+  type OpenDialogFn,
+} from './dialogContext.ts';
 
 interface OpenDialog extends ConfirmOptions {
   kind: DialogKind;

@@ -11,7 +11,7 @@ import { localStorageLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
 import { selectIsDirty } from '@/entities/master/model/selectors.ts';
 import { downloadText } from '@/shared/lib/download.ts';
-import { DialogProvider } from '@/shared/ui/dialogs.tsx';
+import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
 

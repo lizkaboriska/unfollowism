@@ -5,7 +5,8 @@ import { LIST_VIEWS, TODO_VIEWS, isPlanView } from '@/entities/master/model/view
 import { setView } from '@/features/filters/model/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { useChangesTotal, useTodoCount } from './viewCounts.ts';
+import { useChangesTotal } from './useChangesTotal.ts';
+import { useTodoCount } from './useTodoCount.ts';
 
 function NavItem({
   label,

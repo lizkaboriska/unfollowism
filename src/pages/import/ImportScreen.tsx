@@ -15,7 +15,7 @@ import { importPrepared } from '@/entities/master/model/thunks.ts';
 import { errorMessage } from '@/entities/master/ui/statusText.ts';
 import { readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
-import { useConfirm } from '@/shared/ui/dialogHooks.ts';
+import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
 import { ExportReadyBox } from './ExportReadyBox.tsx';
