@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { selectHasProject } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
+import { ChangesPage } from '@/pages/changes/ChangesPage.tsx';
+import { ImportHero } from '@/pages/import/ImportHero.tsx';
+import { ImportScreen } from '@/pages/import/ImportScreen.tsx';
+import { ReviewList } from '@/pages/review/ReviewList.tsx';
+import { TodoPage } from '@/pages/todo/TodoPage.tsx';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { Toaster } from '@/shared/ui/Toaster.tsx';
 import { AppHeader } from '@/widgets/header/ui/AppHeader.tsx';
@@ -14,11 +19,6 @@ import { StorageWarning } from '@/widgets/status/StorageWarning.tsx';
 
 import type { StoreDeps } from './store/deps.ts';
 import { addressChanged } from './store/urlSync.ts';
-import { ChangesPage } from './ui/ChangesPage.tsx';
-import { ImportHero } from './ui/ImportHero.tsx';
-import { ImportScreen } from './ui/ImportScreen.tsx';
-import { ReviewList } from './ui/ReviewList.tsx';
-import { TodoPage } from './ui/TodoPage.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
