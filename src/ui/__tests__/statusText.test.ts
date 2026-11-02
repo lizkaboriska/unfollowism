@@ -47,21 +47,12 @@ test.each([
     'Loaded 1 follower file: same as the last import. 1 following, 1 followers. ' +
       'Since your last save: 3 new follows, 1 unfollowed, 2 new followers, 1 lost follower.',
   ],
-  [
-    'saved',
-    { type: STATUS_EVENTS.SAVED, filename: 'm.json', changedWhileSaving: false },
-    'Master saved as m.json. Keep this file: import it next time.',
-  ],
-  [
-    'saved while editing',
-    { type: STATUS_EVENTS.SAVED, filename: 'm.json', changedWhileSaving: true },
-    'Master saved as m.json. Changes made while saving are not in that file yet.',
-  ],
-  ['save failed', { type: STATUS_EVENTS.SAVE_FAILED, reason: 'disk full' }, 'Could not save master: disk full'],
+  ['saved (shown as a toast instead)', { type: STATUS_EVENTS.SAVED }, ''],
+  ['save failed', { type: STATUS_EVENTS.SAVE_FAILED, reason: 'disk full' }, 'Try Save again. Error: disk full'],
   [
     'save failed without a message',
     { type: STATUS_EVENTS.SAVE_FAILED, reason: null },
-    'Could not save master: unexpected error',
+    'Try Save again. Error: unexpected error',
   ],
 ] as const)('%s', (_, status, expected) => {
   expect(statusText(status)).toBe(expected);

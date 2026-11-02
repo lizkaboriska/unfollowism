@@ -50,7 +50,6 @@ export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rej
 export interface SaveFulfilled {
   savedAt: string;
   revision: number;
-  filename: string;
   /** The edited accounts as written to the file (null = removed, so not in the file). */
   changed: ChangedAccounts;
 }
@@ -88,7 +87,7 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     const filename = masterFileName(now);
     await extra.download(filename, serializeMaster(master, savedAt));
     extra.lastSaved.set(savedAt);
-    return { savedAt, revision, filename, changed };
+    return { savedAt, revision, changed };
   },
   {
     condition: (_, { getState }) =>

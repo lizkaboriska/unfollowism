@@ -11,7 +11,7 @@ import {
   followChangeMatches,
   planOf,
   planStats,
-  summarizeSession,
+  groupSessionChanges,
   tagCounts,
   tagsInUse,
   createDict,
@@ -274,7 +274,8 @@ export const selectUnsavedDiff = createSelector(
   },
 );
 
-export const selectUnsavedSummary = createSelector([selectUnsavedDiff], summarizeSession);
+/** The unsaved changes as the popup shows them: tag rows, then the other changes per account. */
+export const selectUnsavedGroups = createSelector([selectUnsavedDiff], groupSessionChanges);
 
 /** Per current account object: the saved version it was compared with, and whether they match. */
 const savedComparisons = new WeakMap<ReadonlyAccount, { saved: ReadonlyAccount | undefined; same: boolean }>();

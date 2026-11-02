@@ -1,12 +1,12 @@
 import {
   ACTION_TYPES,
   DecisionKind,
-  SESSION_CATEGORIES,
   SESSION_CHANGES,
+  TagChangeKind,
   type Decision,
   type DeepReadonly,
-  type SessionCategory,
   type SessionChange,
+  type TagChangeRow,
 } from '../core/index.ts';
 
 import { planText } from './labels.ts';
@@ -27,30 +27,36 @@ export function decisionText(decision: DeepReadonly<Decision> | null): string {
     .join(' + ');
 }
 
-export const CATEGORY_LABELS: Record<SessionCategory, string> = {
-  [SESSION_CATEGORIES.DECISIONS]: 'Decisions',
-  [SESSION_CATEGORIES.TAGS]: 'Tags',
-  [SESSION_CATEGORIES.OTHER]: 'Other',
-};
-
-/** A symbol and a sentence for one change line. */
-export function changeLine(change: SessionChange): { symbol: string; text: string } {
+/** One smaller line under an account in Unsaved changes; decision changes have their own line (decisionText). */
+export function changeText(change: SessionChange): string {
   switch (change.type) {
     case SESSION_CHANGES.DECISION_CHANGED:
-      return { symbol: '→', text: `${decisionText(change.from)} → ${decisionText(change.to)}` };
+      return `${decisionText(change.from)} → ${decisionText(change.to)}`;
     case SESSION_CHANGES.TAG_ADDED:
-      return { symbol: '+', text: `Added tag ${change.tag}` };
+      return `+ #${change.tag} tag`;
     case SESSION_CHANGES.TAG_REMOVED:
-      return { symbol: '−', text: `Removed tag ${change.tag}` };
+      return `− #${change.tag} tag`;
     case SESSION_CHANGES.UNAVAILABLE_MARKED:
-      return { symbol: '•', text: 'Marked unavailable' };
+      return 'Marked unavailable';
     case SESSION_CHANGES.UNAVAILABLE_CLEARED:
-      return { symbol: '•', text: 'Cleared unavailable' };
+      return 'No longer unavailable';
     case SESSION_CHANGES.NOTE_EDITED:
-      return { symbol: '✎', text: 'Edited note' };
+      return 'Note edited';
     case SESSION_CHANGES.ACCOUNT_REMOVED:
-      return { symbol: '→', text: 'Moved to its new name' };
+      return 'Moved to its new name';
     case SESSION_CHANGES.RENAME_DISMISSED:
-      return { symbol: '×', text: 'Not a rename' };
+      return 'Not a rename';
+  }
+}
+
+/** A Tag changes row: "+ #friends tag", "− #friends tag" or "#inspiration → #quiet-feed". */
+export function tagRowText(row: TagChangeRow): string {
+  switch (row.kind) {
+    case TagChangeKind.ADDED:
+      return `+ #${row.tag} tag`;
+    case TagChangeKind.REMOVED:
+      return `− #${row.tag} tag`;
+    case TagChangeKind.RENAMED:
+      return `#${row.from} → #${row.to}`;
   }
 }

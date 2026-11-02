@@ -11,6 +11,6 @@ export const STATUS_EVENTS = { IMPORTED: 'imported', SAVED: 'saved', SAVE_FAILED
 
 export type StatusEvent =
   | { type: typeof STATUS_EVENTS.IMPORTED; isNewMaster: boolean; followerFileCount: number; summary: ImportSummary }
-  | { type: typeof STATUS_EVENTS.SAVED; filename: string; changedWhileSaving: boolean }
+  | { type: typeof STATUS_EVENTS.SAVED }
   /** `reason` is the error's own message; null when it gave none. */
   | { type: typeof STATUS_EVENTS.SAVE_FAILED; reason: string | null };

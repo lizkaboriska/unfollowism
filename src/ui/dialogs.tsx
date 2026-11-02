@@ -53,36 +53,29 @@ export function DialogProvider({ children }: { children: ReactNode }) {
           <Dialog.Positioner>
             <Dialog.Content mx="4">
               <Dialog.Header>
-                <Dialog.Title>{dialog?.title}</Dialog.Title>
+                <Dialog.Title textStyle="sheetTitle">{dialog?.title}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>{dialog?.body}</Dialog.Body>
-              <Dialog.Footer>
-                {dialog?.kind === DIALOG_KINDS.CONFIRM ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        close(false);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      colorPalette={dialog.destructive ? 'danger' : 'ink'}
-                      onClick={() => {
-                        close(true);
-                      }}
-                    >
-                      {dialog.confirmLabel}
-                    </Button>
-                  </>
-                ) : (
+              {/* Buttons stacked full width, the main one first; one that throws work away is outlined in red. */}
+              <Dialog.Footer flexDirection="column" alignItems="stretch" gap="2">
+                <Button
+                  h="11"
+                  {...(dialog?.destructive ? { variant: 'outline', colorPalette: 'danger' } : {})}
+                  onClick={() => {
+                    close(true);
+                  }}
+                >
+                  {dialog?.confirmLabel}
+                </Button>
+                {dialog?.kind === DIALOG_KINDS.CONFIRM && (
                   <Button
+                    h="11"
+                    variant="outline"
                     onClick={() => {
-                      close(true);
+                      close(false);
                     }}
                   >
-                    {dialog?.confirmLabel}
+                    Cancel
                   </Button>
                 )}
               </Dialog.Footer>

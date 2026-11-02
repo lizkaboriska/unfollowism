@@ -13,17 +13,27 @@ import { makeStore } from './store/index.ts';
 import { system } from './theme.ts';
 import { formatSince } from './ui/dates.ts';
 import { DialogProvider } from './ui/dialogs.tsx';
+import { SAVED_TOAST } from './ui/saveAndReset.tsx';
+import { toaster } from './ui/toasts.ts';
+
+// Toasts live outside React; clear them so one test's toast never shows in the next.
+afterEach(() => {
+  toaster.remove();
+});
 
 async function renderApp({
   tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1'),
   lastSaved = memoryLastSaved(),
   waitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
+  /** Called before each download; throw to make the save fail. */
+  beforeDownload = () => undefined,
 } = {}) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now,
     download: (filename, text) => {
+      beforeDownload();
       downloads.push({ filename, text });
     },
     tab,
@@ -91,6 +101,44 @@ async function openFilterSheet(user: UserEvent) {
 async function sheetClosed() {
   await waitFor(() => {
     expect(screen.queryByRole('dialog', { name: 'Filter' })).not.toBeInTheDocument();
+  });
+}
+
+async function openManageTags(user: UserEvent) {
+  await fromMenu(user, 'Manage tags');
+  return finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
+}
+
+async function closeManageTags(user: UserEvent) {
+  const sheet = screen.getByRole('dialog', { name: 'Manage tags' });
+  await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
+  });
+}
+
+/** Manage tags: the row of one tag. */
+const lineOf = (sheet: HTMLElement, tag: string) => must(within(sheet).getByText(`#${tag}`).closest('li'));
+
+/** Manage tags: picks Rename or Delete in a tag's ⋯ menu (by keyboard, see fromMenu) and returns its dialog. */
+async function openTagDialog(user: UserEvent, tag: string, item: 'Rename' | 'Delete') {
+  await user.click(screen.getByRole('button', { name: `Rename or delete ${tag}` }));
+  await waitFor(() => {
+    expect(screen.getByRole('menu')).toHaveFocus();
+  });
+  const option = screen.getByRole('menuitem', { name: item });
+  for (let presses = 0; !option.hasAttribute('data-highlighted') && presses < 3; presses++) {
+    await user.keyboard('{ArrowDown}');
+  }
+  await user.keyboard('{Enter}');
+  return item === 'Rename'
+    ? finishedOpening(screen.findByRole('dialog', { name: `Rename #${tag}` }))
+    : finishedOpening(screen.findByRole('alertdialog', { name: `Delete #${tag}?` }));
+}
+
+async function dialogClosed(name: string) {
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name })).not.toBeInTheDocument();
   });
 }
 
@@ -224,8 +272,39 @@ test('import → review → save works end to end', async () => {
     accounts: Record<string, { decision?: { kind: string } }>;
   };
   expect(saved.accounts.bob?.decision).toEqual({ kind: 'kept' });
-  expect(screen.getByRole('button', { name: 'All decisions saved' })).toBeInTheDocument();
+  // Nothing to list once saved: plain text, not a link.
+  expect(screen.getByText('All decisions saved')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'All decisions saved' })).not.toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
+  expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
+  expect(screen.queryByText(/Started a new master/)).not.toBeInTheDocument(); // the import message gives way
+});
+
+test('a failed save shows a warning that stays until a save works', async () => {
+  let failing = true;
+  const { downloads, user } = await renderApp({
+    beforeDownload: () => {
+      if (failing) {
+        throw new Error('disk full');
+      }
+    },
+  });
+  await importFiles(user, exportFiles());
+  await findRow('bob');
+  await user.click(keepButton('bob'));
+  await user.click(saveButton());
+
+  const warning = await screen.findByRole('alert');
+  expect(within(warning).getByText("⚠ Couldn't save the master file")).toBeInTheDocument();
+  expect(within(warning).getByText('Try Save again. Error: disk full')).toBeInTheDocument();
+  expect(screen.queryByText(SAVED_TOAST)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
+
+  failing = false;
+  await user.click(saveButton());
+  expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
+  expect(downloads).toHaveLength(1);
+  expect(screen.queryByText("⚠ Couldn't save the master file")).not.toBeInTheDocument();
 });
 
 test('a missing Followers file is shown and Import stays disabled', async () => {
@@ -497,7 +576,9 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
 
   await fromMenu(user, 'Reset changes');
   const dialog = await screen.findByRole('alertdialog');
-  expect(within(dialog).getByText(/Changes to 1 account since your last save/)).toBeInTheDocument();
+  // Started from an export only: nothing was saved yet, so Reset goes back to the import.
+  expect(within(dialog).getByText('Your changes to 1 account since the import will be undone.')).toBeInTheDocument();
+  expect(within(dialog).getByText('Instagram stays as it is.')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -505,11 +586,22 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
   expect(isKept('bob')).toBe(true);
 
   await fromMenu(user, 'Reset changes');
-  await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' }));
+  await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset changes' }));
   await waitFor(() => {
     expect(isKept('bob')).toBe(false);
   });
   expect(await resetDisabled()).toBe(true);
+
+  // Once saved, the dialog speaks of the last save and the saved master file.
+  await user.click(keepButton('bob'));
+  await user.click(saveButton());
+  await user.click(keepButton('alice'));
+  await fromMenu(user, 'Reset changes');
+  const afterSave = await screen.findByRole('alertdialog');
+  expect(
+    within(afterSave).getByText('Your changes to 1 account since your last save will be undone.'),
+  ).toBeInTheDocument();
+  expect(within(afterSave).getByText('Your saved master file and Instagram stay as they are.')).toBeInTheDocument();
 });
 
 describe('main view', () => {
@@ -787,7 +879,7 @@ describe('main view', () => {
 
     // Nothing was saved, so Reset goes back to the import, where nothing was queued.
     await fromMenu(user, 'Reset changes');
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Reset changes' }));
     expect(await screen.findByRole('heading', { name: 'Nothing queued' })).toBeInTheDocument();
   });
 
@@ -961,17 +1053,25 @@ describe('Review cards and the account sheet', () => {
   });
 });
 
-describe('unsaved changes drawer', () => {
+describe('unsaved changes popup', () => {
   async function imported() {
     const t = await renderApp();
     await importFiles(t.user, exportFiles());
     await findRow('bob');
     return t;
   }
-  const drawer = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
+  const popup = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
+  async function openPopup(user: UserEvent, link: string) {
+    await user.click(screen.getByRole('button', { name: link }));
+    return finishedOpening(waitFor(popup));
+  }
+  const popupClosed = () =>
+    waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Unsaved changes' })).not.toBeInTheDocument();
+    });
 
-  test("lists net changes per account, by category, and only what isn't saved", async () => {
-    const { user, downloads } = await imported();
+  test("tag changes on top, other changes per account, only what isn't saved; a name opens the account", async () => {
+    const { user } = await imported();
     await user.click(keepButton('alice'));
     await newTag(user, 'bob', 'dog');
     await user.click(cardButton('bob', 'Queue unfollow'));
@@ -980,42 +1080,89 @@ describe('unsaved changes drawer', () => {
     await user.click(within(sheet).getByRole('button', { name: 'home' })); // back again: no net change
     await closeAccount(user, 'alice');
 
-    await user.click(screen.getByRole('button', { name: '● Unsaved · 2 changed accounts' }));
-    const d = await finishedOpening(waitFor(drawer));
-    // alice: kept; bob: dog + unfollow queued (one decision change)
-    expect(within(d).getByText('2 accounts · 3 changes')).toBeInTheDocument();
-    expect(within(d).getByText('Added tag dog')).toBeInTheDocument();
-    expect(within(d).getByText('Needs a decision → Unfollow queued')).toBeInTheDocument();
-    expect(within(d).queryByText('Added tag home')).not.toBeInTheDocument();
+    const p = await openPopup(user, '● Unsaved · 2 changed accounts');
+    expect(within(p).getByText('2 changed accounts since the import')).toBeInTheDocument(); // never saved
+    const tagRow = within(p).getByRole('button', { name: /^\+ #dog tag/ });
+    expect(tagRow).toHaveTextContent('1 account ▾');
+    expect(within(p).queryByText(/#home/)).not.toBeInTheDocument();
+    expect(within(p).getAllByText('Needs a decision')).toHaveLength(2); // alice and bob: from …
+    expect(within(p).getByText('Kept')).toBeInTheDocument(); // … to the black chip
+    expect(within(p).getByText('Unfollow queued')).toBeInTheDocument(); // bob's tag is only in the tag row
 
-    await user.click(within(d).getByRole('button', { name: 'Decisions' }));
-    expect(within(d).queryByText('Added tag dog')).not.toBeInTheDocument();
-    expect(within(d).getByText('Needs a decision → Kept')).toBeInTheDocument();
-    expect(within(d).getByText('Needs a decision → Unfollow queued')).toBeInTheDocument();
-
-    await user.click(within(d).getByRole('button', { name: 'Tags' }));
-    await user.click(within(d).getByRole('button', { name: /^dog\s*\+1$/ }));
-    expect(
-      within(d)
-        .getAllByRole('link')
-        .map(link => link.textContent),
-    ).toEqual(['@bob ↗']);
-
-    await user.click(within(d).getByRole('button', { name: 'Save' }));
-    await waitFor(() => {
-      expect(downloads).toHaveLength(1);
-    });
-    expect(await within(d).findByText(/No edits since your last save/)).toBeInTheDocument();
+    await user.click(tagRow);
+    expect(tagRow).toHaveAttribute('aria-expanded', 'true');
+    expect(within(p).getAllByRole('button', { name: '@bob' })).toHaveLength(2); // in the tag row and his own block
+    await user.click(within(p).getAllByRole('button', { name: '@bob' })[0] as HTMLElement);
+    await popupClosed();
+    expect(await screen.findByRole('dialog', { name: '@bob' })).toBeInTheDocument();
   });
 
-  test("Reset changes in the drawer undoes what's listed", async () => {
+  test('a tag renamed on many accounts is one row that opens to 10 names, then Show all', async () => {
+    const names = Array.from({ length: 12 }, (_, i) => `user${String(i + 10)}`);
+    const accounts = Object.fromEntries(
+      names.map(name => [
+        name,
+        { username: name, followingSince: 1_700_000_000, review: { unavailable: false, tags: ['dog'], notes: '' } },
+      ]),
+    );
+    const savedAt = '2026-10-01T00:00:00.000Z';
+    const master = new File(
+      [JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts })],
+      'unfollowism_master.json',
+      { type: 'application/json' },
+    );
+    const { user } = await renderApp();
+    await importFiles(user, [master, ...exportOf(names, ['user10'])]);
+    await findRow('user10');
+
+    await openManageTags(user);
+    const rename = await openTagDialog(user, 'dog', 'Rename');
+    await user.type(within(rename).getByRole('textbox', { name: 'Tag name' }), '{Control>}a{/Control}pet{Enter}');
+    await dialogClosed('Rename #dog');
+    await closeManageTags(user);
+
+    const p = await openPopup(user, '● Unsaved · 12 changed accounts');
+    expect(within(p).getByText('12 changed accounts since your last save')).toBeInTheDocument();
+    expect(within(p).queryByRole('heading', { name: 'Other changes' })).not.toBeInTheDocument();
+    const rowButton = within(p).getByRole('button', { name: /^#dog → #pet/ });
+    expect(rowButton).toHaveTextContent('12 accounts ▾');
+    const names_ = () => within(p).queryAllByRole('button', { name: /^@user/ });
+    expect(names_()).toHaveLength(0);
+
+    await user.click(rowButton);
+    expect(names_()).toHaveLength(10);
+    await user.click(within(p).getByRole('button', { name: 'Show all 12' }));
+    expect(names_()).toHaveLength(12);
+    expect(within(p).queryByRole('button', { name: /^Show all/ })).not.toBeInTheDocument();
+  });
+
+  test('Save in the popup saves and closes it', async () => {
+    const { user, downloads } = await imported();
+    await user.click(keepButton('bob'));
+    const p = await openPopup(user, '● Unsaved · 1 changed account');
+    await user.click(within(p).getByRole('button', { name: 'Save' }));
+    await popupClosed();
+    expect(downloads).toHaveLength(1);
+    expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
+  });
+
+  test('Reset changes in the popup asks, undoes what is listed and closes it', async () => {
     const { user } = await imported();
     await user.click(keepButton('bob'));
-    await user.click(screen.getByRole('button', { name: '● Unsaved · 1 changed account' }));
-    await user.click(within(await finishedOpening(waitFor(drawer))).getByRole('button', { name: 'Reset changes' }));
+    const p = await openPopup(user, '● Unsaved · 1 changed account');
+    await user.click(within(p).getByRole('button', { name: 'Reset changes' }));
     const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
-    await user.click(within(confirmReset).getByRole('button', { name: 'Reset' }));
-    expect(await within(drawer()).findByText(/No edits since your last save/)).toBeInTheDocument();
+    await user.click(within(confirmReset).getByRole('button', { name: 'Reset changes' }));
+    await popupClosed();
+    expect(isKept('bob')).toBe(false);
+  });
+
+  test('only a new import: nothing per account, Save on, Reset off', async () => {
+    const { user } = await imported();
+    const p = await openPopup(user, '● New import not saved');
+    expect(within(p).getByText('New import, no account changes')).toBeInTheDocument();
+    expect(within(p).getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(within(p).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
   });
 });
 
@@ -1067,60 +1214,55 @@ describe('tags', () => {
 
   test('Manage tags: rename, merge and delete, with counts', async () => {
     const { user } = await imported();
-    let sheet = await openFilterSheet(user);
-    await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
-    const empty = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
-    expect(within(empty).getByText(/No tags yet/)).toBeInTheDocument();
-    await user.click(within(empty).getByRole('button', { name: /close/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
-    });
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    // From the Filter popup, Manage tags replaces it.
+    const filter = await openFilterSheet(user);
+    await user.click(within(filter).getByRole('button', { name: 'Manage tags' }));
     await sheetClosed();
+    const empty = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
+    expect(within(empty).getByText('Your tags are only for you.')).toBeInTheDocument();
+    expect(
+      within(empty).getByText('No tags yet. New tags are made on an account: open it and tap + New tag.'),
+    ).toBeInTheDocument();
+    await closeManageTags(user);
 
     await newTag(user, 'alice', 'dog');
     await newTag(user, 'bob', 'dog');
     await newTag(user, 'bob', 'illustration');
-    sheet = await openFilterSheet(user);
-    await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
-    const dialog = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
-    expect(within(dialog).getByText('2 accounts')).toBeInTheDocument();
+    const sheet = await openManageTags(user);
+    expect(within(lineOf(sheet, 'dog')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(lineOf(sheet, 'illustration')).getByText('1 account')).toBeInTheDocument();
 
-    // Rename: an empty name is refused, a new name applies to every account with the tag.
-    const lineOf = (tag: string) => must(within(dialog).getByText(tag).parentElement);
-    await user.click(within(lineOf('dog')).getByRole('button', { name: 'Rename' }));
-    const field = within(dialog).getByRole('textbox', { name: 'New name for dog' });
+    // Rename: off while the name is empty; a new name applies to every account with the tag.
+    let rename = await openTagDialog(user, 'dog', 'Rename');
+    const field = within(rename).getByRole('textbox', { name: 'Tag name' });
+    expect(field).toHaveValue('dog');
     await user.clear(field);
-    await user.keyboard('{Enter}');
-    expect(within(dialog).getByText('A tag needs a name.')).toBeInTheDocument();
-    await user.type(field, 'dogs{Enter}');
-    expect(within(lineOf('dogs')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(rename).getByRole('button', { name: 'Rename' })).toBeDisabled();
+    await user.type(field, 'dogs');
+    await user.click(within(rename).getByRole('button', { name: 'Rename' }));
+    await dialogClosed('Rename #dog');
+    expect(within(lineOf(sheet, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
 
-    // Rename onto an existing tag asks, then merges.
-    await user.click(within(lineOf('illustration')).getByRole('button', { name: 'Rename' }));
-    await user.type(
-      within(dialog).getByRole('textbox', { name: 'New name for illustration' }),
-      '{Control>}a{/Control}Dogs{Enter}',
-    );
-    const merge = await screen.findByRole('alertdialog', { name: 'Merge tags?' });
-    await waitFor(() => user.click(within(merge).getByRole('button', { name: 'Merge' })));
-    await waitFor(() => {
-      expect(within(dialog).queryByText('illustration')).not.toBeInTheDocument();
-    });
+    // Onto an existing tag (any case): a warning, and the button merges.
+    rename = await openTagDialog(user, 'illustration', 'Rename');
+    await user.type(within(rename).getByRole('textbox', { name: 'Tag name' }), '{Control>}a{/Control}Dogs');
+    expect(within(rename).getByText('⚠ #dogs already exists')).toBeInTheDocument();
+    expect(within(rename).getByText('Saving merges the two tags: the account gets #dogs.')).toBeInTheDocument();
+    await user.click(within(rename).getByRole('button', { name: 'Merge' }));
+    await dialogClosed('Rename #illustration');
+    expect(within(sheet).queryByText('#illustration')).not.toBeInTheDocument();
+    expect(within(lineOf(sheet, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
 
     // Delete asks with the count.
-    await user.click(within(lineOf('dogs')).getByRole('button', { name: 'Delete' }));
-    const confirmDelete = await screen.findByRole('alertdialog');
-    expect(within(confirmDelete).getByText('It will be removed from 2 accounts.')).toBeInTheDocument();
-    await waitFor(() => user.click(within(confirmDelete).getByRole('button', { name: 'Delete' })));
-    expect(await within(dialog).findByText(/No tags yet/)).toBeInTheDocument();
+    const confirmDelete = await openTagDialog(user, 'dogs', 'Delete');
+    expect(within(confirmDelete).getByRole('heading', { name: 'Delete #dogs?' })).toBeInTheDocument();
+    expect(
+      within(confirmDelete).getByText('It will be removed from 2 accounts. Their decisions and notes stay.'),
+    ).toBeInTheDocument();
+    await user.click(within(confirmDelete).getByRole('button', { name: 'Delete' }));
+    expect(await within(sheet).findByText(/^No tags yet/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: /close/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
-    });
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
-    await sheetClosed();
+    await closeManageTags(user);
     expect(row('alice')).not.toHaveTextContent('#');
     expect(row('bob')).not.toHaveTextContent('#');
   });

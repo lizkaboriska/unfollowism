@@ -28,20 +28,6 @@ export type SessionChange =
   | { type: DecisionChangeType; from: Decision | null; to: Decision | null }
   | { type: Exclude<SessionChangeType, TagChangeType | DecisionChangeType> };
 
-export const SESSION_CATEGORIES = { DECISIONS: 'decisions', TAGS: 'tags', OTHER: 'other' } as const;
-export type SessionCategory = ValueOf<typeof SESSION_CATEGORIES>;
-
-export const SESSION_CHANGE_CATEGORY: Readonly<Record<SessionChangeType, SessionCategory>> = {
-  [SESSION_CHANGES.DECISION_CHANGED]: SESSION_CATEGORIES.DECISIONS,
-  [SESSION_CHANGES.TAG_ADDED]: SESSION_CATEGORIES.TAGS,
-  [SESSION_CHANGES.TAG_REMOVED]: SESSION_CATEGORIES.TAGS,
-  [SESSION_CHANGES.UNAVAILABLE_MARKED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.UNAVAILABLE_CLEARED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.NOTE_EDITED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.ACCOUNT_REMOVED]: SESSION_CATEGORIES.OTHER,
-  [SESSION_CHANGES.RENAME_DISMISSED]: SESSION_CATEGORIES.OTHER,
-};
-
 export interface SessionAccountChanges {
   username: string;
   changes: SessionChange[];
@@ -105,52 +91,89 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
   return result.sort((a, b) => a.username.localeCompare(b.username));
 }
 
-export interface TagCount {
-  tag: string;
-  count: number;
+export enum TagChangeKind {
+  ADDED = 'added',
+  REMOVED = 'removed',
+  /** Exactly the accounts that lost one tag gained another: most likely Rename in Manage tags. */
+  RENAMED = 'renamed',
 }
 
-export interface SessionSummary {
-  changedAccounts: number;
-  changeCount: number;
-  byCategory: Record<SessionCategory, number>;
-  /** Most frequent first. */
-  tagsAdded: TagCount[];
-  tagsRemoved: TagCount[];
+/** One tag change shared by several accounts. `usernames` keeps the diff's order (by username). */
+export type TagChangeRow =
+  | { kind: TagChangeKind.ADDED | TagChangeKind.REMOVED; tag: string; usernames: string[] }
+  | { kind: TagChangeKind.RENAMED; from: string; to: string; usernames: string[] };
+
+export interface GroupedSessionChanges {
+  /** Most accounts first, then by tag name. */
+  tagRows: TagChangeRow[];
+  /** Every other change, per account; an account whose only changes are tags is left out. */
+  accounts: SessionAccountChanges[];
 }
 
-function tagCounts(accounts: readonly SessionAccountChanges[], type: TagChangeType): TagCount[] {
-  const counts = new Map<string, number>();
-  for (const { changes } of accounts) {
+const isTagChange = (change: SessionChange): change is { type: TagChangeType; tag: string } =>
+  change.type === SESSION_CHANGES.TAG_ADDED || change.type === SESSION_CHANGES.TAG_REMOVED;
+
+/** Splits the session diff into tag rows (one per tag, renames spotted) and the remaining per-account changes. */
+export function groupSessionChanges(diff: readonly SessionAccountChanges[]): GroupedSessionChanges {
+  const added = new Map<string, string[]>();
+  const removed = new Map<string, string[]>();
+  const accounts: SessionAccountChanges[] = [];
+
+  for (const { username, changes } of diff) {
+    const rest: SessionChange[] = [];
     for (const change of changes) {
-      if (change.type === type) {
-        counts.set(change.tag, (counts.get(change.tag) ?? 0) + 1);
+      if (isTagChange(change)) {
+        const byTag = change.type === SESSION_CHANGES.TAG_ADDED ? added : removed;
+        const usernames = byTag.get(change.tag);
+        if (usernames) {
+          usernames.push(username);
+        } else {
+          byTag.set(change.tag, [username]);
+        }
+      } else {
+        rest.push(change);
       }
     }
-  }
-  return [...counts]
-    .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
-}
-
-export function summarizeSession(accounts: readonly SessionAccountChanges[]): SessionSummary {
-  const byCategory: Record<SessionCategory, number> = {
-    [SESSION_CATEGORIES.DECISIONS]: 0,
-    [SESSION_CATEGORIES.TAGS]: 0,
-    [SESSION_CATEGORIES.OTHER]: 0,
-  };
-  let changeCount = 0;
-  for (const { changes } of accounts) {
-    for (const change of changes) {
-      byCategory[SESSION_CHANGE_CATEGORY[change.type]] += 1;
-      changeCount += 1;
+    if (rest.length) {
+      accounts.push({ username, changes: rest });
     }
   }
-  return {
-    changedAccounts: accounts.length,
-    changeCount,
-    byCategory,
-    tagsAdded: tagCounts(accounts, SESSION_CHANGES.TAG_ADDED),
-    tagsRemoved: tagCounts(accounts, SESSION_CHANGES.TAG_REMOVED),
+
+  // A rename: one removed tag and one added tag with exactly the same accounts, and no other tag shares them.
+  const sameAccounts = new Map<string, { removed: string[]; added: string[] }>();
+  const group = (usernames: readonly string[]) => {
+    const key = usernames.join('\n'); // both lists follow the diff's order, so equal sets give equal keys
+    let entry = sameAccounts.get(key);
+    if (!entry) {
+      entry = { removed: [], added: [] };
+      sameAccounts.set(key, entry);
+    }
+    return entry;
   };
+  for (const [tag, usernames] of removed) {
+    group(usernames).removed.push(tag);
+  }
+  for (const [tag, usernames] of added) {
+    group(usernames).added.push(tag);
+  }
+
+  const tagRows: TagChangeRow[] = [];
+  for (const entry of sameAccounts.values()) {
+    const [from, to] = [entry.removed[0], entry.added[0]];
+    if (entry.removed.length === 1 && entry.added.length === 1 && from !== undefined && to !== undefined) {
+      tagRows.push({ kind: TagChangeKind.RENAMED, from, to, usernames: removed.get(from) ?? [] });
+      removed.delete(from);
+      added.delete(to);
+    }
+  }
+  for (const [tag, usernames] of added) {
+    tagRows.push({ kind: TagChangeKind.ADDED, tag, usernames });
+  }
+  for (const [tag, usernames] of removed) {
+    tagRows.push({ kind: TagChangeKind.REMOVED, tag, usernames });
+  }
+
+  const rowTag = (row: TagChangeRow) => (row.kind === TagChangeKind.RENAMED ? row.from : row.tag);
+  tagRows.sort((a, b) => b.usernames.length - a.usernames.length || rowTag(a).localeCompare(rowTag(b)));
+  return { tagRows, accounts };
 }

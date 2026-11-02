@@ -65,7 +65,7 @@ function importText(isNewMaster: boolean, followerFileCount: number, summary: Im
   return `Loaded ${files}: same as the last import. ${counts} ${details}`;
 }
 
-/** Status-bar text for what last happened. */
+/** Status-line text for what last happened; a save says nothing here (it shows a toast). */
 export function statusText(status: StatusEvent | null): string {
   if (!status) {
     return '';
@@ -74,10 +74,8 @@ export function statusText(status: StatusEvent | null): string {
     case STATUS_EVENTS.IMPORTED:
       return importText(status.isNewMaster, status.followerFileCount, status.summary);
     case STATUS_EVENTS.SAVED:
-      return status.changedWhileSaving
-        ? `Master saved as ${status.filename}. Changes made while saving are not in that file yet.`
-        : `Master saved as ${status.filename}. Keep this file: import it next time.`;
+      return '';
     case STATUS_EVENTS.SAVE_FAILED:
-      return `Could not save master: ${status.reason ?? 'unexpected error'}`;
+      return `Try Save again. Error: ${status.reason ?? 'unexpected error'}`;
   }
 }

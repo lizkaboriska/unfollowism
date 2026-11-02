@@ -6,12 +6,14 @@ import { useAppSelector } from '../store/hooks.ts';
 
 import { FilterSheet } from './FilterSheet.tsx';
 import { ListControls } from './ListControls.tsx';
+import { ManageTagsSheet } from './ManageTagsSheet.tsx';
 import { ReviewHeading } from './ReviewHeading.tsx';
 import { StatsBox } from './StatsBox.tsx';
 
 /** The top of the Review tab: heading, your numbers, and the controls for what the list shows. */
 export function ReviewTop() {
   const [filterOpen, setFilterOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const followersOnly = useAppSelector(s => s.filters.scope === REVIEW_SCOPES.FOLLOWS_YOU_ONLY);
   return (
     <>
@@ -29,6 +31,16 @@ export function ReviewTop() {
         open={filterOpen}
         onClose={() => {
           setFilterOpen(false);
+        }}
+        onManageTags={() => {
+          setFilterOpen(false);
+          setTagsOpen(true);
+        }}
+      />
+      <ManageTagsSheet
+        open={tagsOpen}
+        onClose={() => {
+          setTagsOpen(false);
         }}
       />
     </>
