@@ -33,7 +33,8 @@ import { KeepButton } from '@/entities/master/ui/ReviewCard.tsx';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { NewTag, NoteField } from './accountFields.tsx';
+import { NewTag } from './NewTag.tsx';
+import { NoteField } from './NoteField.tsx';
 import { keepOpenOnOwnEscape } from './ownEscape.ts';
 
 function Section({ legend, children }: { legend: ReactNode; children: ReactNode }) {

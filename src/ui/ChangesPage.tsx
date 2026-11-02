@@ -9,10 +9,10 @@ import {
 } from '@/entities/master/model/selectors.ts';
 import { CHANGE_SECTION_TITLES } from '@/entities/master/ui/labels.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
+import { AccountSheet } from '@/features/account-popup/AccountSheet.tsx';
 import { formatDate } from '@/shared/lib/dates.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { AccountSheet } from './AccountSheet.tsx';
 import { ChangeRow } from './ChangeRow.tsx';
 
 /** Rows a section shows before "Show all". */

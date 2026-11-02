@@ -3,10 +3,10 @@ import { useState } from 'react';
 
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
+import { AccountSheet } from '@/features/account-popup/AccountSheet.tsx';
 import { SaveButton } from '@/features/save-reset/SaveButton.tsx';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { AccountSheet } from './AccountSheet.tsx';
 import { AppMenu } from './AppMenu.tsx';
 import { UnsavedSheet } from './UnsavedSheet.tsx';
 
