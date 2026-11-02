@@ -6,13 +6,12 @@ import { saveMaster } from '@/entities/master/model/thunks.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
 
-import { useResetChanges } from './resetHooks.tsx';
-
 export const SAVED_TOAST = '✓ Master file downloaded. Keep it for your next import.';
 
-/** Save and Reset changes, shared by the header and the Unsaved changes popup. */
-
-/** Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked. */
+/**
+ * Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked.
+ * Shared by the header and the Unsaved changes popup.
+ */
 export function SaveButton({ onSaved, ...props }: ButtonProps & { onSaved?: () => void }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
@@ -34,28 +33,6 @@ export function SaveButton({ onSaved, ...props }: ButtonProps & { onSaved?: () =
       }
     >
       Save
-    </Button>
-  );
-}
-
-/** Outlined in red: it throws work away. `onReset` runs once the changes were reset. */
-export function ResetButton({ onReset, ...props }: ButtonProps & { onReset?: () => void }) {
-  const { canReset, reset } = useResetChanges();
-  return (
-    <Button
-      variant="outline"
-      colorPalette="danger"
-      {...props}
-      disabled={!canReset}
-      onClick={() =>
-        void reset().then(done => {
-          if (done) {
-            onReset?.();
-          }
-        })
-      }
-    >
-      Reset changes
     </Button>
   );
 }

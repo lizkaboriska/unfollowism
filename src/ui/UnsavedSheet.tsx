@@ -11,11 +11,12 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
+import { ResetButton } from '@/features/save-reset/ResetButton.tsx';
+import { SaveButton } from '@/features/save-reset/SaveButton.tsx';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { selectUnsavedGroups } from '@/store/selectors.ts';
 
-import { ResetButton, SaveButton } from './saveAndReset.tsx';
 import { changeText, decisionText, tagRowText } from './sessionText.ts';
 
 /** Accounts listed at most; a big tag rename or delete can touch thousands. */
