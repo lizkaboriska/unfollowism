@@ -1,13 +1,7 @@
-import {
-  IMPORT_PROBLEMS,
-  ImportError,
-  parseFollowersJson,
-  parseFollowingJson,
-  type ExportBundle,
-} from '@/entities/master/lib/index.ts';
 import { isRecord } from '@/shared/lib/checks.ts';
+import type { InputText } from '@/shared/lib/readInputs.ts';
 
-import type { InputText } from './readInputs.ts';
+import { IMPORT_PROBLEMS, ImportError, parseFollowersJson, parseFollowingJson, type ExportBundle } from './index.ts';
 
 export const IMPORT_WARNINGS = {
   MASTER_OLDER_THAN_LAST_SAVE: 'masterOlderThanLastSave',

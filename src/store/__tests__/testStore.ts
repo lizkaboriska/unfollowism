@@ -1,10 +1,10 @@
+import { memoryLastSaved, type LastSavedStore } from '@/entities/master/api/lastSaved.ts';
+import { createMemoryTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
+import { analyzeImport, type PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
 import type { ValueOf } from '@/shared/lib/valueOf.ts';
 import { memoryAddressBar, type AddressBar } from '@/shared/url/addressBar.ts';
 
-import { analyzeImport, type PreparedImport } from '../../io/analyzeImport.ts';
-import { memoryLastSaved, type LastSavedStore } from '../../io/lastSaved.ts';
-import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
 import { makeStore } from '../index.ts';
 
 export interface Download {

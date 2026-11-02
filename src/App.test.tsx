@@ -4,6 +4,8 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { Provider } from 'react-redux';
 
+import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
+import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { DialogProvider } from '@/shared/ui/dialogs.tsx';
@@ -11,8 +13,6 @@ import { toaster } from '@/shared/ui/toasts.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
 
 import { App } from './App.tsx';
-import { memoryLastSaved } from './io/lastSaved.ts';
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from './io/tabStore.ts';
 import type { StoreDeps } from './store/deps.ts';
 import { makeStore } from './store/index.ts';
 import { system } from './theme.ts';

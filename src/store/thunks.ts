@@ -1,5 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
+import type { StoredTab } from '@/entities/master/api/tabStore.ts';
+import type { PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
 import {
   ImportError,
   accountOf,
@@ -16,12 +18,9 @@ import {
   type ImportResult,
   type Master,
 } from '@/entities/master/lib/index.ts';
+import { masterFileName } from '@/entities/master/lib/masterFileName.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
-
-import type { PreparedImport } from '../io/analyzeImport.ts';
-import { masterFileName } from '../io/download.ts';
-import { nextPaint } from '../io/nextPaint.ts';
-import type { StoredTab } from '../io/tabStore.ts';
+import { nextPaint } from '@/shared/lib/nextPaint.ts';
 
 import type { StoreDeps } from './deps.ts';
 import type { AppDispatch, RootState } from './index.ts';

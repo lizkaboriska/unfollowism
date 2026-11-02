@@ -1,5 +1,6 @@
 import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
+import type { TabMeta } from '@/entities/master/api/tabStore.ts';
 import {
   toAccountRecord,
   toMasterFile,
@@ -10,8 +11,6 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
-
-import type { TabMeta } from '../io/tabStore.ts';
 
 import type { StoreDeps } from './deps.ts';
 import type { AppDispatch, RootState } from './index.ts';

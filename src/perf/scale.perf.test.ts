@@ -2,7 +2,10 @@
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
 
+import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
+import { createMemoryTabDatabase } from '@/entities/master/api/tabStore.ts';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
+import { analyzeImport } from '@/entities/master/lib/analyzeImport.ts';
 import {
   ACTION_TYPES,
   DecisionKind,
@@ -15,9 +18,6 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
-import { analyzeImport } from '../io/analyzeImport.ts';
-import { memoryLastSaved } from '../io/lastSaved.ts';
-import { createMemoryTabDatabase } from '../io/tabStore.ts';
 import { LIST_VIEWS, setQuery, setView } from '../store/filtersSlice.ts';
 import { makeStore } from '../store/index.ts';
 import { selectListKeys } from '../store/listSlice.ts';

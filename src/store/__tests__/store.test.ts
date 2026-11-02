@@ -1,3 +1,4 @@
+import { createMemoryTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
 import {
   ACTION_TYPES,
@@ -15,7 +16,6 @@ import {
   toMasterFile,
 } from '@/entities/master/lib/index.ts';
 
-import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
 import {
   LIST_VIEWS,
   applyFilters,

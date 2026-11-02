@@ -1,3 +1,4 @@
+import type { TabStore } from '@/entities/master/api/tabStore.ts';
 import {
   ACTION_TYPES,
   DecisionFilter,
@@ -7,7 +8,6 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
-import type { TabStore } from '../../io/tabStore.ts';
 import { LIST_VIEWS, setQuery, setScope, setView } from '../filtersSlice.ts';
 import type { AppStore } from '../index.ts';
 import { renameTag, setPlan, toggleTag } from '../masterSlice.ts';

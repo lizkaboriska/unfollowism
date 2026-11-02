@@ -1,4 +1,4 @@
-import type { AccountRecord, ImportFacts, MasterFile } from '@/entities/master/lib/index.ts';
+import type { AccountRecord, ImportFacts, MasterFile } from '../lib/index.ts';
 
 /**
  * Per-tab safety net so a reload doesn't lose work. For each open tab it keeps the

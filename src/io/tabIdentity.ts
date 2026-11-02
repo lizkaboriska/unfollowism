@@ -1,4 +1,4 @@
-import type { TabDatabase } from './tabStore.ts';
+import type { TabDatabase } from '@/entities/master/api/tabStore.ts';
 
 /** The browser APIs this needs, injectable for tests. */
 export interface TabEnvironment {

@@ -1,6 +1,5 @@
+import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '@/entities/master/lib/analyzeImport.ts';
 import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
-
-import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '../io/analyzeImport.ts';
 
 import { plural } from './statusText.ts';
 
