@@ -31,20 +31,36 @@ export function missingWarning({
   return null;
 }
 
-/** Shown while choosing files, for a master that has been added. */
-export function olderMasterText(
-  warning: ImportWarning & { kind: typeof IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE },
-): string {
-  const savedOn = formatDateTime(warning.lastKnownSavedAt);
+/** "You downloaded a master on …": the warning when no master is chosen but this browser saved one before. */
+export function savedMasterMissingText(lastKnownSavedAt: string): string {
   return (
-    `The chosen master is older than the one you saved from this browser on ${savedOn}. ` +
-    'Recent review work may be missing from it.'
+    `You downloaded a master on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
+    "Add it to bring back your past decisions. If you start fresh, they won't carry over."
   );
 }
 
-/** Asked on Import, not while choosing: the master may simply not have been added yet. */
-export function noMasterConfirmText(lastKnownSavedAt: string): string {
-  return `You saved one on ${formatDateTime(lastKnownSavedAt)}. Without it your review history starts from scratch.`;
+/**
+ * The two dates the older-master warning compares, as shown. Saved on the same day, they get the time too.
+ * `selected` is null for a master that doesn't say when it was saved.
+ */
+export function olderMasterDates({
+  fileSavedAt,
+  lastKnownSavedAt,
+}: ImportWarning & { kind: typeof IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE }): {
+  selected: string | null;
+  lastSaved: string;
+} {
+  const sameDay = fileSavedAt !== null && formatDate(fileSavedAt) === formatDate(lastKnownSavedAt);
+  const format = sameDay ? formatDateTime : formatDate;
+  return { selected: fileSavedAt && format(fileSavedAt), lastSaved: format(lastKnownSavedAt) };
+}
+
+/** What the older master means, under its two dates. */
+export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
+  const lost = selected
+    ? `Decisions saved after ${selected} won't come back.`
+    : "Some saved decisions won't come back.";
+  return `${lost} Choose your ${lastSaved} master to keep them.`;
 }
 
 /** What the box needs to know about the export's files (everything chosen except the master). */

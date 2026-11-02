@@ -1,5 +1,5 @@
-import { Heading, List, Stack, Text } from '@chakra-ui/react';
-import { useId, type DragEvent } from 'react';
+import { Box, Heading, List, Stack, Text } from '@chakra-ui/react';
+import { useId, type DragEvent, type ReactNode } from 'react';
 
 import type { RecognizedFiles } from '../io/analyzeImport.ts';
 
@@ -31,19 +31,26 @@ function Row({ mark, label, value }: { mark: string; label: string; value: strin
   );
 }
 
-/** Shown instead of the file box once both Following and Followers are found: what will be imported. */
+/**
+ * Shown instead of the file box once both Following and Followers are found: what will be imported. `masterOlder`
+ * marks the master row with ⚠; `children` (the master warning) goes under the rows.
+ */
 export function ExportReadyBox({
   followingCount,
   followerCount,
   master,
+  masterOlder,
   exportFiles,
   drop,
+  children,
 }: {
   followingCount: number;
   followerCount: number;
   master: RecognizedFiles['master'];
+  masterOlder: boolean;
   exportFiles: readonly ExportFileInfo[];
   drop: DropTarget;
+  children?: ReactNode;
 }) {
   const titleId = useId();
   return (
@@ -70,7 +77,7 @@ export function ExportReadyBox({
         <Row mark="✓" label="Followers found" value={plural(followerCount, 'account')} />
         {master ? (
           <Row
-            mark="✓"
+            mark={masterOlder ? '⚠' : '✓'}
             label="Master file"
             value={master.savedAt ? `Selected · ${formatDate(master.savedAt)}` : 'Selected'}
           />
@@ -78,6 +85,11 @@ export function ExportReadyBox({
           <Row mark="–" label="Master file" value="Not selected" />
         )}
       </List.Root>
+      {children && (
+        <Box mx="3" mb="3">
+          {children}
+        </Box>
+      )}
     </Stack>
   );
 }

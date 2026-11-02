@@ -1,8 +1,8 @@
-import { Alert, Box, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
+import { Box, Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import { ImportError } from '../core/index.ts';
-import { IMPORT_WARNINGS, analyzeImport, type ImportSelection } from '../io/analyzeImport.ts';
+import { IMPORT_WARNINGS, analyzeImport, type ImportSelection, type ImportWarning } from '../io/analyzeImport.ts';
 import type { LastSavedStore } from '../io/lastSaved.ts';
 import { readInputs, type InputText } from '../io/readInputs.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
@@ -13,7 +13,7 @@ import { importPrepared } from '../store/thunks.ts';
 import { useConfirm } from './dialogHooks.ts';
 import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { importProblemText } from './importProblemText.ts';
-import { missingWarning, noMasterConfirmText, olderMasterText } from './importText.ts';
+import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
 import { Warning } from './Warning.tsx';
 
@@ -70,6 +70,10 @@ export function ImportScreen({
   const [reading, setReading] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  /** The selection whose master warning was answered (Start fresh / Use older file); a new selection asks again. */
+  const [warningDismissedFor, setWarningDismissedFor] = useState<readonly ChosenFile[] | null>(null);
+  /** Set by "Choose newer master": the file the next pick replaces. */
+  const replacing = useRef<string | null>(null);
 
   // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be
   // removed.
@@ -97,7 +101,8 @@ export function ImportScreen({
     }
   }, [chosen, lastSaved]);
 
-  async function choose(files: File[]) {
+  /** Adds the files to the selection; `replaceId` (a chosen file) is removed at the same time. */
+  async function choose(files: File[], replaceId: string | null = null) {
     if (!files.length) {
       return;
     }
@@ -106,7 +111,7 @@ export function ImportScreen({
     try {
       const read = await Promise.all(files.map(readChosen));
       setChosen(current => {
-        const next = [...current];
+        const next = current.filter(c => c.id !== replaceId);
         for (const file of read) {
           if (!next.some(c => c.id === file.id)) {
             next.push(file);
@@ -127,7 +132,15 @@ export function ImportScreen({
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     const files = [...(event.target.files ?? [])];
     event.target.value = ''; // allow choosing the same files again
-    void choose(files);
+    const replaceId = replacing.current;
+    replacing.current = null;
+    void choose(files, replaceId);
+  }
+
+  /** Opens the file picker; `replaceId` is the chosen file the picked one replaces. */
+  function pickFiles(replaceId: string | null = null) {
+    replacing.current = replaceId;
+    fileInput.current?.click();
   }
 
   function onDrop(event: DragEvent) {
@@ -140,18 +153,6 @@ export function ImportScreen({
     const prepared = selection?.prepared;
     if (!prepared) {
       return;
-    }
-    const noMaster = prepared.warnings.find(w => w.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE);
-    if (noMaster) {
-      const proceed = await confirm({
-        title: 'Import without your master?',
-        body: noMasterConfirmText(noMaster.lastKnownSavedAt),
-        confirmLabel: 'Import anyway',
-        destructive: true,
-      });
-      if (!proceed) {
-        return;
-      }
     }
     if (dirty) {
       const discard = await confirm({
@@ -195,6 +196,11 @@ export function ImportScreen({
       }
     },
     onDrop,
+  };
+  const masterWarning = warningDismissedFor === chosen ? null : (selection?.prepared?.warnings[0] ?? null);
+  const masterFileId = chosen.find(c => c.inputs.some(i => i.path === masterPath))?.id ?? null;
+  const dismissWarning = () => {
+    setWarningDismissedFor(chosen);
   };
 
   return (
@@ -245,9 +251,20 @@ export function ImportScreen({
           followingCount={followingCount}
           followerCount={followerCount}
           master={master}
+          masterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
           exportFiles={exportFiles}
           drop={drop}
-        />
+        >
+          {masterWarning && (
+            <MasterWarning
+              warning={masterWarning}
+              onAddMaster={() => {
+                pickFiles(masterFileId);
+              }}
+              onDismiss={dismissWarning}
+            />
+          )}
+        </ExportReadyBox>
       ) : (
         <Stack
           as="section"
@@ -273,11 +290,20 @@ export function ImportScreen({
             mt="2"
             loading={reading > 0}
             loadingText="Reading files…"
-            onClick={() => fileInput.current?.click()}
+            onClick={() => {
+              pickFiles();
+            }}
           >
             Choose files
           </Button>
         </Stack>
+      )}
+      {masterWarning && (
+        <Text color="fg.muted">
+          {masterWarning.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE
+            ? 'Your Instagram data is complete. This warning is only about the master file.'
+            : 'Your Following and Followers data is ready. A master restores your saved work, not Instagram data.'}
+        </Text>
       )}
       {missing && <Warning title={missing.title}>{missing.body}</Warning>}
       {selectionError && (
@@ -330,7 +356,9 @@ export function ImportScreen({
               textUnderlineOffset="3px"
               loading={reading > 0}
               loadingText="Reading files…"
-              onClick={() => fileInput.current?.click()}
+              onClick={() => {
+                pickFiles();
+              }}
             >
               Add more files
             </Button>
@@ -352,16 +380,6 @@ export function ImportScreen({
             </Button>
           </HStack>
         </Stack>
-      )}
-
-      {selection?.prepared?.warnings.map(
-        w =>
-          w.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE && (
-            <Alert.Root key={w.kind} status="warning">
-              <Alert.Indicator />
-              <Alert.Title>{olderMasterText(w)}</Alert.Title>
-            </Alert.Root>
-          ),
       )}
 
       <Stack gap="2" align="center">
@@ -394,5 +412,53 @@ export function ImportScreen({
         No login. No Instagram connection. Just your files.
       </Text>
     </Stack>
+  );
+}
+
+/**
+ * The master warning inside the ready box, with its two answers. `onAddMaster` opens the file picker (for an older
+ * master, the picked file replaces it); `onDismiss` hides the warning.
+ */
+function MasterWarning({
+  warning,
+  onAddMaster,
+  onDismiss,
+}: {
+  warning: ImportWarning;
+  onAddMaster: () => void;
+  onDismiss: () => void;
+}) {
+  const buttons = (add: string, dismiss: string) => (
+    <>
+      <Button variant="outline" flex="1" onClick={onAddMaster}>
+        {add}
+      </Button>
+      <Button variant="outline" px="3" onClick={onDismiss}>
+        {dismiss}
+      </Button>
+    </>
+  );
+  if (warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE) {
+    return (
+      <Warning title="Have your saved master?" actions={buttons('Add saved master', 'Start fresh')}>
+        {savedMasterMissingText(warning.lastKnownSavedAt)}
+      </Warning>
+    );
+  }
+  const dates = olderMasterDates(warning);
+  return (
+    <Warning title="This master is older" actions={buttons('Choose newer master', 'Use older file')}>
+      <Grid as="dl" templateColumns="auto minmax(0, 1fr)" columnGap="3" rowGap="0.5" my="0.5">
+        <Text as="dt">Selected master</Text>
+        <Text as="dd" color="ink">
+          {dates.selected ?? 'Not dated'}
+        </Text>
+        <Text as="dt">Last saved master</Text>
+        <Text as="dd" color="ink">
+          {dates.lastSaved}
+        </Text>
+      </Grid>
+      {olderMasterText(dates)}
+    </Warning>
   );
 }
