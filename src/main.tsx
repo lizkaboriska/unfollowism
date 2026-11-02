@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 
 import { App } from './App.tsx';
+import { browserAddressBar } from './io/addressBar.ts';
 import { downloadText } from './io/download.ts';
 import { localStorageLastSaved } from './io/lastSaved.ts';
 import { browserTabEnvironment, claimTab } from './io/tabIdentity.ts';
@@ -39,6 +40,7 @@ const deps: StoreDeps = {
   download: downloadText,
   tab: await openTabStore(),
   lastSaved: localStorageLastSaved(),
+  address: browserAddressBar(),
 };
 const store = makeStore(deps);
 guardUnload(store, () => selectIsDirty(store.getState()));

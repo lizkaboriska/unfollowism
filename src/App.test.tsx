@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 
 import { App } from './App.tsx';
 import { followersFile, followingFile, must } from './core/__tests__/helpers.ts';
+import { browserAddressBar } from './io/addressBar.ts';
 import { memoryLastSaved } from './io/lastSaved.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from './io/tabStore.ts';
 import type { StoreDeps } from './store/deps.ts';
@@ -19,6 +20,7 @@ import { toaster } from './ui/toasts.ts';
 // Toasts live outside React; clear them so one test's toast never shows in the next.
 afterEach(() => {
   toaster.remove();
+  window.history.replaceState(null, '', '/'); // each test starts on Review
 });
 
 async function renderApp({
@@ -38,6 +40,7 @@ async function renderApp({
     },
     tab,
     lastSaved,
+    address: browserAddressBar(),
   };
   const store = makeStore(deps);
   const view = render(
@@ -958,6 +961,65 @@ describe('main view', () => {
     await user.click(screen.getByRole('tab', { name: 'Remove follower 1' }));
     await user.click(screen.getByRole('tab', { name: 'Unfollow 1' }));
     expect(shown()).toEqual(['@bob', '@alice']); // done at the bottom once the list refreshes
+  });
+
+  test('the URL follows the page, list and search; a reload on any page shows it again', async () => {
+    const url = () => window.location.pathname + window.location.search;
+    const { user, tab, unmount } = await imported();
+    expect(url()).toBe('/');
+    await applyFilters(user, 'Followers');
+    await user.click(cardButton('carol', 'Queue removal'));
+    await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'al');
+    await waitFor(() => {
+      expect(url()).toBe('/?list=followers&q=al');
+    });
+    await user.click(navItem(/^Changes$/));
+    expect(url()).toBe('/changes'); // Review's filters stay in the store, not in this URL
+    await user.click(navItem(/^Review$/));
+    expect(url()).toBe('/?list=followers&q=al');
+    await waitFor(async () => {
+      expect(Object.keys((await tab.load())?.changed ?? {})).toContain('carol');
+    }); // the plan is stored
+    unmount();
+
+    const reload = async (at: string) => {
+      window.history.replaceState(null, '', at);
+      const page = await renderApp({ tab });
+      await screen.findByRole('navigation', { name: 'Main' });
+      return page;
+    };
+    let page = await reload('/?list=followers&q=al');
+    expect(listChip()).toHaveTextContent('Followers ▾');
+    expect(screen.getByRole('searchbox', { name: 'Search accounts' })).toHaveValue('al');
+    expect(shown()).toEqual(['@alice']);
+    page.unmount();
+
+    page = await reload('/todo'); // To do picks its tab, and the URL says which
+    expect(screen.getByRole('tab', { name: 'Remove follower 1' })).toHaveAttribute('aria-selected', 'true');
+    expect(url()).toBe('/todo/remove');
+    page.unmount();
+
+    await reload('/changes/?list=mutual&q=al'); // filters aren't part of Changes' URL
+    expect(navItem(/^Changes$/)).toHaveAttribute('aria-current', 'page');
+    expect(url()).toBe('/changes');
+  });
+
+  test('a URL that Review does not understand is fixed silently', async () => {
+    window.history.replaceState(null, '', '/somewhere?list=friends&q=al');
+    const first = await renderApp();
+    await importFiles(first.user, exportFiles());
+    await findRow('bob');
+    await waitFor(async () => {
+      expect(await first.tab.load()).not.toBeNull();
+    });
+    expect(window.location.pathname + window.location.search).toBe('/'); // no work yet: Welcome cleaned it up
+    first.unmount();
+
+    window.history.replaceState(null, '', '/somewhere?list=friends&decision=kept&q=al');
+    await renderApp({ tab: first.tab });
+    await screen.findByRole('navigation', { name: 'Main' });
+    expect(navItem(/^Review$/)).toHaveAttribute('aria-current', 'page');
+    expect(window.location.pathname + window.location.search).toBe('/?decision=kept&q=al');
   });
 
   test('To do → Keep instead removes the plan; Undo brings it back', async () => {

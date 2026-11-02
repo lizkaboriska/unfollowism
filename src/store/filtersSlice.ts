@@ -94,6 +94,10 @@ export const filtersSlice = createSlice({
       state.tag = payload.tag;
       state.decision = payload.decision;
     },
+    /** The page and filters a URL asked for, after a reload. */
+    showUrlFilters(_state, { payload }: PayloadAction<FiltersState>) {
+      return payload;
+    },
     clearFilters(state) {
       state.tag = NO_FILTERS.tag;
       state.decision = NO_FILTERS.decision;
@@ -110,5 +114,13 @@ export const filtersSlice = createSlice({
   },
 });
 
-export const { setScope, setDecisionFilter, setTagFilter, setQuery, setView, applyFilters, clearFilters } =
-  filtersSlice.actions;
+export const {
+  setScope,
+  setDecisionFilter,
+  setTagFilter,
+  setQuery,
+  setView,
+  applyFilters,
+  clearFilters,
+  showUrlFilters,
+} = filtersSlice.actions;
