@@ -1,9 +1,9 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
 
+import { selectChangesSince } from '@/entities/master/model/selectors.ts';
 import { formatDate } from '@/shared/lib/dates.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
-import { selectChangesSince } from '../store/selectors.ts';
 
 /** "Review" and when the shown export was imported, compared with which master. */
 export function ReviewHeading() {

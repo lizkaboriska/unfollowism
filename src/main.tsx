@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 
 import { localStorageLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
+import { selectIsDirty } from '@/entities/master/model/selectors.ts';
 import { downloadText } from '@/shared/lib/download.ts';
 import { DialogProvider } from '@/shared/ui/dialogs.tsx';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
@@ -14,7 +15,6 @@ import { browserTabEnvironment, claimTab } from './io/tabIdentity.ts';
 import { guardUnload } from './io/unloadGuard.ts';
 import type { StoreDeps } from './store/deps.ts';
 import { makeStore } from './store/index.ts';
-import { selectIsDirty } from './store/selectors.ts';
 import { system } from './theme.ts';
 
 const rootElement = document.getElementById('root');

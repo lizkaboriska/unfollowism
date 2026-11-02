@@ -1,7 +1,9 @@
 import { Box, Button, Heading, Stack, Text } from '@chakra-ui/react';
 import { useId } from 'react';
 
-import { LIST_VIEWS, setView } from '../store/filtersSlice.ts';
+import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+
+import { setView } from '../store/filtersSlice.ts';
 import { useAppDispatch } from '../store/hooks.ts';
 
 /**

@@ -9,10 +9,11 @@ import {
   type SessionAccountChanges,
   type TagChangeRow,
 } from '@/entities/master/lib/index.ts';
+import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
-import { selectIsDirty, selectUnsavedAccountCount, selectUnsavedGroups } from '../store/selectors.ts';
+import { selectUnsavedGroups } from '../store/selectors.ts';
 
 import { ResetButton, SaveButton } from './saveAndReset.tsx';
 import { changeText, decisionText, tagRowText } from './sessionText.ts';

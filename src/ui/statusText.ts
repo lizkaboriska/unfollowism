@@ -4,9 +4,8 @@ import {
   type ImportSummary,
   type PlanOutcomes,
 } from '@/entities/master/lib/index.ts';
+import { STATUS_EVENTS, type StatusEvent } from '@/entities/master/model/statuses.ts';
 import { isRecord } from '@/shared/lib/checks.ts';
-
-import { STATUS_EVENTS, type StatusEvent } from '../store/statuses.ts';
 
 /** The message of a caught error: a string, an Error, or the plain { message } object Redux Toolkit passes on. */
 export function errorMessage(error: unknown): string {

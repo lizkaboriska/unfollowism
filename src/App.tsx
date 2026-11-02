@@ -1,13 +1,13 @@
 import { Box, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
+import { selectHasProject } from '@/entities/master/model/selectors.ts';
+import { restoreTab } from '@/entities/master/model/thunks.ts';
+import { LIST_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
 import { Toaster } from '@/shared/ui/Toaster.tsx';
 
 import type { StoreDeps } from './store/deps.ts';
-import { LIST_VIEWS, isPlanView } from './store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
-import { selectHasProject } from './store/selectors.ts';
-import { restoreTab } from './store/thunks.ts';
 import { addressChanged } from './store/urlSync.ts';
 import { AppHeader } from './ui/AppHeader.tsx';
 import { AppNav } from './ui/AppNav.tsx';

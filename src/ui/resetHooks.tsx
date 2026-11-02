@@ -1,11 +1,11 @@
 import { Stack, Text } from '@chakra-ui/react';
 
+import { resetChanges } from '@/entities/master/model/masterSlice.ts';
+import { selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
+import { SAVE_STATUSES } from '@/entities/master/model/statuses.ts';
 import { useConfirm } from '@/shared/ui/dialogHooks.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { resetChanges } from '../store/masterSlice.ts';
-import { selectUnsavedAccountCount } from '../store/selectors.ts';
-import { SAVE_STATUSES } from '../store/statuses.ts';
 
 import { plural } from './statusText.ts';
 

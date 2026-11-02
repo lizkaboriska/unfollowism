@@ -1,11 +1,11 @@
 import { Button, CloseButton, Drawer, HStack, Menu, Portal, Stack, Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
+import { deleteTag } from '@/entities/master/model/masterSlice.ts';
+import { selectTagCounts, selectTags } from '@/entities/master/model/selectors.ts';
 import { useConfirm } from '@/shared/ui/dialogHooks.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { deleteTag } from '../store/masterSlice.ts';
-import { selectTagCounts, selectTags } from '../store/selectors.ts';
 
 import { RenameTagDialog } from './RenameTagDialog.tsx';
 import { plural } from './statusText.ts';

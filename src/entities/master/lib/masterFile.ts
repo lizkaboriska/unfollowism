@@ -2,7 +2,7 @@ import { isRecord } from '@/shared/lib/checks.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
-import { copyDecision } from './account.ts';
+import { accountOf, copyDecision, type ChangedAccounts } from './account.ts';
 import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from './importProblems.ts';
 import { createReview } from './review.ts';
 import {
@@ -364,4 +364,20 @@ export function parseMaster(raw: unknown): Master {
     master.lastSavedAt = date(raw.lastSavedAt, 'lastSavedAt');
   }
   return master;
+}
+
+/** The full master: imported accounts with the edited ones applied, without removed ones. */
+export function currentMaster(base: Master, changed: Readonly<ChangedAccounts>): Master {
+  const accounts = createDict<Account>();
+  for (const key of Object.keys(base.accounts)) {
+    const account = accountOf(base.accounts, changed, key);
+    if (account) {
+      accounts[key] = account;
+    }
+  }
+  return { ...base, accounts };
+}
+
+export function serializeMaster(master: Master, savedAt: string): string {
+  return stringifyMasterFile(toMasterFile({ ...master, lastSavedAt: savedAt }));
 }

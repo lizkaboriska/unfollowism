@@ -3,11 +3,12 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 
+import { resetChanges } from '@/entities/master/model/masterSlice.ts';
+import { selectAccount } from '@/entities/master/model/selectors.ts';
+import { importPrepared } from '@/entities/master/model/thunks.ts';
+
 import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
 import { useAppSelector } from '../../store/hooks.ts';
-import { resetChanges } from '../../store/masterSlice.ts';
-import { selectAccount } from '../../store/selectors.ts';
-import { importPrepared } from '../../store/thunks.ts';
 import { system } from '../../theme.ts';
 import { NoteField } from '../accountFields.tsx';
 

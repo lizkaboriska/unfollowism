@@ -3,9 +3,9 @@ import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } fro
 import { useDebouncedCallback } from 'use-debounce';
 
 import { findTag } from '@/entities/master/lib/index.ts';
+import { setNote, toggleTag } from '@/entities/master/model/masterSlice.ts';
 
 import { useAppDispatch } from '../store/hooks.ts';
-import { setNote, toggleTag } from '../store/masterSlice.ts';
 
 import { OWN_ESCAPE } from './ownEscape.ts';
 

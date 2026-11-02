@@ -2,10 +2,10 @@ import { Box, Button, HStack, SimpleGrid, Text, chakra } from '@chakra-ui/react'
 import { memo } from 'react';
 
 import { PLAN_STATES, isKept, isPastAccount, type ReadonlyAccount } from '@/entities/master/lib/index.ts';
+import { setKept, setPlan } from '@/entities/master/model/masterSlice.ts';
+import { selectAccount } from '@/entities/master/model/selectors.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { setKept, setPlan } from '../store/masterSlice.ts';
-import { selectAccount } from '../store/selectors.ts';
 
 import { planText, queueText, relationshipNote } from './labels.ts';
 import { QueueButtonKind, queueButton } from './queueButton.ts';

@@ -1,7 +1,8 @@
 import { Alert, Text } from '@chakra-ui/react';
 
+import { STATUS_EVENTS } from '@/entities/master/model/statuses.ts';
+
 import { useAppSelector } from '../store/hooks.ts';
-import { STATUS_EVENTS } from '../store/statuses.ts';
 
 import { statusText } from './statusText.ts';
 

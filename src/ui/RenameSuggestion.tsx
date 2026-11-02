@@ -1,8 +1,9 @@
 import { Box, Button, HStack, Text } from '@chakra-ui/react';
 
+import { confirmRename, dismissRename } from '@/entities/master/model/masterSlice.ts';
+import { selectAccount } from '@/entities/master/model/selectors.ts';
+
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { confirmRename, dismissRename } from '../store/masterSlice.ts';
-import { selectAccount } from '../store/selectors.ts';
 
 /**
  * Under a row in No longer follow you, on an account an import thinks was renamed: move its review work to the

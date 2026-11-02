@@ -25,11 +25,11 @@ import {
   type Follow,
   type ReadonlyAccount,
 } from '@/entities/master/lib/index.ts';
+import { setPlan, setUnavailable, toggleTag } from '@/entities/master/model/masterSlice.ts';
+import { selectAccount, selectTags } from '@/entities/master/model/selectors.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { setPlan, setUnavailable, toggleTag } from '../store/masterSlice.ts';
-import { selectAccount, selectTags } from '../store/selectors.ts';
 
 import { NewTag, NoteField } from './accountFields.tsx';
 import { openProfilePopup } from './instagramLink.ts';

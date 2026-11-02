@@ -15,19 +15,6 @@ import {
   planOf,
   toMasterFile,
 } from '@/entities/master/lib/index.ts';
-
-import {
-  LIST_VIEWS,
-  applyFilters,
-  clearFilters,
-  setDecisionFilter,
-  setQuery,
-  setScope,
-  setTagFilter,
-  setView,
-} from '../filtersSlice.ts';
-import type { RootState } from '../index.ts';
-import { selectListKeys } from '../listSlice.ts';
 import {
   confirmRename,
   deleteTag,
@@ -40,8 +27,7 @@ import {
   setKept,
   setUnavailable,
   toggleTag,
-} from '../masterSlice.ts';
-import { RETRY_DELAYS_MS } from '../persistence.ts';
+} from '@/entities/master/model/masterSlice.ts';
 import {
   selectAccount,
   selectIsDirty,
@@ -52,13 +38,25 @@ import {
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectChangeSections,
-  selectVisibleAccountKeys,
-  selectMatchingCount,
-  selectScopeTotals,
   selectTodoStartView,
-} from '../selectors.ts';
-import { STATUS_EVENTS } from '../statuses.ts';
-import { importPrepared, restoreTab, saveMaster } from '../thunks.ts';
+} from '@/entities/master/model/selectors.ts';
+import { STATUS_EVENTS } from '@/entities/master/model/statuses.ts';
+import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
+import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+
+import {
+  applyFilters,
+  clearFilters,
+  setDecisionFilter,
+  setQuery,
+  setScope,
+  setTagFilter,
+  setView,
+} from '../filtersSlice.ts';
+import type { RootState } from '../index.ts';
+import { selectListKeys } from '../listSlice.ts';
+import { RETRY_DELAYS_MS } from '../persistence.ts';
+import { selectVisibleAccountKeys, selectMatchingCount, selectScopeTotals } from '../selectors.ts';
 
 import {
   WRITES,

@@ -9,13 +9,13 @@ import {
   type ImportFacts,
   type Master,
 } from '@/entities/master/lib/index.ts';
+import { persistenceFailed, persistenceRecovered, type MasterState } from '@/entities/master/model/masterSlice.ts';
+import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 import type { StoreDeps } from './deps.ts';
 import type { AppDispatch, RootState } from './index.ts';
-import { persistenceFailed, persistenceRecovered, type MasterState } from './masterSlice.ts';
-import { restoreTab } from './thunks.ts';
 
 type Accounts = DeepReadonly<ChangedAccounts>;
 

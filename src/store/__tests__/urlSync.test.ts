@@ -6,12 +6,13 @@ import {
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
 } from '@/entities/master/lib/index.ts';
+import { renameTag, setPlan, toggleTag } from '@/entities/master/model/masterSlice.ts';
+import { importPrepared, restoreTab } from '@/entities/master/model/thunks.ts';
+import { LIST_VIEWS } from '@/entities/master/model/views.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
-import { LIST_VIEWS, setQuery, setScope, setView } from '../filtersSlice.ts';
+import { setQuery, setScope, setView } from '../filtersSlice.ts';
 import type { AppStore } from '../index.ts';
-import { renameTag, setPlan, toggleTag } from '../masterSlice.ts';
-import { importPrepared, restoreTab } from '../thunks.ts';
 import { addressChanged } from '../urlSync.ts';
 
 import { flushPersistence, makeTestStore, prepared } from './testStore.ts';

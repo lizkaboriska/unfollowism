@@ -5,8 +5,9 @@ import {
   type ReviewScope,
   type TagFilter,
 } from '@/entities/master/lib/index.ts';
+import { LIST_VIEWS, type ListView } from '@/entities/master/model/views.ts';
 
-import { LIST_VIEWS, NO_FILTERS, type FiltersState, type ListView } from './filtersSlice.ts';
+import { NO_FILTERS, type FiltersState } from './filtersSlice.ts';
 
 // The page lives in the path; Review's list and filters in the search params, only on Review's path.
 // Defaults are left out, so a plain Review is just "/". Values are kebab-case, as URLs usually are.

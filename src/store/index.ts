@@ -6,10 +6,11 @@ import {
   type UnknownAction,
 } from '@reduxjs/toolkit';
 
+import { masterSlice } from '@/entities/master/model/masterSlice.ts';
+
 import type { StoreDeps } from './deps.ts';
 import { filtersSlice } from './filtersSlice.ts';
 import { listSlice, startListRefresh } from './listSlice.ts';
-import { masterSlice } from './masterSlice.ts';
 import { startPersistence } from './persistence.ts';
 import { startTagFilterCleanup } from './tagFilterCleanup.ts';
 import { startUrlSync } from './urlSync.ts';

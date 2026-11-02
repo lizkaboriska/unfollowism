@@ -9,9 +9,9 @@ import {
   type FollowChange,
   type ReadonlyAccount,
 } from '@/entities/master/lib/index.ts';
+import { selectAccount } from '@/entities/master/model/selectors.ts';
 
 import { useAppSelector } from '../store/hooks.ts';
-import { selectAccount } from '../store/selectors.ts';
 
 import { COMPLETED_PLAN_BADGES, planText } from './labels.ts';
 import { RenameSuggestion } from './RenameSuggestion.tsx';

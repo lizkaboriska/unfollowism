@@ -1,6 +1,6 @@
 import { ACTION_TYPES, FOLLOW_CHANGES, emptyActionCounts, type ImportSummary } from '@/entities/master/lib/index.ts';
+import { STATUS_EVENTS, type StatusEvent } from '@/entities/master/model/statuses.ts';
 
-import { STATUS_EVENTS, type StatusEvent } from '../../store/statuses.ts';
 import { errorMessage, statusText } from '../statusText.ts';
 
 const summary: ImportSummary = {

@@ -1,35 +1,35 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import type { StoredTab } from '@/entities/master/api/tabStore.ts';
-import type { PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
+import { nextPaint } from '@/shared/lib/nextPaint.ts';
+import type { StoreDeps } from '@/store/deps.ts';
+import type { AppDispatch, RootState } from '@/store/index.ts';
+
+import type { StoredTab } from '../api/tabStore.ts';
+import type { PreparedImport } from '../lib/analyzeImport.ts';
 import {
   ImportError,
-  accountOf,
+  currentMaster,
   fromAccountRecord,
   importExport,
   parseImportFacts,
   parseMaster,
-  stringifyMasterFile,
-  toMasterFile,
+  serializeMaster,
   type ImportFacts,
   type Account,
   type ChangedAccounts,
   type ImportProblem,
   type ImportResult,
   type Master,
-} from '@/entities/master/lib/index.ts';
-import { masterFileName } from '@/entities/master/lib/masterFileName.ts';
-import { createDict } from '@/shared/lib/createDict.ts';
-import { nextPaint } from '@/shared/lib/nextPaint.ts';
+} from '../lib/index.ts';
+import { masterFileName } from '../lib/masterFileName.ts';
 
-import type { StoreDeps } from './deps.ts';
-import type { AppDispatch, RootState } from './index.ts';
 import { SAVE_STATUSES } from './statuses.ts';
 
 const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: AppDispatch; extra: StoreDeps }>();
 
 /**
- * Applies an analyzed import (see io/analyzeImport) to the store. Rejects with the problem when the files can't be
+ * Applies an analyzed import (see lib/analyzeImport) to the store. Rejects with the problem when the files can't be
  * imported.
  */
 export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rejectValue: ImportProblem }>(
@@ -52,22 +52,6 @@ export interface SaveFulfilled {
   revision: number;
   /** The edited accounts as written to the file (null = removed, so not in the file). */
   changed: ChangedAccounts;
-}
-
-/** The full master: imported accounts with the edited ones applied, without removed ones. */
-export function currentMaster(base: Master, changed: Readonly<ChangedAccounts>): Master {
-  const accounts = createDict<Account>();
-  for (const key of Object.keys(base.accounts)) {
-    const account = accountOf(base.accounts, changed, key);
-    if (account) {
-      accounts[key] = account;
-    }
-  }
-  return { ...base, accounts };
-}
-
-export function serializeMaster(master: Master, savedAt: string): string {
-  return stringifyMasterFile(toMasterFile({ ...master, lastSavedAt: savedAt }));
 }
 
 /**

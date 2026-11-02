@@ -16,22 +16,22 @@ import {
   stringifyMasterFile,
   toMasterFile,
 } from '@/entities/master/lib/index.ts';
-import { memoryAddressBar } from '@/shared/url/addressBar.ts';
-
-import { LIST_VIEWS, setQuery, setView } from '../store/filtersSlice.ts';
-import { makeStore } from '../store/index.ts';
-import { selectListKeys } from '../store/listSlice.ts';
-import { renameTag, setNote, setPlan } from '../store/masterSlice.ts';
+import { renameTag, setNote, setPlan } from '@/entities/master/model/masterSlice.ts';
 import {
   selectAccount,
   selectPlanStats,
   selectRelationshipStats,
-  selectScopeTotals,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
-  selectVisibleAccountKeys,
-} from '../store/selectors.ts';
-import { importPrepared, restoreTab, saveMaster } from '../store/thunks.ts';
+} from '@/entities/master/model/selectors.ts';
+import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
+import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { memoryAddressBar } from '@/shared/url/addressBar.ts';
+
+import { setQuery, setView } from '../store/filtersSlice.ts';
+import { makeStore } from '../store/index.ts';
+import { selectListKeys } from '../store/listSlice.ts';
+import { selectScopeTotals, selectVisibleAccountKeys } from '../store/selectors.ts';
 
 const INSTAGRAM_FOLLOWING_CAP = 7_500;
 const MUTUAL = 5_000;

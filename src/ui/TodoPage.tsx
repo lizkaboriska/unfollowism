@@ -2,11 +2,11 @@ import { Box, Heading, Progress, Stack, Text } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 
 import { PLAN_STATES, totalOf } from '@/entities/master/lib/index.ts';
+import { selectPlanStats } from '@/entities/master/model/selectors.ts';
+import { PLAN_VIEW_ACTIONS, type PlanView } from '@/entities/master/model/views.ts';
 
-import { PLAN_VIEW_ACTIONS, type PlanView } from '../store/filtersSlice.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';
-import { selectPlanStats } from '../store/selectors.ts';
 
 import { AccountList, type ListItems } from './AccountList.tsx';
 import { TODO_LABELS } from './labels.ts';

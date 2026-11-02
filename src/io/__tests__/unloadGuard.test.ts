@@ -1,6 +1,7 @@
+import { selectIsDirty } from '@/entities/master/model/selectors.ts';
+import { importPrepared, saveMaster } from '@/entities/master/model/thunks.ts';
+
 import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
-import { selectIsDirty } from '../../store/selectors.ts';
-import { importPrepared, saveMaster } from '../../store/thunks.ts';
 import { guardUnload } from '../unloadGuard.ts';
 
 /** Fires beforeunload as the browser does; true when the page asked to confirm leaving. */
