@@ -13,8 +13,9 @@ import { importPrepared } from '../store/thunks.ts';
 import { useConfirm } from './dialogHooks.ts';
 import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { importProblemText } from './importProblemText.ts';
-import { missingText, noMasterConfirmText, olderMasterText } from './importText.ts';
+import { missingWarning, noMasterConfirmText, olderMasterText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
+import { Warning } from './Warning.tsx';
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
 interface ChosenFile {
@@ -174,8 +175,10 @@ export function ImportScreen({
     }
   }
 
-  const missing = selection && missingText(selection.recognized);
   const { followingCount = null, followerCount = null, master = null } = selection?.recognized ?? {};
+  const missing = selection && missingWarning(selection.recognized);
+  // Exactly one of Following / Followers is there.
+  const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
   const masterPath = master?.path;
   // The export's files: everything readable except the file holding the master.
   const exportFiles = chosen.filter(c => !c.readError && !c.inputs.some(i => i.path === masterPath));
@@ -197,13 +200,10 @@ export function ImportScreen({
   return (
     <Stack gap="5">
       {restoreFailed && (
-        <Alert.Root status="warning">
-          <Alert.Indicator />
-          <Alert.Title>
-            Your work in this tab from before the reload couldn't be restored. Add your Instagram export and your last
-            saved master to continue.
-          </Alert.Title>
-        </Alert.Root>
+        <Warning title="Your work couldn't be restored">
+          Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your last
+          saved master to continue.
+        </Warning>
       )}
       {!chosen.length && (
         <List.Root as="ol" listStyle="none" borderWidth="1px">
@@ -265,7 +265,7 @@ export function ImportScreen({
           onDrop={drop.onDrop}
         >
           <Heading as="h2" id={fileBoxTitleId} textStyle="sheetTitle" color={dragging ? 'accent' : 'ink'}>
-            {dragging ? 'Drop to add' : 'A fresh start for your feed'}
+            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'A fresh start for your feed'}
           </Heading>
           <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
           <Button
@@ -278,6 +278,17 @@ export function ImportScreen({
             Choose files
           </Button>
         </Stack>
+      )}
+      {missing && <Warning title={missing.title}>{missing.body}</Warning>}
+      {selectionError && (
+        <Warning title="These files can't be used" status="error">
+          {selectionError}
+        </Warning>
+      )}
+      {importError && (
+        <Warning title="Import failed" status="error">
+          {importError}
+        </Warning>
       )}
 
       {chosen.length > 0 && (
@@ -343,29 +354,12 @@ export function ImportScreen({
         </Stack>
       )}
 
-      {missing && <Text color="fg.muted">{missing}</Text>}
-
       {selection?.prepared?.warnings.map(
         w =>
           w.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE && (
             <Alert.Root key={w.kind} status="warning">
               <Alert.Indicator />
               <Alert.Title>{olderMasterText(w)}</Alert.Title>
-            </Alert.Root>
-          ),
-      )}
-
-      {(
-        [
-          ['selection', selectionError],
-          ['import', importError],
-        ] as const
-      ).map(
-        ([key, message]) =>
-          message && (
-            <Alert.Root key={key} status="error">
-              <Alert.Indicator />
-              <Alert.Title>{message}</Alert.Title>
             </Alert.Root>
           ),
       )}

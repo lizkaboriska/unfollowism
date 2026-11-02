@@ -71,7 +71,7 @@ const readyRows = async () =>
   within(await findReadyBox())
     .getAllByRole('listitem')
     .map(li => li.textContent);
-const MISSING_FOLLOWERS = /followers_1\.json .* is missing/;
+const MISSING_FOLLOWERS = '⚠ Following found. Followers are missing.';
 
 /** Chooses the files and clicks Import, as a user would. */
 async function importFiles(user: UserEvent, files: File[]) {
@@ -344,6 +344,8 @@ test('a missing Followers file is shown and Import stays disabled', async () => 
   const { user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), [followingJson()]);
   expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: "Let's find one more file" })).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent(/Add followers_1\.json .* from the same export/);
   expect(screen.queryByText('Your export is ready')).not.toBeInTheDocument();
   expect(importButton()).toBeDisabled();
 });
@@ -352,6 +354,34 @@ const masterJson = (savedAt: string, name = 'unfollowism_master.json') =>
   new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts: {} })], name, {
     type: 'application/json',
   });
+
+test('a missing Following file is shown the same way', async () => {
+  const { user } = await renderApp();
+  await user.upload(screen.getByTestId('file-input'), [followersJson()]);
+  expect(await screen.findByText('⚠ Followers found. Following is missing.')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: "Let's find one more file" })).toBeInTheDocument();
+  expect(importButton()).toBeDisabled();
+});
+
+test('files with nothing from Instagram in them are reported', async () => {
+  const { user } = await renderApp();
+  await user.upload(screen.getByTestId('file-input'), [
+    new File(['[]'], 'liked_posts.json', { type: 'application/json' }),
+  ]);
+  expect(await screen.findByText('⚠ No Instagram files found')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'A fresh start for your feed' })).toBeInTheDocument();
+  expect(importButton()).toBeDisabled();
+});
+
+test('an import that fails says why, and nothing is imported', async () => {
+  const { user } = await renderApp();
+  const emptyFollowing = new File([JSON.stringify(followingFile())], 'following.json', { type: 'application/json' });
+  await importFiles(user, [emptyFollowing, followersJson()]);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('⚠ Import failed');
+  expect(alert).toHaveTextContent('No accounts found in the Following file of this export.');
+  expect(screen.getByText('Your export is ready')).toBeInTheDocument();
+});
 
 /**
  * Whether the browser would do its default for a file dragged over / dropped on `target` (fireEvent: false =
@@ -366,7 +396,7 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
 
   fireEvent.drop(screen.getByText('A fresh start for your feed'), { dataTransfer: { files: [followingJson()] } });
   expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
-  fireEvent.drop(screen.getByText('A fresh start for your feed'), { dataTransfer: { files: [followersJson()] } });
+  fireEvent.drop(screen.getByText("Let's find one more file"), { dataTransfer: { files: [followersJson()] } });
   const box = await findReadyBox();
   fireEvent.dragOver(box); // the ready box takes more files too
   expect(within(box).getByRole('heading', { name: 'Drop to add' })).toBeInTheDocument();
@@ -448,7 +478,9 @@ test("a selection that can't be imported shows a readable error", async () => {
     new File(['<html>'], 'following.html', { type: 'text/html' }),
     new File(['<html>'], 'followers_1.html', { type: 'text/html' }),
   ]);
-  expect(await screen.findByText(/This export is in HTML format/)).toBeInTheDocument();
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent("⚠ These files can't be used");
+  expect(alert).toHaveTextContent(/This export is in HTML format/);
   expect(importButton()).toBeDisabled();
 });
 
@@ -588,7 +620,7 @@ test('a reload shows Loading your work… instead of flashing the import screen'
 test("work that can't be restored after a reload is reported on the import screen", async () => {
   const tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1');
   const { user } = await renderApp({ tab: { ...tab, load: () => Promise.reject(new Error('unreadable')) } });
-  expect(screen.getByText(/couldn't be restored/)).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent("⚠ Your work couldn't be restored");
 
   await importFiles(user, exportFiles());
   expect(await findRow('bob')).toBeInTheDocument();

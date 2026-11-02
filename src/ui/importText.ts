@@ -3,20 +3,30 @@ import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '../io
 import { formatDate, formatDateTime } from './dates.ts';
 import { plural } from './statusText.ts';
 
-/** What to add when the selection can't be imported yet. Null when nothing is missing. */
-export function missingText({ followingCount, followerFileCount }: RecognizedFiles): string | null {
+/** What's missing before the selection can be imported, as a warning. Null when nothing is. */
+export function missingWarning({
+  followingCount,
+  followerFileCount,
+}: RecognizedFiles): { title: string; body: string } | null {
   const hasFollowing = followingCount !== null;
   if (!hasFollowing && !followerFileCount) {
-    return (
-      'No followers/following files found. Choose the .zip from Instagram (JSON format), ' +
-      'or the following.json and followers_*.json files from it.'
-    );
+    return {
+      title: 'No Instagram files found',
+      body: 'Choose the .zip from Instagram (JSON format), or the following.json and followers_*.json files from it.',
+    };
   }
+  const downloadAgain = 'or download your Instagram data again with both Followers and Following, in JSON format.';
   if (!hasFollowing) {
-    return 'following.json is missing. Add it with Choose files or drop it here.';
+    return {
+      title: 'Followers found. Following is missing.',
+      body: `Add following.json from the same export, ${downloadAgain}`,
+    };
   }
   if (!followerFileCount) {
-    return 'followers_1.json (and any followers_2.json, …) is missing. Add them with Choose files or drop them here.';
+    return {
+      title: 'Following found. Followers are missing.',
+      body: `Add followers_1.json (and any followers_2.json, …) from the same export, ${downloadAgain}`,
+    };
   }
   return null;
 }
