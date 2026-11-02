@@ -4,8 +4,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
-  // Relative asset paths so the build works from any static host sub-path (e.g. GitHub Pages).
-  base: './',
+  // Absolute asset paths: the app is served from the site root, and pages like /todo/unfollow must still find them.
+  base: '/',
   test: {
     globals: true,
     environment: 'jsdom',

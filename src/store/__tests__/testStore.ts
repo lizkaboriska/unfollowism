@@ -1,5 +1,6 @@
 import { followersFile, followingFile, must } from '../../core/__tests__/helpers.ts';
 import type { ValueOf } from '../../core/index.ts';
+import { memoryAddressBar, type AddressBar } from '../../io/addressBar.ts';
 import { analyzeImport, type PreparedImport } from '../../io/analyzeImport.ts';
 import { memoryLastSaved, type LastSavedStore } from '../../io/lastSaved.ts';
 import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
@@ -14,11 +15,13 @@ export function makeTestStore({
   now = '2026-10-27T12:00:00.000Z',
   tab = createMemoryTabDatabase().forTab('tab-1'),
   lastSaved = memoryLastSaved(),
+  address = memoryAddressBar(),
   download,
 }: {
   now?: string;
   tab?: TabStore;
   lastSaved?: LastSavedStore;
+  address?: AddressBar;
   download?: (filename: string, text: string) => void | Promise<void>;
 } = {}) {
   const downloads: Download[] = [];
@@ -32,6 +35,7 @@ export function makeTestStore({
       }),
     tab,
     lastSaved,
+    address,
   });
   return {
     store,

@@ -33,7 +33,14 @@ import {
   type TagCounts,
 } from '../core/index.ts';
 
-import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isPlanView, type FiltersState } from './filtersSlice.ts';
+import {
+  LIST_VIEWS,
+  PLAN_VIEW_ACTIONS,
+  TODO_VIEWS,
+  isPlanView,
+  type FiltersState,
+  type PlanView,
+} from './filtersSlice.ts';
 import type { RootState } from './index.ts';
 import { UNSAVED_IMPORT } from './masterSlice.ts';
 
@@ -91,6 +98,19 @@ export const selectPlanStats = createSelector(
     return stats;
   },
 );
+
+/**
+ * The To do tab to open: the first with work left (Unfollow, then Remove follower), else the first with done plans to
+ * look back at, else Unfollow.
+ */
+export function selectTodoStartView(s: RootState): PlanView {
+  const stats = selectPlanStats(s);
+  return (
+    TODO_VIEWS.find(v => stats[PLAN_STATES.PLANNED][PLAN_VIEW_ACTIONS[v]] > 0) ??
+    TODO_VIEWS.find(v => stats[PLAN_STATES.DONE][PLAN_VIEW_ACTIONS[v]] > 0) ??
+    LIST_VIEWS.TO_UNFOLLOW
+  );
+}
 
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
 export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;

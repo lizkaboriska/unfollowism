@@ -1,11 +1,10 @@
 import { Box, Button, Text } from '@chakra-ui/react';
 
-import { PLAN_STATES } from '../core/index.ts';
-import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isPlanView, setView, type PlanView } from '../store/filtersSlice.ts';
+import { LIST_VIEWS, TODO_VIEWS, isPlanView, setView } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
-import { selectPlanStats } from '../store/selectors.ts';
+import { selectTodoStartView } from '../store/selectors.ts';
 
-import { TODO_VIEWS, useChangesTotal, useTodoCount } from './viewCounts.ts';
+import { useChangesTotal, useTodoCount } from './viewCounts.ts';
 
 function NavItem({
   label,
@@ -50,17 +49,13 @@ export function AppNav() {
   const dispatch = useAppDispatch();
   const view = useAppSelector(s => s.filters.view);
   const todoCount = useTodoCount();
-  const planStats = useAppSelector(selectPlanStats);
+  const todoStartView = useAppSelector(selectTodoStartView);
   const changesTotal = useChangesTotal();
 
-  /**
-   * Opens To do on its first tab with work left (Unfollow, then Remove follower), else the first with done plans to
-   * look back at, else Unfollow. On To do it stays where it is.
-   */
+  /** Opens To do on the tab selectTodoStartView picks. On To do it stays where it is. */
   function openTodo() {
     if (!isPlanView(view)) {
-      const hasDone = (v: PlanView) => planStats[PLAN_STATES.DONE][PLAN_VIEW_ACTIONS[v]] > 0;
-      dispatch(setView(TODO_VIEWS.find(v => todoCount(v) > 0) ?? TODO_VIEWS.find(hasDone) ?? LIST_VIEWS.TO_UNFOLLOW));
+      dispatch(setView(todoStartView));
     }
   }
 

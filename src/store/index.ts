@@ -12,6 +12,7 @@ import { listSlice, startListRefresh } from './listSlice.ts';
 import { masterSlice } from './masterSlice.ts';
 import { startPersistence } from './persistence.ts';
 import { startTagFilterCleanup } from './tagFilterCleanup.ts';
+import { startUrlSync } from './urlSync.ts';
 
 export const rootReducer = combineReducers({
   master: masterSlice.reducer,
@@ -41,6 +42,7 @@ export function makeStore(deps: StoreDeps) {
   startPersistence(listener);
   startTagFilterCleanup(listener);
   startListRefresh(listener);
+  startUrlSync(listener, deps.address);
   return store;
 }
 

@@ -1,3 +1,4 @@
+import type { AddressBar } from '../io/addressBar.ts';
 import type { LastSavedStore } from '../io/lastSaved.ts';
 import type { TabStore } from '../io/tabStore.ts';
 
@@ -8,4 +9,6 @@ export interface StoreDeps {
   /** This tab's reload safety net. */
   tab: TabStore;
   lastSaved: LastSavedStore;
+  /** Where the page and Review's filters are shown, so a reload keeps them (see urlSync.ts). */
+  address: AddressBar;
 }

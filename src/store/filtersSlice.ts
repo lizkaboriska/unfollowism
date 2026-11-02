@@ -38,6 +38,9 @@ export const ACTION_PLAN_VIEWS = {
   [ACTION_TYPES.REMOVE_FOLLOWER]: LIST_VIEWS.TO_REMOVE,
 } as const satisfies Record<ActionType, PlanView>;
 
+/** The lists of the To do page, in display order. */
+export const TODO_VIEWS: readonly PlanView[] = Object.values(ACTION_PLAN_VIEWS);
+
 export function isPlanView(view: ListView): view is PlanView {
   return Object.hasOwn(PLAN_VIEW_ACTIONS, view);
 }
@@ -91,6 +94,10 @@ export const filtersSlice = createSlice({
       state.tag = payload.tag;
       state.decision = payload.decision;
     },
+    /** The page and filters a URL asked for, after a reload. */
+    showUrlFilters(_state, { payload }: PayloadAction<FiltersState>) {
+      return payload;
+    },
     clearFilters(state) {
       state.tag = NO_FILTERS.tag;
       state.decision = NO_FILTERS.decision;
@@ -107,5 +114,13 @@ export const filtersSlice = createSlice({
   },
 });
 
-export const { setScope, setDecisionFilter, setTagFilter, setQuery, setView, applyFilters, clearFilters } =
-  filtersSlice.actions;
+export const {
+  setScope,
+  setDecisionFilter,
+  setTagFilter,
+  setQuery,
+  setView,
+  applyFilters,
+  clearFilters,
+  showUrlFilters,
+} = filtersSlice.actions;

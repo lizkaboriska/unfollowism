@@ -6,6 +6,7 @@ import { LIST_VIEWS, isPlanView } from './store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { selectHasProject } from './store/selectors.ts';
 import { restoreTab } from './store/thunks.ts';
+import { addressChanged } from './store/urlSync.ts';
 import { AppHeader } from './ui/AppHeader.tsx';
 import { AppNav } from './ui/AppNav.tsx';
 import { ChangesPage } from './ui/ChangesPage.tsx';
@@ -31,6 +32,15 @@ export function App({ deps }: { deps: StoreDeps }) {
       setRestoring(false);
     });
   }, [dispatch]);
+
+  // Back and Forward change the address without a reload: show the page it names.
+  useEffect(
+    () =>
+      deps.address.onBackOrForward(() => {
+        dispatch(addressChanged());
+      }),
+    [deps.address, dispatch],
+  );
 
   // A file dropped anywhere but the import drop zone would be opened by the browser, leaving the app.
   useEffect(() => {

@@ -12,6 +12,7 @@ import {
   stringifyMasterFile,
   toMasterFile,
 } from '../core/index.ts';
+import { memoryAddressBar } from '../io/addressBar.ts';
 import { analyzeImport } from '../io/analyzeImport.ts';
 import { memoryLastSaved } from '../io/lastSaved.ts';
 import { createMemoryTabDatabase } from '../io/tabStore.ts';
@@ -83,6 +84,7 @@ async function run(total: number) {
     download: () => undefined,
     tab: database.forTab('t'),
     lastSaved: memoryLastSaved(),
+    address: memoryAddressBar(),
   };
   const store = makeStore(deps);
   const rows: [string, number, number][] = [];

@@ -54,6 +54,7 @@ import {
   selectVisibleAccountKeys,
   selectMatchingCount,
   selectScopeTotals,
+  selectTodoStartView,
 } from '../selectors.ts';
 import { STATUS_EVENTS } from '../statuses.ts';
 import { importPrepared, restoreTab, saveMaster } from '../thunks.ts';
@@ -947,6 +948,18 @@ describe('renames', () => {
 });
 
 describe('selectors', () => {
+  test('To do opens on the first tab with work left, else the first with done plans, else Unfollow', async () => {
+    const t = await importedStore();
+    const start = () => selectTodoStartView(t.store.getState());
+    expect(start()).toBe(LIST_VIEWS.TO_UNFOLLOW); // nothing queued
+    t.store.dispatch(setPlan({ username: 'dave', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
+    expect(start()).toBe(LIST_VIEWS.TO_REMOVE); // only done plans, all in Remove follower
+    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    expect(start()).toBe(LIST_VIEWS.TO_UNFOLLOW); // done plans in both: the first
+    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    expect(start()).toBe(LIST_VIEWS.TO_REMOVE); // work left wins over done
+  });
+
   test('visible accounts follow scope, decision, tag and search, sorted by username', async () => {
     const t = await importedStore();
     const keys = () => selectVisibleAccountKeys(t.store.getState());
