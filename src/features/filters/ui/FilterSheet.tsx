@@ -7,8 +7,8 @@ import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities
 import { plural } from '@/entities/master/ui/statusText.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { NO_FILTERS, applyFilters, type FilterChoice } from '../store/filtersSlice.ts';
-import { selectMatchingCount, selectScopeTotals } from '../store/selectors.ts';
+import { NO_FILTERS, applyFilters, type FilterChoice } from '../model/filtersSlice.ts';
+import { selectMatchingCount, selectScopeTotals } from '../model/selectors.ts';
 
 function sameTag(a: TagFilter, b: TagFilter): boolean {
   return a.kind === b.kind && (a.kind !== TAG_FILTER_KINDS.TAG || (b.kind === TAG_FILTER_KINDS.TAG && a.tag === b.tag));

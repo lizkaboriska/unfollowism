@@ -1,9 +1,9 @@
 import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from '@reduxjs/toolkit';
 
 import { confirmRename, resetChanges } from '@/entities/master/model/masterSlice.ts';
+import type { StoreDeps } from '@/store/deps.ts';
+import type { AppDispatch, RootState } from '@/store/index.ts';
 
-import type { StoreDeps } from './deps.ts';
-import type { AppDispatch, RootState } from './index.ts';
 import { selectVisibleAccountKeys } from './selectors.ts';
 
 /**

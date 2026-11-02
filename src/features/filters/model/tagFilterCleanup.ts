@@ -2,10 +2,10 @@ import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
 import { TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
 import { selectTagCounts } from '@/entities/master/model/selectors.ts';
+import type { StoreDeps } from '@/store/deps.ts';
+import type { AppDispatch, RootState } from '@/store/index.ts';
 
-import type { StoreDeps } from './deps.ts';
 import { setTagFilter } from './filtersSlice.ts';
-import type { AppDispatch, RootState } from './index.ts';
 
 /**
  * Tags exist only while an account has them. When the filtered tag disappears (deleted,

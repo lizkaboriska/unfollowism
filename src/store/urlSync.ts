@@ -3,10 +3,10 @@ import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs
 import { selectTodoStartView } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { setView, showUrlFilters } from '@/features/filters/model/filtersSlice.ts';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 
 import type { StoreDeps } from './deps.ts';
-import { setView, showUrlFilters } from './filtersSlice.ts';
 import type { AppDispatch, RootState } from './index.ts';
 import { filtersFromUrl, filtersToUrl } from './urlState.ts';
 

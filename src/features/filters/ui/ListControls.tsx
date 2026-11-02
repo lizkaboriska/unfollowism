@@ -7,8 +7,8 @@ import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities
 import { plural } from '@/entities/master/ui/statusText.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../store/filtersSlice.ts';
-import { selectListKeys } from '../store/listSlice.ts';
+import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../model/filtersSlice.ts';
+import { selectListKeys } from '../model/listSlice.ts';
 
 interface Chip {
   /** Which filter: a tag can be named like a decision ("Kept"). */

@@ -9,9 +9,9 @@ import {
 import { renameTag, setPlan, toggleTag } from '@/entities/master/model/masterSlice.ts';
 import { importPrepared, restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { setQuery, setScope, setView } from '@/features/filters/model/filtersSlice.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
-import { setQuery, setScope, setView } from '../filtersSlice.ts';
 import type { AppStore } from '../index.ts';
 import { addressChanged } from '../urlSync.ts';
 

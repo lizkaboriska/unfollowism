@@ -43,7 +43,6 @@ import {
 import { STATUS_EVENTS } from '@/entities/master/model/statuses.ts';
 import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
-
 import {
   applyFilters,
   clearFilters,
@@ -52,11 +51,16 @@ import {
   setScope,
   setTagFilter,
   setView,
-} from '../filtersSlice.ts';
+} from '@/features/filters/model/filtersSlice.ts';
+import { selectListKeys } from '@/features/filters/model/listSlice.ts';
+import {
+  selectVisibleAccountKeys,
+  selectMatchingCount,
+  selectScopeTotals,
+} from '@/features/filters/model/selectors.ts';
+
 import type { RootState } from '../index.ts';
-import { selectListKeys } from '../listSlice.ts';
 import { RETRY_DELAYS_MS } from '../persistence.ts';
-import { selectVisibleAccountKeys, selectMatchingCount, selectScopeTotals } from '../selectors.ts';
 
 import {
   WRITES,

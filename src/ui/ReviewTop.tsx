@@ -2,10 +2,10 @@ import { Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
 import { REVIEW_SCOPES } from '@/entities/master/lib/index.ts';
+import { FilterSheet } from '@/features/filters/ui/FilterSheet.tsx';
+import { ListControls } from '@/features/filters/ui/ListControls.tsx';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { FilterSheet } from './FilterSheet.tsx';
-import { ListControls } from './ListControls.tsx';
 import { ManageTagsSheet } from './ManageTagsSheet.tsx';
 import { ReviewHeading } from './ReviewHeading.tsx';
 import { StatsBox } from './StatsBox.tsx';
