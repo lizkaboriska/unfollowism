@@ -2,9 +2,9 @@ import { Box, Button, Heading, Stack, Text } from '@chakra-ui/react';
 import { useId } from 'react';
 
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 import { setView } from '../store/filtersSlice.ts';
-import { useAppDispatch } from '../store/hooks.ts';
 
 /**
  * To do with nothing left: "All done, for now" when plans were done (they can still be viewed and undone until the

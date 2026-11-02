@@ -2,9 +2,9 @@ import { Box, Button, Text } from '@chakra-ui/react';
 
 import { selectTodoStartView } from '@/entities/master/model/selectors.ts';
 import { LIST_VIEWS, TODO_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { setView } from '../store/filtersSlice.ts';
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 import { useChangesTotal, useTodoCount } from './viewCounts.ts';
 

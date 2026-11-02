@@ -1,9 +1,9 @@
 import { Box, Button, HStack, Heading, Text } from '@chakra-ui/react';
 
 import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { clearFilters, setQuery } from '../store/filtersSlice.ts';
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 /** Review with nothing to show: says why, and offers to clear what narrows the list. */
 export function NoResults() {

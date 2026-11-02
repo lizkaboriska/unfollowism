@@ -10,8 +10,7 @@ import {
 import { CHANGE_SECTION_TITLES } from '@/entities/master/ui/labels.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
 import { formatDate } from '@/shared/lib/dates.ts';
-
-import { useAppSelector } from '../store/hooks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { AccountSheet } from './AccountSheet.tsx';
 import { ChangeRow } from './ChangeRow.tsx';

@@ -1,7 +1,8 @@
 import { Text } from '@chakra-ui/react';
 import { useCallback, useMemo, useState } from 'react';
 
-import { useAppSelector } from '../store/hooks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
+
 import { selectListKeys } from '../store/listSlice.ts';
 
 import { AccountList, type ListItems } from './AccountList.tsx';

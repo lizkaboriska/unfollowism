@@ -29,8 +29,7 @@ import { setPlan, setUnavailable, toggleTag } from '@/entities/master/model/mast
 import { selectAccount, selectTags } from '@/entities/master/model/selectors.ts';
 import { RELATIONSHIP_NOTES, planText, queueText } from '@/entities/master/ui/labels.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
-
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { NewTag, NoteField } from './accountFields.tsx';
 import { openProfilePopup } from './instagramLink.ts';

@@ -11,8 +11,7 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { selectAccount } from '@/entities/master/model/selectors.ts';
 import { COMPLETED_PLAN_BADGES, planText } from '@/entities/master/ui/labels.ts';
-
-import { useAppSelector } from '../store/hooks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { RenameSuggestion } from './RenameSuggestion.tsx';
 

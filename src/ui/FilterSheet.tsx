@@ -5,9 +5,9 @@ import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from 
 import { selectTags } from '@/entities/master/model/selectors.ts';
 import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities/master/ui/labels.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { NO_FILTERS, applyFilters, type FilterChoice } from '../store/filtersSlice.ts';
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectMatchingCount, selectScopeTotals } from '../store/selectors.ts';
 
 function sameTag(a: TagFilter, b: TagFilter): boolean {

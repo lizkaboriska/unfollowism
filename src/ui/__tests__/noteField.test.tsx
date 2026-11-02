@@ -6,9 +6,9 @@ import { Provider } from 'react-redux';
 import { resetChanges } from '@/entities/master/model/masterSlice.ts';
 import { selectAccount } from '@/entities/master/model/selectors.ts';
 import { importPrepared } from '@/entities/master/model/thunks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { makeTestStore, prepared } from '../../store/__tests__/testStore.ts';
-import { useAppSelector } from '../../store/hooks.ts';
 import { system } from '../../theme.ts';
 import { NoteField } from '../accountFields.tsx';
 

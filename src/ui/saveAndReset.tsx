@@ -3,9 +3,8 @@ import { Button, type ButtonProps } from '@chakra-ui/react';
 import { selectHasProject, selectIsDirty } from '@/entities/master/model/selectors.ts';
 import { SAVE_STATUSES } from '@/entities/master/model/statuses.ts';
 import { saveMaster } from '@/entities/master/model/thunks.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
-
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 import { useResetChanges } from './resetHooks.tsx';
 

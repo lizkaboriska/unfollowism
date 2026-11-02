@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
 import { selectHasProject } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { Toaster } from '@/shared/ui/Toaster.tsx';
 
 import type { StoreDeps } from './store/deps.ts';
-import { useAppDispatch, useAppSelector } from './store/hooks.ts';
 import { addressChanged } from './store/urlSync.ts';
 import { AppHeader } from './ui/AppHeader.tsx';
 import { AppNav } from './ui/AppNav.tsx';

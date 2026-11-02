@@ -3,9 +3,9 @@ import type { ReactNode } from 'react';
 
 import { PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from '@/entities/master/model/views.ts';
 import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
+import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 import { setView } from '../store/filtersSlice.ts';
-import { useAppDispatch } from '../store/hooks.ts';
 
 import { useTodoCount } from './viewCounts.ts';
 

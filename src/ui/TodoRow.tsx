@@ -5,8 +5,7 @@ import { PLAN_STATES, planOf, profileUrl, type ActionType, type PlanState } from
 import { keepInstead, setPlan } from '@/entities/master/model/masterSlice.ts';
 import { selectAccount } from '@/entities/master/model/selectors.ts';
 import { relationshipNote } from '@/entities/master/ui/labels.ts';
-
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { openProfilePopup } from './instagramLink.ts';
 

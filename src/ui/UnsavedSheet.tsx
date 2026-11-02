@@ -12,8 +12,8 @@ import {
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { useAppSelector } from '../store/hooks.ts';
 import { selectUnsavedGroups } from '../store/selectors.ts';
 
 import { ResetButton, SaveButton } from './saveAndReset.tsx';

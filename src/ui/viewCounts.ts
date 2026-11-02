@@ -2,8 +2,7 @@ import { useCallback } from 'react';
 
 import { selectChangesSince, selectFollowChangeCounts, selectPlanStats } from '@/entities/master/model/selectors.ts';
 import { PLAN_VIEW_ACTIONS, isPlanView, type ListView } from '@/entities/master/model/views.ts';
-
-import { useAppSelector } from '../store/hooks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** How many accounts a To do list has (0 for other views). */
 export function useTodoCount(): (view: ListView) => number {

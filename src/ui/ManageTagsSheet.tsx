@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { deleteTag } from '@/entities/master/model/masterSlice.ts';
 import { selectTagCounts, selectTags } from '@/entities/master/model/selectors.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/dialogHooks.ts';
-
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 import { RenameTagDialog } from './RenameTagDialog.tsx';
 

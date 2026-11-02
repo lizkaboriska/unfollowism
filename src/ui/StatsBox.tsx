@@ -2,9 +2,9 @@ import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
 
 import { REVIEW_SCOPES, type ReviewScope } from '@/entities/master/lib/index.ts';
 import { selectRelationshipStats } from '@/entities/master/model/selectors.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { setScope } from '../store/filtersSlice.ts';
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (

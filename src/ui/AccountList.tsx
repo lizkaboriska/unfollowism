@@ -2,7 +2,8 @@ import { Box } from '@chakra-ui/react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
-import { useAppSelector } from '../store/hooks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
+
 import { selectListKeys } from '../store/listSlice.ts';
 
 const CARD_GAP = 12;

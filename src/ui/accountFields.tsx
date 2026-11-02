@@ -4,8 +4,7 @@ import { useDebouncedCallback } from 'use-debounce';
 
 import { findTag } from '@/entities/master/lib/index.ts';
 import { setNote, toggleTag } from '@/entities/master/model/masterSlice.ts';
-
-import { useAppDispatch } from '../store/hooks.ts';
+import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 import { OWN_ESCAPE } from './ownEscape.ts';
 

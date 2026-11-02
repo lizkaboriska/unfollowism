@@ -5,9 +5,9 @@ import { useDebouncedCallback } from 'use-debounce';
 import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
 import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities/master/ui/labels.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../store/filtersSlice.ts';
-import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';
 
 interface Chip {
