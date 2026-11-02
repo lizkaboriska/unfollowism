@@ -104,6 +104,44 @@ async function sheetClosed() {
   });
 }
 
+async function openManageTags(user: UserEvent) {
+  await fromMenu(user, 'Manage tags');
+  return finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
+}
+
+async function closeManageTags(user: UserEvent) {
+  const sheet = screen.getByRole('dialog', { name: 'Manage tags' });
+  await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
+  });
+}
+
+/** Manage tags: the row of one tag. */
+const lineOf = (sheet: HTMLElement, tag: string) => must(within(sheet).getByText(`#${tag}`).closest('li'));
+
+/** Manage tags: picks Rename or Delete in a tag's ⋯ menu (by keyboard, see fromMenu) and returns its dialog. */
+async function openTagDialog(user: UserEvent, tag: string, item: 'Rename' | 'Delete') {
+  await user.click(screen.getByRole('button', { name: `Rename or delete ${tag}` }));
+  await waitFor(() => {
+    expect(screen.getByRole('menu')).toHaveFocus();
+  });
+  const option = screen.getByRole('menuitem', { name: item });
+  for (let presses = 0; !option.hasAttribute('data-highlighted') && presses < 3; presses++) {
+    await user.keyboard('{ArrowDown}');
+  }
+  await user.keyboard('{Enter}');
+  return item === 'Rename'
+    ? finishedOpening(screen.findByRole('dialog', { name: `Rename #${tag}` }))
+    : finishedOpening(screen.findByRole('alertdialog', { name: `Delete #${tag}?` }));
+}
+
+async function dialogClosed(name: string) {
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name })).not.toBeInTheDocument();
+  });
+}
+
 /** Review: picks options in the Filter sheet (list, tag, decision) and applies them with "Show N accounts". */
 async function applyFilters(user: UserEvent, ...options: string[]) {
   const sheet = await openFilterSheet(user);
@@ -1077,14 +1115,11 @@ describe('unsaved changes popup', () => {
     await importFiles(user, [master, ...exportOf(names, ['user10'])]);
     await findRow('user10');
 
-    await fromMenu(user, 'Manage tags');
-    const tags = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
-    await user.click(within(must(within(tags).getByText('dog').parentElement)).getByRole('button', { name: 'Rename' }));
-    await user.type(within(tags).getByRole('textbox', { name: 'New name for dog' }), '{Control>}a{/Control}pet{Enter}');
-    await user.click(within(tags).getByRole('button', { name: /close/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
-    });
+    await openManageTags(user);
+    const rename = await openTagDialog(user, 'dog', 'Rename');
+    await user.type(within(rename).getByRole('textbox', { name: 'Tag name' }), '{Control>}a{/Control}pet{Enter}');
+    await dialogClosed('Rename #dog');
+    await closeManageTags(user);
 
     const p = await openPopup(user, '● Unsaved · 12 changed accounts');
     expect(within(p).getByText('12 changed accounts since your last save')).toBeInTheDocument();
@@ -1179,60 +1214,55 @@ describe('tags', () => {
 
   test('Manage tags: rename, merge and delete, with counts', async () => {
     const { user } = await imported();
-    let sheet = await openFilterSheet(user);
-    await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
-    const empty = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
-    expect(within(empty).getByText(/No tags yet/)).toBeInTheDocument();
-    await user.click(within(empty).getByRole('button', { name: /close/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
-    });
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+    // From the Filter popup, Manage tags replaces it.
+    const filter = await openFilterSheet(user);
+    await user.click(within(filter).getByRole('button', { name: 'Manage tags' }));
     await sheetClosed();
+    const empty = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
+    expect(within(empty).getByText('Your tags are only for you.')).toBeInTheDocument();
+    expect(
+      within(empty).getByText('No tags yet. New tags are made on an account: open it and tap + New tag.'),
+    ).toBeInTheDocument();
+    await closeManageTags(user);
 
     await newTag(user, 'alice', 'dog');
     await newTag(user, 'bob', 'dog');
     await newTag(user, 'bob', 'illustration');
-    sheet = await openFilterSheet(user);
-    await user.click(within(sheet).getByRole('button', { name: 'Manage tags' }));
-    const dialog = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
-    expect(within(dialog).getByText('2 accounts')).toBeInTheDocument();
+    const sheet = await openManageTags(user);
+    expect(within(lineOf(sheet, 'dog')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(lineOf(sheet, 'illustration')).getByText('1 account')).toBeInTheDocument();
 
-    // Rename: an empty name is refused, a new name applies to every account with the tag.
-    const lineOf = (tag: string) => must(within(dialog).getByText(tag).parentElement);
-    await user.click(within(lineOf('dog')).getByRole('button', { name: 'Rename' }));
-    const field = within(dialog).getByRole('textbox', { name: 'New name for dog' });
+    // Rename: off while the name is empty; a new name applies to every account with the tag.
+    let rename = await openTagDialog(user, 'dog', 'Rename');
+    const field = within(rename).getByRole('textbox', { name: 'Tag name' });
+    expect(field).toHaveValue('dog');
     await user.clear(field);
-    await user.keyboard('{Enter}');
-    expect(within(dialog).getByText('A tag needs a name.')).toBeInTheDocument();
-    await user.type(field, 'dogs{Enter}');
-    expect(within(lineOf('dogs')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(rename).getByRole('button', { name: 'Rename' })).toBeDisabled();
+    await user.type(field, 'dogs');
+    await user.click(within(rename).getByRole('button', { name: 'Rename' }));
+    await dialogClosed('Rename #dog');
+    expect(within(lineOf(sheet, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
 
-    // Rename onto an existing tag asks, then merges.
-    await user.click(within(lineOf('illustration')).getByRole('button', { name: 'Rename' }));
-    await user.type(
-      within(dialog).getByRole('textbox', { name: 'New name for illustration' }),
-      '{Control>}a{/Control}Dogs{Enter}',
-    );
-    const merge = await screen.findByRole('alertdialog', { name: 'Merge tags?' });
-    await waitFor(() => user.click(within(merge).getByRole('button', { name: 'Merge' })));
-    await waitFor(() => {
-      expect(within(dialog).queryByText('illustration')).not.toBeInTheDocument();
-    });
+    // Onto an existing tag (any case): a warning, and the button merges.
+    rename = await openTagDialog(user, 'illustration', 'Rename');
+    await user.type(within(rename).getByRole('textbox', { name: 'Tag name' }), '{Control>}a{/Control}Dogs');
+    expect(within(rename).getByText('⚠ #dogs already exists')).toBeInTheDocument();
+    expect(within(rename).getByText('Saving merges the two tags: the account gets #dogs.')).toBeInTheDocument();
+    await user.click(within(rename).getByRole('button', { name: 'Merge' }));
+    await dialogClosed('Rename #illustration');
+    expect(within(sheet).queryByText('#illustration')).not.toBeInTheDocument();
+    expect(within(lineOf(sheet, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
 
     // Delete asks with the count.
-    await user.click(within(lineOf('dogs')).getByRole('button', { name: 'Delete' }));
-    const confirmDelete = await screen.findByRole('alertdialog');
-    expect(within(confirmDelete).getByText('It will be removed from 2 accounts.')).toBeInTheDocument();
-    await waitFor(() => user.click(within(confirmDelete).getByRole('button', { name: 'Delete' })));
-    expect(await within(dialog).findByText(/No tags yet/)).toBeInTheDocument();
+    const confirmDelete = await openTagDialog(user, 'dogs', 'Delete');
+    expect(within(confirmDelete).getByRole('heading', { name: 'Delete #dogs?' })).toBeInTheDocument();
+    expect(
+      within(confirmDelete).getByText('It will be removed from 2 accounts. Their decisions and notes stay.'),
+    ).toBeInTheDocument();
+    await user.click(within(confirmDelete).getByRole('button', { name: 'Delete' }));
+    expect(await within(sheet).findByText(/^No tags yet/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: /close/i }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
-    });
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
-    await sheetClosed();
+    await closeManageTags(user);
     expect(row('alice')).not.toHaveTextContent('#');
     expect(row('bob')).not.toHaveTextContent('#');
   });

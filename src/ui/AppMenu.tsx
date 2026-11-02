@@ -1,7 +1,7 @@
 import { Button, Menu, Portal } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { ManageTagsDialog } from './ManageTagsDialog.tsx';
+import { ManageTagsSheet } from './ManageTagsSheet.tsx';
 import { useResetChanges } from './resetHooks.tsx';
 
 const ROW = { h: '12', px: '3.5', textStyle: 'control' } as const;
@@ -42,7 +42,7 @@ export function AppMenu({ onImportNew }: { onImportNew: () => void }) {
           </Menu.Positioner>
         </Portal>
       </Menu.Root>
-      <ManageTagsDialog
+      <ManageTagsSheet
         open={tagsOpen}
         onClose={() => {
           setTagsOpen(false);

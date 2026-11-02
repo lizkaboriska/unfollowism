@@ -7,7 +7,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectMatchingCount, selectScopeTotals, selectTags } from '../store/selectors.ts';
 
 import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from './labels.ts';
-import { ManageTagsDialog } from './ManageTagsDialog.tsx';
 import { plural } from './statusText.ts';
 
 function sameTag(a: TagFilter, b: TagFilter): boolean {
@@ -41,7 +40,7 @@ function Choice({ label, pressed, onClick }: { label: string; pressed: boolean; 
  * The choices are a draft: the list behind the sheet changes only on "Show N accounts", and closing forgets them.
  * Reset clears the filters but keeps the list, like "Clear all".
  */
-function FilterChoices({ onClose }: { onClose: () => void }) {
+function FilterChoices({ onClose, onManageTags }: { onClose: () => void; onManageTags: () => void }) {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(s => s.filters);
   const tags = useAppSelector(selectTags);
@@ -51,12 +50,7 @@ function FilterChoices({ onClose }: { onClose: () => void }) {
     tag: filters.tag,
     decision: filters.decision,
   });
-  // Manage tags can rename or delete the drafted tag: then the draft falls back to any tag.
-  const draftTag =
-    draft.tag.kind === TAG_FILTER_KINDS.TAG && !tags.includes(draft.tag.tag) ? NO_FILTERS.tag : draft.tag;
-  const choice: FilterChoice = { ...draft, tag: draftTag };
-  const matching = useAppSelector(s => selectMatchingCount(s, { ...filters, ...choice }));
-  const [tagsOpen, setTagsOpen] = useState(false);
+  const matching = useAppSelector(s => selectMatchingCount(s, { ...filters, ...draft }));
   const choose = (choice: Partial<FilterChoice>) => {
     setDraft(current => ({ ...current, ...choice }));
   };
@@ -104,9 +98,7 @@ function FilterChoices({ onClose }: { onClose: () => void }) {
                 textStyle="body"
                 textDecoration="underline"
                 textUnderlineOffset="3px"
-                onClick={() => {
-                  setTagsOpen(true);
-                }}
+                onClick={onManageTags}
               >
                 Manage tags
               </Button>
@@ -117,7 +109,7 @@ function FilterChoices({ onClose }: { onClose: () => void }) {
                 <Choice
                   key={tag.kind === TAG_FILTER_KINDS.TAG ? `tag:${tag.tag}` : tag.kind}
                   label={tagFilterLabel(tag)}
-                  pressed={sameTag(draftTag, tag)}
+                  pressed={sameTag(draft.tag, tag)}
                   onClick={() => {
                     choose({ tag });
                   }}
@@ -154,24 +146,27 @@ function FilterChoices({ onClose }: { onClose: () => void }) {
         <Button
           flex="1"
           onClick={() => {
-            dispatch(applyFilters(choice));
+            dispatch(applyFilters(draft));
             onClose();
           }}
         >
           Show {plural(matching, 'account')}
         </Button>
       </Drawer.Footer>
-      <ManageTagsDialog
-        open={tagsOpen}
-        onClose={() => {
-          setTagsOpen(false);
-        }}
-      />
     </>
   );
 }
 
-export function FilterSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** `onManageTags`: the Filter popup closes and Manage tags opens (popups never stack). */
+export function FilterSheet({
+  open,
+  onClose,
+  onManageTags,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onManageTags: () => void;
+}) {
   return (
     <Drawer.Root
       open={open}
@@ -191,7 +186,7 @@ export function FilterSheet({ open, onClose }: { open: boolean; onClose: () => v
             <Drawer.Header>
               <Drawer.Title textStyle="sheetTitle">Filter</Drawer.Title>
             </Drawer.Header>
-            <FilterChoices onClose={onClose} />
+            <FilterChoices onClose={onClose} onManageTags={onManageTags} />
             <Drawer.CloseTrigger asChild>
               <CloseButton variant="outline" aria-label="Close" />
             </Drawer.CloseTrigger>
