@@ -1,5 +1,7 @@
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import { createReview } from './review.ts';
-import { DecisionKind, type Account, type Decision, type DeepReadonly, type ReadonlyAccount } from './types.ts';
+import { DecisionKind, type Account, type Decision, type ReadonlyAccount } from './types.ts';
 
 /** A new account with no follows, decision or review yet. */
 export function createAccount(username: string): Account {

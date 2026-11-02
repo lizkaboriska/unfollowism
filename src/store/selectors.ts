@@ -1,5 +1,8 @@
 import { createSelector } from '@reduxjs/toolkit';
 
+import { createDict } from '@/shared/lib/createDict.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
@@ -14,7 +17,6 @@ import {
   groupSessionChanges,
   tagCounts,
   tagsInUse,
-  createDict,
   decisionMatches,
   queryMatches,
   relationshipStats,
@@ -23,7 +25,6 @@ import {
   tagMatches,
   type Account,
   type ChangedAccounts,
-  type DeepReadonly,
   type FollowChange,
   type FollowChangeCounts,
   type PlanStats,

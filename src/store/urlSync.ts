@@ -1,6 +1,6 @@
 import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
-import type { AddressBar } from '../io/addressBar.ts';
+import type { AddressBar } from '@/shared/url/addressBar.ts';
 
 import type { StoreDeps } from './deps.ts';
 import { LIST_VIEWS, setView, showUrlFilters } from './filtersSlice.ts';

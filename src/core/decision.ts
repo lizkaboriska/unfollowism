@@ -1,10 +1,11 @@
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import {
   ACTION_TYPES,
   DecisionFilter,
   DecisionKind,
   type Account,
   type ActionType,
-  type DeepReadonly,
   type Follow,
   type PlanState,
   type Plans,

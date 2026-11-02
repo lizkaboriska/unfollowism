@@ -1,5 +1,7 @@
-import type { Account, DeepReadonly, Master, ReadonlyAccount } from './types.ts';
-import { createDict } from './util.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
+import type { Account, Master, ReadonlyAccount } from './types.ts';
 
 /**
  * Tags have no list of their own: a tag exists while at least one account has it.

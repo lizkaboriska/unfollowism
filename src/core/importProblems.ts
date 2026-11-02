@@ -1,4 +1,4 @@
-import type { ValueOf } from './types.ts';
+import type { ValueOf } from '@/shared/lib/valueOf.ts';
 
 /** What a master file field should have been. */
 export const FIELD_TYPES = {

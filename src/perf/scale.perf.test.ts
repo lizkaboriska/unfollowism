@@ -1,6 +1,8 @@
 // @vitest-environment node
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
+import { memoryAddressBar } from '@/shared/url/addressBar.ts';
+
 import { must } from '../core/__tests__/helpers.ts';
 import {
   ACTION_TYPES,
@@ -12,7 +14,6 @@ import {
   stringifyMasterFile,
   toMasterFile,
 } from '../core/index.ts';
-import { memoryAddressBar } from '../io/addressBar.ts';
 import { analyzeImport } from '../io/analyzeImport.ts';
 import { memoryLastSaved } from '../io/lastSaved.ts';
 import { createMemoryTabDatabase } from '../io/tabStore.ts';

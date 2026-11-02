@@ -1,6 +1,8 @@
 import { Box, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
+import { Toaster } from '@/shared/ui/Toaster.tsx';
+
 import type { StoreDeps } from './store/deps.ts';
 import { LIST_VIEWS, isPlanView } from './store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from './store/hooks.ts';
@@ -16,7 +18,6 @@ import { ReviewList } from './ui/ReviewList.tsx';
 import { ReviewTop } from './ui/ReviewTop.tsx';
 import { StatusLine } from './ui/StatusLine.tsx';
 import { StorageWarning } from './ui/StorageWarning.tsx';
-import { Toaster } from './ui/Toaster.tsx';
 import { TodoPage } from './ui/TodoPage.tsx';
 
 export function App({ deps }: { deps: StoreDeps }) {

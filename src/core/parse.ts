@@ -1,5 +1,7 @@
+import { isRecord, numberOrNull } from '@/shared/lib/checks.ts';
+
 import type { ExportEntry } from './types.ts';
-import { isRecord, numberOrNull, usernameKey } from './util.ts';
+import { usernameKey } from './util.ts';
 
 function firstEntry(item: Record<string, unknown>): Record<string, unknown> {
   const list = item.string_list_data;

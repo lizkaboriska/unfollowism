@@ -1,7 +1,8 @@
+import { isRecord } from '@/shared/lib/checks.ts';
+
 import {
   IMPORT_PROBLEMS,
   ImportError,
-  isRecord,
   parseFollowersJson,
   parseFollowingJson,
   type ExportBundle,

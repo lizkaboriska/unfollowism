@@ -13,6 +13,8 @@ import {
 } from '@chakra-ui/react';
 import type { ReactNode } from 'react';
 
+import { formatSince } from '@/shared/lib/dates.ts';
+
 import {
   ACTION_TYPES,
   PLAN_STATES,
@@ -30,7 +32,6 @@ import { setPlan, setUnavailable, toggleTag } from '../store/masterSlice.ts';
 import { selectAccount, selectTags } from '../store/selectors.ts';
 
 import { NewTag, NoteField } from './accountFields.tsx';
-import { formatSince } from './dates.ts';
 import { openProfilePopup } from './instagramLink.ts';
 import { RELATIONSHIP_NOTES, planText, queueText } from './labels.ts';
 import { keepOpenOnOwnEscape } from './ownEscape.ts';

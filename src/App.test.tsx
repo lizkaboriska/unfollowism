@@ -4,18 +4,19 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { Provider } from 'react-redux';
 
+import { formatSince } from '@/shared/lib/dates.ts';
+import { DialogProvider } from '@/shared/ui/dialogs.tsx';
+import { toaster } from '@/shared/ui/toasts.ts';
+import { browserAddressBar } from '@/shared/url/addressBar.ts';
+
 import { App } from './App.tsx';
 import { followersFile, followingFile, must } from './core/__tests__/helpers.ts';
-import { browserAddressBar } from './io/addressBar.ts';
 import { memoryLastSaved } from './io/lastSaved.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from './io/tabStore.ts';
 import type { StoreDeps } from './store/deps.ts';
 import { makeStore } from './store/index.ts';
 import { system } from './theme.ts';
-import { formatSince } from './ui/dates.ts';
-import { DialogProvider } from './ui/dialogs.tsx';
 import { SAVED_TOAST } from './ui/saveAndReset.tsx';
-import { toaster } from './ui/toasts.ts';
 
 // Toasts live outside React; clear them so one test's toast never shows in the next.
 afterEach(() => {

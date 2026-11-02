@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, type ReactNode } from 'react';
 
-import type { ValueOf } from '../core/index.ts';
+import type { ValueOf } from '@/shared/lib/valueOf.ts';
 
 /**
  * Promise-based dialogs: `if (await confirm({ … })) …` instead of wiring open state

@@ -1,3 +1,5 @@
+import { createDict } from '@/shared/lib/createDict.ts';
+
 import { createAccount } from './account.ts';
 import { settleDecisions, totalOf, type PlanOutcomes, type SettledDecisions } from './actions.ts';
 import { IMPORT_PROBLEMS, ImportError } from './importProblems.ts';
@@ -6,7 +8,7 @@ import { dedupeAccounts } from './parse.ts';
 import { findRenames, settleRenameSuggestions } from './renames.ts';
 import { followChangeCounts, setFollows, type FollowChangeCounts } from './scopes.ts';
 import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type ImportFacts, type Master } from './types.ts';
-import { createDict, usernameKey } from './util.ts';
+import { usernameKey } from './util.ts';
 
 /** Parsed contents of one Instagram export (possibly several follower chunk files). */
 export interface ExportBundle {

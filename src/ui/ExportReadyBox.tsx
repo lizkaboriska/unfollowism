@@ -1,9 +1,10 @@
 import { Box, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, type DragEvent, type ReactNode } from 'react';
 
+import { formatDate } from '@/shared/lib/dates.ts';
+
 import type { RecognizedFiles } from '../io/analyzeImport.ts';
 
-import { formatDate } from './dates.ts';
 import { exportFilesText, type ExportFileInfo } from './importText.ts';
 import { plural } from './statusText.ts';
 

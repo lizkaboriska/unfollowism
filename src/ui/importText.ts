@@ -1,6 +1,7 @@
+import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
+
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '../io/analyzeImport.ts';
 
-import { formatDate, formatDateTime } from './dates.ts';
 import { plural } from './statusText.ts';
 
 /** What's missing before the selection can be imported, as a warning. Null when nothing is. */

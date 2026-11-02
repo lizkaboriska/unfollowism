@@ -2,7 +2,8 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { system } from '../../theme.ts';
+import { system } from '@/theme.ts';
+
 import { useConfirm } from '../dialogHooks.ts';
 import { DialogProvider } from '../dialogs.tsx';
 

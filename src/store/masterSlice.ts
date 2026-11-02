@@ -1,9 +1,10 @@
 import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
 
+import { createDict } from '@/shared/lib/createDict.ts';
+
 import {
   accountOf,
   copyAccount,
-  createDict,
   followExists,
   isKept,
   isPastAccount,

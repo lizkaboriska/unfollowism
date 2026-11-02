@@ -3,8 +3,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 
+import { DialogProvider } from '@/shared/ui/dialogs.tsx';
+import { browserAddressBar } from '@/shared/url/addressBar.ts';
+
 import { App } from './App.tsx';
-import { browserAddressBar } from './io/addressBar.ts';
 import { downloadText } from './io/download.ts';
 import { localStorageLastSaved } from './io/lastSaved.ts';
 import { browserTabEnvironment, claimTab } from './io/tabIdentity.ts';
@@ -14,7 +16,6 @@ import type { StoreDeps } from './store/deps.ts';
 import { makeStore } from './store/index.ts';
 import { selectIsDirty } from './store/selectors.ts';
 import { system } from './theme.ts';
-import { DialogProvider } from './ui/dialogs.tsx';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

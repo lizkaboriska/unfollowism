@@ -1,12 +1,13 @@
 import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
+import { createDict } from '@/shared/lib/createDict.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import {
-  createDict,
   toAccountRecord,
   toMasterFile,
   type AccountRecord,
   type ChangedAccounts,
-  type DeepReadonly,
   type ImportFacts,
   type Master,
 } from '../core/index.ts';

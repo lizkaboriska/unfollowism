@@ -1,6 +1,8 @@
+import type { ValueOf } from '@/shared/lib/valueOf.ts';
+
 import { copyDecision } from './account.ts';
 import { createReview } from './review.ts';
-import type { Decision, ReadonlyAccounts, ValueOf } from './types.ts';
+import type { Decision, ReadonlyAccounts } from './types.ts';
 import { usernameKey } from './util.ts';
 
 export const SESSION_CHANGES = {

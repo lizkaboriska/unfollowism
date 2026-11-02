@@ -1,13 +1,14 @@
 import { Box, Button, Grid, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useCallback, useId, useState } from 'react';
 
+import { formatDate } from '@/shared/lib/dates.ts';
+
 import { FOLLOW_CHANGES, type FollowChange } from '../core/index.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectChangeSections, selectChangesSince, selectRelationshipStats } from '../store/selectors.ts';
 
 import { AccountSheet } from './AccountSheet.tsx';
 import { ChangeRow } from './ChangeRow.tsx';
-import { formatDate } from './dates.ts';
 import { CHANGE_SECTION_TITLES } from './labels.ts';
 import { plural } from './statusText.ts';
 

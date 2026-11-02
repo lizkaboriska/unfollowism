@@ -1,14 +1,15 @@
+import { createDict } from '@/shared/lib/createDict.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import { followExists, isKept, isPastAccount, keep, planOf, setPlan, undecide } from './decision.ts';
 import {
   ACTION_TYPES,
   PLAN_STATES,
   type ActionType,
-  type DeepReadonly,
   type Master,
   type PlanState,
   type ReadonlyAccount,
 } from './types.ts';
-import { createDict } from './util.ts';
 
 export type ActionCounts = Record<ActionType, number>;
 

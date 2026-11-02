@@ -1,3 +1,5 @@
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import { decisionMatches, isPastAccount } from './decision.ts';
 import {
   DecisionFilter,
@@ -6,7 +8,6 @@ import {
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
   type Account,
-  type DeepReadonly,
   type ExportEntry,
   type Follow,
   type FollowChange,

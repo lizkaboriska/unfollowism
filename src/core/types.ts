@@ -1,5 +1,5 @@
-/** The value type of a constant object, e.g. ValueOf<typeof ACTION_TYPES> = "unfollow" | "removeFollower". */
-export type ValueOf<T> = T[keyof T];
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+import type { ValueOf } from '@/shared/lib/valueOf.ts';
 
 /** Version of the saved master file format. Bump it (and handle the old value) when the format changes. */
 export const FORMAT_VERSION = 1;
@@ -150,12 +150,6 @@ export interface ExportEntry {
   /** Instagram "since" time in seconds; null if the export gave none. */
   since: number | null;
 }
-
-export type DeepReadonly<T> = T extends (infer U)[]
-  ? readonly DeepReadonly<U>[]
-  : T extends object
-    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-    : T;
 
 /**
  * What only the import itself can know, for the Changes page until the next import (never in the master file):

@@ -1,4 +1,6 @@
-import { ImportError, createAccount, createDict, type Account, type ImportProblem, type Master } from '../index.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
+
+import { ImportError, createAccount, type Account, type ImportProblem, type Master } from '../index.ts';
 
 /** The problem `run` throws as an ImportError; fails the test if it throws anything else or nothing. */
 export function problemOf(run: () => unknown): ImportProblem {

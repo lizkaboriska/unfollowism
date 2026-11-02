@@ -3,22 +3,6 @@ export function usernameKey(value: unknown): string {
   return text.trim().toLowerCase();
 }
 
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-export function numberOrNull(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-/**
- * Prototype-free dictionary. Instagram usernames such as "constructor" or "__proto__"
- * are valid, and must not collide with Object.prototype members.
- */
-export function createDict<T>(): Record<string, T> {
-  return Object.create(null) as Record<string, T>;
-}
-
 export function profileUrl(username: string): string {
   return `https://www.instagram.com/${username}`;
 }

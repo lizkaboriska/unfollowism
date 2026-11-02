@@ -1,12 +1,13 @@
 import { Button, type ButtonProps } from '@chakra-ui/react';
 
+import { toaster } from '@/shared/ui/toasts.ts';
+
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectHasProject, selectIsDirty } from '../store/selectors.ts';
 import { SAVE_STATUSES } from '../store/statuses.ts';
 import { saveMaster } from '../store/thunks.ts';
 
 import { useResetChanges } from './resetHooks.tsx';
-import { toaster } from './toasts.ts';
 
 export const SAVED_TOAST = '✓ Master file downloaded. Keep it for your next import.';
 

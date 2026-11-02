@@ -1,4 +1,6 @@
-import type { ImportSummary, ValueOf } from '../core/index.ts';
+import type { ValueOf } from '@/shared/lib/valueOf.ts';
+
+import type { ImportSummary } from '../core/index.ts';
 
 export const IMPORT_STATUSES = { IDLE: 'idle', IMPORTING: 'importing' } as const;
 export type ImportStatus = ValueOf<typeof IMPORT_STATUSES>;

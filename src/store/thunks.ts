@@ -1,9 +1,10 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
+import { createDict } from '@/shared/lib/createDict.ts';
+
 import {
   ImportError,
   accountOf,
-  createDict,
   fromAccountRecord,
   importExport,
   parseImportFacts,

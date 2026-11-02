@@ -1,10 +1,11 @@
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import {
   ACTION_TYPES,
   DecisionKind,
   SESSION_CHANGES,
   TagChangeKind,
   type Decision,
-  type DeepReadonly,
   type SessionChange,
   type TagChangeRow,
 } from '../core/index.ts';

@@ -1,3 +1,7 @@
+import { isRecord } from '@/shared/lib/checks.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import { copyDecision } from './account.ts';
 import { FIELD_TYPES, IMPORT_PROBLEMS, ImportError, type FieldType } from './importProblems.ts';
 import { createReview } from './review.ts';
@@ -8,7 +12,6 @@ import {
   PLAN_STATES,
   type Account,
   type ActionType,
-  type DeepReadonly,
   type Decision,
   type Follow,
   type ImportFacts,
@@ -18,7 +21,7 @@ import {
   type RenameSuggestion,
   type Review,
 } from './types.ts';
-import { createDict, isRecord, usernameKey } from './util.ts';
+import { usernameKey } from './util.ts';
 
 /**
  * The saved form of the master (download file and browser storage). Compact: anything

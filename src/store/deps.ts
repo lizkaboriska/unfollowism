@@ -1,4 +1,5 @@
-import type { AddressBar } from '../io/addressBar.ts';
+import type { AddressBar } from '@/shared/url/addressBar.ts';
+
 import type { LastSavedStore } from '../io/lastSaved.ts';
 import type { TabStore } from '../io/tabStore.ts';
 

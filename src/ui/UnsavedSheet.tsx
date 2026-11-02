@@ -1,12 +1,13 @@
 import { Box, Button, CloseButton, Drawer, HStack, Portal, Stack, Text } from '@chakra-ui/react';
 import { useState, type ReactNode } from 'react';
 
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import {
   DecisionKind,
   SESSION_CHANGES,
   usernameKey,
   type Decision,
-  type DeepReadonly,
   type SessionAccountChanges,
   type TagChangeRow,
 } from '../core/index.ts';

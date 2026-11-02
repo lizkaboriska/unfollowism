@@ -1,6 +1,9 @@
 import { Box, Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
+import { useConfirm } from '@/shared/ui/dialogHooks.ts';
+import { Warning } from '@/shared/ui/Warning.tsx';
+
 import { ImportError } from '../core/index.ts';
 import { IMPORT_WARNINGS, analyzeImport, type ImportSelection, type ImportWarning } from '../io/analyzeImport.ts';
 import type { LastSavedStore } from '../io/lastSaved.ts';
@@ -10,12 +13,10 @@ import { selectIsDirty } from '../store/selectors.ts';
 import { IMPORT_STATUSES } from '../store/statuses.ts';
 import { importPrepared } from '../store/thunks.ts';
 
-import { useConfirm } from './dialogHooks.ts';
 import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { importProblemText } from './importProblemText.ts';
 import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
-import { Warning } from './Warning.tsx';
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
 interface ChosenFile {
