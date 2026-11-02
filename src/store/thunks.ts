@@ -1,7 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
-import { createDict } from '@/shared/lib/createDict.ts';
-
 import {
   ImportError,
   accountOf,
@@ -17,7 +15,9 @@ import {
   type ImportProblem,
   type ImportResult,
   type Master,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
+
 import type { PreparedImport } from '../io/analyzeImport.ts';
 import { masterFileName } from '../io/download.ts';
 import { nextPaint } from '../io/nextPaint.ts';

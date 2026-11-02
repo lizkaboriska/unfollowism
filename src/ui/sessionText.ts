@@ -1,5 +1,3 @@
-import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
-
 import {
   ACTION_TYPES,
   DecisionKind,
@@ -8,7 +6,8 @@ import {
   type Decision,
   type SessionChange,
   type TagChangeRow,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 import { planText } from './labels.ts';
 

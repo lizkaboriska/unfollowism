@@ -1,4 +1,4 @@
-import { must } from '../../core/__tests__/helpers.ts';
+import { must } from '@/entities/master/lib/__tests__/helpers.ts';
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
@@ -13,7 +13,8 @@ import {
   parseMaster,
   planOf,
   toMasterFile,
-} from '../../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+
 import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';
 import {
   LIST_VIEWS,

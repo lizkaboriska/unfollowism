@@ -14,7 +14,7 @@ import {
   type Relationship,
   type ReviewScope,
   type TagFilter,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
 
 export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   [RELATIONSHIPS.MUTUAL]: 'Mutual',

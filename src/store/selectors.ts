@@ -1,8 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit';
 
-import { createDict } from '@/shared/lib/createDict.ts';
-import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
-
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
@@ -32,7 +29,9 @@ import {
   type ReadonlyAccounts,
   type ReviewScope,
   type TagCounts,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 import {
   LIST_VIEWS,

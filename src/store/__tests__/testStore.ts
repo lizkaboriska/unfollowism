@@ -1,7 +1,7 @@
+import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import type { ValueOf } from '@/shared/lib/valueOf.ts';
 import { memoryAddressBar, type AddressBar } from '@/shared/url/addressBar.ts';
 
-import { followersFile, followingFile, must } from '../../core/__tests__/helpers.ts';
 import { analyzeImport, type PreparedImport } from '../../io/analyzeImport.ts';
 import { memoryLastSaved, type LastSavedStore } from '../../io/lastSaved.ts';
 import { createMemoryTabDatabase, type TabStore } from '../../io/tabStore.ts';

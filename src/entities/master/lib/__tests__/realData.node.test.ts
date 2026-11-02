@@ -20,7 +20,7 @@ import {
 
 import { must } from './helpers.ts';
 
-const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const NOW = '2030-01-01T00:00:00.000Z';
 const MASTER = 'instagram_master_tracker.json';
 const realData = existsSync(join(ROOT, MASTER)) && existsSync(join(ROOT, 'connections/following.json'));

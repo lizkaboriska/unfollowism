@@ -2,7 +2,8 @@ import { Button, Input, Textarea } from '@chakra-ui/react';
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
-import { findTag } from '../core/index.ts';
+import { findTag } from '@/entities/master/lib/index.ts';
+
 import { useAppDispatch } from '../store/hooks.ts';
 import { setNote, toggleTag } from '../store/masterSlice.ts';
 

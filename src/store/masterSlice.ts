@@ -1,7 +1,5 @@
 import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
 
-import { createDict } from '@/shared/lib/createDict.ts';
-
 import {
   accountOf,
   copyAccount,
@@ -23,7 +21,8 @@ import {
   type Master,
   type PlanState,
   type ReadonlyAccount,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import { createDict } from '@/shared/lib/createDict.ts';
 
 import {
   IMPORT_STATUSES,

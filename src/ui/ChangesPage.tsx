@@ -1,9 +1,9 @@
 import { Box, Button, Grid, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useCallback, useId, useState } from 'react';
 
+import { FOLLOW_CHANGES, type FollowChange } from '@/entities/master/lib/index.ts';
 import { formatDate } from '@/shared/lib/dates.ts';
 
-import { FOLLOW_CHANGES, type FollowChange } from '../core/index.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectChangeSections, selectChangesSince, selectRelationshipStats } from '../store/selectors.ts';
 

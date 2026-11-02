@@ -1,12 +1,11 @@
-import { isRecord } from '@/shared/lib/checks.ts';
-
 import {
   IMPORT_PROBLEMS,
   ImportError,
   parseFollowersJson,
   parseFollowingJson,
   type ExportBundle,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import { isRecord } from '@/shared/lib/checks.ts';
 
 import type { InputText } from './readInputs.ts';
 

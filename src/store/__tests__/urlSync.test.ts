@@ -1,6 +1,12 @@
+import {
+  ACTION_TYPES,
+  DecisionFilter,
+  PLAN_STATES,
+  REVIEW_SCOPES,
+  TAG_FILTER_KINDS,
+} from '@/entities/master/lib/index.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
-import { ACTION_TYPES, DecisionFilter, PLAN_STATES, REVIEW_SCOPES, TAG_FILTER_KINDS } from '../../core/index.ts';
 import type { TabStore } from '../../io/tabStore.ts';
 import { LIST_VIEWS, setQuery, setScope, setView } from '../filtersSlice.ts';
 import type { AppStore } from '../index.ts';

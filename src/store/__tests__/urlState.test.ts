@@ -1,4 +1,5 @@
-import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '../../core/index.ts';
+import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '@/entities/master/lib/index.ts';
+
 import { LIST_VIEWS, type FiltersState } from '../filtersSlice.ts';
 import { URL_DEFAULTS, filtersFromUrl, filtersToUrl } from '../urlState.ts';
 

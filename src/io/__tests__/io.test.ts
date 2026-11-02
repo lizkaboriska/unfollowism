@@ -1,8 +1,9 @@
 import { TextReader, Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip.js/zip.js';
 import { IDBDatabase, IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 
-import { followersFile, followingFile, must, problemOf } from '../../core/__tests__/helpers.ts';
-import { DecisionKind, IMPORT_PROBLEMS, type MasterFile } from '../../core/index.ts';
+import { followersFile, followingFile, must, problemOf } from '@/entities/master/lib/__tests__/helpers.ts';
+import { DecisionKind, IMPORT_PROBLEMS, type MasterFile } from '@/entities/master/lib/index.ts';
+
 import { IMPORT_WARNINGS, analyzeImport } from '../analyzeImport.ts';
 import { masterFileName } from '../download.ts';
 import { localStorageLastSaved } from '../lastSaved.ts';

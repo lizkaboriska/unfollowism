@@ -1,6 +1,6 @@
 import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
-import { TAG_FILTER_KINDS } from '../core/index.ts';
+import { TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
 
 import type { StoreDeps } from './deps.ts';
 import { setTagFilter } from './filtersSlice.ts';

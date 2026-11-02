@@ -1,7 +1,8 @@
 import { Box, Button, CloseButton, Drawer, HStack, Portal, Stack, Text, Wrap } from '@chakra-ui/react';
 import { useState, type ReactNode } from 'react';
 
-import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '../core/index.ts';
+import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '@/entities/master/lib/index.ts';
+
 import { NO_FILTERS, applyFilters, type FilterChoice } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectMatchingCount, selectScopeTotals, selectTags } from '../store/selectors.ts';

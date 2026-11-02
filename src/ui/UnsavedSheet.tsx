@@ -1,8 +1,6 @@
 import { Box, Button, CloseButton, Drawer, HStack, Portal, Stack, Text } from '@chakra-ui/react';
 import { useState, type ReactNode } from 'react';
 
-import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
-
 import {
   DecisionKind,
   SESSION_CHANGES,
@@ -10,7 +8,9 @@ import {
   type Decision,
   type SessionAccountChanges,
   type TagChangeRow,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+
 import { useAppSelector } from '../store/hooks.ts';
 import { selectIsDirty, selectUnsavedAccountCount, selectUnsavedGroups } from '../store/selectors.ts';
 

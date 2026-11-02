@@ -7,7 +7,8 @@ import {
   type Plans,
   type SessionChange,
   type TagChangeRow,
-} from '../../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+
 import { changeText, tagRowText } from '../sessionText.ts';
 
 const { PLANNED, DONE } = PLAN_STATES;

@@ -1,7 +1,8 @@
 import { Box, Heading, Progress, Stack, Text } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 
-import { PLAN_STATES, totalOf } from '../core/index.ts';
+import { PLAN_STATES, totalOf } from '@/entities/master/lib/index.ts';
+
 import { PLAN_VIEW_ACTIONS, type PlanView } from '../store/filtersSlice.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';

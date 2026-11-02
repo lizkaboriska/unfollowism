@@ -8,7 +8,8 @@ import {
   type ActionType,
   type FollowChange,
   type ReadonlyAccount,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+
 import { useAppSelector } from '../store/hooks.ts';
 import { selectAccount } from '../store/selectors.ts';
 

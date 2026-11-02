@@ -1,4 +1,5 @@
-import { FIELD_TYPES, IMPORT_PROBLEMS, type ImportProblem } from '../../core/index.ts';
+import { FIELD_TYPES, IMPORT_PROBLEMS, type ImportProblem } from '@/entities/master/lib/index.ts';
+
 import { importProblemText } from '../importProblemText.ts';
 
 test.each<[string, ImportProblem, string]>([

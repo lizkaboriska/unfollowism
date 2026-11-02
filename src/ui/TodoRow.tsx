@@ -1,7 +1,8 @@
 import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
 import { memo, type ReactNode } from 'react';
 
-import { PLAN_STATES, planOf, profileUrl, type ActionType, type PlanState } from '../core/index.ts';
+import { PLAN_STATES, planOf, profileUrl, type ActionType, type PlanState } from '@/entities/master/lib/index.ts';
+
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { keepInstead, setPlan } from '../store/masterSlice.ts';
 import { selectAccount } from '../store/selectors.ts';

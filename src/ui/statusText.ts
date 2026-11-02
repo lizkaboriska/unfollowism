@@ -1,6 +1,11 @@
+import {
+  ACTION_TYPES,
+  type FollowChangeCounts,
+  type ImportSummary,
+  type PlanOutcomes,
+} from '@/entities/master/lib/index.ts';
 import { isRecord } from '@/shared/lib/checks.ts';
 
-import { ACTION_TYPES, type FollowChangeCounts, type ImportSummary, type PlanOutcomes } from '../core/index.ts';
 import { STATUS_EVENTS, type StatusEvent } from '../store/statuses.ts';
 
 /** The message of a caught error: a string, an Error, or the plain { message } object Redux Toolkit passes on. */

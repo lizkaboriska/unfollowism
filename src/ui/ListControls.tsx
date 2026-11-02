@@ -2,7 +2,8 @@ import { Button, CloseButton, HStack, Input, InputGroup, Stack, Text } from '@ch
 import { useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
-import { DecisionFilter, TAG_FILTER_KINDS } from '../core/index.ts';
+import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
+
 import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../store/filtersSlice.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
 import { selectListKeys } from '../store/listSlice.ts';

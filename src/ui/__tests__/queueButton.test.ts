@@ -1,5 +1,6 @@
-import { account, follows } from '../../core/__tests__/helpers.ts';
-import { ACTION_TYPES, PLAN_STATES, REVIEW_SCOPES, setPlan, type ReviewScope } from '../../core/index.ts';
+import { account, follows } from '@/entities/master/lib/__tests__/helpers.ts';
+import { ACTION_TYPES, PLAN_STATES, REVIEW_SCOPES, setPlan, type ReviewScope } from '@/entities/master/lib/index.ts';
+
 import { QueueButtonKind, offeredAction, queueButton } from '../queueButton.ts';
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;

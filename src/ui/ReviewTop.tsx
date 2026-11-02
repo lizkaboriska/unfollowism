@@ -1,7 +1,8 @@
 import { Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { REVIEW_SCOPES } from '../core/index.ts';
+import { REVIEW_SCOPES } from '@/entities/master/lib/index.ts';
+
 import { useAppSelector } from '../store/hooks.ts';
 
 import { FilterSheet } from './FilterSheet.tsx';

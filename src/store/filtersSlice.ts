@@ -1,7 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import { type ValueOf } from '@/shared/lib/valueOf.ts';
-
 import {
   ACTION_TYPES,
   DecisionFilter,
@@ -10,7 +8,8 @@ import {
   type ActionType,
   type ReviewScope,
   type TagFilter,
-} from '../core/index.ts';
+} from '@/entities/master/lib/index.ts';
+import { type ValueOf } from '@/shared/lib/valueOf.ts';
 
 import { renameTag } from './masterSlice.ts';
 
