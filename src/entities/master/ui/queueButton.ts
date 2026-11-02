@@ -7,7 +7,7 @@ import {
   type PlanState,
   type ReadonlyAccount,
   type ReviewScope,
-} from '@/entities/master/lib/index.ts';
+} from '../lib/index.ts';
 
 /** Lists about the people who follow you: there, a card offers removing the follower. */
 const FOLLOWER_SCOPES: readonly ReviewScope[] = [REVIEW_SCOPES.FOLLOWERS, REVIEW_SCOPES.FOLLOWS_YOU_ONLY];

@@ -27,14 +27,14 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { setPlan, setUnavailable, toggleTag } from '@/entities/master/model/masterSlice.ts';
 import { selectAccount, selectTags } from '@/entities/master/model/selectors.ts';
+import { openProfilePopup } from '@/entities/master/ui/instagramLink.ts';
 import { RELATIONSHIP_NOTES, planText, queueText } from '@/entities/master/ui/labels.ts';
+import { KeepButton } from '@/entities/master/ui/ReviewCard.tsx';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { NewTag, NoteField } from './accountFields.tsx';
-import { openProfilePopup } from './instagramLink.ts';
 import { keepOpenOnOwnEscape } from './ownEscape.ts';
-import { KeepButton } from './ReviewCard.tsx';
 
 function Section({ legend, children }: { legend: ReactNode; children: ReactNode }) {
   return (

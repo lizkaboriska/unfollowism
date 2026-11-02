@@ -1,6 +1,6 @@
 import { Link } from '@chakra-ui/react';
 
-import { profileUrl } from '@/entities/master/lib/index.ts';
+import { profileUrl } from '../lib/index.ts';
 
 import { openProfilePopup } from './instagramLink.ts';
 
