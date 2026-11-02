@@ -2,7 +2,7 @@ import { Text } from '@chakra-ui/react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { ReviewCard } from '@/entities/master/ui/ReviewCard.tsx';
-import { AccountSheet } from '@/features/account-popup/AccountSheet.tsx';
+import { AccountPopup } from '@/features/account-popup/AccountPopup.tsx';
 import { selectListKeys } from '@/features/filters/model/listSlice.ts';
 import { NoResults } from '@/features/filters/ui/NoResults.tsx';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
@@ -34,7 +34,7 @@ export function ReviewList() {
           On your device. Never connected to Instagram.
         </Text>
       )}
-      <AccountSheet
+      <AccountPopup
         accountKey={openKey}
         onClose={() => {
           setOpenKey(null);

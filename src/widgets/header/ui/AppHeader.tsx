@@ -3,12 +3,12 @@ import { useState } from 'react';
 
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
-import { AccountSheet } from '@/features/account-popup/AccountSheet.tsx';
+import { AccountPopup } from '@/features/account-popup/AccountPopup.tsx';
 import { SaveButton } from '@/features/save-reset/SaveButton.tsx';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { AppMenu } from './AppMenu.tsx';
-import { UnsavedSheet } from './UnsavedSheet.tsx';
+import { UnsavedPopup } from './UnsavedPopup.tsx';
 
 /**
  * The main view's header (the Import screen has ImportHero): app name, whether the work is saved, Save and the ⋯ menu.
@@ -59,14 +59,14 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
         <SaveButton h="10" />
         <AppMenu onImportNew={onImportNew} />
       </HStack>
-      <UnsavedSheet
+      <UnsavedPopup
         open={unsavedOpen}
         onClose={() => {
           setUnsavedOpen(false);
         }}
         onOpenAccount={setAccountKey}
       />
-      <AccountSheet
+      <AccountPopup
         accountKey={accountKey}
         onClose={() => {
           setAccountKey(null);

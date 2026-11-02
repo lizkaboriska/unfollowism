@@ -2,9 +2,9 @@ import { Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
 import { REVIEW_SCOPES } from '@/entities/master/lib/index.ts';
-import { FilterSheet } from '@/features/filters/ui/FilterSheet.tsx';
+import { FilterPopup } from '@/features/filters/ui/FilterPopup.tsx';
 import { ListControls } from '@/features/filters/ui/ListControls.tsx';
-import { ManageTagsSheet } from '@/features/manage-tags/ManageTagsSheet.tsx';
+import { ManageTagsPopup } from '@/features/manage-tags/ManageTagsPopup.tsx';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { ReviewHeading } from './ReviewHeading.tsx';
@@ -27,7 +27,7 @@ export function ReviewTop() {
       {followersOnly && (
         <Text color="fg.muted">Queue a follower removal here. You&apos;ll make the change yourself in Instagram.</Text>
       )}
-      <FilterSheet
+      <FilterPopup
         open={filterOpen}
         onClose={() => {
           setFilterOpen(false);
@@ -37,7 +37,7 @@ export function ReviewTop() {
           setTagsOpen(true);
         }}
       />
-      <ManageTagsSheet
+      <ManageTagsPopup
         open={tagsOpen}
         onClose={() => {
           setTagsOpen(false);

@@ -94,7 +94,7 @@ function TagList() {
   );
 }
 
-export function ManageTagsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ManageTagsPopup({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Drawer.Root
       open={open}

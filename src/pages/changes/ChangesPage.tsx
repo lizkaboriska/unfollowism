@@ -9,7 +9,7 @@ import {
 } from '@/entities/master/model/selectors.ts';
 import { CHANGE_SECTION_TITLES } from '@/entities/master/ui/labels.ts';
 import { plural } from '@/entities/master/ui/statusText.ts';
-import { AccountSheet } from '@/features/account-popup/AccountSheet.tsx';
+import { AccountPopup } from '@/features/account-popup/AccountPopup.tsx';
 import { formatDate } from '@/shared/lib/dates.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
@@ -163,7 +163,7 @@ export function ChangesPage() {
       <Text textStyle="small" color="fg.muted" lineHeight="1.5">
         Compared on your device using your saved master file. Nothing is checked live with Instagram.
       </Text>
-      <AccountSheet
+      <AccountPopup
         accountKey={openKey}
         onClose={() => {
           setOpenKey(null);

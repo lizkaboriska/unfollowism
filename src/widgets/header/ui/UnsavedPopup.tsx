@@ -220,7 +220,7 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
 }
 
 /** Opens from the header's unsaved line. Tapping a username closes it and opens that account's popup. */
-export function UnsavedSheet({
+export function UnsavedPopup({
   open,
   onClose,
   onOpenAccount,

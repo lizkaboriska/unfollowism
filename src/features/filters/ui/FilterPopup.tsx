@@ -159,7 +159,7 @@ function FilterChoices({ onClose, onManageTags }: { onClose: () => void; onManag
 }
 
 /** `onManageTags`: the Filter popup closes and Manage tags opens (popups never stack). */
-export function FilterSheet({
+export function FilterPopup({
   open,
   onClose,
   onManageTags,
