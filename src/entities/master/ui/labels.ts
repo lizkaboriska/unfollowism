@@ -23,7 +23,7 @@ export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   [RELATIONSHIPS.NEITHER]: 'Neither',
 };
 
-/** Under a name in the account sheet: what the relationship means. */
+/** Under a name in the account popup: what the relationship means. */
 export const RELATIONSHIP_NOTES: Record<Relationship, string> = {
   [RELATIONSHIPS.MUTUAL]: 'Mutual · you follow each other',
   [RELATIONSHIPS.NOT_FOLLOWING_BACK]: 'Not following back · you follow them',

@@ -65,7 +65,7 @@ export const selectVisibleAccountKeys = createSelector(
   { memoizeOptions: { resultEqualityCheck: sameKeys } },
 );
 
-/** How many accounts other filters would list (the Filter sheet's "Show N accounts"), as of now. */
+/** How many accounts other filters would list (the Filter popup's "Show N accounts"), as of now. */
 export function selectMatchingCount(s: RootState, filters: FiltersState): number {
   const base = selectBaseAccounts(s);
   const changed = selectChanged(s);

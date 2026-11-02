@@ -12,7 +12,7 @@ import { system } from '@/shared/ui/theme.ts';
 
 import { NoteField } from '../NoteField.tsx';
 
-/** The note field as the account sheet shows it: fed from the store. */
+/** The note field as the account popup shows it: fed from the store. */
 function BobNote() {
   const note = useAppSelector(s => selectAccount(s, 'bob')?.review.notes ?? '');
   return <NoteField username="bob" note={note} />;

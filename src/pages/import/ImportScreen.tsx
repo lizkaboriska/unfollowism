@@ -286,7 +286,7 @@ export function ImportScreen({
           onDragLeave={drop.onDragLeave}
           onDrop={drop.onDrop}
         >
-          <Heading as="h2" id={fileBoxTitleId} textStyle="sheetTitle" color={dragging ? 'accent' : 'ink'}>
+          <Heading as="h2" id={fileBoxTitleId} textStyle="heading" color={dragging ? 'accent' : 'ink'}>
             {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'A fresh start for your feed'}
           </Heading>
           <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>

@@ -195,7 +195,7 @@ export function AccountPopup({ accountKey, onClose }: { accountKey: string | nul
             {account && (
               <>
                 <Drawer.Header display="block">
-                  <Drawer.Title textStyle="sheetTitle" wordBreak="break-all">
+                  <Drawer.Title textStyle="heading" wordBreak="break-all">
                     @{account.username}
                   </Drawer.Title>
                   <Text textStyle="note" color="fg.muted">

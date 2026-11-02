@@ -53,7 +53,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
           <Dialog.Positioner>
             <Dialog.Content mx="4">
               <Dialog.Header>
-                <Dialog.Title textStyle="sheetTitle">{dialog?.title}</Dialog.Title>
+                <Dialog.Title textStyle="heading">{dialog?.title}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body>{dialog?.body}</Dialog.Body>
               {/* Buttons stacked full width, the main one first; one that throws work away is outlined in red. */}

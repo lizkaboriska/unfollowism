@@ -38,7 +38,7 @@ function Choice({ label, pressed, onClick }: { label: string; pressed: boolean; 
 }
 
 /**
- * The choices are a draft: the list behind the sheet changes only on "Show N accounts", and closing forgets them.
+ * The choices are a draft: the list behind the popup changes only on "Show N accounts", and closing forgets them.
  * Reset clears the filters but keeps the list, like "Clear all".
  */
 function FilterChoices({ onClose, onManageTags }: { onClose: () => void; onManageTags: () => void }) {
@@ -185,7 +185,7 @@ export function FilterPopup({
         <Drawer.Positioner>
           <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
             <Drawer.Header>
-              <Drawer.Title textStyle="sheetTitle">Filter</Drawer.Title>
+              <Drawer.Title textStyle="heading">Filter</Drawer.Title>
             </Drawer.Header>
             <FilterChoices onClose={onClose} onManageTags={onManageTags} />
             <Drawer.CloseTrigger asChild>

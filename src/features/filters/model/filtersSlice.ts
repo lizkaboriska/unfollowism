@@ -19,7 +19,7 @@ export interface FiltersState {
   view: ListView;
 }
 
-/** What the Filter sheet sets in one go: the list and the filters that narrow it. */
+/** What the Filter popup sets in one go: the list and the filters that narrow it. */
 export type FilterChoice = Pick<FiltersState, 'scope' | 'tag' | 'decision'>;
 
 /** Tag and decision when nothing narrows the list. The list (scope) is never "cleared": something is always shown. */

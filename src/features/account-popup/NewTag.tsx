@@ -7,13 +7,13 @@ import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 import { OWN_ESCAPE } from './ownEscape.ts';
 
-// Fields of the account sheet (Review and Changes).
+// Fields of the account popup (Review and Changes).
 
 /**
  * "+ tag": a new tag is created by adding it to an account (a tag nobody has doesn't exist).
  * A name matching an existing tag in any letter case reuses that tag.
  * Enter (the phone's "Done") or leaving the field adds it; Escape cancels. Closing by key puts focus back on the
- * button: in a sheet, focus would otherwise jump to its first button, and the same Enter would press it.
+ * button: in a popup, focus would otherwise jump to its first button, and the same Enter would press it.
  */
 export function NewTag({
   username,
@@ -80,7 +80,7 @@ export function NewTag({
       name={`newTag-${username}`}
       autoComplete="off"
       enterKeyHint="done"
-      // Escape cancels the tag, not the sheet around it (see OWN_ESCAPE).
+      // Escape cancels the tag, not the popup around it (see OWN_ESCAPE).
       {...{ [OWN_ESCAPE]: '' }}
       placeholder="new tag…"
       aria-label={`New tag for @${username}`}

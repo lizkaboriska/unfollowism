@@ -17,7 +17,7 @@ export function TodoFinished({ done, onViewCompleted }: { done: number; onViewCo
   if (done === 0) {
     return (
       <Box as="section" aria-labelledby={titleId} borderWidth="1px" px="5" pt="7" pb="5" textAlign="center">
-        <Heading as="h2" id={titleId} textStyle="sheetTitle">
+        <Heading as="h2" id={titleId} textStyle="heading">
           Nothing queued
         </Heading>
         <Text color="fg.muted" mt="2.5">
@@ -33,7 +33,7 @@ export function TodoFinished({ done, onViewCompleted }: { done: number; onViewCo
   return (
     <>
       <Box as="section" aria-labelledby={titleId} borderWidth="1px" px="5" pt="7" pb="5" textAlign="center">
-        <Heading as="h2" id={titleId} textStyle="sheetTitle">
+        <Heading as="h2" id={titleId} textStyle="heading">
           All done, for now
         </Heading>
         <Text textStyle="note" color="fg.muted" mt="2.5">

@@ -20,7 +20,7 @@ export function NoResults() {
   }
   return (
     <Box as="section" aria-labelledby="no-results-title" borderWidth="1px" p="4">
-      <Heading as="h2" id="no-results-title" textStyle="sheetTitle">
+      <Heading as="h2" id="no-results-title" textStyle="heading">
         No accounts found
       </Heading>
       <Text color="fg.muted" mt="1">

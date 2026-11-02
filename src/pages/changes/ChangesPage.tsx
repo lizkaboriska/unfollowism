@@ -76,7 +76,7 @@ function Section({
     <Stack as="section" aria-labelledby={headingId} gap="2.5">
       <Box>
         <HStack justify="space-between" align="baseline">
-          <Heading as="h2" id={headingId} textStyle="sheetTitle">
+          <Heading as="h2" id={headingId} textStyle="heading">
             {CHANGE_SECTION_TITLES[change]}
           </Heading>
           <Text textStyle="small" color="fg.muted">
@@ -120,7 +120,7 @@ function Section({
 
 /**
  * What changed between the master you imported and the new export: four sections of rows. Each row opens the
- * account sheet. Without a saved master there is nothing to compare with yet.
+ * account popup. Without a saved master there is nothing to compare with yet.
  */
 export function ChangesPage() {
   const since = useAppSelector(selectChangesSince);

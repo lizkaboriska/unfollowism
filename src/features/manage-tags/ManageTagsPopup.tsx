@@ -112,7 +112,7 @@ export function ManageTagsPopup({ open, onClose }: { open: boolean; onClose: () 
         <Drawer.Positioner>
           <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
             <Drawer.Header display="block">
-              <Drawer.Title textStyle="sheetTitle">Manage tags</Drawer.Title>
+              <Drawer.Title textStyle="heading">Manage tags</Drawer.Title>
               <Text textStyle="small" color="fg.muted">
                 Your tags are only for you.
               </Text>

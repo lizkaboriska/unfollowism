@@ -5,7 +5,7 @@ import { useDebouncedCallback } from 'use-debounce';
 import { setNote } from '@/entities/master/model/masterSlice.ts';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
-// Fields of the account sheet (Review and Changes).
+// Fields of the account popup (Review and Changes).
 
 /** How long typing must pause before the note is stored. */
 const NOTE_DEBOUNCE_MS = 300;

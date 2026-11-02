@@ -11,7 +11,7 @@ import { AccountList, type ListItems } from '@/widgets/account-list/AccountList.
 /** Rough height of a Review card before measuring. */
 const ESTIMATED_REVIEW_CARD_HEIGHT = 140;
 
-/** Review's cards; tapping one opens its account sheet. The privacy line closes the list. */
+/** Review's cards; tapping one opens its account popup. The privacy line closes the list. */
 export function ReviewList() {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const hasList = useAppSelector(selectListKeys).length > 0;

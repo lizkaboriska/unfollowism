@@ -115,7 +115,7 @@ export const system = createSystem(
             letterSpacing: '-0.01em',
           },
         },
-        sheetTitle: {
+        heading: {
           value: { fontFamily: 'heading', fontSize: '1.625rem', fontWeight: '600', fontStyle: 'italic' },
         },
         number: { value: { fontFamily: 'heading', fontSize: '2rem', fontWeight: '500', lineHeight: '1' } },

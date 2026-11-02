@@ -60,7 +60,7 @@ function QueueControl({ account, onOpen }: { account: ReadonlyAccount; onOpen: (
   );
 }
 
-/** A Review card: who it is, its tags, and the two decisions. The name or → opens the account sheet. */
+/** A Review card: who it is, its tags, and the two decisions. The name or → opens the account popup. */
 export const ReviewCard = memo(function ReviewCard({
   accountKey,
   onOpen,

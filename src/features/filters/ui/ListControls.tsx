@@ -18,7 +18,7 @@ interface Chip {
 }
 
 /**
- * Search, Filter, and what the list shows: the list chip (always there, opens the Filter sheet) and a removable
+ * Search, Filter, and what the list shows: the list chip (always there, opens the Filter popup) and a removable
  * chip per filter. The Filter count and "Clear all" cover only those removable filters, never the list.
  */
 export function ListControls({ onOpenFilter }: { onOpenFilter: () => void }) {

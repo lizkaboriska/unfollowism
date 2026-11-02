@@ -32,7 +32,7 @@ export enum QueueButtonKind {
   OFFER = 'offer',
   /** "✓ Unfollow queued" / "✓ Unfollow done": undoes it. */
   QUEUED = 'queued',
-  /** "✓ Both queued": opens the sheet, where each can be undone. */
+  /** "✓ Both queued": opens the popup, where each can be undone. */
   BOTH = 'both',
 }
 

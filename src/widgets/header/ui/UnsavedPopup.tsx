@@ -182,7 +182,7 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
   return (
     <>
       <Drawer.Header display="block">
-        <Drawer.Title textStyle="sheetTitle">Unsaved changes</Drawer.Title>
+        <Drawer.Title textStyle="heading">Unsaved changes</Drawer.Title>
         <Text textStyle="small" color="fg.muted">
           {subtitle}
         </Text>

@@ -89,7 +89,7 @@ async function importFiles(user: UserEvent, files: File[]) {
 const optionName = (label: string) => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\d*$`);
 
 /**
- * Waits until a sheet, drawer or dialog has finished opening. One frame after it appears, it hides the page behind
+ * Waits until a popup, drawer or dialog has finished opening. One frame after it appears, it hides the page behind
  * it from assistive tech and starts accepting clicks. Before that frame a dialog opened over it would be hidden too,
  * and a click on it would be ignored, so tests (faster than any hand) wait for it, as a user always does.
  */
@@ -102,13 +102,13 @@ async function finishedOpening(dialog: Promise<HTMLElement>): Promise<HTMLElemen
   return opened;
 }
 
-/** Review: opens the Filter sheet. */
-async function openFilterSheet(user: UserEvent) {
+/** Review: opens the Filter popup. */
+async function openFilterPopup(user: UserEvent) {
   await user.click(screen.getByRole('button', { name: /^Filter( \d)?$/ }));
   return finishedOpening(screen.findByRole('dialog', { name: 'Filter' }));
 }
 
-async function sheetClosed() {
+async function filterClosed() {
   await waitFor(() => {
     expect(screen.queryByRole('dialog', { name: 'Filter' })).not.toBeInTheDocument();
   });
@@ -120,15 +120,15 @@ async function openManageTags(user: UserEvent) {
 }
 
 async function closeManageTags(user: UserEvent) {
-  const sheet = screen.getByRole('dialog', { name: 'Manage tags' });
-  await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+  const popup = screen.getByRole('dialog', { name: 'Manage tags' });
+  await user.click(within(popup).getByRole('button', { name: 'Close' }));
   await waitFor(() => {
     expect(screen.queryByRole('dialog', { name: 'Manage tags' })).not.toBeInTheDocument();
   });
 }
 
 /** Manage tags: the row of one tag. */
-const lineOf = (sheet: HTMLElement, tag: string) => must(within(sheet).getByText(`#${tag}`).closest('li'));
+const lineOf = (popup: HTMLElement, tag: string) => must(within(popup).getByText(`#${tag}`).closest('li'));
 
 /** Manage tags: picks Rename or Delete in a tag's ⋯ menu (by keyboard, see fromMenu) and returns its dialog. */
 async function openTagDialog(user: UserEvent, tag: string, item: 'Rename' | 'Delete') {
@@ -152,17 +152,17 @@ async function dialogClosed(name: string) {
   });
 }
 
-/** Review: picks options in the Filter sheet (list, tag, decision) and applies them with "Show N accounts". */
+/** Review: picks options in the Filter popup (list, tag, decision) and applies them with "Show N accounts". */
 async function applyFilters(user: UserEvent, ...options: string[]) {
-  const sheet = await openFilterSheet(user);
+  const popup = await openFilterPopup(user);
   for (const option of options) {
-    await user.click(within(sheet).getByRole('button', { name: optionName(option) }));
+    await user.click(within(popup).getByRole('button', { name: optionName(option) }));
   }
-  await user.click(within(sheet).getByRole('button', { name: /^Show \d+ accounts?$/ }));
-  await sheetClosed();
+  await user.click(within(popup).getByRole('button', { name: /^Show \d+ accounts?$/ }));
+  await filterClosed();
 }
 
-/** Review: opens an account's sheet from its card. */
+/** Review: opens an account's popup from its card. */
 async function openAccount(user: UserEvent, username: string) {
   await user.click(within(row(username)).getByRole('button', { name: `Open @${username}` }));
   return finishedOpening(screen.findByRole('dialog', { name: `@${username}` }));
@@ -175,11 +175,11 @@ async function closeAccount(user: UserEvent, username: string) {
   });
 }
 
-/** Review: creates a tag with "+ New tag" in the account's sheet (new masters start without tags). */
+/** Review: creates a tag with "+ New tag" in the account's popup (new masters start without tags). */
 async function newTag(user: UserEvent, username: string, tag: string) {
-  const sheet = await openAccount(user, username);
-  await user.click(within(sheet).getByRole('button', { name: '+ New tag' }));
-  await user.type(within(sheet).getByRole('textbox', { name: `New tag for @${username}` }), `${tag}{Enter}`);
+  const popup = await openAccount(user, username);
+  await user.click(within(popup).getByRole('button', { name: '+ New tag' }));
+  await user.type(within(popup).getByRole('textbox', { name: `New tag for @${username}` }), `${tag}{Enter}`);
   await closeAccount(user, username);
 }
 
@@ -805,28 +805,28 @@ describe('main view', () => {
     expect(screen.getByText('1 account')).toBeInTheDocument();
   });
 
-  test('Filter sheet: choices apply only on Show N accounts; × forgets them; the list chip opens it', async () => {
+  test('Filter popup: choices apply only on Show N accounts; × forgets them; the list chip opens it', async () => {
     const { user } = await imported();
-    const sheet = await openFilterSheet(user);
-    const option = (label: string) => within(sheet).getByRole('button', { name: optionName(label) });
+    const popup = await openFilterPopup(user);
+    const option = (label: string) => within(popup).getByRole('button', { name: optionName(label) });
     expect(option('Following')).toHaveTextContent('Following2');
     expect(option('Following')).toHaveAttribute('aria-pressed', 'true');
     expect(option('Everyone now')).toHaveTextContent('Everyone now3');
     expect(option('Any tag')).toHaveAttribute('aria-pressed', 'true');
     expect(option('Any')).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sheet).getByRole('button', { name: 'Show 2 accounts' })).toBeInTheDocument();
+    expect(within(popup).getByRole('button', { name: 'Show 2 accounts' })).toBeInTheDocument();
 
     await user.click(option('Mutual'));
     await user.click(option('Needs a decision'));
     expect(option('Mutual')).toHaveAttribute('aria-pressed', 'true');
     expect(option('Following')).toHaveAttribute('aria-pressed', 'false');
-    expect(within(sheet).getByRole('button', { name: 'Show 1 account' })).toBeInTheDocument(); // counts the draft
-    // the list behind doesn't change yet (it's hidden from screen readers while the sheet is open)
+    expect(within(popup).getByRole('button', { name: 'Show 1 account' })).toBeInTheDocument(); // counts the draft
+    // the list behind doesn't change yet (it's hidden from screen readers while the popup is open)
     const behind = screen.queryAllByRole('article', { hidden: true }).map(card => card.getAttribute('aria-label'));
     expect(behind).toEqual(['@alice', '@bob']);
 
-    await user.click(within(sheet).getByRole('button', { name: 'Close' }));
-    await sheetClosed();
+    await user.click(within(popup).getByRole('button', { name: 'Close' }));
+    await filterClosed();
     expect(shown()).toEqual(['@alice', '@bob']); // closing forgets the choices
     expect(listChip()).toHaveTextContent('Following ▾');
 
@@ -857,14 +857,14 @@ describe('main view', () => {
     expect(listChip()).toHaveTextContent('Mutual ▾'); // Clear all keeps the list
     expect(shown()).toEqual(['@alice']);
 
-    // Reset in the sheet does the same: filters back to any, the list stays.
-    const sheet = await openFilterSheet(user);
-    await user.click(within(sheet).getByRole('button', { name: optionName('artist') }));
-    await user.click(within(sheet).getByRole('button', { name: 'Kept' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Reset' }));
-    expect(within(sheet).getByRole('button', { name: 'Any tag' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sheet).getByRole('button', { name: 'Any' })).toHaveAttribute('aria-pressed', 'true');
-    expect(within(sheet).getByRole('button', { name: optionName('Mutual') })).toHaveAttribute('aria-pressed', 'true');
+    // Reset in the popup does the same: filters back to any, the list stays.
+    const popup = await openFilterPopup(user);
+    await user.click(within(popup).getByRole('button', { name: optionName('artist') }));
+    await user.click(within(popup).getByRole('button', { name: 'Kept' }));
+    await user.click(within(popup).getByRole('button', { name: 'Reset' }));
+    expect(within(popup).getByRole('button', { name: 'Any tag' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(popup).getByRole('button', { name: 'Any' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(popup).getByRole('button', { name: optionName('Mutual') })).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('a ticked card stays until the list refreshes', async () => {
@@ -880,10 +880,10 @@ describe('main view', () => {
   test('plans: offered only when the follow exists; To do → Mark done, Undo, All done', async () => {
     const { user } = await imported();
     await applyFilters(user, 'Everyone now');
-    // The sheet offers each plan whose follow exists: alice (mutual) both, bob only unfollow, carol only removal.
+    // The popup offers each plan whose follow exists: alice (mutual) both, bob only unfollow, carol only removal.
     const queueOptions = async (username: string) => {
-      const sheet = await openAccount(user, username);
-      const names = within(sheet)
+      const popup = await openAccount(user, username);
+      const names = within(popup)
         .queryAllByRole('button', { name: /^Queue / })
         .map(b => b.textContent);
       await closeAccount(user, username);
@@ -1073,9 +1073,9 @@ describe('main view', () => {
 
   test('a mutual with both plans is in both tabs; each is done on its own', async () => {
     const { user } = await imported();
-    const sheet = await openAccount(user, 'alice');
-    await user.click(within(sheet).getByRole('button', { name: 'Queue unfollow' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Queue removal' }));
+    const popup = await openAccount(user, 'alice');
+    await user.click(within(popup).getByRole('button', { name: 'Queue unfollow' }));
+    await user.click(within(popup).getByRole('button', { name: 'Queue removal' }));
     await closeAccount(user, 'alice');
 
     await user.click(navItem(/^To do 2$/));
@@ -1108,8 +1108,8 @@ describe('main view', () => {
   test('tags and notes end up in the saved master', async () => {
     const { user, downloads } = await imported();
     await newTag(user, 'bob', 'dog');
-    const sheet = await openAccount(user, 'bob');
-    await user.type(within(sheet).getByRole('textbox', { name: 'Note for @bob' }), 'met at a show');
+    const popup = await openAccount(user, 'bob');
+    await user.type(within(popup).getByRole('textbox', { name: 'Note for @bob' }), 'met at a show');
     await closeAccount(user, 'bob'); // closing mid-pause still stores the note
     await user.click(saveButton());
     await waitFor(() => {
@@ -1124,8 +1124,8 @@ describe('main view', () => {
   test('the Instagram link opens a side popup; modifier clicks are left to the browser', async () => {
     const { user } = await imported();
     const open = vi.spyOn(window, 'open').mockReturnValue({ focus: () => undefined } as Window);
-    const sheet = await openAccount(user, 'bob');
-    const link = within(sheet).getByRole('link', { name: 'Open in Instagram ↗' });
+    const popup = await openAccount(user, 'bob');
+    const link = within(popup).getByRole('link', { name: 'Open in Instagram ↗' });
     expect(link).toHaveAttribute('href', 'https://www.instagram.com/bob');
     await user.click(link);
     expect(open).toHaveBeenCalledWith(
@@ -1143,7 +1143,7 @@ describe('main view', () => {
   });
 });
 
-describe('Review cards and the account sheet', () => {
+describe('Review cards and the account popup', () => {
   // exportFiles(): following alice + bob, followers alice + carol.
   async function imported() {
     const t = await renderApp();
@@ -1170,79 +1170,79 @@ describe('Review cards and the account sheet', () => {
     expect(isKept('alice')).toBe(false); // undoing the last plan: needs a decision, not back to Kept
   });
 
-  test('a card shows a plan queued in the sheet; "Both queued" opens the sheet; Keep there clears both', async () => {
+  test('a card shows a plan queued in the popup; "Both queued" opens the popup; Keep there clears both', async () => {
     const { user } = await imported();
-    let sheet = await openAccount(user, 'alice'); // mutual: both plans possible
-    await user.click(within(sheet).getByRole('button', { name: 'Queue removal' }));
-    expect(within(sheet).getByRole('button', { name: '✓ Removal queued' })).toBeInTheDocument();
+    let popup = await openAccount(user, 'alice'); // mutual: both plans possible
+    await user.click(within(popup).getByRole('button', { name: 'Queue removal' }));
+    expect(within(popup).getByRole('button', { name: '✓ Removal queued' })).toBeInTheDocument();
     await closeAccount(user, 'alice');
     expect(cardButton('alice', '✓ Removal queued')).toHaveAttribute('aria-pressed', 'true'); // not "Queue unfollow"
     await user.click(cardButton('alice', '✓ Removal queued')); // undoes it
     expect(cardButton('alice', 'Queue unfollow')).toBeInTheDocument();
 
-    sheet = await openAccount(user, 'alice');
-    await user.click(within(sheet).getByRole('button', { name: 'Queue unfollow' }));
-    await user.click(within(sheet).getByRole('button', { name: 'Queue removal' }));
+    popup = await openAccount(user, 'alice');
+    await user.click(within(popup).getByRole('button', { name: 'Queue unfollow' }));
+    await user.click(within(popup).getByRole('button', { name: 'Queue removal' }));
     await closeAccount(user, 'alice');
     await user.click(cardButton('alice', '✓ Both queued'));
-    sheet = await screen.findByRole('dialog', { name: '@alice' });
-    expect(within(sheet).getByRole('button', { name: '✓ Unfollow queued' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: '✓ Removal queued' })).toBeInTheDocument();
+    popup = await screen.findByRole('dialog', { name: '@alice' });
+    expect(within(popup).getByRole('button', { name: '✓ Unfollow queued' })).toBeInTheDocument();
+    expect(within(popup).getByRole('button', { name: '✓ Removal queued' })).toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole('button', { name: 'Keep' }));
-    expect(pressed(within(sheet).getByRole('button', { name: '✓ Kept' }))).toBe(true);
-    expect(within(sheet).getByRole('button', { name: 'Queue unfollow' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Queue removal' })).toBeInTheDocument();
-    expect(within(sheet).getByText('Queue one or both. Keep clears them.')).toBeInTheDocument();
+    await user.click(within(popup).getByRole('button', { name: 'Keep' }));
+    expect(pressed(within(popup).getByRole('button', { name: '✓ Kept' }))).toBe(true);
+    expect(within(popup).getByRole('button', { name: 'Queue unfollow' })).toBeInTheDocument();
+    expect(within(popup).getByRole('button', { name: 'Queue removal' })).toBeInTheDocument();
+    expect(within(popup).getByText('Queue one or both. Keep clears them.')).toBeInTheDocument();
   });
 
-  test("+ New tag: Enter (the phone's Done) or leaving the field adds it; Escape cancels, not the sheet", async () => {
+  test("+ New tag: Enter (the phone's Done) or leaving the field adds it; Escape cancels, not the popup", async () => {
     const { user } = await imported();
-    const sheet = await openAccount(user, 'bob');
-    const field = () => within(sheet).getByRole('textbox', { name: 'New tag for @bob' });
-    const newTagButton = () => within(sheet).getByRole('button', { name: '+ New tag' });
+    const popup = await openAccount(user, 'bob');
+    const field = () => within(popup).getByRole('textbox', { name: 'New tag for @bob' });
+    const newTagButton = () => within(popup).getByRole('button', { name: '+ New tag' });
     const tagged = () =>
-      within(within(sheet).getByRole('group', { name: 'Tags for @bob' })).queryAllByRole('button', { pressed: true });
+      within(within(popup).getByRole('group', { name: 'Tags for @bob' })).queryAllByRole('button', { pressed: true });
 
     await user.click(newTagButton());
     expect(field()).toHaveAttribute('enterkeyhint', 'done');
     await user.type(field(), 'dog{Enter}');
     expect(tagged().map(b => b.getAttribute('aria-label'))).toEqual(['dog']);
-    // the same Enter didn't press Keep, the sheet's first button
-    expect(within(sheet).getByRole('button', { name: 'Keep' })).toHaveAttribute('aria-pressed', 'false');
+    // the same Enter didn't press Keep, the popup's first button
+    expect(within(popup).getByRole('button', { name: 'Keep' })).toHaveAttribute('aria-pressed', 'false');
     expect(newTagButton()).toHaveFocus(); // ready for the next tag
 
     await user.click(newTagButton());
     await user.type(field(), 'cat');
-    await user.click(within(sheet).getByText('Tags')); // leaving the field (a phone's Done, or a tap elsewhere)
+    await user.click(within(popup).getByText('Tags')); // leaving the field (a phone's Done, or a tap elsewhere)
     expect(tagged().map(b => b.getAttribute('aria-label'))).toEqual(['cat', 'dog']);
 
     await user.click(newTagButton());
     await user.type(field(), 'fox{Escape}');
     expect(tagged()).toHaveLength(2); // cancelled
-    expect(screen.getByRole('dialog', { name: '@bob' })).toBeInTheDocument(); // the sheet stays
+    expect(screen.getByRole('dialog', { name: '@bob' })).toBeInTheDocument(); // the popup stays
     expect(newTagButton()).toHaveFocus();
 
     await user.click(newTagButton());
-    await user.click(within(sheet).getByText('Tags')); // an empty field adds nothing
+    await user.click(within(popup).getByText('Tags')); // an empty field adds nothing
     expect(tagged()).toHaveLength(2);
 
-    await user.keyboard('{Escape}'); // outside the field, Escape closes the sheet as usual
+    await user.keyboard('{Escape}'); // outside the field, Escape closes the popup as usual
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: '@bob' })).not.toBeInTheDocument();
     });
   });
 
-  test('the sheet: relationship, Unavailable (fades the card, keeps an undecided account), dates', async () => {
+  test('the popup: relationship, Unavailable (fades the card, keeps an undecided account), dates', async () => {
     const { user } = await imported();
-    const sheet = await openAccount(user, 'bob');
-    expect(within(sheet).getByText('Not following back · you follow them')).toBeInTheDocument();
-    expect(within(sheet).getByText('Following since').nextElementSibling).toHaveTextContent(formatSince(1_700_000_000));
-    expect(within(sheet).getByText('Follows you since').nextElementSibling).toHaveTextContent('Not in export');
-    expect(within(sheet).getByText("Mark if the profile can't be opened.")).toBeInTheDocument();
+    const popup = await openAccount(user, 'bob');
+    expect(within(popup).getByText('Not following back · you follow them')).toBeInTheDocument();
+    expect(within(popup).getByText('Following since').nextElementSibling).toHaveTextContent(formatSince(1_700_000_000));
+    expect(within(popup).getByText('Follows you since').nextElementSibling).toHaveTextContent('Not in export');
+    expect(within(popup).getByText("Mark if the profile can't be opened.")).toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole('checkbox', { name: /Unavailable/ }));
-    expect(pressed(within(sheet).getByRole('button', { name: '✓ Kept' }))).toBe(true); // marking it decides
+    await user.click(within(popup).getByRole('checkbox', { name: /Unavailable/ }));
+    expect(pressed(within(popup).getByRole('button', { name: '✓ Kept' }))).toBe(true); // marking it decides
     await closeAccount(user, 'bob');
     expect(within(row('bob')).getByText('Unavailable')).toBeInTheDocument();
     expect(row('bob')).toHaveStyle({ opacity: '0.6' });
@@ -1311,8 +1311,8 @@ describe('unsaved changes popup', () => {
     await newTag(user, 'bob', 'dog');
     await user.click(cardButton('bob', 'Queue unfollow'));
     await newTag(user, 'alice', 'home');
-    const sheet = await openAccount(user, 'alice');
-    await user.click(within(sheet).getByRole('button', { name: 'home' })); // back again: no net change
+    const accountPopup = await openAccount(user, 'alice');
+    await user.click(within(accountPopup).getByRole('button', { name: 'home' })); // back again: no net change
     await closeAccount(user, 'alice');
 
     const p = await openPopup(user, '● Unsaved · 2 changed accounts');
@@ -1412,9 +1412,9 @@ test('every form field has a name (browsers flag unnamed fields)', async () => {
   await importFiles(user, exportFiles());
   await findRow('bob');
   expect(unnamed()).toEqual([]); // main view
-  const sheet = await openAccount(user, 'bob');
-  await user.click(within(sheet).getByRole('button', { name: '+ New tag' }));
-  expect(unnamed()).toEqual([]); // account sheet: unavailable switch, note, new tag
+  const popup = await openAccount(user, 'bob');
+  await user.click(within(popup).getByRole('button', { name: '+ New tag' }));
+  expect(unnamed()).toEqual([]); // account popup: unavailable switch, note, new tag
 });
 
 describe('tags', () => {
@@ -1424,10 +1424,10 @@ describe('tags', () => {
     await findRow('bob');
     return t;
   }
-  /** The tag chips in an account's sheet (its buttons in the Tags group besides "+ New tag"). */
-  async function sheetTags(user: UserEvent, username: string) {
-    const sheet = await openAccount(user, username);
-    const chips = within(within(sheet).getByRole('group', { name: `Tags for @${username}` }))
+  /** The tag chips in an account's popup (its buttons in the Tags group besides "+ New tag"). */
+  async function popupTags(user: UserEvent, username: string) {
+    const popup = await openAccount(user, username);
+    const chips = within(within(popup).getByRole('group', { name: `Tags for @${username}` }))
       .queryAllByRole('button')
       .filter(b => b.textContent !== '+ New tag')
       .map(b => `${b.getAttribute('aria-label') ?? ''}${b.getAttribute('aria-pressed') === 'true' ? ' ✓' : ''}`);
@@ -1435,24 +1435,24 @@ describe('tags', () => {
     return chips;
   }
 
-  test('+ New tag creates a tag on that account; it then shows in every sheet and reuses its case', async () => {
+  test('+ New tag creates a tag on that account; it then shows in every popup and reuses its case', async () => {
     const { user } = await imported();
-    expect(await sheetTags(user, 'alice')).toEqual([]);
+    expect(await popupTags(user, 'alice')).toEqual([]);
     await newTag(user, 'alice', 'Artist');
-    expect(await sheetTags(user, 'alice')).toEqual(['Artist ✓']);
-    expect(await sheetTags(user, 'bob')).toEqual(['Artist']);
+    expect(await popupTags(user, 'alice')).toEqual(['Artist ✓']);
+    expect(await popupTags(user, 'bob')).toEqual(['Artist']);
     expect(within(row('alice')).getByText('#Artist')).toBeInTheDocument(); // the card shows its tags as text
 
     await newTag(user, 'bob', '  artist ');
-    expect(await sheetTags(user, 'bob')).toEqual(['Artist ✓']);
+    expect(await popupTags(user, 'bob')).toEqual(['Artist ✓']);
   });
 
   test('Manage tags: rename, merge and delete, with counts', async () => {
     const { user } = await imported();
     // From the Filter popup, Manage tags replaces it.
-    const filter = await openFilterSheet(user);
+    const filter = await openFilterPopup(user);
     await user.click(within(filter).getByRole('button', { name: 'Manage tags' }));
-    await sheetClosed();
+    await filterClosed();
     const empty = await finishedOpening(screen.findByRole('dialog', { name: 'Manage tags' }));
     expect(within(empty).getByText('Your tags are only for you.')).toBeInTheDocument();
     expect(
@@ -1463,9 +1463,9 @@ describe('tags', () => {
     await newTag(user, 'alice', 'dog');
     await newTag(user, 'bob', 'dog');
     await newTag(user, 'bob', 'illustration');
-    const sheet = await openManageTags(user);
-    expect(within(lineOf(sheet, 'dog')).getByText('2 accounts')).toBeInTheDocument();
-    expect(within(lineOf(sheet, 'illustration')).getByText('1 account')).toBeInTheDocument();
+    const popup = await openManageTags(user);
+    expect(within(lineOf(popup, 'dog')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(lineOf(popup, 'illustration')).getByText('1 account')).toBeInTheDocument();
 
     // Rename: off while the name is empty; a new name applies to every account with the tag.
     let rename = await openTagDialog(user, 'dog', 'Rename');
@@ -1476,7 +1476,7 @@ describe('tags', () => {
     await user.type(field, 'dogs');
     await user.click(within(rename).getByRole('button', { name: 'Rename' }));
     await dialogClosed('Rename #dog');
-    expect(within(lineOf(sheet, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(lineOf(popup, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
 
     // Onto an existing tag (any case): a warning, and the button merges.
     rename = await openTagDialog(user, 'illustration', 'Rename');
@@ -1485,8 +1485,8 @@ describe('tags', () => {
     expect(within(rename).getByText('Saving merges the two tags: the account gets #dogs.')).toBeInTheDocument();
     await user.click(within(rename).getByRole('button', { name: 'Merge' }));
     await dialogClosed('Rename #illustration');
-    expect(within(sheet).queryByText('#illustration')).not.toBeInTheDocument();
-    expect(within(lineOf(sheet, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
+    expect(within(popup).queryByText('#illustration')).not.toBeInTheDocument();
+    expect(within(lineOf(popup, 'dogs')).getByText('2 accounts')).toBeInTheDocument();
 
     // Delete asks with the count.
     const confirmDelete = await openTagDialog(user, 'dogs', 'Delete');
@@ -1495,7 +1495,7 @@ describe('tags', () => {
       within(confirmDelete).getByText('It will be removed from 2 accounts. Their decisions and notes stay.'),
     ).toBeInTheDocument();
     await user.click(within(confirmDelete).getByRole('button', { name: 'Delete' }));
-    expect(await within(sheet).findByText(/^No tags yet/)).toBeInTheDocument();
+    expect(await within(popup).findByText(/^No tags yet/)).toBeInTheDocument();
 
     await closeManageTags(user);
     expect(row('alice')).not.toHaveTextContent('#');
@@ -1503,7 +1503,7 @@ describe('tags', () => {
   });
 });
 
-test('Changes compares with the saved master: numbers, sections, badges, Show all and the sheet', async () => {
+test('Changes compares with the saved master: numbers, sections, badges, Show all and the popup', async () => {
   let clock = Date.parse('2026-10-27T12:00:00.000Z');
   const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });
   await importFiles(user, exportOf(['alice', 'bob', 'dan'], ['alice', 'carol']));
@@ -1540,16 +1540,16 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   await user.click(screen.getByRole('button', { name: 'Show fewer' }));
   expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
 
-  // A row opens the account sheet. A queued plan shows on the row; Kept doesn't (nothing left to do).
+  // A row opens the account popup. A queued plan shows on the row; Kept doesn't (nothing left to do).
   const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
   await user.click(screen.getByRole('button', { name: 'Open @gus' }));
-  let sheet = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
-  await user.click(within(sheet).getByRole('button', { name: 'Queue unfollow' }));
+  let popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
+  await user.click(within(popup).getByRole('button', { name: 'Queue unfollow' }));
   await closeAccount(user, 'gus');
   expect(gus()).toHaveTextContent('@gusUnfollow queued');
   await user.click(screen.getByRole('button', { name: 'Open @gus' }));
-  sheet = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
-  await user.click(within(sheet).getByRole('button', { name: 'Keep' }));
+  popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
+  await user.click(within(popup).getByRole('button', { name: 'Keep' }));
   await closeAccount(user, 'gus');
   expect(gus()).not.toHaveTextContent(/Kept|queued/);
 });
@@ -1576,8 +1576,8 @@ test('someone you kept who stops following you needs a decision again; past acco
 
   await applyFilters(user, 'Everyone incl. past accounts');
   expect(within(row('bob')).queryByRole('button', { name: /Keep|Kept/ })).not.toBeInTheDocument();
-  const sheet = await openAccount(user, 'bob');
-  expect(within(sheet).queryByText('Your decision')).not.toBeInTheDocument();
+  const popup = await openAccount(user, 'bob');
+  expect(within(popup).queryByText('Your decision')).not.toBeInTheDocument();
 });
 
 test('a renamed follower is suggested in No longer follow you, and confirming moves its work', async () => {

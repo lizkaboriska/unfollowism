@@ -29,7 +29,7 @@ test('the button shows what is queued, even when it is not the offered action', 
   const a = mutual();
   expect(queueButton(a, REVIEW_SCOPES.FOLLOWING)).toEqual({ kind: QueueButtonKind.OFFER, type: UNFOLLOW });
 
-  setPlan(a, REMOVE_FOLLOWER, PLAN_STATES.PLANNED); // queued from the sheet
+  setPlan(a, REMOVE_FOLLOWER, PLAN_STATES.PLANNED); // queued from the popup
   expect(queueButton(a, REVIEW_SCOPES.FOLLOWING)).toEqual({
     kind: QueueButtonKind.QUEUED,
     type: REMOVE_FOLLOWER,

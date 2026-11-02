@@ -490,7 +490,7 @@ describe('tags', () => {
 });
 
 describe('filters', () => {
-  test('the Filter sheet applies list, tag and decision at once; Clear all keeps the list', async () => {
+  test('the Filter popup applies list, tag and decision at once; Clear all keeps the list', async () => {
     const t = await importedStore();
     t.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
     t.store.dispatch(setQuery('a'));
@@ -1056,7 +1056,7 @@ describe('selectors', () => {
     expect(selectScopeTotals(t.store.getState())).toEqual(totals);
   });
 
-  test('the matching count reads any filters (the Filter sheet draft) and leaves the list alone', async () => {
+  test('the matching count reads any filters (the Filter popup draft) and leaves the list alone', async () => {
     const t = await importedStore();
     t.store.dispatch(setKept({ username: 'alice', kept: true }));
     const state = t.store.getState();

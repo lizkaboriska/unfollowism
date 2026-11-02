@@ -97,7 +97,7 @@ export function RenameTagDialog({ tag, onClose }: { tag: string | null; onClose:
             {tag !== null && (
               <>
                 <Dialog.Header>
-                  <Dialog.Title textStyle="sheetTitle" wordBreak="break-all">
+                  <Dialog.Title textStyle="heading" wordBreak="break-all">
                     Rename #{tag}
                   </Dialog.Title>
                 </Dialog.Header>

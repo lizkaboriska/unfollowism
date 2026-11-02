@@ -85,7 +85,7 @@ test('a planned unfollow is the decision, and is completed only once the follow 
 });
 
 test('a done plan leaves the account Kept while you are still connected', () => {
-  // A mutual: removed as a follower, still followed (the mixed case set in the sheet).
+  // A mutual: removed as a follower, still followed (the mixed case set in the popup).
   const a = follows(account(), { following: true, followedBy: true });
   setPlan(a, REMOVE_FOLLOWER, PLANNED);
   follows(a, { following: true });

@@ -32,7 +32,7 @@ function queuedText(account: ReadonlyAccount): string | null {
   return queued.length > 1 ? 'Both queued' : (queued[0] ?? null);
 }
 
-/** One account on the Changes page: name, why it's here when a plan did it, a queued plan, → opens its sheet. */
+/** One account on the Changes page: name, why it's here when a plan did it, a queued plan, → opens its popup. */
 export const ChangeRow = memo(function ChangeRow({
   accountKey,
   change,

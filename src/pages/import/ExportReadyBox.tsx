@@ -65,7 +65,7 @@ export function ExportReadyBox({
       onDrop={drop.onDrop}
     >
       <Stack gap="0.5" px="3" pt="4" pb="3">
-        <Heading as="h2" id={titleId} textStyle="sheetTitle" color={drop.dragging ? 'accent' : 'ink'}>
+        <Heading as="h2" id={titleId} textStyle="heading" color={drop.dragging ? 'accent' : 'ink'}>
           {drop.dragging ? 'Drop to add' : 'Your export is ready'}
         </Heading>
         <Text textStyle="small" color="fg.muted">
