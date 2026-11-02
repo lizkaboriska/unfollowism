@@ -11,9 +11,8 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { selectAccount } from '@/entities/master/model/selectors.ts';
 import { COMPLETED_PLAN_BADGES, planText } from '@/entities/master/ui/labels.ts';
+import { RenameSuggestion } from '@/features/rename-suggestion/RenameSuggestion.tsx';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
-
-import { RenameSuggestion } from './RenameSuggestion.tsx';
 
 /** The plan whose completion explains why an account is in a change list. */
 const EXPLAINED_BY: Partial<Record<FollowChange, ActionType>> = {
