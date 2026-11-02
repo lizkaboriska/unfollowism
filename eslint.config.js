@@ -28,6 +28,10 @@ export default tseslint.config(
       'import-x': importX,
       '@eslint-react': eslintReact,
     },
+    settings: {
+      // `@/…` imports are our own files: they go in the "internal" group, after packages.
+      'import-x/internal-regex': '^@/',
+    },
     rules: {
       ...reactHooks.configs.recommended.rules,
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
