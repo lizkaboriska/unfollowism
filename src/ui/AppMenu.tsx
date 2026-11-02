@@ -1,9 +1,8 @@
 import { Button, Menu, Portal } from '@chakra-ui/react';
 import { useState } from 'react';
 
+import { ManageTagsSheet } from '@/features/manage-tags/ManageTagsSheet.tsx';
 import { useResetChanges } from '@/features/save-reset/useResetChanges.tsx';
-
-import { ManageTagsSheet } from './ManageTagsSheet.tsx';
 
 const ROW = { h: '12', px: '3.5', textStyle: 'control' } as const;
 
