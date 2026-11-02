@@ -1,11 +1,11 @@
 import { Tabs, Text } from '@chakra-ui/react';
 import type { ReactNode } from 'react';
 
-import { PLAN_VIEW_ACTIONS, setView, type PlanView } from '../store/filtersSlice.ts';
+import { PLAN_VIEW_ACTIONS, TODO_VIEWS, setView, type PlanView } from '../store/filtersSlice.ts';
 import { useAppDispatch } from '../store/hooks.ts';
 
 import { TODO_LABELS } from './labels.ts';
-import { TODO_VIEWS, useTodoCount } from './viewCounts.ts';
+import { useTodoCount } from './viewCounts.ts';
 
 /**
  * Unfollow · Remove follower as one framed bar of two cells; the open tab is black. A count is what's still to do

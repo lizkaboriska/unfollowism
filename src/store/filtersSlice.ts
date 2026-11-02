@@ -38,6 +38,9 @@ export const ACTION_PLAN_VIEWS = {
   [ACTION_TYPES.REMOVE_FOLLOWER]: LIST_VIEWS.TO_REMOVE,
 } as const satisfies Record<ActionType, PlanView>;
 
+/** The lists of the To do page, in display order. */
+export const TODO_VIEWS: readonly PlanView[] = Object.values(ACTION_PLAN_VIEWS);
+
 export function isPlanView(view: ListView): view is PlanView {
   return Object.hasOwn(PLAN_VIEW_ACTIONS, view);
 }

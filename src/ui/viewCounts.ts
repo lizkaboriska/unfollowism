@@ -1,17 +1,8 @@
 import { useCallback } from 'react';
 
-import {
-  ACTION_PLAN_VIEWS,
-  PLAN_VIEW_ACTIONS,
-  isPlanView,
-  type ListView,
-  type PlanView,
-} from '../store/filtersSlice.ts';
+import { PLAN_VIEW_ACTIONS, isPlanView, type ListView } from '../store/filtersSlice.ts';
 import { useAppSelector } from '../store/hooks.ts';
 import { selectChangesSince, selectFollowChangeCounts, selectPlanStats } from '../store/selectors.ts';
-
-/** The lists of the To do page, in display order. */
-export const TODO_VIEWS: readonly PlanView[] = Object.values(ACTION_PLAN_VIEWS);
 
 /** How many accounts a To do list has (0 for other views). */
 export function useTodoCount(): (view: ListView) => number {
