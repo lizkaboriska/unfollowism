@@ -1,26 +1,7 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '../io/analyzeImport.ts';
 
-import { formatDateTime } from './dates.ts';
+import { formatDate, formatDateTime } from './dates.ts';
 import { plural } from './statusText.ts';
-
-/**
- * One line saying what the chosen files contain, e.g. "Following ✓ · Followers ✓ (1 file) · Master: none — a new one
- * will be started".
- * `lastKnownSavedAt` (last save from this browser) turns a missing master into a hint to add it.
- */
-export function recognizedText(
-  { followingCount, followerFileCount, master }: RecognizedFiles,
-  lastKnownSavedAt: string | null,
-): string {
-  const followingPart = `Following ${followingCount === null ? '✗' : '✓'}`;
-  const followersPart = followerFileCount ? `Followers ✓ (${plural(followerFileCount, 'file')})` : 'Followers ✗';
-  const masterPart = master
-    ? `Master: ${master.name}${master.savedAt ? ` (saved ${formatDateTime(master.savedAt)})` : ''}`
-    : lastKnownSavedAt
-      ? `Master: none — add the one you saved on ${formatDateTime(lastKnownSavedAt)}, or a new one will be started`
-      : 'Master: none — a new one will be started';
-  return [followingPart, followersPart, masterPart].join(' · ');
-}
 
 /** What to add when the selection can't be imported yet. Null when nothing is missing. */
 export function missingText({ followingCount, followerFileCount }: RecognizedFiles): string | null {
@@ -54,4 +35,27 @@ export function olderMasterText(
 /** Asked on Import, not while choosing: the master may simply not have been added yet. */
 export function noMasterConfirmText(lastKnownSavedAt: string): string {
   return `You saved one on ${formatDateTime(lastKnownSavedAt)}. Without it your review history starts from scratch.`;
+}
+
+/** What the box needs to know about the export's files (everything chosen except the master). */
+export interface ExportFileInfo {
+  name: string;
+  size: number;
+  lastModified: number;
+}
+
+const megabytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 });
+const kilobytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'kilobyte', maximumFractionDigits: 0 });
+
+function fileSize(bytes: number): string {
+  return bytes >= 1_000_000 ? megabytes.format(bytes / 1_000_000) : kilobytes.format(Math.max(1, bytes / 1000));
+}
+
+/** "instagram.zip · 2.4 MB · Oct 29, 2026" for one file, "3 files" for loose files. */
+export function exportFilesText(files: readonly ExportFileInfo[]): string {
+  const [only] = files;
+  if (files.length !== 1 || !only) {
+    return plural(files.length, 'file');
+  }
+  return [only.name, fileSize(only.size), formatDate(new Date(only.lastModified).toISOString())].join(' · ');
 }

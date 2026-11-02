@@ -85,7 +85,11 @@ describe('analyzeImport', () => {
       followingCount: 2,
       followerFileCount: 3,
       followerCount: 3,
-      master: { name: 'unfollowism_master_2026-10-01.json', savedAt: '2026-10-01T00:00:00Z' },
+      master: {
+        name: 'unfollowism_master_2026-10-01.json',
+        path: 'saved/unfollowism_master_2026-10-01.json',
+        savedAt: '2026-10-01T00:00:00Z',
+      },
     });
     const result = must(prepared);
     expect(result.bundle.followers.map(a => a.username)).toEqual(['alice', 'carol', 'zed']);
@@ -119,7 +123,12 @@ describe('analyzeImport', () => {
     [
       'missing followers',
       [f('following.json', following), f('m.json', '{"accounts":{}}')],
-      { followingCount: 2, followerFileCount: 0, followerCount: null, master: { name: 'm.json', savedAt: null } },
+      {
+        followingCount: 2,
+        followerFileCount: 0,
+        followerCount: null,
+        master: { name: 'm.json', path: 'm.json', savedAt: null },
+      },
     ],
   ])('incomplete selection is reported, not rejected: %s', (_, inputs, recognized) => {
     expect(analyzeImport(inputs, null)).toEqual({ recognized, prepared: null });

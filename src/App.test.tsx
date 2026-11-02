@@ -65,6 +65,13 @@ const followersJson = () =>
 const exportFiles = () => [followingJson(), followersJson()];
 
 const importButton = () => screen.getByRole('button', { name: 'Import' });
+const findReadyBox = () => screen.findByRole('region', { name: 'Your export is ready' });
+/** The rows of the "Your export is ready" box, e.g. "✓Following found2 accounts". */
+const readyRows = async () =>
+  within(await findReadyBox())
+    .getAllByRole('listitem')
+    .map(li => li.textContent);
+const MISSING_FOLLOWERS = /followers_1\.json .* is missing/;
 
 /** Chooses the files and clicks Import, as a user would. */
 async function importFiles(user: UserEvent, files: File[]) {
@@ -253,7 +260,7 @@ test('the steps and "You\'re always in control" show until a file is picked', as
   expect(screen.getByText('Choose the .zip here')).toBeInTheDocument();
   expect(screen.getByText("You're always in control")).toBeInTheDocument();
   await user.upload(screen.getByTestId('file-input'), [followingJson()]);
-  expect(await screen.findByText(/^Following ✓/)).toBeInTheDocument();
+  expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
   expect(screen.queryByText('Choose the .zip here')).not.toBeInTheDocument();
   expect(screen.queryByText("You're always in control")).not.toBeInTheDocument();
   expect(screen.getByText('No login. No Instagram connection. Just your files.')).toBeInTheDocument();
@@ -271,13 +278,17 @@ test('dragging a file over the file box shows "Drop to add" until it leaves', as
 test('import → review → save works end to end', async () => {
   const { downloads, user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect(
-    await screen.findByText('Following ✓ · Followers ✓ (1 file) · Master: none — a new one will be started'),
-  ).toBeInTheDocument();
+  expect(await readyRows()).toEqual([
+    '✓Following found2 accounts',
+    '✓Followers found2 accounts',
+    '–Master fileNot selected',
+  ]);
+  expect(screen.getByText('2 files')).toBeInTheDocument(); // loose files, not one .zip
+  expect(screen.queryByRole('region', { name: 'A fresh start for your feed' })).not.toBeInTheDocument();
   await user.click(importButton());
 
   expect(await screen.findByText(/Started a new master/)).toBeInTheDocument();
-  expect(screen.queryByText('A fresh start for your feed')).not.toBeInTheDocument();
+  expect(screen.queryByText('Your export is ready')).not.toBeInTheDocument();
   expect(stat('Following')).toBe('2');
   expect(stat('Mutual')).toBe('1');
   expect(row('alice')).toBeInTheDocument();
@@ -332,10 +343,15 @@ test('a failed save shows a warning that stays until a save works', async () => 
 test('a missing Followers file is shown and Import stays disabled', async () => {
   const { user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), [followingJson()]);
-  expect(await screen.findByText(/^Following ✓ · Followers ✗/)).toBeInTheDocument();
-  expect(screen.getByText(/followers_1\.json .* is missing/)).toBeInTheDocument();
+  expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
+  expect(screen.queryByText('Your export is ready')).not.toBeInTheDocument();
   expect(importButton()).toBeDisabled();
 });
+
+const masterJson = (savedAt: string, name = 'unfollowism_master.json') =>
+  new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts: {} })], name, {
+    type: 'application/json',
+  });
 
 /**
  * Whether the browser would do its default for a file dragged over / dropped on `target` (fireEvent: false =
@@ -348,31 +364,45 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
   const { user } = await renderApp();
   expect(browserHandlesDrop(importButton())).toBe(false); // next to the zone
 
-  fireEvent.drop(screen.getByText('A fresh start for your feed'), { dataTransfer: { files: exportFiles() } });
-  expect(await screen.findByText(/^Following ✓ · Followers ✓/)).toBeInTheDocument();
+  fireEvent.drop(screen.getByText('A fresh start for your feed'), { dataTransfer: { files: [followingJson()] } });
+  expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
+  fireEvent.drop(screen.getByText('A fresh start for your feed'), { dataTransfer: { files: [followersJson()] } });
+  const box = await findReadyBox();
+  fireEvent.dragOver(box); // the ready box takes more files too
+  expect(within(box).getByRole('heading', { name: 'Drop to add' })).toBeInTheDocument();
+  fireEvent.drop(box, { dataTransfer: { files: [masterJson('2026-10-01T00:00:00.000Z')] } });
+  await waitFor(async () => {
+    expect((await readyRows())[2]).toMatch(/^✓Master fileSelected · /);
+  });
 
   await user.click(importButton());
   await findRow('alice');
   expect(browserHandlesDrop(row('alice'))).toBe(false); // the main view has no drop zone at all
 });
 
-const masterJson = (savedAt: string, name = 'unfollowism_master.json') =>
-  new File([JSON.stringify({ version: 1, lastSavedAt: savedAt, lastImportAt: savedAt, accounts: {} })], name, {
-    type: 'application/json',
-  });
-
 test('files chosen one after another add up, e.g. a master from another folder', async () => {
   const { user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect(await screen.findByText(/Master: none/)).toBeInTheDocument();
+  expect((await readyRows())[2]).toBe('–Master fileNot selected');
 
   await user.upload(screen.getByTestId('file-input'), [masterJson('2026-10-01T00:00:00.000Z')]);
-  expect(
-    await screen.findByText(/^Following ✓ · Followers ✓ \(1 file\) · Master: unfollowism_master\.json \(saved/),
-  ).toBeInTheDocument();
+  await waitFor(async () => {
+    expect((await readyRows())[2]).toMatch(/^✓Master fileSelected · .*2026$/);
+  });
+  expect(screen.getByText('2 files')).toBeInTheDocument(); // the master isn't counted as part of the export
   expect(screen.getByText('following.json')).toBeInTheDocument();
   expect(screen.getByText('followers_1.json')).toBeInTheDocument();
   expect(importButton()).toBeEnabled();
+});
+
+test('Add more files opens the file picker again', async () => {
+  const { user } = await renderApp();
+  await user.upload(screen.getByTestId('file-input'), exportFiles());
+  await findReadyBox();
+  const input = screen.getByTestId('file-input');
+  const opened = vi.spyOn(input, 'click');
+  await user.click(screen.getByRole('button', { name: 'Add more files' }));
+  expect(opened).toHaveBeenCalledOnce();
 });
 
 test('choosing the same file twice keeps one entry; × removes a file', async () => {
@@ -386,12 +416,13 @@ test('choosing the same file twice keeps one entry; × removes a file', async ()
   expect(screen.getAllByText('following.json')).toHaveLength(1);
 
   await user.click(screen.getByRole('button', { name: 'Remove followers_1.json' }));
-  expect(await screen.findByText(/^Following ✓ · Followers ✗/)).toBeInTheDocument();
+  expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
   expect(importButton()).toBeDisabled();
 
   await user.click(screen.getByRole('button', { name: 'Clear all' }));
   expect(screen.queryByText('following.json')).not.toBeInTheDocument();
-  expect(screen.queryByText(/^Following/)).not.toBeInTheDocument();
+  expect(screen.queryByText(MISSING_FOLLOWERS)).not.toBeInTheDocument();
+  expect(screen.getByText('Choose the .zip here')).toBeInTheDocument(); // back to the start
 });
 
 test('a conflict keeps the list so the extra file can be removed', async () => {
@@ -405,7 +436,8 @@ test('a conflict keeps the list so the extra file can be removed', async () => {
   expect(importButton()).toBeDisabled();
 
   await user.click(screen.getByRole('button', { name: 'Remove old.json' }));
-  expect(await screen.findByText(/Master: new\.json/)).toBeInTheDocument();
+  expect((await readyRows())[2]).toMatch(/^✓Master fileSelected · /);
+  expect(screen.getByText('new.json')).toBeInTheDocument();
   expect(screen.queryByText(/Found 2 master files/)).not.toBeInTheDocument();
   expect(importButton()).toBeEnabled();
 });
@@ -426,13 +458,10 @@ const savedBefore = () => {
   return lastSaved;
 };
 
-test('without a master, a previous save is only a hint while choosing; Import asks first', async () => {
+test('without a master after a previous save, Import asks first', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect(
-    await screen.findByText(/Master: none — add the one you saved on .*, or a new one will be started/),
-  ).toBeInTheDocument();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // no warning box while still choosing
+  expect((await readyRows())[2]).toBe('–Master fileNot selected');
 
   await user.click(importButton());
   const dialog = await screen.findByRole('alertdialog');
@@ -441,7 +470,7 @@ test('without a master, a previous save is only a hint while choosing; Import as
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
-  expect(screen.getByText('A fresh start for your feed')).toBeInTheDocument(); // nothing imported
+  expect(screen.getByText('Your export is ready')).toBeInTheDocument(); // nothing imported
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Import anyway' }));
@@ -493,7 +522,7 @@ test('importing over unsaved work asks first', async () => {
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
-  expect(screen.getByText('A fresh start for your feed')).toBeInTheDocument(); // nothing imported
+  expect(screen.getByText('Your export is ready')).toBeInTheDocument(); // nothing imported
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Import anyway' }));
@@ -574,7 +603,7 @@ test("Import shows that it's working", async () => {
     expect(importButton()).toBeEnabled();
   });
   await user.click(importButton());
-  expect(screen.getByText(/Importing… large accounts can take a few seconds/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Importing…/ })).toBeDisabled();
   expect(await findRow('bob')).toBeInTheDocument();
 });
 

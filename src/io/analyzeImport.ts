@@ -34,8 +34,8 @@ export interface RecognizedFiles {
   followerFileCount: number;
   /** Accounts in all Followers files together; null when no Followers file was chosen. */
   followerCount: number | null;
-  /** The chosen master; null when none was chosen (a new one will be started). */
-  master: { name: string; savedAt: string | null } | null;
+  /** The chosen master (`path` as in its InputText); null when none was chosen (a new one will be started). */
+  master: { name: string; path: string; savedAt: string | null } | null;
 }
 
 export interface ImportSelection {
@@ -124,7 +124,7 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     followingCount: followingEntries?.length ?? null,
     followerFileCount: followers.length,
     followerCount: followerEntries?.length ?? null,
-    master: master && { name: baseName(master.path), savedAt: masterSavedAt },
+    master: master && { name: baseName(master.path), path: master.path, savedAt: masterSavedAt },
   };
   if (!followingEntries || !followerEntries) {
     return { recognized, prepared: null };

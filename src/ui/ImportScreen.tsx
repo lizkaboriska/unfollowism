@@ -1,4 +1,4 @@
-import { Alert, Box, Button, HStack, Heading, IconButton, List, Stack, Text } from '@chakra-ui/react';
+import { Alert, Box, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import { ImportError } from '../core/index.ts';
@@ -11,8 +11,9 @@ import { IMPORT_STATUSES } from '../store/statuses.ts';
 import { importPrepared } from '../store/thunks.ts';
 
 import { useConfirm } from './dialogHooks.ts';
+import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { importProblemText } from './importProblemText.ts';
-import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from './importText.ts';
+import { missingText, noMasterConfirmText, olderMasterText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
@@ -20,13 +21,20 @@ interface ChosenFile {
   /** Name + size + modified time: choosing the same file again is ignored. */
   id: string;
   name: string;
+  size: number;
+  lastModified: number;
   inputs: InputText[];
   /** Why the file couldn't be read (e.g. a broken zip); it then contributes nothing. */
   readError: string | null;
 }
 
 async function readChosen(file: File): Promise<ChosenFile> {
-  const base = { id: `${file.name}:${file.size}:${file.lastModified}`, name: file.name };
+  const base = {
+    id: `${file.name}:${file.size}:${file.lastModified}`,
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+  };
   try {
     return { ...base, inputs: await readInputs([file]), readError: null };
   } catch (e) {
@@ -65,29 +73,25 @@ export function ImportScreen({
   // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be
   // removed.
   // The last save from this browser is read here too, once per change rather than on every render.
-  const { selection, selectionError, lastKnownSavedAt } = useMemo((): {
+  const { selection, selectionError } = useMemo((): {
     selection: ImportSelection | null;
     selectionError: string | null;
-    lastKnownSavedAt: string | null;
   } => {
     if (!chosen.length) {
-      return { selection: null, selectionError: null, lastKnownSavedAt: null };
+      return { selection: null, selectionError: null };
     }
-    const savedAt = lastSaved.get();
     try {
       return {
         selection: analyzeImport(
           chosen.flatMap(c => c.inputs),
-          savedAt,
+          lastSaved.get(),
         ),
         selectionError: null,
-        lastKnownSavedAt: savedAt,
       };
     } catch (e) {
       return {
         selection: null,
         selectionError: e instanceof ImportError ? importProblemText(e.problem) : errorMessage(e),
-        lastKnownSavedAt: savedAt,
       };
     }
   }, [chosen, lastSaved]);
@@ -171,6 +175,24 @@ export function ImportScreen({
   }
 
   const missing = selection && missingText(selection.recognized);
+  const { followingCount = null, followerCount = null, master = null } = selection?.recognized ?? {};
+  const masterPath = master?.path;
+  // The export's files: everything readable except the file holding the master.
+  const exportFiles = chosen.filter(c => !c.readError && !c.inputs.some(i => i.path === masterPath));
+  const drop = {
+    dragging,
+    onDragOver: (e: DragEvent) => {
+      e.preventDefault();
+      setDragging(true);
+    },
+    // Moving over the text inside also fires dragleave; only leaving the box itself ends the highlight.
+    onDragLeave: (e: DragEvent) => {
+      if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
+        setDragging(false);
+      }
+    },
+    onDrop,
+  };
 
   return (
     <Stack gap="5">
@@ -208,80 +230,108 @@ export function ImportScreen({
         </List.Root>
       )}
 
-      <Stack
-        as="section"
-        aria-labelledby={fileBoxTitleId}
-        gap="2"
-        align="center"
-        borderWidth="1px"
-        borderColor={dragging ? 'accent' : 'border'}
-        px="5"
-        pt="6"
-        pb="5"
-        textAlign="center"
-        onDragOver={e => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        // Moving over the text inside also fires dragleave; only leaving the box itself ends the highlight.
-        onDragLeave={e => {
-          if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
-            setDragging(false);
-          }
-        }}
-        onDrop={onDrop}
-      >
-        <Heading as="h2" id={fileBoxTitleId} textStyle="sheetTitle" color={dragging ? 'accent' : 'ink'}>
-          {dragging ? 'Drop to add' : 'A fresh start for your feed'}
-        </Heading>
-        <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
-        <input
-          ref={fileInput}
-          name="files"
-          type="file"
-          multiple
-          accept=".zip,.json,.html"
-          hidden
-          onChange={onInput}
-          data-testid="file-input"
+      <input
+        ref={fileInput}
+        name="files"
+        type="file"
+        multiple
+        accept=".zip,.json,.html"
+        hidden
+        onChange={onInput}
+        data-testid="file-input"
+      />
+      {selection?.prepared && followingCount !== null && followerCount !== null ? (
+        <ExportReadyBox
+          followingCount={followingCount}
+          followerCount={followerCount}
+          master={master}
+          exportFiles={exportFiles}
+          drop={drop}
         />
-        <Button
-          w="full"
-          mt="2"
-          loading={reading > 0}
-          loadingText="Reading files…"
-          onClick={() => fileInput.current?.click()}
+      ) : (
+        <Stack
+          as="section"
+          aria-labelledby={fileBoxTitleId}
+          gap="2"
+          align="center"
+          borderWidth="1px"
+          borderColor={dragging ? 'accent' : 'border'}
+          px="5"
+          pt="6"
+          pb="5"
+          textAlign="center"
+          onDragOver={drop.onDragOver}
+          onDragLeave={drop.onDragLeave}
+          onDrop={drop.onDrop}
         >
-          Choose files
-        </Button>
-      </Stack>
+          <Heading as="h2" id={fileBoxTitleId} textStyle="sheetTitle" color={dragging ? 'accent' : 'ink'}>
+            {dragging ? 'Drop to add' : 'A fresh start for your feed'}
+          </Heading>
+          <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
+          <Button
+            w="full"
+            mt="2"
+            loading={reading > 0}
+            loadingText="Reading files…"
+            onClick={() => fileInput.current?.click()}
+          >
+            Choose files
+          </Button>
+        </Stack>
+      )}
 
       {chosen.length > 0 && (
         <Stack gap="1">
-          {chosen.map(c => (
-            <HStack key={c.id} gap="2">
-              <IconButton
-                size="xs"
-                variant="ghost"
-                aria-label={`Remove ${c.name}`}
-                onClick={() => {
-                  remove(c.id);
-                }}
-              >
-                ×
-              </IconButton>
-              <Text truncate>{c.name}</Text>
-              {c.readError && (
-                <Text color="fg.error" fontSize="sm">
-                  {c.readError}
-                </Text>
-              )}
-            </HStack>
-          ))}
-          <Box>
+          <List.Root listStyle="none">
+            {chosen.map(c => (
+              <List.Item key={c.id} display="flex" alignItems="center" gap="2" minH="10">
+                <Stack gap="0" flex="1" minW="0">
+                  <Text truncate>{c.name}</Text>
+                  {c.readError && (
+                    <Text textStyle="small" color="fg.error">
+                      {c.readError}
+                    </Text>
+                  )}
+                </Stack>
+                <Button
+                  variant="plain"
+                  w="10"
+                  h="10"
+                  minW="10"
+                  p="0"
+                  textStyle="name"
+                  aria-label={`Remove ${c.name}`}
+                  onClick={() => {
+                    remove(c.id);
+                  }}
+                >
+                  ×
+                </Button>
+              </List.Item>
+            ))}
+          </List.Root>
+          <HStack gap="2" textStyle="body">
             <Button
-              size="xs"
-              variant="ghost"
+              variant="plain"
+              h="auto"
+              p="0"
+              textDecoration="underline"
+              textUnderlineOffset="3px"
+              loading={reading > 0}
+              loadingText="Reading files…"
+              onClick={() => fileInput.current?.click()}
+            >
+              Add more files
+            </Button>
+            <Text as="span" color="fg.muted" aria-hidden="true">
+              ·
+            </Text>
+            <Button
+              variant="plain"
+              h="auto"
+              p="0"
+              textDecoration="underline"
+              textUnderlineOffset="3px"
               onClick={() => {
                 setChosen([]);
                 setImportError(null);
@@ -289,11 +339,10 @@ export function ImportScreen({
             >
               Clear all
             </Button>
-          </Box>
+          </HStack>
         </Stack>
       )}
 
-      {selection && <Text>{recognizedText(selection.recognized, lastKnownSavedAt)}</Text>}
       {missing && <Text color="fg.muted">{missing}</Text>}
 
       {selection?.prepared?.warnings.map(
@@ -321,17 +370,22 @@ export function ImportScreen({
           ),
       )}
 
-      <HStack>
-        <Button disabled={!selection?.prepared || reading > 0} loading={importing} onClick={() => void onImport()}>
+      <Stack gap="2" align="center">
+        <Button
+          w="full"
+          disabled={!selection?.prepared || reading > 0}
+          loading={importing}
+          loadingText="Importing…"
+          onClick={() => void onImport()}
+        >
           Import
         </Button>
         {onCancel && (
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="plain" h="auto" py="2" onClick={onCancel}>
             Cancel
           </Button>
         )}
-      </HStack>
-      {importing && <Text color="fg.muted">Importing… large accounts can take a few seconds.</Text>}
+      </Stack>
 
       {!chosen.length && (
         <Box>
