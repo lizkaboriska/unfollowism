@@ -1004,6 +1004,31 @@ describe('main view', () => {
     expect(url()).toBe('/changes');
   });
 
+  test('Back goes to the last page, with the list Review had there; Forward comes back', async () => {
+    const { user } = await imported();
+    await applyFilters(user, 'Followers');
+    await user.click(navItem(/^Changes$/));
+    await user.click(navItem(/^Review$/));
+    await applyFilters(user, 'Mutual');
+    await user.click(navItem(/^To do$/));
+
+    const backTo = async (page: RegExp) => {
+      window.history.back();
+      await waitFor(() => {
+        expect(navItem(page)).toHaveAttribute('aria-current', 'page');
+      });
+    };
+    await backTo(/^Review$/);
+    expect(listChip()).toHaveTextContent('Mutual ▾');
+    await backTo(/^Changes$/);
+    await backTo(/^Review$/);
+    expect(listChip()).toHaveTextContent('Followers ▾');
+    window.history.forward();
+    await waitFor(() => {
+      expect(navItem(/^Changes$/)).toHaveAttribute('aria-current', 'page');
+    });
+  });
+
   test('a URL that Review does not understand is fixed silently', async () => {
     window.history.replaceState(null, '', '/somewhere?list=friends&q=al');
     const first = await renderApp();

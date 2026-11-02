@@ -5,6 +5,7 @@ import { LIST_VIEWS, setQuery, setScope, setView } from '../filtersSlice.ts';
 import type { AppStore } from '../index.ts';
 import { renameTag, setPlan, toggleTag } from '../masterSlice.ts';
 import { importPrepared, restoreTab } from '../thunks.ts';
+import { addressChanged } from '../urlSync.ts';
 
 import { flushPersistence, makeTestStore, prepared } from './testStore.ts';
 
@@ -24,6 +25,7 @@ async function storedTab(edit: (store: AppStore) => void = () => undefined): Pro
 async function reloadAt(url: string, tab: TabStore) {
   const address = memoryAddressBar(url);
   const t = makeTestStore({ tab, address });
+  address.onBackOrForward(() => t.store.dispatch(addressChanged())); // as the app does
   await t.store.dispatch(restoreTab());
   return { store: t.store, address };
 }
@@ -102,5 +104,57 @@ describe('URL sync', () => {
     await store.dispatch(restoreTab());
     expect(store.getState().filters.view).toBe(LIST_VIEWS.REVIEW);
     expect(address.url).toBe('/');
+  });
+
+  test('a page change adds a Back step; a filter change rewrites the current one', async () => {
+    const { store, address } = await reloadAt('/', await storedTab());
+    store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS));
+    store.dispatch(setQuery('al'));
+    expect(address.steps).toEqual(['/?list=followers&q=al']);
+    store.dispatch(setView(LIST_VIEWS.CHANGES));
+    store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
+    store.dispatch(setView(LIST_VIEWS.TO_REMOVE)); // the To do tabs are pages too
+    expect(address.steps).toEqual(['/?list=followers&q=al', '/changes', '/todo/unfollow', '/todo/remove']);
+  });
+
+  test("Back and Forward show that step's page; Review gets that step's filters, other pages keep them", async () => {
+    const { store, address } = await reloadAt('/?list=followers', await storedTab());
+    const filters = () => store.getState().filters;
+    store.dispatch(setView(LIST_VIEWS.CHANGES));
+    store.dispatch(setView(LIST_VIEWS.REVIEW));
+    store.dispatch(setScope(REVIEW_SCOPES.MUTUAL));
+    store.dispatch(setView(LIST_VIEWS.CHANGES));
+    const steps = ['/?list=followers', '/changes', '/?list=mutual', '/changes'];
+    expect(address.steps).toEqual(steps);
+
+    address.back();
+    expect(filters()).toMatchObject({ view: LIST_VIEWS.REVIEW, scope: REVIEW_SCOPES.MUTUAL });
+    address.back();
+    expect(filters()).toMatchObject({ view: LIST_VIEWS.CHANGES, scope: REVIEW_SCOPES.MUTUAL });
+    address.back();
+    expect(filters()).toMatchObject({ view: LIST_VIEWS.REVIEW, scope: REVIEW_SCOPES.FOLLOWERS });
+    address.forward();
+    expect(filters()).toMatchObject({ view: LIST_VIEWS.CHANGES, scope: REVIEW_SCOPES.FOLLOWERS });
+    expect(address.steps).toEqual(steps); // moving through the steps adds none
+  });
+
+  test('Back to a step whose URL is no longer right corrects it in place', async () => {
+    const { store, address } = await reloadAt('/', await storedTab());
+    address.push('/todo'); // e.g. typed by hand earlier
+    address.push('/?tag=gone');
+    address.back();
+    expect(store.getState().filters.view).toBe(LIST_VIEWS.TO_UNFOLLOW);
+    expect(address.url).toBe('/todo/unfollow');
+    address.forward();
+    expect(store.getState().filters).toMatchObject({ view: LIST_VIEWS.REVIEW, tag: { kind: TAG_FILTER_KINDS.ALL } });
+    expect(address.steps).toEqual(['/', '/todo/unfollow', '/']);
+  });
+
+  test('Back on Welcome (no work yet) changes nothing', async () => {
+    const { store, address } = await reloadAt('/', makeTestStore().tab);
+    address.push('/changes');
+    address.back();
+    expect(store.getState().filters.view).toBe(LIST_VIEWS.REVIEW);
+    expect(address.steps).toEqual(['/', '/changes']);
   });
 });
