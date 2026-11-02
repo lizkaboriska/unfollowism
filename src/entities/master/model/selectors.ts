@@ -1,8 +1,8 @@
 import { createSelector } from '@reduxjs/toolkit';
 
+import type { RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
-import type { RootState } from '@/store/index.ts';
 
 import {
   FOLLOW_CHANGES,

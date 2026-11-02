@@ -1,3 +1,5 @@
+import { flushPersistence, makeTestStore, prepared } from '@/app/store/__tests__/testStore.ts';
+import type { AppStore } from '@/app/store/store.ts';
 import type { TabStore } from '@/entities/master/api/tabStore.ts';
 import {
   ACTION_TYPES,
@@ -12,10 +14,7 @@ import { LIST_VIEWS } from '@/entities/master/model/views.ts';
 import { setQuery, setScope, setView } from '@/features/filters/model/filtersSlice.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
-import type { AppStore } from '../index.ts';
 import { addressChanged } from '../urlSync.ts';
-
-import { flushPersistence, makeTestStore, prepared } from './testStore.ts';
 
 // prepared(): following Alice, bob, carol; followers alice, dave.
 

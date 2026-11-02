@@ -1,13 +1,13 @@
 import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
+import type { StoreDeps } from '@/app/store/deps.ts';
+import type { AppDispatch, RootState } from '@/app/store/store.ts';
 import { selectTodoStartView } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
 import { setView, showUrlFilters } from '@/features/filters/model/filtersSlice.ts';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 
-import type { StoreDeps } from './deps.ts';
-import type { AppDispatch, RootState } from './index.ts';
 import { filtersFromUrl, filtersToUrl } from './urlState.ts';
 
 /** Back or Forward showed another step of this page's history (dispatched by the app, see AddressBar). */

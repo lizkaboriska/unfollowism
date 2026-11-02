@@ -2,6 +2,7 @@
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
 
+import { makeStore } from '@/app/store/store.ts';
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { createMemoryTabDatabase } from '@/entities/master/api/tabStore.ts';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
@@ -30,8 +31,6 @@ import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
 import { selectListKeys } from '@/features/filters/model/listSlice.ts';
 import { selectScopeTotals, selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
-
-import { makeStore } from '../store/index.ts';
 
 const INSTAGRAM_FOLLOWING_CAP = 7_500;
 const MUTUAL = 5_000;

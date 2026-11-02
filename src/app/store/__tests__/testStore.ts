@@ -5,7 +5,7 @@ import { analyzeImport, type PreparedImport } from '@/entities/master/lib/analyz
 import type { ValueOf } from '@/shared/lib/valueOf.ts';
 import { memoryAddressBar, type AddressBar } from '@/shared/url/addressBar.ts';
 
-import { makeStore } from '../index.ts';
+import { makeStore } from '../store.ts';
 
 export interface Download {
   filename: string;

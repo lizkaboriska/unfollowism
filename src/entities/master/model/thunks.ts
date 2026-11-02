@@ -1,9 +1,9 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 
+import type { StoreDeps } from '@/app/store/deps.ts';
+import type { AppDispatch, RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
-import type { StoreDeps } from '@/store/deps.ts';
-import type { AppDispatch, RootState } from '@/store/index.ts';
 
 import type { StoredTab } from '../api/tabStore.ts';
 import type { PreparedImport } from '../lib/analyzeImport.ts';

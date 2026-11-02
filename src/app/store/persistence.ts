@@ -15,7 +15,7 @@ import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 import type { StoreDeps } from './deps.ts';
-import type { AppDispatch, RootState } from './index.ts';
+import type { AppDispatch, RootState } from './store.ts';
 
 type Accounts = DeepReadonly<ChangedAccounts>;
 

@@ -3,19 +3,19 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 
+import type { StoreDeps } from '@/app/store/deps.ts';
+import { makeStore } from '@/app/store/store.ts';
+import { browserTabEnvironment, claimTab } from '@/app/tab/tabIdentity.ts';
+import { guardUnload } from '@/app/tab/unloadGuard.ts';
 import { localStorageLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
 import { selectIsDirty } from '@/entities/master/model/selectors.ts';
 import { downloadText } from '@/shared/lib/download.ts';
 import { DialogProvider } from '@/shared/ui/dialogs.tsx';
+import { system } from '@/shared/ui/theme.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
 
 import { App } from './App.tsx';
-import { browserTabEnvironment, claimTab } from './io/tabIdentity.ts';
-import { guardUnload } from './io/unloadGuard.ts';
-import type { StoreDeps } from './store/deps.ts';
-import { makeStore } from './store/index.ts';
-import { system } from './theme.ts';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

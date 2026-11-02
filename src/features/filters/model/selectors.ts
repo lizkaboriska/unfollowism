@@ -1,5 +1,6 @@
 import { createSelector } from '@reduxjs/toolkit';
 
+import type { RootState } from '@/app/store/store.ts';
 import {
   PLAN_STATES,
   REVIEW_SCOPES,
@@ -14,7 +15,6 @@ import {
 } from '@/entities/master/lib/index.ts';
 import { sameKeys, selectBaseAccounts, selectChanged, selectSortedKeys } from '@/entities/master/model/selectors.ts';
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isPlanView } from '@/entities/master/model/views.ts';
-import type { RootState } from '@/store/index.ts';
 
 import { type FiltersState } from './filtersSlice.ts';
 

@@ -59,8 +59,8 @@ import {
   selectScopeTotals,
 } from '@/features/filters/model/selectors.ts';
 
-import type { RootState } from '../index.ts';
 import { RETRY_DELAYS_MS } from '../persistence.ts';
+import type { RootState } from '../store.ts';
 
 import {
   WRITES,

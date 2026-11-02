@@ -1,6 +1,8 @@
 import { Box, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
+import type { StoreDeps } from '@/app/store/deps.ts';
+import { addressChanged } from '@/app/url/urlSync.ts';
 import { selectHasProject } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
@@ -16,9 +18,6 @@ import { AppNav } from '@/widgets/nav/AppNav.tsx';
 import { ReviewTop } from '@/widgets/review-top/ReviewTop.tsx';
 import { StatusLine } from '@/widgets/status/StatusLine.tsx';
 import { StorageWarning } from '@/widgets/status/StorageWarning.tsx';
-
-import type { StoreDeps } from './store/deps.ts';
-import { addressChanged } from './store/urlSync.ts';
 
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();
