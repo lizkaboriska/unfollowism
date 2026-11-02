@@ -29,8 +29,11 @@ export interface PreparedImport {
 
 /** What the selection contains, for the import screen; shown even when something is missing. */
 export interface RecognizedFiles {
-  hasFollowing: boolean;
+  /** Accounts in the Following file; null when no Following file was chosen. */
+  followingCount: number | null;
   followerFileCount: number;
+  /** Accounts in all Followers files together; null when no Followers file was chosen. */
+  followerCount: number | null;
   /** The chosen master; null when none was chosen (a new one will be started). */
   master: { name: string; savedAt: string | null } | null;
 }
@@ -111,18 +114,21 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     throw new ImportError({ kind: IMPORT_PROBLEMS.HTML_EXPORT });
   }
 
+  followers.sort((a, b) => followerChunkNumber(a.path) - followerChunkNumber(b.path));
+  const followingEntries = following && parseFollowingJson(following.data);
+  const followerEntries = followers.length ? followers.flatMap(f => parseFollowersJson(f.data)) : null;
+
   const master = masters[0] ?? null;
   const masterSavedAt = typeof master?.data.lastSavedAt === 'string' ? master.data.lastSavedAt : null;
   const recognized: RecognizedFiles = {
-    hasFollowing: following !== null,
+    followingCount: followingEntries?.length ?? null,
     followerFileCount: followers.length,
+    followerCount: followerEntries?.length ?? null,
     master: master && { name: baseName(master.path), savedAt: masterSavedAt },
   };
-  if (!following || !followers.length) {
+  if (!followingEntries || !followerEntries) {
     return { recognized, prepared: null };
   }
-
-  followers.sort((a, b) => followerChunkNumber(a.path) - followerChunkNumber(b.path));
 
   const warnings: ImportWarning[] = [];
   if (lastKnownSavedAt) {
@@ -140,8 +146,8 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
   const prepared: PreparedImport = {
     rawMaster: master?.data ?? null,
     bundle: {
-      following: parseFollowingJson(following.data),
-      followers: followers.flatMap(f => parseFollowersJson(f.data)),
+      following: followingEntries,
+      followers: followerEntries,
       followerFileCount: followers.length,
     },
     warnings,

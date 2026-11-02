@@ -9,10 +9,10 @@ import { plural } from './statusText.ts';
  * `lastKnownSavedAt` (last save from this browser) turns a missing master into a hint to add it.
  */
 export function recognizedText(
-  { hasFollowing, followerFileCount, master }: RecognizedFiles,
+  { followingCount, followerFileCount, master }: RecognizedFiles,
   lastKnownSavedAt: string | null,
 ): string {
-  const followingPart = `Following ${hasFollowing ? '✓' : '✗'}`;
+  const followingPart = `Following ${followingCount === null ? '✗' : '✓'}`;
   const followersPart = followerFileCount ? `Followers ✓ (${plural(followerFileCount, 'file')})` : 'Followers ✗';
   const masterPart = master
     ? `Master: ${master.name}${master.savedAt ? ` (saved ${formatDateTime(master.savedAt)})` : ''}`
@@ -23,7 +23,8 @@ export function recognizedText(
 }
 
 /** What to add when the selection can't be imported yet. Null when nothing is missing. */
-export function missingText({ hasFollowing, followerFileCount }: RecognizedFiles): string | null {
+export function missingText({ followingCount, followerFileCount }: RecognizedFiles): string | null {
+  const hasFollowing = followingCount !== null;
   if (!hasFollowing && !followerFileCount) {
     return (
       'No followers/following files found. Choose the .zip from Instagram (JSON format), ' +

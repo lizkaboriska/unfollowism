@@ -82,8 +82,9 @@ describe('analyzeImport', () => {
     );
 
     expect(recognized).toEqual({
-      hasFollowing: true,
+      followingCount: 2,
       followerFileCount: 3,
+      followerCount: 3,
       master: { name: 'unfollowism_master_2026-10-01.json', savedAt: '2026-10-01T00:00:00Z' },
     });
     const result = must(prepared);
@@ -105,19 +106,31 @@ describe('analyzeImport', () => {
   });
 
   test.each([
-    ['nothing relevant', [f('liked_posts.json', '[]')], { hasFollowing: false, followerFileCount: 0, master: null }],
+    [
+      'nothing relevant',
+      [f('liked_posts.json', '[]')],
+      { followingCount: null, followerFileCount: 0, followerCount: null, master: null },
+    ],
     [
       'missing following',
-      [f('followers_1.json', followers1)],
-      { hasFollowing: false, followerFileCount: 1, master: null },
+      [f('followers_1.json', followers1), f('followers_2.json', followers2)],
+      { followingCount: null, followerFileCount: 2, followerCount: 2, master: null },
     ],
     [
       'missing followers',
       [f('following.json', following), f('m.json', '{"accounts":{}}')],
-      { hasFollowing: true, followerFileCount: 0, master: { name: 'm.json', savedAt: null } },
+      { followingCount: 2, followerFileCount: 0, followerCount: null, master: { name: 'm.json', savedAt: null } },
     ],
   ])('incomplete selection is reported, not rejected: %s', (_, inputs, recognized) => {
     expect(analyzeImport(inputs, null)).toEqual({ recognized, prepared: null });
+  });
+
+  test('files without accounts are still found, counted as 0 (Import then reports them as empty)', () => {
+    const { recognized } = analyzeImport(
+      [f('following.json', JSON.stringify(followingFile())), f('followers_1.json', '[]')],
+      null,
+    );
+    expect(recognized).toEqual({ followingCount: 0, followerFileCount: 1, followerCount: 0, master: null });
   });
 
   test.each([
