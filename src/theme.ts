@@ -23,6 +23,15 @@ function palette(color: string) {
   };
 }
 
+/**
+ * Text in a field you type into: iPhone Safari zooms into a field whose text is under 16px when it's tapped, and
+ * stays zoomed. So on phones fields use 16px (a fixed px: a rem size could land just under it); from md up the
+ * design's size for that field size.
+ */
+function fieldText(designSize: 'xs' | 'sm' | 'md') {
+  return { fontSize: { base: '16px', md: designSize } };
+}
+
 // Soft shadows become a 1px ink frame (dialogs, menus, popovers).
 const frame = { value: `0 0 0 1px ${INK}` };
 
@@ -118,6 +127,32 @@ export const system = createSystem(
         control: { value: { fontFamily: 'body', fontSize: 'sm', fontWeight: '500' } },
         small: { value: { fontFamily: 'body', fontSize: 'xs', fontWeight: '400' } },
         count: { value: { fontFamily: 'body', fontSize: 'xs', fontWeight: '500', color: 'accent' } },
+      },
+      recipes: {
+        // Chakra's own field sizes, each kept at its design size from md up (2xl is already 18px).
+        input: {
+          variants: {
+            size: {
+              '2xs': fieldText('xs'),
+              xs: fieldText('xs'),
+              sm: fieldText('sm'),
+              md: fieldText('sm'),
+              lg: fieldText('md'),
+              xl: fieldText('md'),
+            },
+          },
+        },
+        textarea: {
+          variants: {
+            size: {
+              xs: fieldText('xs'),
+              sm: fieldText('sm'),
+              md: fieldText('sm'),
+              lg: fieldText('md'),
+              xl: fieldText('md'),
+            },
+          },
+        },
       },
       slotRecipes: {
         dialog: { slots: ['backdrop'], base: { backdrop: { bg: 'overlay' } } },

@@ -774,7 +774,9 @@ describe('main view', () => {
     await user.click(cardButton('bob', 'Queue unfollow'));
     await applyFilters(user, 'artist');
     await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'al');
-    expect(shown()).toEqual(['@alice']);
+    await waitFor(() => {
+      expect(shown()).toEqual(['@alice']);
+    });
 
     await user.click(navItem(/^To do 2$/));
     expect(shown()).toEqual(['@alice', '@bob']);
@@ -1165,8 +1167,10 @@ describe('Review cards and the account sheet', () => {
     expect(screen.getByText(privacy)).toBeInTheDocument();
     expect(screen.queryByText(/Queue a follower removal here/)).not.toBeInTheDocument();
 
-    await user.type(screen.getByRole('searchbox', { name: 'Search accounts' }), 'zzz');
-    expect(screen.getByRole('heading', { name: 'No accounts found' })).toBeInTheDocument();
+    const search = screen.getByRole('searchbox', { name: 'Search accounts' });
+    await user.type(search, 'zzz');
+    expect(shown()).toEqual(['@alice', '@bob']); // the list waits for a pause in typing
+    expect(await screen.findByRole('heading', { name: 'No accounts found' })).toBeInTheDocument();
     expect(screen.getByText('No usernames match “zzz”.')).toBeInTheDocument();
     expect(screen.queryByText(privacy)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
@@ -1175,7 +1179,18 @@ describe('Review cards and the account sheet', () => {
     const noResults = () => within(screen.getByRole('region', { name: 'No accounts found' }));
     await user.click(noResults().getByRole('button', { name: 'Clear search' })); // the search box has its own ×
     expect(noResults().getByText('No accounts match these filters.')).toBeInTheDocument();
+    expect(search).toHaveValue(''); // the box follows
     await user.click(noResults().getByRole('button', { name: 'Clear filters' }));
+    expect(shown()).toEqual(['@alice', '@bob']);
+    await user.type(search, 'bo');
+    await waitFor(() => {
+      expect(shown()).toEqual(['@bob']);
+    });
+    await user.type(search, 'b'); // the × clears at once, and the pending "bob" never lands
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(search).toHaveValue('');
+    expect(shown()).toEqual(['@alice', '@bob']);
+    await new Promise(resolve => setTimeout(resolve, 300));
     expect(shown()).toEqual(['@alice', '@bob']);
 
     await user.click(screen.getByRole('button', { name: '1 follow you only' }));
