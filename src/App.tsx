@@ -1,4 +1,4 @@
-import { Box, HStack, Stack, Text } from '@chakra-ui/react';
+import { Box, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from './store/deps.ts';
@@ -47,9 +47,14 @@ export function App({ deps }: { deps: StoreDeps }) {
 
   if (restoring && !hasProject) {
     return (
-      <Box maxW="5xl" mx="auto" p="5">
-        <Text color="fg.muted">Loading your work…</Text>
-      </Box>
+      <Stack minH="100dvh" align="center" justify="center" gap="1" p="5" role="status">
+        <Heading textStyle="appName" lineHeight="1">
+          Unfollowism
+        </Heading>
+        <Text textStyle="small" color="fg.muted">
+          Loading your work…
+        </Text>
+      </Stack>
     );
   }
 

@@ -659,7 +659,9 @@ test('a reload shows Loading your work… instead of flashing the import screen'
     },
   };
   await renderApp({ tab: slowTab, waitForRestore: false });
-  expect(screen.getByText('Loading your work…')).toBeInTheDocument();
+  const loading = screen.getByRole('status');
+  expect(loading).toHaveTextContent('Loading your work…');
+  expect(within(loading).getByRole('heading', { name: 'Unfollowism' })).toBeInTheDocument();
   expect(screen.queryByText('A fresh start for your feed')).not.toBeInTheDocument();
   release();
   expect(await findRow('bob')).toBeInTheDocument();
