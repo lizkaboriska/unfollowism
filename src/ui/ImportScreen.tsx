@@ -1,8 +1,8 @@
-import { Alert, Box, Button, HStack, IconButton, List, Stack, Text } from '@chakra-ui/react';
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { Box, Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
+import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import { ImportError } from '../core/index.ts';
-import { IMPORT_WARNINGS, analyzeImport, type ImportSelection } from '../io/analyzeImport.ts';
+import { IMPORT_WARNINGS, analyzeImport, type ImportSelection, type ImportWarning } from '../io/analyzeImport.ts';
 import type { LastSavedStore } from '../io/lastSaved.ts';
 import { readInputs, type InputText } from '../io/readInputs.ts';
 import { useAppDispatch, useAppSelector } from '../store/hooks.ts';
@@ -10,49 +10,32 @@ import { selectIsDirty } from '../store/selectors.ts';
 import { IMPORT_STATUSES } from '../store/statuses.ts';
 import { importPrepared } from '../store/thunks.ts';
 
-import { useAlert, useConfirm } from './dialogHooks.ts';
+import { useConfirm } from './dialogHooks.ts';
+import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { importProblemText } from './importProblemText.ts';
-import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from './importText.ts';
+import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
-
-const HELP = (
-  <Stack gap="3">
-    <Text>To get your export from Instagram:</Text>
-    <List.Root as="ol" ps="5">
-      <List.Item>
-        Open Accounts Center → Your information and permissions → <b>Export your information</b> (called Download your
-        information in some versions) → Create export, and choose your Instagram profile.
-      </List.Item>
-      <List.Item>
-        Select only <b>Followers and following</b>.
-      </List.Item>
-      <List.Item>
-        Set the date range to <b>All time</b>: a shorter range leaves people out, and they would look unfollowed.
-      </List.Item>
-      <List.Item>
-        Pick the <b>JSON</b> format (not HTML), then start the export.
-      </List.Item>
-      <List.Item>It's usually ready within minutes to a few hours. Then download the .zip.</List.Item>
-    </List.Root>
-    <Text>
-      Then add that .zip (or the following.json and followers_*.json files from it) and the master file you saved last
-      time, if you have one. They can be in different folders: add them one after another. Nothing leaves your browser.
-    </Text>
-  </Stack>
-);
+import { Warning } from './Warning.tsx';
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
 interface ChosenFile {
   /** Name + size + modified time: choosing the same file again is ignored. */
   id: string;
   name: string;
+  size: number;
+  lastModified: number;
   inputs: InputText[];
   /** Why the file couldn't be read (e.g. a broken zip); it then contributes nothing. */
   readError: string | null;
 }
 
 async function readChosen(file: File): Promise<ChosenFile> {
-  const base = { id: `${file.name}:${file.size}:${file.lastModified}`, name: file.name };
+  const base = {
+    id: `${file.name}:${file.size}:${file.lastModified}`,
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+  };
   try {
     return { ...base, inputs: await readInputs([file]), readError: null };
   } catch (e) {
@@ -77,7 +60,7 @@ export function ImportScreen({
 }) {
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
-  const alert = useAlert();
+  const fileBoxTitleId = useId();
   const dirty = useAppSelector(selectIsDirty);
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const restoreFailed = useAppSelector(s => s.master.restoreFailed);
@@ -87,38 +70,39 @@ export function ImportScreen({
   const [reading, setReading] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  /** The selection whose master warning was answered (Start fresh / Use older file); a new selection asks again. */
+  const [warningDismissedFor, setWarningDismissedFor] = useState<readonly ChosenFile[] | null>(null);
+  /** Set by "Choose newer master": the file the next pick replaces. */
+  const replacing = useRef<string | null>(null);
 
   // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be
   // removed.
   // The last save from this browser is read here too, once per change rather than on every render.
-  const { selection, selectionError, lastKnownSavedAt } = useMemo((): {
+  const { selection, selectionError } = useMemo((): {
     selection: ImportSelection | null;
     selectionError: string | null;
-    lastKnownSavedAt: string | null;
   } => {
     if (!chosen.length) {
-      return { selection: null, selectionError: null, lastKnownSavedAt: null };
+      return { selection: null, selectionError: null };
     }
-    const savedAt = lastSaved.get();
     try {
       return {
         selection: analyzeImport(
           chosen.flatMap(c => c.inputs),
-          savedAt,
+          lastSaved.get(),
         ),
         selectionError: null,
-        lastKnownSavedAt: savedAt,
       };
     } catch (e) {
       return {
         selection: null,
         selectionError: e instanceof ImportError ? importProblemText(e.problem) : errorMessage(e),
-        lastKnownSavedAt: savedAt,
       };
     }
   }, [chosen, lastSaved]);
 
-  async function choose(files: File[]) {
+  /** Adds the files to the selection; `replaceId` (a chosen file) is removed at the same time. */
+  async function choose(files: File[], replaceId: string | null = null) {
     if (!files.length) {
       return;
     }
@@ -127,7 +111,7 @@ export function ImportScreen({
     try {
       const read = await Promise.all(files.map(readChosen));
       setChosen(current => {
-        const next = [...current];
+        const next = current.filter(c => c.id !== replaceId);
         for (const file of read) {
           if (!next.some(c => c.id === file.id)) {
             next.push(file);
@@ -148,7 +132,15 @@ export function ImportScreen({
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     const files = [...(event.target.files ?? [])];
     event.target.value = ''; // allow choosing the same files again
-    void choose(files);
+    const replaceId = replacing.current;
+    replacing.current = null;
+    void choose(files, replaceId);
+  }
+
+  /** Opens the file picker; `replaceId` is the chosen file the picked one replaces. */
+  function pickFiles(replaceId: string | null = null) {
+    replacing.current = replaceId;
+    fileInput.current?.click();
   }
 
   function onDrop(event: DragEvent) {
@@ -161,18 +153,6 @@ export function ImportScreen({
     const prepared = selection?.prepared;
     if (!prepared) {
       return;
-    }
-    const noMaster = prepared.warnings.find(w => w.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE);
-    if (noMaster) {
-      const proceed = await confirm({
-        title: 'Import without your master?',
-        body: noMasterConfirmText(noMaster.lastKnownSavedAt),
-        confirmLabel: 'Import anyway',
-        destructive: true,
-      });
-      if (!proceed) {
-        return;
-      }
     }
     if (dirty) {
       const discard = await confirm({
@@ -196,94 +176,201 @@ export function ImportScreen({
     }
   }
 
-  const missing = selection && missingText(selection.recognized);
+  const { followingCount = null, followerCount = null, master = null } = selection?.recognized ?? {};
+  const missing = selection && missingWarning(selection.recognized);
+  // Exactly one of Following / Followers is there.
+  const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
+  const masterPath = master?.path;
+  // The export's files: everything readable except the file holding the master.
+  const exportFiles = chosen.filter(c => !c.readError && !c.inputs.some(i => i.path === masterPath));
+  const drop = {
+    dragging,
+    onDragOver: (e: DragEvent) => {
+      e.preventDefault();
+      setDragging(true);
+    },
+    // Moving over the text inside also fires dragleave; only leaving the box itself ends the highlight.
+    onDragLeave: (e: DragEvent) => {
+      if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
+        setDragging(false);
+      }
+    },
+    onDrop,
+  };
+  const masterWarning = warningDismissedFor === chosen ? null : (selection?.prepared?.warnings[0] ?? null);
+  const masterFileId = chosen.find(c => c.inputs.some(i => i.path === masterPath))?.id ?? null;
+  const dismissWarning = () => {
+    setWarningDismissedFor(chosen);
+  };
 
   return (
-    <Stack gap="4">
+    <Stack gap="5">
       {restoreFailed && (
-        <Alert.Root status="warning">
-          <Alert.Indicator />
-          <Alert.Title>
-            Your work in this tab from before the reload couldn't be restored. Add your Instagram export and your last
-            saved master to continue.
-          </Alert.Title>
-        </Alert.Root>
+        <Warning title="Your work couldn't be restored">
+          Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your last
+          saved master to continue.
+        </Warning>
       )}
-      <Box
-        borderWidth="2px"
-        borderStyle="dashed"
-        borderColor={dragging ? 'accent' : 'border'}
-        px="4"
-        py="10"
-        textAlign="center"
-        onDragOver={e => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        // Moving over the text inside also fires dragleave; only leaving the zone itself ends the highlight.
-        onDragLeave={e => {
-          if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
-            setDragging(false);
-          }
-        }}
-        onDrop={onDrop}
-      >
-        <Stack gap="3" align="center">
-          <Text fontWeight="medium">Drop your Instagram export here</Text>
-          <Text fontSize="sm" color="fg.muted">
-            The .zip (or its following.json + followers_*.json), plus your saved master if you have one
-          </Text>
-          <HStack>
-            <input
-              ref={fileInput}
-              name="files"
-              type="file"
-              multiple
-              accept=".zip,.json,.html"
-              hidden
-              onChange={onInput}
-              data-testid="file-input"
-            />
-            <Button variant="outline" loading={reading > 0} onClick={() => fileInput.current?.click()}>
-              Choose files
-            </Button>
-            <IconButton
-              variant="ghost"
-              aria-label="How to get your Instagram export"
-              onClick={() => void alert({ title: 'Getting your Instagram export', body: HELP })}
+      {!chosen.length && (
+        <List.Root as="ol" listStyle="none" borderWidth="1px">
+          {[
+            'Download your Instagram data (JSON)',
+            'Choose the .zip here',
+            'Add your saved master file, if you have one',
+          ].map((step, i) => (
+            <List.Item
+              key={step}
+              minH="11"
+              px="3"
+              gap="3"
+              display="flex"
+              alignItems="center"
+              borderTopWidth={i ? '1px' : '0'}
             >
-              ?
-            </IconButton>
-          </HStack>
+              <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5">
+                {i + 1}
+              </Text>
+              {step}
+            </List.Item>
+          ))}
+        </List.Root>
+      )}
+
+      <input
+        ref={fileInput}
+        name="files"
+        type="file"
+        multiple
+        accept=".zip,.json,.html"
+        hidden
+        onChange={onInput}
+        data-testid="file-input"
+      />
+      {selection?.prepared && followingCount !== null && followerCount !== null ? (
+        <ExportReadyBox
+          followingCount={followingCount}
+          followerCount={followerCount}
+          master={master}
+          masterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
+          exportFiles={exportFiles}
+          drop={drop}
+        >
+          {masterWarning && (
+            <MasterWarning
+              warning={masterWarning}
+              onAddMaster={() => {
+                pickFiles(masterFileId);
+              }}
+              onDismiss={dismissWarning}
+            />
+          )}
+        </ExportReadyBox>
+      ) : (
+        <Stack
+          as="section"
+          aria-labelledby={fileBoxTitleId}
+          gap="2"
+          align="center"
+          borderWidth="1px"
+          borderColor={dragging ? 'accent' : 'border'}
+          px="5"
+          pt="6"
+          pb="5"
+          textAlign="center"
+          onDragOver={drop.onDragOver}
+          onDragLeave={drop.onDragLeave}
+          onDrop={drop.onDrop}
+        >
+          <Heading as="h2" id={fileBoxTitleId} textStyle="sheetTitle" color={dragging ? 'accent' : 'ink'}>
+            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'A fresh start for your feed'}
+          </Heading>
+          <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
+          <Button
+            w="full"
+            mt="2"
+            loading={reading > 0}
+            loadingText="Reading files…"
+            onClick={() => {
+              pickFiles();
+            }}
+          >
+            Choose files
+          </Button>
         </Stack>
-      </Box>
+      )}
+      {masterWarning && (
+        <Text color="fg.muted">
+          {masterWarning.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE
+            ? 'Your Instagram data is complete. This warning is only about the master file.'
+            : 'Your Following and Followers data is ready. A master restores your saved work, not Instagram data.'}
+        </Text>
+      )}
+      {missing && <Warning title={missing.title}>{missing.body}</Warning>}
+      {selectionError && (
+        <Warning title="These files can't be used" status="error">
+          {selectionError}
+        </Warning>
+      )}
+      {importError && (
+        <Warning title="Import failed" status="error">
+          {importError}
+        </Warning>
+      )}
 
       {chosen.length > 0 && (
         <Stack gap="1">
-          {chosen.map(c => (
-            <HStack key={c.id} gap="2">
-              <IconButton
-                size="xs"
-                variant="ghost"
-                aria-label={`Remove ${c.name}`}
-                onClick={() => {
-                  remove(c.id);
-                }}
-              >
-                ×
-              </IconButton>
-              <Text truncate>{c.name}</Text>
-              {c.readError && (
-                <Text color="fg.error" fontSize="sm">
-                  {c.readError}
-                </Text>
-              )}
-            </HStack>
-          ))}
-          <Box>
+          <List.Root listStyle="none">
+            {chosen.map(c => (
+              <List.Item key={c.id} display="flex" alignItems="center" gap="2" minH="10">
+                <Stack gap="0" flex="1" minW="0">
+                  <Text truncate>{c.name}</Text>
+                  {c.readError && (
+                    <Text textStyle="small" color="fg.error">
+                      {c.readError}
+                    </Text>
+                  )}
+                </Stack>
+                <Button
+                  variant="plain"
+                  w="10"
+                  h="10"
+                  minW="10"
+                  p="0"
+                  textStyle="name"
+                  aria-label={`Remove ${c.name}`}
+                  onClick={() => {
+                    remove(c.id);
+                  }}
+                >
+                  ×
+                </Button>
+              </List.Item>
+            ))}
+          </List.Root>
+          <HStack gap="2" textStyle="body">
             <Button
-              size="xs"
-              variant="ghost"
+              variant="plain"
+              h="auto"
+              p="0"
+              textDecoration="underline"
+              textUnderlineOffset="3px"
+              loading={reading > 0}
+              loadingText="Reading files…"
+              onClick={() => {
+                pickFiles();
+              }}
+            >
+              Add more files
+            </Button>
+            <Text as="span" color="fg.muted" aria-hidden="true">
+              ·
+            </Text>
+            <Button
+              variant="plain"
+              h="auto"
+              p="0"
+              textDecoration="underline"
+              textUnderlineOffset="3px"
               onClick={() => {
                 setChosen([]);
                 setImportError(null);
@@ -291,50 +378,87 @@ export function ImportScreen({
             >
               Clear all
             </Button>
-          </Box>
+          </HStack>
         </Stack>
       )}
 
-      {reading > 0 && <Text color="fg.muted">Reading files…</Text>}
-      {selection && <Text>{recognizedText(selection.recognized, lastKnownSavedAt)}</Text>}
-      {missing && <Text color="fg.muted">{missing}</Text>}
-
-      {selection?.prepared?.warnings.map(
-        w =>
-          w.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE && (
-            <Alert.Root key={w.kind} status="warning">
-              <Alert.Indicator />
-              <Alert.Title>{olderMasterText(w)}</Alert.Title>
-            </Alert.Root>
-          ),
-      )}
-
-      {(
-        [
-          ['selection', selectionError],
-          ['import', importError],
-        ] as const
-      ).map(
-        ([key, message]) =>
-          message && (
-            <Alert.Root key={key} status="error">
-              <Alert.Indicator />
-              <Alert.Title>{message}</Alert.Title>
-            </Alert.Root>
-          ),
-      )}
-
-      <HStack>
-        <Button disabled={!selection?.prepared || reading > 0} loading={importing} onClick={() => void onImport()}>
+      <Stack gap="2" align="center">
+        <Button
+          w="full"
+          disabled={!selection?.prepared || reading > 0}
+          loading={importing}
+          loadingText="Importing…"
+          onClick={() => void onImport()}
+        >
           Import
         </Button>
         {onCancel && (
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="plain" h="auto" py="2" onClick={onCancel}>
             Cancel
           </Button>
         )}
-      </HStack>
-      {importing && <Text color="fg.muted">Importing… large accounts can take a few seconds.</Text>}
+      </Stack>
+
+      {!chosen.length && (
+        <Box>
+          <Text textStyle="control">You're always in control</Text>
+          <Text color="fg.muted">
+            We only help you make a plan. You make any changes yourself in Instagram. Save downloads your decisions as a
+            small master file.
+          </Text>
+        </Box>
+      )}
+      <Text textStyle="small" color="fg.muted" textAlign="center">
+        No login. No Instagram connection. Just your files.
+      </Text>
     </Stack>
+  );
+}
+
+/**
+ * The master warning inside the ready box, with its two answers. `onAddMaster` opens the file picker (for an older
+ * master, the picked file replaces it); `onDismiss` hides the warning.
+ */
+function MasterWarning({
+  warning,
+  onAddMaster,
+  onDismiss,
+}: {
+  warning: ImportWarning;
+  onAddMaster: () => void;
+  onDismiss: () => void;
+}) {
+  const buttons = (add: string, dismiss: string) => (
+    <>
+      <Button variant="outline" flex="1" onClick={onAddMaster}>
+        {add}
+      </Button>
+      <Button variant="outline" px="3" onClick={onDismiss}>
+        {dismiss}
+      </Button>
+    </>
+  );
+  if (warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE) {
+    return (
+      <Warning title="Have your saved master?" actions={buttons('Add saved master', 'Start fresh')}>
+        {savedMasterMissingText(warning.lastKnownSavedAt)}
+      </Warning>
+    );
+  }
+  const dates = olderMasterDates(warning);
+  return (
+    <Warning title="This master is older" actions={buttons('Choose newer master', 'Use older file')}>
+      <Grid as="dl" templateColumns="auto minmax(0, 1fr)" columnGap="3" rowGap="0.5" my="0.5">
+        <Text as="dt">Selected master</Text>
+        <Text as="dd" color="ink">
+          {dates.selected ?? 'Not dated'}
+        </Text>
+        <Text as="dt">Last saved master</Text>
+        <Text as="dd" color="ink">
+          {dates.lastSaved}
+        </Text>
+      </Grid>
+      {olderMasterText(dates)}
+    </Warning>
   );
 }

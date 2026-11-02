@@ -1,56 +1,87 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '../io/analyzeImport.ts';
 
-import { formatDateTime } from './dates.ts';
+import { formatDate, formatDateTime } from './dates.ts';
 import { plural } from './statusText.ts';
 
-/**
- * One line saying what the chosen files contain, e.g. "Following ✓ · Followers ✓ (1 file) · Master: none — a new one
- * will be started".
- * `lastKnownSavedAt` (last save from this browser) turns a missing master into a hint to add it.
- */
-export function recognizedText(
-  { hasFollowing, followerFileCount, master }: RecognizedFiles,
-  lastKnownSavedAt: string | null,
-): string {
-  const followingPart = `Following ${hasFollowing ? '✓' : '✗'}`;
-  const followersPart = followerFileCount ? `Followers ✓ (${plural(followerFileCount, 'file')})` : 'Followers ✗';
-  const masterPart = master
-    ? `Master: ${master.name}${master.savedAt ? ` (saved ${formatDateTime(master.savedAt)})` : ''}`
-    : lastKnownSavedAt
-      ? `Master: none — add the one you saved on ${formatDateTime(lastKnownSavedAt)}, or a new one will be started`
-      : 'Master: none — a new one will be started';
-  return [followingPart, followersPart, masterPart].join(' · ');
-}
-
-/** What to add when the selection can't be imported yet. Null when nothing is missing. */
-export function missingText({ hasFollowing, followerFileCount }: RecognizedFiles): string | null {
+/** What's missing before the selection can be imported, as a warning. Null when nothing is. */
+export function missingWarning({
+  followingCount,
+  followerFileCount,
+}: RecognizedFiles): { title: string; body: string } | null {
+  const hasFollowing = followingCount !== null;
   if (!hasFollowing && !followerFileCount) {
-    return (
-      'No followers/following files found. Choose the .zip from Instagram (JSON format), ' +
-      'or the following.json and followers_*.json files from it.'
-    );
+    return {
+      title: 'No Instagram files found',
+      body: 'Choose the .zip from Instagram (JSON format), or the following.json and followers_*.json files from it.',
+    };
   }
+  const downloadAgain = 'or download your Instagram data again with both Followers and Following, in JSON format.';
   if (!hasFollowing) {
-    return 'following.json is missing. Add it with Choose files or drop it here.';
+    return {
+      title: 'Followers found. Following is missing.',
+      body: `Add following.json from the same export, ${downloadAgain}`,
+    };
   }
   if (!followerFileCount) {
-    return 'followers_1.json (and any followers_2.json, …) is missing. Add them with Choose files or drop them here.';
+    return {
+      title: 'Following found. Followers are missing.',
+      body: `Add followers_1.json (and any followers_2.json, …) from the same export, ${downloadAgain}`,
+    };
   }
   return null;
 }
 
-/** Shown while choosing files, for a master that has been added. */
-export function olderMasterText(
-  warning: ImportWarning & { kind: typeof IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE },
-): string {
-  const savedOn = formatDateTime(warning.lastKnownSavedAt);
+/** "You downloaded a master on …": the warning when no master is chosen but this browser saved one before. */
+export function savedMasterMissingText(lastKnownSavedAt: string): string {
   return (
-    `The chosen master is older than the one you saved from this browser on ${savedOn}. ` +
-    'Recent review work may be missing from it.'
+    `You downloaded a master on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
+    "Add it to bring back your past decisions. If you start fresh, they won't carry over."
   );
 }
 
-/** Asked on Import, not while choosing: the master may simply not have been added yet. */
-export function noMasterConfirmText(lastKnownSavedAt: string): string {
-  return `You saved one on ${formatDateTime(lastKnownSavedAt)}. Without it your review history starts from scratch.`;
+/**
+ * The two dates the older-master warning compares, as shown. Saved on the same day, they get the time too.
+ * `selected` is null for a master that doesn't say when it was saved.
+ */
+export function olderMasterDates({
+  fileSavedAt,
+  lastKnownSavedAt,
+}: ImportWarning & { kind: typeof IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE }): {
+  selected: string | null;
+  lastSaved: string;
+} {
+  const sameDay = fileSavedAt !== null && formatDate(fileSavedAt) === formatDate(lastKnownSavedAt);
+  const format = sameDay ? formatDateTime : formatDate;
+  return { selected: fileSavedAt && format(fileSavedAt), lastSaved: format(lastKnownSavedAt) };
+}
+
+/** What the older master means, under its two dates. */
+export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
+  const lost = selected
+    ? `Decisions saved after ${selected} won't come back.`
+    : "Some saved decisions won't come back.";
+  return `${lost} Choose your ${lastSaved} master to keep them.`;
+}
+
+/** What the box needs to know about the export's files (everything chosen except the master). */
+export interface ExportFileInfo {
+  name: string;
+  size: number;
+  lastModified: number;
+}
+
+const megabytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 });
+const kilobytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'kilobyte', maximumFractionDigits: 0 });
+
+function fileSize(bytes: number): string {
+  return bytes >= 1_000_000 ? megabytes.format(bytes / 1_000_000) : kilobytes.format(Math.max(1, bytes / 1000));
+}
+
+/** "instagram.zip · 2.4 MB · Oct 29, 2026" for one file, "3 files" for loose files. */
+export function exportFilesText(files: readonly ExportFileInfo[]): string {
+  const [only] = files;
+  if (files.length !== 1 || !only) {
+    return plural(files.length, 'file');
+  }
+  return [only.name, fileSize(only.size), formatDate(new Date(only.lastModified).toISOString())].join(' · ');
 }
