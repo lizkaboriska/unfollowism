@@ -229,7 +229,7 @@ async function fromMenu(user: UserEvent, name: string) {
 test('starts on the import screen', async () => {
   await renderApp();
   expect(screen.getByRole('heading', { name: 'Unfollowism' })).toBeInTheDocument();
-  expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument();
+  expect(screen.getByText('A fresh start for your feed')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Choose files' })).toBeEnabled();
   expect(importButton()).toBeDisabled();
   // nothing to save or change yet: no Save, no ⋯ menu, no navigation
@@ -238,12 +238,34 @@ test('starts on the import screen', async () => {
   expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
 });
 
-test('the ? button explains how to get the export', async () => {
+test('the ? button in the top bar explains how to get the export', async () => {
   const { user } = await renderApp();
-  await user.click(screen.getByRole('button', { name: 'How to get your Instagram export' }));
+  await user.click(
+    within(screen.getByRole('banner')).getByRole('button', { name: 'How to get your Instagram export' }),
+  );
   const dialog = await screen.findByRole('dialog');
   expect(within(dialog).getByText('JSON')).toBeInTheDocument();
   expect(within(dialog).getByText('All time')).toBeInTheDocument();
+});
+
+test('the steps and "You\'re always in control" show until a file is picked', async () => {
+  const { user } = await renderApp();
+  expect(screen.getByText('Choose the .zip here')).toBeInTheDocument();
+  expect(screen.getByText("You're always in control")).toBeInTheDocument();
+  await user.upload(screen.getByTestId('file-input'), [followingJson()]);
+  expect(await screen.findByText(/^Following ✓/)).toBeInTheDocument();
+  expect(screen.queryByText('Choose the .zip here')).not.toBeInTheDocument();
+  expect(screen.queryByText("You're always in control")).not.toBeInTheDocument();
+  expect(screen.getByText('No login. No Instagram connection. Just your files.')).toBeInTheDocument();
+});
+
+test('dragging a file over the file box shows "Drop to add" until it leaves', async () => {
+  await renderApp();
+  const box = screen.getByRole('region', { name: 'A fresh start for your feed' });
+  fireEvent.dragOver(box);
+  expect(within(box).getByRole('heading', { name: 'Drop to add' })).toBeInTheDocument();
+  fireEvent.dragLeave(box);
+  expect(within(box).getByRole('heading', { name: 'A fresh start for your feed' })).toBeInTheDocument();
 });
 
 test('import → review → save works end to end', async () => {
@@ -255,7 +277,7 @@ test('import → review → save works end to end', async () => {
   await user.click(importButton());
 
   expect(await screen.findByText(/Started a new master/)).toBeInTheDocument();
-  expect(screen.queryByText('Drop your Instagram export here')).not.toBeInTheDocument();
+  expect(screen.queryByText('A fresh start for your feed')).not.toBeInTheDocument();
   expect(stat('Following')).toBe('2');
   expect(stat('Mutual')).toBe('1');
   expect(row('alice')).toBeInTheDocument();
@@ -326,7 +348,7 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
   const { user } = await renderApp();
   expect(browserHandlesDrop(importButton())).toBe(false); // next to the zone
 
-  fireEvent.drop(screen.getByText('Drop your Instagram export here'), { dataTransfer: { files: exportFiles() } });
+  fireEvent.drop(screen.getByText('A fresh start for your feed'), { dataTransfer: { files: exportFiles() } });
   expect(await screen.findByText(/^Following ✓ · Followers ✓/)).toBeInTheDocument();
 
   await user.click(importButton());
@@ -419,7 +441,7 @@ test('without a master, a previous save is only a hint while choosing; Import as
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
-  expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument(); // nothing imported
+  expect(screen.getByText('A fresh start for your feed')).toBeInTheDocument(); // nothing imported
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Import anyway' }));
@@ -441,7 +463,7 @@ test('Import new files can be cancelled', async () => {
   await findRow('bob');
   expect(screen.getByRole('button', { name: '● New import not saved' })).toBeInTheDocument();
   await fromMenu(user, 'Import new files');
-  expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument();
+  expect(screen.getByText('A fresh start for your feed')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(row('bob')).toBeInTheDocument();
   await user.click(keepButton('bob'));
@@ -471,7 +493,7 @@ test('importing over unsaved work asks first', async () => {
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
-  expect(screen.getByText('Drop your Instagram export here')).toBeInTheDocument(); // nothing imported
+  expect(screen.getByText('A fresh start for your feed')).toBeInTheDocument(); // nothing imported
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Import anyway' }));
@@ -529,7 +551,7 @@ test('a reload shows Loading your work… instead of flashing the import screen'
   };
   await renderApp({ tab: slowTab, waitForRestore: false });
   expect(screen.getByText('Loading your work…')).toBeInTheDocument();
-  expect(screen.queryByText('Drop your Instagram export here')).not.toBeInTheDocument();
+  expect(screen.queryByText('A fresh start for your feed')).not.toBeInTheDocument();
   release();
   expect(await findRow('bob')).toBeInTheDocument();
 });

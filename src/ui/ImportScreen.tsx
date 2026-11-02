@@ -1,5 +1,5 @@
-import { Alert, Box, Button, HStack, IconButton, List, Stack, Text } from '@chakra-ui/react';
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { Alert, Box, Button, HStack, Heading, IconButton, List, Stack, Text } from '@chakra-ui/react';
+import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import { ImportError } from '../core/index.ts';
 import { IMPORT_WARNINGS, analyzeImport, type ImportSelection } from '../io/analyzeImport.ts';
@@ -10,36 +10,10 @@ import { selectIsDirty } from '../store/selectors.ts';
 import { IMPORT_STATUSES } from '../store/statuses.ts';
 import { importPrepared } from '../store/thunks.ts';
 
-import { useAlert, useConfirm } from './dialogHooks.ts';
+import { useConfirm } from './dialogHooks.ts';
 import { importProblemText } from './importProblemText.ts';
 import { missingText, noMasterConfirmText, olderMasterText, recognizedText } from './importText.ts';
 import { errorMessage } from './statusText.ts';
-
-const HELP = (
-  <Stack gap="3">
-    <Text>To get your export from Instagram:</Text>
-    <List.Root as="ol" ps="5">
-      <List.Item>
-        Open Accounts Center → Your information and permissions → <b>Export your information</b> (called Download your
-        information in some versions) → Create export, and choose your Instagram profile.
-      </List.Item>
-      <List.Item>
-        Select only <b>Followers and following</b>.
-      </List.Item>
-      <List.Item>
-        Set the date range to <b>All time</b>: a shorter range leaves people out, and they would look unfollowed.
-      </List.Item>
-      <List.Item>
-        Pick the <b>JSON</b> format (not HTML), then start the export.
-      </List.Item>
-      <List.Item>It's usually ready within minutes to a few hours. Then download the .zip.</List.Item>
-    </List.Root>
-    <Text>
-      Then add that .zip (or the following.json and followers_*.json files from it) and the master file you saved last
-      time, if you have one. They can be in different folders: add them one after another. Nothing leaves your browser.
-    </Text>
-  </Stack>
-);
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
 interface ChosenFile {
@@ -77,7 +51,7 @@ export function ImportScreen({
 }) {
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
-  const alert = useAlert();
+  const fileBoxTitleId = useId();
   const dirty = useAppSelector(selectIsDirty);
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const restoreFailed = useAppSelector(s => s.master.restoreFailed);
@@ -199,7 +173,7 @@ export function ImportScreen({
   const missing = selection && missingText(selection.recognized);
 
   return (
-    <Stack gap="4">
+    <Stack gap="5">
       {restoreFailed && (
         <Alert.Root status="warning">
           <Alert.Indicator />
@@ -209,18 +183,47 @@ export function ImportScreen({
           </Alert.Title>
         </Alert.Root>
       )}
-      <Box
-        borderWidth="2px"
-        borderStyle="dashed"
+      {!chosen.length && (
+        <List.Root as="ol" listStyle="none" borderWidth="1px">
+          {[
+            'Download your Instagram data (JSON)',
+            'Choose the .zip here',
+            'Add your saved master file, if you have one',
+          ].map((step, i) => (
+            <List.Item
+              key={step}
+              minH="11"
+              px="3"
+              gap="3"
+              display="flex"
+              alignItems="center"
+              borderTopWidth={i ? '1px' : '0'}
+            >
+              <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5">
+                {i + 1}
+              </Text>
+              {step}
+            </List.Item>
+          ))}
+        </List.Root>
+      )}
+
+      <Stack
+        as="section"
+        aria-labelledby={fileBoxTitleId}
+        gap="2"
+        align="center"
+        borderWidth="1px"
         borderColor={dragging ? 'accent' : 'border'}
-        px="4"
-        py="10"
+        px="5"
+        pt="6"
+        pb="5"
         textAlign="center"
         onDragOver={e => {
           e.preventDefault();
           setDragging(true);
         }}
-        // Moving over the text inside also fires dragleave; only leaving the zone itself ends the highlight.
+        // Moving over the text inside also fires dragleave; only leaving the box itself ends the highlight.
         onDragLeave={e => {
           if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
             setDragging(false);
@@ -228,35 +231,30 @@ export function ImportScreen({
         }}
         onDrop={onDrop}
       >
-        <Stack gap="3" align="center">
-          <Text fontWeight="medium">Drop your Instagram export here</Text>
-          <Text fontSize="sm" color="fg.muted">
-            The .zip (or its following.json + followers_*.json), plus your saved master if you have one
-          </Text>
-          <HStack>
-            <input
-              ref={fileInput}
-              name="files"
-              type="file"
-              multiple
-              accept=".zip,.json,.html"
-              hidden
-              onChange={onInput}
-              data-testid="file-input"
-            />
-            <Button variant="outline" loading={reading > 0} onClick={() => fileInput.current?.click()}>
-              Choose files
-            </Button>
-            <IconButton
-              variant="ghost"
-              aria-label="How to get your Instagram export"
-              onClick={() => void alert({ title: 'Getting your Instagram export', body: HELP })}
-            >
-              ?
-            </IconButton>
-          </HStack>
-        </Stack>
-      </Box>
+        <Heading as="h2" id={fileBoxTitleId} textStyle="sheetTitle" color={dragging ? 'accent' : 'ink'}>
+          {dragging ? 'Drop to add' : 'A fresh start for your feed'}
+        </Heading>
+        <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
+        <input
+          ref={fileInput}
+          name="files"
+          type="file"
+          multiple
+          accept=".zip,.json,.html"
+          hidden
+          onChange={onInput}
+          data-testid="file-input"
+        />
+        <Button
+          w="full"
+          mt="2"
+          loading={reading > 0}
+          loadingText="Reading files…"
+          onClick={() => fileInput.current?.click()}
+        >
+          Choose files
+        </Button>
+      </Stack>
 
       {chosen.length > 0 && (
         <Stack gap="1">
@@ -295,7 +293,6 @@ export function ImportScreen({
         </Stack>
       )}
 
-      {reading > 0 && <Text color="fg.muted">Reading files…</Text>}
       {selection && <Text>{recognizedText(selection.recognized, lastKnownSavedAt)}</Text>}
       {missing && <Text color="fg.muted">{missing}</Text>}
 
@@ -335,6 +332,19 @@ export function ImportScreen({
         )}
       </HStack>
       {importing && <Text color="fg.muted">Importing… large accounts can take a few seconds.</Text>}
+
+      {!chosen.length && (
+        <Box>
+          <Text textStyle="control">You're always in control</Text>
+          <Text color="fg.muted">
+            We only help you make a plan. You make any changes yourself in Instagram. Save downloads your decisions as a
+            small master file.
+          </Text>
+        </Box>
+      )}
+      <Text textStyle="small" color="fg.muted" textAlign="center">
+        No login. No Instagram connection. Just your files.
+      </Text>
     </Stack>
   );
 }

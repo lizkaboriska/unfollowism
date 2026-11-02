@@ -9,6 +9,7 @@ import { restoreTab } from './store/thunks.ts';
 import { AppHeader } from './ui/AppHeader.tsx';
 import { AppNav } from './ui/AppNav.tsx';
 import { ChangesPage } from './ui/ChangesPage.tsx';
+import { ImportHero } from './ui/ImportHero.tsx';
 import { ImportScreen } from './ui/ImportScreen.tsx';
 import { ReviewList } from './ui/ReviewList.tsx';
 import { ReviewTop } from './ui/ReviewTop.tsx';
@@ -57,15 +58,15 @@ export function App({ deps }: { deps: StoreDeps }) {
   return (
     <Box minH="100dvh">
       <Toaster />
-      <AppHeader
-        {...(showImport
-          ? {}
-          : {
-              onImportNew: () => {
-                setImportOpen(true);
-              },
-            })}
-      />
+      {showImport ? (
+        <ImportHero />
+      ) : (
+        <AppHeader
+          onImportNew={() => {
+            setImportOpen(true);
+          }}
+        />
+      )}
       {showImport ? (
         <Box maxW="5xl" mx="auto" p="5">
           <ImportScreen
