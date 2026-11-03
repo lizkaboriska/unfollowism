@@ -8,7 +8,7 @@ import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 export function ReviewHeading() {
   const importedAt = useAppSelector(s => s.master.base?.lastImportAt ?? null);
   const since = useAppSelector(selectChangesSince);
-  const compared = since ? `vs ${formatDate(since)} master` : 'no saved master yet';
+  const compared = since ? `vs ${formatDate(since)} progress file` : 'no saved progress file yet';
   return (
     <Box>
       <Heading as="h1" textStyle="title">

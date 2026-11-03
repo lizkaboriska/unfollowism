@@ -26,7 +26,7 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
             Your changes to {plural(unsavedCount, 'account')} {since} will be undone.
           </Text>
           <Text>
-            {neverSaved ? 'Instagram stays as it is.' : 'Your saved master file and Instagram stay as they are.'}
+            {neverSaved ? 'Instagram stays as it is.' : 'Your saved progress file and Instagram stay as they are.'}
           </Text>
         </Stack>
       ),

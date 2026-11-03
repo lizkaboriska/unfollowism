@@ -25,11 +25,7 @@ const imported = (overrides: Partial<ImportSummary> = {}, isNewMaster = false): 
 
 test.each([
   ['nothing yet', null, ''],
-  [
-    'new master',
-    imported({}, true),
-    'Started a new master from 1 follower file. 1 following, 1 followers. Save master to keep it.',
-  ],
+  ['new master', imported({}, true), 'Started fresh from 1 follower file. 1 following, 1 followers. Save to keep it.'],
   [
     'changed export with settled plans',
     imported({

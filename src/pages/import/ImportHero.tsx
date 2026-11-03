@@ -22,7 +22,7 @@ const HELP = (
       <List.Item>It's usually ready within minutes to a few hours. Then download the .zip.</List.Item>
     </List.Root>
     <Text>
-      Then add that .zip (or the following.json and followers_*.json files from it) and the master file you saved last
+      Then add that .zip (or the following.json and followers_*.json files from it) and the progress file you saved last
       time, if you have one. They can be in different folders: add them one after another. Nothing leaves your browser.
     </Text>
   </Stack>

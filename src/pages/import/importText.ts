@@ -30,11 +30,11 @@ export function missingWarning({
   return null;
 }
 
-/** "You downloaded a master on …": the warning when no master is chosen but this browser saved one before. */
+/** "You saved one on …": the warning when no progress file is chosen but this browser saved one before. */
 export function savedMasterMissingText(lastKnownSavedAt: string): string {
   return (
-    `You downloaded a master on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
-    "Add it to bring back your past decisions. If you start fresh, they won't carry over."
+    `You saved one on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
+    "Add it to bring back your tags, notes, and choices. If you start fresh, they won't carry over."
   );
 }
 
@@ -54,12 +54,10 @@ export function olderMasterDates({
   return { selected: fileSavedAt && format(fileSavedAt), lastSaved: format(lastKnownSavedAt) };
 }
 
-/** What the older master means, under its two dates. */
+/** What the older progress file means, under its two dates. */
 export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
-  const lost = selected
-    ? `Decisions saved after ${selected} won't come back.`
-    : "Some saved decisions won't come back.";
-  return `${lost} Choose your ${lastSaved} master to keep them.`;
+  const lost = selected ? `Choices saved after ${selected} won't come back.` : "Some saved choices won't come back.";
+  return `${lost} Choose your ${lastSaved} file to keep them.`;
 }
 
 /** What the box needs to know about the export's files (everything chosen except the master). */

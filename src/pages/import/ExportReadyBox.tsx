@@ -78,11 +78,11 @@ export function ExportReadyBox({
         {master ? (
           <Row
             mark={masterOlder ? '⚠' : '✓'}
-            label="Master file"
+            label="Progress file"
             value={master.savedAt ? `Selected · ${formatDate(master.savedAt)}` : 'Selected'}
           />
         ) : (
-          <Row mark="–" label="Master file" value="Not selected" />
+          <Row mark="–" label="Progress file" value="Not selected" />
         )}
       </List.Root>
       {children && (

@@ -284,13 +284,13 @@ test('import → review → save works end to end', async () => {
   expect(await readyRows()).toEqual([
     '✓Following found2 accounts',
     '✓Followers found2 accounts',
-    '–Master fileNot selected',
+    '–Progress fileNot selected',
   ]);
   expect(screen.getByText('2 files')).toBeInTheDocument(); // loose files, not one .zip
   expect(screen.queryByRole('region', { name: 'A fresh start for your feed' })).not.toBeInTheDocument();
   await user.click(importButton());
 
-  expect(await screen.findByText(/Started a new master/)).toBeInTheDocument();
+  expect(await screen.findByText(/Started fresh/)).toBeInTheDocument();
   expect(screen.queryByText('Your export is ready')).not.toBeInTheDocument();
   expect(stat('Following')).toBe('2');
   expect(stat('Mutual')).toBe('1');
@@ -313,7 +313,7 @@ test('import → review → save works end to end', async () => {
   expect(screen.queryByRole('button', { name: 'All decisions saved' })).not.toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
-  expect(screen.queryByText(/Started a new master/)).not.toBeInTheDocument(); // the import message gives way
+  expect(screen.queryByText(/Started fresh/)).not.toBeInTheDocument(); // the import message gives way
 });
 
 test('a failed save shows a warning that stays until a save works', async () => {
@@ -331,7 +331,7 @@ test('a failed save shows a warning that stays until a save works', async () => 
   await user.click(saveButton());
 
   const warning = await screen.findByRole('alert');
-  expect(within(warning).getByText("⚠ Couldn't save the master file")).toBeInTheDocument();
+  expect(within(warning).getByText("⚠ Couldn't save the progress file")).toBeInTheDocument();
   expect(within(warning).getByText('Try Save again. Error: disk full')).toBeInTheDocument();
   expect(screen.queryByText(SAVED_TOAST)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
@@ -340,7 +340,7 @@ test('a failed save shows a warning that stays until a save works', async () => 
   await user.click(saveButton());
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
   expect(downloads).toHaveLength(1);
-  expect(screen.queryByText("⚠ Couldn't save the master file")).not.toBeInTheDocument();
+  expect(screen.queryByText("⚠ Couldn't save the progress file")).not.toBeInTheDocument();
 });
 
 test('a missing Followers file is shown and Import stays disabled', async () => {
@@ -405,7 +405,7 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
   expect(within(box).getByRole('heading', { name: 'Drop to add' })).toBeInTheDocument();
   fireEvent.drop(box, { dataTransfer: { files: [masterJson('2026-10-01T00:00:00.000Z')] } });
   await waitFor(async () => {
-    expect((await readyRows())[2]).toMatch(/^✓Master fileSelected · /);
+    expect((await readyRows())[2]).toMatch(/^✓Progress fileSelected · /);
   });
 
   await user.click(importButton());
@@ -416,11 +416,11 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
 test('files chosen one after another add up, e.g. a master from another folder', async () => {
   const { user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect((await readyRows())[2]).toBe('–Master fileNot selected');
+  expect((await readyRows())[2]).toBe('–Progress fileNot selected');
 
   await user.upload(screen.getByTestId('file-input'), [masterJson('2026-10-01T00:00:00.000Z')]);
   await waitFor(async () => {
-    expect((await readyRows())[2]).toMatch(/^✓Master fileSelected · .*2026$/);
+    expect((await readyRows())[2]).toMatch(/^✓Progress fileSelected · .*2026$/);
   });
   expect(screen.getByText('2 files')).toBeInTheDocument(); // the master isn't counted as part of the export
   expect(screen.getByText('following.json')).toBeInTheDocument();
@@ -465,13 +465,13 @@ test('a conflict keeps the list so the extra file can be removed', async () => {
     masterJson('2026-10-01T00:00:00.000Z', 'old.json'),
   ]);
   await user.upload(screen.getByTestId('file-input'), [masterJson('2026-10-20T00:00:00.000Z', 'new.json')]);
-  expect(await screen.findByText(/Found 2 master files/)).toBeInTheDocument();
+  expect(await screen.findByText(/Found 2 progress files/)).toBeInTheDocument();
   expect(importButton()).toBeDisabled();
 
   await user.click(screen.getByRole('button', { name: 'Remove old.json' }));
-  expect((await readyRows())[2]).toMatch(/^✓Master fileSelected · /);
+  expect((await readyRows())[2]).toMatch(/^✓Progress fileSelected · /);
   expect(screen.getByText('new.json')).toBeInTheDocument();
-  expect(screen.queryByText(/Found 2 master files/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Found 2 progress files/)).not.toBeInTheDocument();
   expect(importButton()).toBeEnabled();
 });
 
@@ -496,19 +496,19 @@ const savedBefore = () => {
 test('without a master after a previous save, a warning asks for it; Start fresh hides it; no popup', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect((await readyRows())[2]).toBe('–Master fileNot selected');
+  expect((await readyRows())[2]).toBe('–Progress fileNot selected');
   const warning = within(await findReadyBox()).getByRole('alert');
-  expect(warning).toHaveTextContent('⚠ Have your saved master?');
-  expect(warning).toHaveTextContent('You downloaded a master on Oct 20, 2026, but none is selected.');
-  expect(screen.getByText(/A master restores your saved work, not Instagram data/)).toBeInTheDocument();
+  expect(warning).toHaveTextContent('⚠ Have your progress file?');
+  expect(warning).toHaveTextContent('You saved one on Oct 20, 2026, but none is selected.');
+  expect(screen.getByText(/A progress file restores your saved work, not Instagram data/)).toBeInTheDocument();
 
   const opened = vi.spyOn(screen.getByTestId('file-input'), 'click');
-  await user.click(within(warning).getByRole('button', { name: 'Add saved master' }));
+  await user.click(within(warning).getByRole('button', { name: 'Add progress file' }));
   expect(opened).toHaveBeenCalledOnce();
 
   await user.click(within(warning).getByRole('button', { name: 'Start fresh' }));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  expect(screen.queryByText(/A master restores your saved work/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/A progress file restores your saved work/)).not.toBeInTheDocument();
 
   await user.click(importButton());
   expect(await findRow('bob')).toBeInTheDocument(); // no "Import without your master?" popup
@@ -521,7 +521,7 @@ test('Import works while the saved-master warning shows; a changed selection sho
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Remove followers_1.json' }));
   await user.upload(screen.getByTestId('file-input'), [followersJson()]);
-  expect(await screen.findByText('⚠ Have your saved master?')).toBeInTheDocument();
+  expect(await screen.findByText('⚠ Have your progress file?')).toBeInTheDocument();
 
   await user.click(importButton());
   expect(await findRow('bob')).toBeInTheDocument();
@@ -530,17 +530,17 @@ test('Import works while the saved-master warning shows; a changed selection sho
 test('an older master is warned about with both dates; Use older file hides it', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), [...exportFiles(), masterJson('2026-10-01T12:00:00.000Z')]);
-  expect((await readyRows())[2]).toBe('⚠Master fileSelected · Oct 1, 2026');
+  expect((await readyRows())[2]).toBe('⚠Progress fileSelected · Oct 1, 2026');
   const warning = within(await findReadyBox()).getByRole('alert');
-  expect(warning).toHaveTextContent('⚠ This master is older');
-  expect(warning).toHaveTextContent('Selected masterOct 1, 2026Last saved masterOct 20, 2026');
-  expect(warning).toHaveTextContent("Decisions saved after Oct 1, 2026 won't come back. Choose your Oct 20, 2026");
-  expect(screen.getByText(/This warning is only about the master file/)).toBeInTheDocument();
+  expect(warning).toHaveTextContent('⚠ This progress file is older');
+  expect(warning).toHaveTextContent('Selected fileOct 1, 2026Last savedOct 20, 2026');
+  expect(warning).toHaveTextContent("Choices saved after Oct 1, 2026 won't come back. Choose your Oct 20, 2026");
+  expect(screen.getByText(/This warning is only about the progress file/)).toBeInTheDocument();
   expect(importButton()).toBeEnabled();
 
   await user.click(within(warning).getByRole('button', { name: 'Use older file' }));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  expect((await readyRows())[2]).toBe('✓Master fileSelected · Oct 1, 2026');
+  expect((await readyRows())[2]).toBe('✓Progress fileSelected · Oct 1, 2026');
 });
 
 test('Choose newer master swaps the older master for the picked one', async () => {
@@ -551,11 +551,11 @@ test('Choose newer master swaps the older master for the picked one', async () =
   ]);
   const input = screen.getByTestId('file-input');
   vi.spyOn(input, 'click').mockImplementation(() => undefined); // the picker itself is the browser's
-  await user.click(within(await findReadyBox()).getByRole('button', { name: 'Choose newer master' }));
+  await user.click(within(await findReadyBox()).getByRole('button', { name: 'Choose newer file' }));
   await user.upload(input, [masterJson('2026-10-20T12:00:00.000Z', 'new.json')]);
 
   await waitFor(async () => {
-    expect((await readyRows())[2]).toBe('✓Master fileSelected · Oct 20, 2026');
+    expect((await readyRows())[2]).toBe('✓Progress fileSelected · Oct 20, 2026');
   });
   expect(screen.queryByText('old.json')).not.toBeInTheDocument();
   expect(screen.getByText('new.json')).toBeInTheDocument();
@@ -566,7 +566,7 @@ test('masters saved on the same day show the time too', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), [...exportFiles(), masterJson('2026-10-20T09:00:00.000Z')]);
   const warning = within(await findReadyBox()).getByRole('alert');
-  expect(warning).toHaveTextContent(/Selected masterOct 20, 2026, \d+:\d+.*Last saved masterOct 20, 2026, \d+:\d+/);
+  expect(warning).toHaveTextContent(/Selected fileOct 20, 2026, \d+:\d+.*Last savedOct 20, 2026, \d+:\d+/);
 });
 
 test('Import new files can be cancelled', async () => {
@@ -737,7 +737,7 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
   expect(
     within(afterSave).getByText('Your changes to 1 account since your last save will be undone.'),
   ).toBeInTheDocument();
-  expect(within(afterSave).getByText('Your saved master file and Instagram stay as they are.')).toBeInTheDocument();
+  expect(within(afterSave).getByText('Your saved progress file and Instagram stay as they are.')).toBeInTheDocument();
 });
 
 describe('main view', () => {
@@ -793,7 +793,7 @@ describe('main view', () => {
   test('Review top: heading, your numbers, and the links switch the list', async () => {
     const { user } = await imported();
     expect(screen.getByRole('heading', { level: 1, name: 'Review' })).toBeInTheDocument();
-    expect(screen.getByText(/^Imported .+ · no saved master yet$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Imported .+ · no saved progress file yet$/)).toBeInTheDocument();
     expect([stat('Following'), stat('Followers'), stat('Mutual')]).toEqual(['2', '2', '1']);
 
     await user.click(screen.getByRole('button', { name: '1 not following back' }));

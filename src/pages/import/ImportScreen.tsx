@@ -163,8 +163,8 @@ export function ImportScreen({
       const discard = await confirm({
         title: 'Discard unsaved changes?',
         body:
-          "Your changes since the last save aren't in a downloaded master yet. Importing replaces them. " +
-          'To keep them, cancel and Save master first.',
+          "Your changes since the last save aren't in a downloaded progress file yet. Importing replaces them. " +
+          'To keep them, cancel and Save first.',
         confirmLabel: 'Import anyway',
         destructive: true,
       });
@@ -213,7 +213,7 @@ export function ImportScreen({
       {restoreFailed && (
         <Warning title="Your work couldn't be restored">
           Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your last
-          saved master to continue.
+          saved progress file to continue.
         </Warning>
       )}
       {!chosen.length && (
@@ -221,7 +221,7 @@ export function ImportScreen({
           {[
             'Download your Instagram data (JSON)',
             'Choose the .zip here',
-            'Add your saved master file, if you have one',
+            'Add your saved progress file, if you have one',
           ].map((step, i) => (
             <List.Item
               key={step}
@@ -306,8 +306,9 @@ export function ImportScreen({
       {masterWarning && (
         <Text color="fg.muted">
           {masterWarning.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE
-            ? 'Your Instagram data is complete. This warning is only about the master file.'
-            : 'Your Following and Followers data is ready. A master restores your saved work, not Instagram data.'}
+            ? 'Your Instagram data is complete. This warning is only about the progress file.'
+            : 'Your Following and Followers data is ready. ' +
+              'A progress file restores your saved work, not Instagram data.'}
         </Text>
       )}
       {missing && <Warning title={missing.title}>{missing.body}</Warning>}
@@ -409,7 +410,7 @@ export function ImportScreen({
           <Text textStyle="control">You're always in control</Text>
           <Text color="fg.muted">
             We only help you make a plan. You make any changes yourself in Instagram. Save downloads your decisions as a
-            small master file.
+            small progress file.
           </Text>
         </Box>
       )}
@@ -445,20 +446,20 @@ function MasterWarning({
   );
   if (warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE) {
     return (
-      <Warning title="Have your saved master?" actions={buttons('Add saved master', 'Start fresh')}>
+      <Warning title="Have your progress file?" actions={buttons('Add progress file', 'Start fresh')}>
         {savedMasterMissingText(warning.lastKnownSavedAt)}
       </Warning>
     );
   }
   const dates = olderMasterDates(warning);
   return (
-    <Warning title="This master is older" actions={buttons('Choose newer master', 'Use older file')}>
+    <Warning title="This progress file is older" actions={buttons('Choose newer file', 'Use older file')}>
       <Grid as="dl" templateColumns="auto minmax(0, 1fr)" columnGap="3" rowGap="0.5" my="0.5">
-        <Text as="dt">Selected master</Text>
+        <Text as="dt">Selected file</Text>
         <Text as="dd" color="ink">
           {dates.selected ?? 'Not dated'}
         </Text>
-        <Text as="dt">Last saved master</Text>
+        <Text as="dt">Last saved</Text>
         <Text as="dd" color="ink">
           {dates.lastSaved}
         </Text>

@@ -56,7 +56,7 @@ function importText(isNewMaster: boolean, followerFileCount: number, summary: Im
   const details = `${changesText(summary.changes)}${plansText(summary.plans)}`;
 
   if (isNewMaster) {
-    return `Started a new master from ${files}. ${counts} Save master to keep it.`;
+    return `Started fresh from ${files}. ${counts} Save to keep it.`;
   }
   if (summary.exportChanged) {
     return `New export loaded from ${files} — not saved yet. ${counts} ${details}`;
