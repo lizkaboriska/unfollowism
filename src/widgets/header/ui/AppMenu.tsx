@@ -1,8 +1,8 @@
 import { Button, Menu, Portal } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { ManageTagsPopup } from '@/features/manage-tags/ManageTagsPopup.tsx';
-import { useResetChanges } from '@/features/save-reset/useResetChanges.tsx';
+import { ManageTagsPopup } from '@/features/manage-tags';
+import { useResetChanges } from '@/features/save-reset';
 
 const ROW = { h: '12', px: '3.5', textStyle: 'control' } as const;
 

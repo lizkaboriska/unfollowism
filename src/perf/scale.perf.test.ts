@@ -27,8 +27,8 @@ import {
 } from '@/entities/master/model/selectors.ts';
 import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { selectListKeys } from '@/features/filters';
 import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
-import { selectListKeys } from '@/features/filters/model/listSlice.ts';
 import { selectScopeTotals, selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 

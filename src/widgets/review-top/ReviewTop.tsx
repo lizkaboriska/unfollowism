@@ -2,9 +2,8 @@ import { Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
 import { REVIEW_SCOPES } from '@/entities/master/lib/index.ts';
-import { FilterPopup } from '@/features/filters/ui/FilterPopup.tsx';
-import { ListControls } from '@/features/filters/ui/ListControls.tsx';
-import { ManageTagsPopup } from '@/features/manage-tags/ManageTagsPopup.tsx';
+import { FilterPopup, ListControls } from '@/features/filters';
+import { ManageTagsPopup } from '@/features/manage-tags';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { ReviewHeading } from './ReviewHeading.tsx';

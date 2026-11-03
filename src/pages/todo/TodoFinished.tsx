@@ -2,7 +2,7 @@ import { Box, Button, Heading, Stack, Text } from '@chakra-ui/react';
 import { useId } from 'react';
 
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
-import { setView } from '@/features/filters/model/filtersSlice.ts';
+import { setView } from '@/features/filters';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 /**

@@ -5,9 +5,9 @@ import { PLAN_STATES, totalOf } from '@/entities/master/lib/index.ts';
 import { selectPlanStats } from '@/entities/master/model/selectors.ts';
 import { PLAN_VIEW_ACTIONS, type PlanView } from '@/entities/master/model/views.ts';
 import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
-import { selectListKeys } from '@/features/filters/model/listSlice.ts';
+import { selectListKeys } from '@/features/filters';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
-import { AccountList, type ListItems } from '@/widgets/account-list/AccountList.tsx';
+import { AccountList, type ListItems } from '@/widgets/account-list';
 
 import { TodoFinished } from './TodoFinished.tsx';
 import { TodoRow } from './TodoRow.tsx';

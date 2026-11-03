@@ -6,18 +6,16 @@ import { addressChanged } from '@/app/url/urlSync.ts';
 import { selectHasProject } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS, isPlanView } from '@/entities/master/model/views.ts';
-import { ChangesPage } from '@/pages/changes/ChangesPage.tsx';
-import { ImportHero } from '@/pages/import/ImportHero.tsx';
-import { ImportScreen } from '@/pages/import/ImportScreen.tsx';
-import { ReviewList } from '@/pages/review/ReviewList.tsx';
-import { TodoPage } from '@/pages/todo/TodoPage.tsx';
+import { ChangesPage } from '@/pages/changes';
+import { ImportHero, ImportScreen } from '@/pages/import';
+import { ReviewList } from '@/pages/review';
+import { TodoPage } from '@/pages/todo';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { Toaster } from '@/shared/ui/Toaster.tsx';
-import { AppHeader } from '@/widgets/header/ui/AppHeader.tsx';
-import { AppNav } from '@/widgets/nav/AppNav.tsx';
-import { ReviewTop } from '@/widgets/review-top/ReviewTop.tsx';
-import { StatusLine } from '@/widgets/status/StatusLine.tsx';
-import { StorageWarning } from '@/widgets/status/StorageWarning.tsx';
+import { AppHeader } from '@/widgets/header';
+import { AppNav } from '@/widgets/nav';
+import { ReviewTop } from '@/widgets/review-top';
+import { StatusLine, StorageWarning } from '@/widgets/status';
 
 export function App({ deps }: { deps: StoreDeps }) {
   const dispatch = useAppDispatch();

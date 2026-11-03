@@ -2,11 +2,10 @@ import { Text } from '@chakra-ui/react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { ReviewCard } from '@/entities/master/ui/ReviewCard.tsx';
-import { AccountPopup } from '@/features/account-popup/AccountPopup.tsx';
-import { selectListKeys } from '@/features/filters/model/listSlice.ts';
-import { NoResults } from '@/features/filters/ui/NoResults.tsx';
+import { AccountPopup } from '@/features/account-popup';
+import { selectListKeys, NoResults } from '@/features/filters';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
-import { AccountList, type ListItems } from '@/widgets/account-list/AccountList.tsx';
+import { AccountList, type ListItems } from '@/widgets/account-list';
 
 /** Rough height of a Review card before measuring. */
 const ESTIMATED_REVIEW_CARD_HEIGHT = 140;

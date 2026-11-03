@@ -5,7 +5,7 @@ import type { AppDispatch, RootState } from '@/app/store/store.ts';
 import { selectTodoStartView } from '@/entities/master/model/selectors.ts';
 import { restoreTab } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
-import { setView, showUrlFilters } from '@/features/filters/model/filtersSlice.ts';
+import { setView, showUrlFilters } from '@/features/filters';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 
 import { filtersFromUrl, filtersToUrl } from './urlState.ts';

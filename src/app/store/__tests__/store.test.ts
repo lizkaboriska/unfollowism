@@ -43,6 +43,7 @@ import {
 import { STATUS_EVENTS } from '@/entities/master/model/statuses.ts';
 import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
 import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { selectListKeys } from '@/features/filters';
 import {
   applyFilters,
   clearFilters,
@@ -52,7 +53,6 @@ import {
   setTagFilter,
   setView,
 } from '@/features/filters/model/filtersSlice.ts';
-import { selectListKeys } from '@/features/filters/model/listSlice.ts';
 import {
   selectVisibleAccountKeys,
   selectMatchingCount,

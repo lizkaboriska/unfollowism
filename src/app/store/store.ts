@@ -8,9 +8,7 @@ import {
 
 import { startUrlSync } from '@/app/url/urlSync.ts';
 import { masterSlice } from '@/entities/master/model/masterSlice.ts';
-import { filtersSlice } from '@/features/filters/model/filtersSlice.ts';
-import { listSlice, startListRefresh } from '@/features/filters/model/listSlice.ts';
-import { startTagFilterCleanup } from '@/features/filters/model/tagFilterCleanup.ts';
+import { filtersSlice, listSlice, startListRefresh, startTagFilterCleanup } from '@/features/filters';
 
 import type { StoreDeps } from './deps.ts';
 import { startPersistence } from './persistence.ts';
