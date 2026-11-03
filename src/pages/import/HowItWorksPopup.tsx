@@ -1,0 +1,174 @@
+import { Button, Dialog, HStack, List, Portal, Stack, Text } from '@chakra-ui/react';
+import type { ReactNode } from 'react';
+
+import { HowItWorksView } from './howItWorksView.ts';
+
+/** Instagram's page for requesting a copy of your data (Accounts Center → Download your information). */
+const EXPORT_URL = 'https://accountscenter.instagram.com/info_and_permissions/dyi/';
+
+const LINK = { variant: 'plain', h: 'auto', p: '0', textDecoration: 'underline', textUnderlineOffset: '3px' } as const;
+
+function Step({ number, children }: { number: number; children: ReactNode }) {
+  return (
+    <List.Item display="flex" gap="3">
+      <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5" flexShrink="0">
+        {number}
+      </Text>
+      <Stack gap="0" flex="1">
+        {children}
+      </Stack>
+    </List.Item>
+  );
+}
+
+function Strong({ children }: { children: ReactNode }) {
+  return (
+    <Text as="b" fontWeight="500">
+      {children}
+    </Text>
+  );
+}
+
+function Steps({ onHow }: { onHow: () => void }) {
+  return (
+    <List.Root as="ol" listStyle="none" gap="3">
+      <Step number={1}>
+        <HStack justify="space-between" gap="3">
+          <Text fontWeight="500">Get your data from Instagram</Text>
+          <Button {...LINK} onClick={onHow}>
+            How?
+          </Button>
+        </HStack>
+      </Step>
+      <Step number={2}>
+        <Text fontWeight="500">Add the .zip here</Text>
+        <Text color="fg.muted">As it is, no need to unzip.</Text>
+      </Step>
+      <Step number={3}>
+        <Text fontWeight="500">Decide who stays</Text>
+        <Text color="fg.muted">
+          Review accounts and choose who to unfollow. You'll get a to-do list to follow in Instagram.
+        </Text>
+      </Step>
+      <Step number={4}>
+        <Text fontWeight="500">Save your progress</Text>
+        <Text color="fg.muted">
+          Keep your tags, notes, and choices. Next time, add your progress file with fresh Instagram data to see who
+          unfollowed you.
+        </Text>
+      </Step>
+    </List.Root>
+  );
+}
+
+function ExportSteps() {
+  return (
+    <Stack gap="3">
+      <Button asChild variant="outline" h="11">
+        <a href={EXPORT_URL} target="_blank" rel="noreferrer">
+          Open Accounts Center <span aria-hidden="true">↗</span>
+        </a>
+      </Button>
+      <Text color="fg.muted">
+        Or in Instagram: Settings → Accounts Center → Your information and permissions → Download your information
+      </Text>
+      <List.Root as="ol" listStyle="none" gap="3" pt="3" borderTopWidth="1px">
+        <Step number={1}>
+          <Text>
+            Tap <Strong>Download or transfer information</Strong>, then pick your Instagram profile.
+          </Text>
+        </Step>
+        <Step number={2}>
+          <Text>
+            Choose <Strong>Some of your information</Strong>, then only <Strong>Followers and following</Strong>.
+          </Text>
+        </Step>
+        <Step number={3}>
+          <Text>
+            Choose <Strong>Download to device</Strong>.
+          </Text>
+          <Text>
+            Date range: <Strong>All time</Strong>
+          </Text>
+          <Text>
+            Format: <Strong>JSON</Strong>
+          </Text>
+          <Text>
+            Tap <Strong>Create files</Strong>.
+          </Text>
+        </Step>
+        <Step number={4}>
+          <Text>
+            Instagram emails you when it's ready, usually within minutes to a few hours. Download the .zip from the
+            email or <Strong>Available downloads</Strong>, and come back.
+          </Text>
+        </Step>
+      </List.Root>
+    </Stack>
+  );
+}
+
+/** How the app works in four steps, and how to get the Instagram data. `view` null = closed. */
+export function HowItWorksPopup({
+  view,
+  onView,
+  onClose,
+}: {
+  view: HowItWorksView | null;
+  onView: (view: HowItWorksView) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog.Root
+      open={view !== null}
+      onOpenChange={e => {
+        if (!e.open) {
+          onClose();
+        }
+      }}
+      placement="center"
+      scrollBehavior="inside"
+      lazyMount
+      unmountOnExit
+    >
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content mx="4">
+            <Dialog.Header flexDirection="column" alignItems="flex-start" gap="3">
+              {view === HowItWorksView.EXPORT && (
+                <Button
+                  {...LINK}
+                  onClick={() => {
+                    onView(HowItWorksView.STEPS);
+                  }}
+                >
+                  <span aria-hidden="true">← </span>How it works
+                </Button>
+              )}
+              <Dialog.Title textStyle="heading">
+                {view === HowItWorksView.EXPORT ? 'Get your Instagram data' : 'How it works'}
+              </Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body>
+              {view === HowItWorksView.EXPORT ? (
+                <ExportSteps />
+              ) : (
+                <Steps
+                  onHow={() => {
+                    onView(HowItWorksView.EXPORT);
+                  }}
+                />
+              )}
+            </Dialog.Body>
+            <Dialog.Footer flexDirection="column" alignItems="stretch">
+              <Button h="11" onClick={onClose}>
+                Got it
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
+  );
+}

@@ -1,4 +1,4 @@
-import { Box, Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
+import { Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import {
@@ -216,30 +216,6 @@ export function ImportScreen({
           saved progress file to continue.
         </Warning>
       )}
-      {!chosen.length && (
-        <List.Root as="ol" listStyle="none" borderWidth="1px">
-          {[
-            'Download your Instagram data (JSON)',
-            'Choose the .zip here',
-            'Add your saved progress file, if you have one',
-          ].map((step, i) => (
-            <List.Item
-              key={step}
-              minH="11"
-              px="3"
-              gap="3"
-              display="flex"
-              alignItems="center"
-              borderTopWidth={i ? '1px' : '0'}
-            >
-              <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5">
-                {i + 1}
-              </Text>
-              {step}
-            </List.Item>
-          ))}
-        </List.Root>
-      )}
 
       <input
         ref={fileInput}
@@ -287,9 +263,13 @@ export function ImportScreen({
           onDrop={drop.onDrop}
         >
           <Heading as="h2" id={fileBoxTitleId} textStyle="heading" color={dragging ? 'accent' : 'ink'}>
-            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'A fresh start for your feed'}
+            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'Have your .zip?'}
           </Heading>
-          <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
+          <Text color="fg.muted">
+            {oneMissing
+              ? 'Choose your Instagram .zip, or drop it here.'
+              : 'Choose your Instagram .zip, or drop it here. Returning? Add your saved progress file too.'}
+          </Text>
           <Button
             w="full"
             mt="2"
@@ -302,14 +282,6 @@ export function ImportScreen({
             Choose files
           </Button>
         </Stack>
-      )}
-      {masterWarning && (
-        <Text color="fg.muted">
-          {masterWarning.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE
-            ? 'Your Instagram data is complete. This warning is only about the progress file.'
-            : 'Your Following and Followers data is ready. ' +
-              'A progress file restores your saved work, not Instagram data.'}
-        </Text>
       )}
       {missing && <Warning title={missing.title}>{missing.body}</Warning>}
       {selectionError && (
@@ -404,19 +376,6 @@ export function ImportScreen({
           </Button>
         )}
       </Stack>
-
-      {!chosen.length && (
-        <Box>
-          <Text textStyle="control">You're always in control</Text>
-          <Text color="fg.muted">
-            We only help you make a plan. You make any changes yourself in Instagram. Save downloads your decisions as a
-            small progress file.
-          </Text>
-        </Box>
-      )}
-      <Text textStyle="small" color="fg.muted" textAlign="center">
-        No login. No Instagram connection. Just your files.
-      </Text>
     </Stack>
   );
 }
