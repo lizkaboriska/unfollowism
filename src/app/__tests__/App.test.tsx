@@ -266,6 +266,7 @@ test('How it works opens the steps; How? shows how to get the data; ← How it w
   );
   expect(within(exportSteps).getByText('All time')).toBeInTheDocument();
   expect(within(exportSteps).getByText('JSON')).toBeInTheDocument();
+  expect(within(exportSteps).getByText('Start export')).toBeInTheDocument();
 
   await user.click(within(exportSteps).getByRole('button', { name: 'How it works' }));
   expect(await screen.findByRole('dialog', { name: 'How it works' })).toBeInTheDocument();

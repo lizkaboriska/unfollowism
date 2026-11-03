@@ -70,37 +70,46 @@ function ExportSteps() {
         </a>
       </Button>
       <Text color="fg.muted">
-        Or in Instagram: Settings → Accounts Center → Your information and permissions → Download your information
+        Or in Instagram: Settings → Accounts Center → Your information and permissions → Export your information
       </Text>
       <List.Root as="ol" listStyle="none" gap="3" pt="3" borderTopWidth="1px">
         <Step number={1}>
           <Text>
-            Tap <Strong>Download or transfer information</Strong>, then pick your Instagram profile.
+            Tap <Strong>Create export</Strong>, then pick your Instagram profile.
           </Text>
         </Step>
         <Step number={2}>
           <Text>
-            Choose <Strong>Some of your information</Strong>, then only <Strong>Followers and following</Strong>.
+            Choose <Strong>Export to device</Strong>.
           </Text>
         </Step>
         <Step number={3}>
+          <Text>Change these three:</Text>
           <Text>
-            Choose <Strong>Download to device</Strong>.
+            Customize information: <Strong>only Followers and following</Strong>
           </Text>
           <Text>
-            Date range: <Strong>All time</Strong>
+            Date range: <Strong>All time</Strong>{' '}
+            <Text as="span" color="fg.muted">
+              (not Last year)
+            </Text>
           </Text>
           <Text>
-            Format: <Strong>JSON</Strong>
-          </Text>
-          <Text>
-            Tap <Strong>Create files</Strong>.
+            Format: <Strong>JSON</Strong>{' '}
+            <Text as="span" color="fg.muted">
+              (not HTML)
+            </Text>
           </Text>
         </Step>
         <Step number={4}>
           <Text>
-            Instagram emails you when it's ready, usually within minutes to a few hours. Download the .zip from the
-            email or <Strong>Available downloads</Strong>, and come back.
+            Tap <Strong>Start export</Strong>.
+          </Text>
+        </Step>
+        <Step number={5}>
+          <Text>
+            Instagram emails you when it's ready, usually within minutes to a few hours. Download the .zip within four
+            days, and come back.
           </Text>
         </Step>
       </List.Root>
