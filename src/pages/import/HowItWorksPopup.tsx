@@ -29,6 +29,15 @@ function Strong({ children }: { children: ReactNode }) {
   );
 }
 
+/** A setting the user must change from Instagram's default: blue and semibold, so it's easy to find again. */
+function MustChange({ children }: { children: ReactNode }) {
+  return (
+    <Text as="b" fontWeight="600" color="accent">
+      {children}
+    </Text>
+  );
+}
+
 function Steps({ onHow }: { onHow: () => void }) {
   return (
     <List.Root as="ol" listStyle="none" gap="3">
@@ -86,16 +95,16 @@ function ExportSteps() {
         <Step number={3}>
           <Text>Change these three:</Text>
           <Text>
-            Customize information: <Strong>only Followers and following</Strong>
+            Customize information: <MustChange>only Followers and following</MustChange>
           </Text>
           <Text>
-            Date range: <Strong>All time</Strong>{' '}
+            Date range: <MustChange>All time</MustChange>{' '}
             <Text as="span" color="fg.muted">
               (not Last year)
             </Text>
           </Text>
           <Text>
-            Format: <Strong>JSON</Strong>{' '}
+            Format: <MustChange>JSON</MustChange>{' '}
             <Text as="span" color="fg.muted">
               (not HTML)
             </Text>
