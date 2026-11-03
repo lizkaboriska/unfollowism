@@ -2,14 +2,18 @@ import { Box, Button, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useId, useState } from 'react';
 
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
+import type { HowItWorksSeen } from './howItWorksSeen.ts';
 import { HowItWorksView } from './howItWorksView.ts';
 
 /**
  * The top of the Welcome and Import screen, the same in every state: app name, slogan, what the app does, the privacy
  * promise, and the How it works button (the four steps and how to get the Instagram data, in a popup).
+ * On a first visit (`firstVisit`: no work loaded) the popup opens by itself, until this browser has closed it once.
  */
-export function ImportHero() {
-  const [view, setView] = useState<HowItWorksView | null>(null);
+export function ImportHero({ seen, firstVisit }: { seen: HowItWorksSeen; firstVisit: boolean }) {
+  const [view, setView] = useState<HowItWorksView | null>(() =>
+    firstVisit && !seen.get() ? HowItWorksView.STEPS : null,
+  );
   const privacyTitleId = useId();
   return (
     <Box>
@@ -52,6 +56,7 @@ export function ImportHero() {
         onView={setView}
         onClose={() => {
           setView(null);
+          seen.set();
         }}
       />
     </Box>

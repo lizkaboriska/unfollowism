@@ -5,7 +5,7 @@ import type { StoreDeps } from '@/app/store/deps.ts';
 import { addressChanged } from '@/app/url/urlSync.ts';
 import { selectHasProject, restoreTab, LIST_VIEWS, isPlanView } from '@/entities/master';
 import { ChangesPage } from '@/pages/changes';
-import { ImportHero, ImportScreen } from '@/pages/import';
+import { ImportHero, ImportScreen, type HowItWorksSeen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
 import { TodoPage } from '@/pages/todo';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
@@ -15,7 +15,7 @@ import { AppNav } from '@/widgets/nav';
 import { ReviewTop } from '@/widgets/review-top';
 import { StatusLine, StorageWarning } from '@/widgets/status';
 
-export function App({ deps }: { deps: StoreDeps }) {
+export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen: HowItWorksSeen }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
   const view = useAppSelector(s => s.filters.view);
@@ -70,7 +70,7 @@ export function App({ deps }: { deps: StoreDeps }) {
     <Box minH="100dvh">
       <Toaster />
       {showImport ? (
-        <ImportHero />
+        <ImportHero seen={howItWorksSeen} firstVisit={!hasProject} />
       ) : (
         <AppHeader
           onImportNew={() => {

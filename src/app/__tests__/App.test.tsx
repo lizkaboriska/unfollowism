@@ -11,6 +11,7 @@ import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
+import { memoryHowItWorksSeen } from '@/pages/import/howItWorksSeen.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
@@ -26,6 +27,8 @@ afterEach(() => {
 async function renderApp({
   tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1'),
   lastSaved = memoryLastSaved(),
+  /** Seen by default, so the How it works popup doesn't cover the screen in every test. */
+  howItWorksSeen = memoryHowItWorksSeen(true),
   waitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
   /** Called before each download; throw to make the save fail. */
@@ -47,7 +50,7 @@ async function renderApp({
     <ChakraProvider value={system}>
       <Provider store={store}>
         <DialogProvider>
-          <App deps={deps} />
+          <App deps={deps} howItWorksSeen={howItWorksSeen} />
         </DialogProvider>
       </Provider>
     </ChakraProvider>,
@@ -283,6 +286,35 @@ test('the top part (privacy promise, How it works) stays after a file is picked'
   expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Private by design' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'How it works' })).toBeInTheDocument();
+});
+
+test('How it works opens by itself on the first visit, and not again once closed', async () => {
+  const seen = memoryHowItWorksSeen();
+  const first = await renderApp({ howItWorksSeen: seen });
+  const dialog = await screen.findByRole('dialog', { name: 'How it works' });
+  await first.user.click(within(dialog).getByRole('button', { name: 'Got it' }));
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  expect(seen.get()).toBe(true);
+  first.unmount();
+
+  await renderApp({ howItWorksSeen: seen });
+  expect(screen.getByRole('heading', { name: 'Have your .zip?' })).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('How it works never opens by itself with work loaded: after a reload or from the menu', async () => {
+  const first = await renderApp();
+  await importFiles(first.user, exportFiles());
+  await findRow('bob');
+  first.unmount();
+
+  const { user } = await renderApp({ tab: first.tab, howItWorksSeen: memoryHowItWorksSeen() });
+  expect(await findRow('bob')).toBeInTheDocument();
+  await fromMenu(user, 'Import new files');
+  expect(await screen.findByRole('heading', { name: 'Have your .zip?' })).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 test('dragging a file over the file box shows "Drop to add" until it leaves', async () => {
