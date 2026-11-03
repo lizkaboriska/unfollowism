@@ -1,5 +1,5 @@
+import { createMemoryTabDatabase, type TabStore } from '@/entities/master';
 import { memoryLastSaved, type LastSavedStore } from '@/entities/master/api/lastSaved.ts';
-import { createMemoryTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { analyzeImport, type PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
 import type { ValueOf } from '@/shared/lib/valueOf.ts';

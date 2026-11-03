@@ -1,8 +1,7 @@
 import { Button, Input } from '@chakra-ui/react';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 
-import { findTag } from '@/entities/master/lib/index.ts';
-import { toggleTag } from '@/entities/master/model/masterSlice.ts';
+import { findTag, toggleTag } from '@/entities/master';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 import { OWN_ESCAPE } from './ownEscape.ts';

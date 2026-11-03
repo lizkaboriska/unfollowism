@@ -1,39 +1,33 @@
+import { planStats } from '../actions.ts';
+import { followExists, planOf, decisionMatches } from '../decision.ts';
+import { FIELD_TYPES, IMPORT_PROBLEMS, type FieldType } from '../importProblems.ts';
+import { parseMaster, stringifyMasterFile, toMasterFile } from '../masterFile.ts';
+import { importExport, type ExportBundle } from '../merge.ts';
+import { parseFollowersJson, parseFollowingJson } from '../parse.ts';
+import { createReview } from '../review.ts';
+import {
+  followChangeCounts,
+  followChangeMatches,
+  relationshipOf,
+  relationshipStats,
+  reviewScopeAccounts,
+  scopeMatches,
+  tagMatches,
+} from '../scopes.ts';
+import { buildSessionDiff } from '../sessionDiff.ts';
 import {
   ACTION_TYPES,
   DecisionFilter,
   DecisionKind,
-  FIELD_TYPES,
   FOLLOW_CHANGES,
-  IMPORT_PROBLEMS,
   PLAN_STATES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
-  buildSessionDiff,
-  createReview,
-  followChangeCounts,
-  followChangeMatches,
-  followExists,
-  importExport,
-  planOf,
-  planStats,
-  parseFollowersJson,
-  parseFollowingJson,
-  parseMaster,
-  relationshipOf,
-  relationshipStats,
-  reviewScopeAccounts,
-  decisionMatches,
-  scopeMatches,
-  stringifyMasterFile,
-  tagMatches,
-  toMasterFile,
-  type ExportBundle,
   type Decision,
-  type FieldType,
   type Master,
   type Plans,
-} from '../index.ts';
+} from '../types.ts';
 
 import { deepFreeze, followersFile, followingFile, must, problemOf } from './helpers.ts';
 

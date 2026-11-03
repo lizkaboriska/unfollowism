@@ -1,5 +1,5 @@
 import { IMPORT_WARNINGS, analyzeImport } from '../analyzeImport.ts';
-import { IMPORT_PROBLEMS } from '../index.ts';
+import { IMPORT_PROBLEMS } from '../importProblems.ts';
 
 import { followersFile, followingFile, must, problemOf } from './helpers.ts';
 

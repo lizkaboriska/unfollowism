@@ -1,6 +1,6 @@
 import { Box, Button, HStack, Heading, Text } from '@chakra-ui/react';
 
-import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
+import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { clearFilters, setQuery } from '../model/filtersSlice.ts';

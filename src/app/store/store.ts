@@ -7,7 +7,7 @@ import {
 } from '@reduxjs/toolkit';
 
 import { startUrlSync } from '@/app/url/urlSync.ts';
-import { masterSlice } from '@/entities/master/model/masterSlice.ts';
+import { masterSlice } from '@/entities/master';
 import { filtersSlice, listSlice, startListRefresh, startTagFilterCleanup } from '@/features/filters';
 
 import type { StoreDeps } from './deps.ts';

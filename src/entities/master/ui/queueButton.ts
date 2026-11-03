@@ -1,13 +1,12 @@
+import { followExists, planOf } from '../lib/decision.ts';
 import {
   ACTION_TYPES,
   REVIEW_SCOPES,
-  followExists,
-  planOf,
   type ActionType,
   type PlanState,
   type ReadonlyAccount,
   type ReviewScope,
-} from '../lib/index.ts';
+} from '../lib/types.ts';
 
 /** Lists about the people who follow you: there, a card offers removing the follower. */
 const FOLLOWER_SCOPES: readonly ReviewScope[] = [REVIEW_SCOPES.FOLLOWERS, REVIEW_SCOPES.FOLLOWS_YOU_ONLY];

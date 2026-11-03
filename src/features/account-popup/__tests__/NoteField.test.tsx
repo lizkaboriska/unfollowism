@@ -4,9 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 
 import { makeTestStore, prepared } from '@/app/store/__tests__/testStore.ts';
-import { resetChanges } from '@/entities/master/model/masterSlice.ts';
-import { selectAccount } from '@/entities/master/model/selectors.ts';
-import { importPrepared } from '@/entities/master/model/thunks.ts';
+import { resetChanges, selectAccount, importPrepared } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { system } from '@/shared/ui/theme.ts';
 

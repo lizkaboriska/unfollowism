@@ -1,7 +1,6 @@
 import { Alert, Text } from '@chakra-ui/react';
 
-import { STATUS_EVENTS } from '@/entities/master/model/statuses.ts';
-import { statusText } from '@/entities/master/ui/statusText.ts';
+import { STATUS_EVENTS, statusText } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** What last happened: the import message, or a warning box that stays while the last save failed. */

@@ -1,30 +1,18 @@
 // Review rules: scopes, decisions, plans and session changes.
+import { planStats, settleDecisions } from '../actions.ts';
+import { decisionMatches, isKept, keep, undecide, planOf, setPlan } from '../decision.ts';
+import { dedupeAccounts, parseFollowersJson } from '../parse.ts';
+import { relationshipStats, reviewScopeAccounts, scopeMatches } from '../scopes.ts';
+import { SESSION_CHANGES, TagChangeKind, buildSessionDiff, groupSessionChanges } from '../sessionDiff.ts';
 import {
   ACTION_TYPES,
   DecisionFilter,
   DecisionKind,
   PLAN_STATES,
   REVIEW_SCOPES,
-  SESSION_CHANGES,
   TAG_FILTER_KINDS,
-  TagChangeKind,
-  buildSessionDiff,
-  groupSessionChanges,
-  decisionMatches,
-  dedupeAccounts,
-  isKept,
-  keep,
-  undecide,
-  planOf,
-  planStats,
-  parseFollowersJson,
-  relationshipStats,
-  reviewScopeAccounts,
-  scopeMatches,
-  setPlan,
-  settleDecisions,
   type Account,
-} from '../index.ts';
+} from '../types.ts';
 
 import { account, follows, must, stateWith } from './helpers.ts';
 

@@ -4,8 +4,9 @@ import {
   TAG_FILTER_KINDS,
   type ReviewScope,
   type TagFilter,
-} from '@/entities/master/lib/index.ts';
-import { LIST_VIEWS, type ListView } from '@/entities/master/model/views.ts';
+  LIST_VIEWS,
+  type ListView,
+} from '@/entities/master';
 import { NO_FILTERS, type FiltersState } from '@/features/filters';
 
 // The page lives in the path; Review's list and filters in the search params, only on Review's path.

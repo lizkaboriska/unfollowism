@@ -2,8 +2,7 @@ import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
-import { selectTagCounts } from '@/entities/master/model/selectors.ts';
+import { TAG_FILTER_KINDS, selectTagCounts } from '@/entities/master';
 
 import { setTagFilter } from './filtersSlice.ts';
 

@@ -1,4 +1,4 @@
-import { FIELD_TYPES, IMPORT_PROBLEMS, type ImportProblem } from '@/entities/master/lib/index.ts';
+import { FIELD_TYPES, IMPORT_PROBLEMS, type ImportProblem } from '@/entities/master';
 
 import { importProblemText } from '../importProblemText.ts';
 

@@ -1,24 +1,12 @@
-import {
-  ACTION_TYPES,
-  DecisionKind,
-  FIELD_TYPES,
-  FOLLOW_CHANGES,
-  IMPORT_PROBLEMS,
-  PLAN_STATES,
-  createAccount,
-  followChangeMatches,
-  importExport,
-  mergeRenamed,
-  parseFollowersJson,
-  parseFollowingJson,
-  parseMaster,
-  planOf,
-  stringifyMasterFile,
-  toMasterFile,
-  type ExportBundle,
-  type ImportResult,
-  type Master,
-} from '../index.ts';
+import { createAccount } from '../account.ts';
+import { planOf } from '../decision.ts';
+import { FIELD_TYPES, IMPORT_PROBLEMS } from '../importProblems.ts';
+import { parseMaster, stringifyMasterFile, toMasterFile } from '../masterFile.ts';
+import { importExport, type ExportBundle, type ImportResult } from '../merge.ts';
+import { parseFollowersJson, parseFollowingJson } from '../parse.ts';
+import { mergeRenamed } from '../renames.ts';
+import { followChangeMatches } from '../scopes.ts';
+import { ACTION_TYPES, DecisionKind, FOLLOW_CHANGES, PLAN_STATES, type Master } from '../types.ts';
 
 import { followersFile, followingFile, must, problemOf } from './helpers.ts';
 

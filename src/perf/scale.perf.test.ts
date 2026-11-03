@@ -3,30 +3,28 @@
 // Prints a timing table; the limits below are the agreed targets.
 
 import { makeStore } from '@/app/store/store.ts';
-import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
-import { createMemoryTabDatabase } from '@/entities/master/api/tabStore.ts';
-import { must } from '@/entities/master/lib/__tests__/helpers.ts';
-import { analyzeImport } from '@/entities/master/lib/analyzeImport.ts';
 import {
-  ACTION_TYPES,
-  DecisionKind,
-  PLAN_STATES,
-  TagChangeKind,
-  groupSessionChanges,
-  importExport,
-  stringifyMasterFile,
-  toMasterFile,
-} from '@/entities/master/lib/index.ts';
-import { renameTag, setNote, setPlan } from '@/entities/master/model/masterSlice.ts';
-import {
+  createMemoryTabDatabase,
+  analyzeImport,
+  renameTag,
+  setNote,
+  setPlan,
   selectAccount,
   selectPlanStats,
   selectRelationshipStats,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
-} from '@/entities/master/model/selectors.ts';
-import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
-import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+  importPrepared,
+  restoreTab,
+  saveMaster,
+  LIST_VIEWS,
+} from '@/entities/master';
+import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
+import { must } from '@/entities/master/lib/__tests__/helpers.ts';
+import { stringifyMasterFile, toMasterFile } from '@/entities/master/lib/masterFile.ts';
+import { importExport } from '@/entities/master/lib/merge.ts';
+import { TagChangeKind, groupSessionChanges } from '@/entities/master/lib/sessionDiff.ts';
+import { ACTION_TYPES, DecisionKind, PLAN_STATES } from '@/entities/master/lib/types.ts';
 import { selectListKeys } from '@/features/filters';
 import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
 import { selectScopeTotals, selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';

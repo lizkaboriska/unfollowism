@@ -1,7 +1,9 @@
 import { isRecord } from '@/shared/lib/checks.ts';
 import type { InputText } from '@/shared/lib/readInputs.ts';
 
-import { IMPORT_PROBLEMS, ImportError, parseFollowersJson, parseFollowingJson, type ExportBundle } from './index.ts';
+import { IMPORT_PROBLEMS, ImportError } from './importProblems.ts';
+import type { ExportBundle } from './merge.ts';
+import { parseFollowersJson, parseFollowingJson } from './parse.ts';
 
 export const IMPORT_WARNINGS = {
   MASTER_OLDER_THAN_LAST_SAVE: 'masterOlderThanLastSave',

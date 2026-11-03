@@ -8,9 +8,8 @@ import {
   type ActionType,
   type FollowChange,
   type ReadonlyAccount,
-} from '@/entities/master/lib/index.ts';
-import { selectAccount } from '@/entities/master/model/selectors.ts';
-import { COMPLETED_PLAN_BADGES, planText } from '@/entities/master/ui/labels.ts';
+} from '@/entities/master';
+import { selectAccount, COMPLETED_PLAN_BADGES, planText } from '@/entities/master';
 import { RenameSuggestion } from '@/features/rename-suggestion';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 

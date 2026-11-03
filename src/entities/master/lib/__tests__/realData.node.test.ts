@@ -5,18 +5,12 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  ACTION_TYPES,
-  importExport,
-  isPastAccount,
-  parseFollowersJson,
-  parseFollowingJson,
-  parseMaster,
-  planOf,
-  stringifyMasterFile,
-  toMasterFile,
-  usernameKey,
-} from '../index.ts';
+import { isPastAccount, planOf } from '../decision.ts';
+import { parseMaster, stringifyMasterFile, toMasterFile } from '../masterFile.ts';
+import { importExport } from '../merge.ts';
+import { parseFollowersJson, parseFollowingJson } from '../parse.ts';
+import { ACTION_TYPES } from '../types.ts';
+import { usernameKey } from '../util.ts';
 
 import { must } from './helpers.ts';
 

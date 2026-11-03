@@ -1,7 +1,7 @@
 import { Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { REVIEW_SCOPES } from '@/entities/master/lib/index.ts';
+import { REVIEW_SCOPES } from '@/entities/master';
 import { FilterPopup, ListControls } from '@/features/filters';
 import { ManageTagsPopup } from '@/features/manage-tags';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';

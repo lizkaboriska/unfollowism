@@ -6,23 +6,13 @@ import { createDict } from '@/shared/lib/createDict.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
 
 import type { StoredTab } from '../api/tabStore.ts';
+import type { ChangedAccounts } from '../lib/account.ts';
 import type { PreparedImport } from '../lib/analyzeImport.ts';
-import {
-  ImportError,
-  currentMaster,
-  fromAccountRecord,
-  importExport,
-  parseImportFacts,
-  parseMaster,
-  serializeMaster,
-  type ImportFacts,
-  type Account,
-  type ChangedAccounts,
-  type ImportProblem,
-  type ImportResult,
-  type Master,
-} from '../lib/index.ts';
+import { ImportError, type ImportProblem } from '../lib/importProblems.ts';
+import { currentMaster, fromAccountRecord, parseImportFacts, parseMaster, serializeMaster } from '../lib/masterFile.ts';
 import { masterFileName } from '../lib/masterFileName.ts';
+import { importExport, type ImportResult } from '../lib/merge.ts';
+import type { ImportFacts, Account, Master } from '../lib/types.ts';
 
 import { SAVE_STATUSES } from './statuses.ts';
 

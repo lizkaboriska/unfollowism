@@ -1,4 +1,6 @@
-import { ACTION_TYPES, FOLLOW_CHANGES, emptyActionCounts, type ImportSummary } from '../../lib/index.ts';
+import { emptyActionCounts } from '../../lib/actions.ts';
+import type { ImportSummary } from '../../lib/merge.ts';
+import { ACTION_TYPES, FOLLOW_CHANGES } from '../../lib/types.ts';
 import { STATUS_EVENTS, type StatusEvent } from '../../model/statuses.ts';
 import { errorMessage, statusText } from '../statusText.ts';
 

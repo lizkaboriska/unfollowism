@@ -1,16 +1,18 @@
 import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
-import type { TabMeta } from '@/entities/master/api/tabStore.ts';
 import {
+  persistenceFailed,
+  persistenceRecovered,
+  restoreTab,
   toAccountRecord,
   toMasterFile,
   type AccountRecord,
   type ChangedAccounts,
   type ImportFacts,
   type Master,
-} from '@/entities/master/lib/index.ts';
-import { persistenceFailed, persistenceRecovered, type MasterState } from '@/entities/master/model/masterSlice.ts';
-import { restoreTab } from '@/entities/master/model/thunks.ts';
+  type MasterState,
+  type TabMeta,
+} from '@/entities/master';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 

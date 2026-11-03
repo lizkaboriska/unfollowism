@@ -2,9 +2,7 @@ import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { selectTodoStartView } from '@/entities/master/model/selectors.ts';
-import { restoreTab } from '@/entities/master/model/thunks.ts';
-import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+import { selectTodoStartView, restoreTab, LIST_VIEWS } from '@/entities/master';
 import { setView, showUrlFilters } from '@/features/filters';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 

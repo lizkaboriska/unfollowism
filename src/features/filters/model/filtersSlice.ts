@@ -6,9 +6,10 @@ import {
   TAG_FILTER_KINDS,
   type ReviewScope,
   type TagFilter,
-} from '@/entities/master/lib/index.ts';
-import { renameTag } from '@/entities/master/model/masterSlice.ts';
-import { LIST_VIEWS, type ListView } from '@/entities/master/model/views.ts';
+  LIST_VIEWS,
+  type ListView,
+} from '@/entities/master';
+import { renameTag } from '@/entities/master';
 
 export interface FiltersState {
   scope: ReviewScope;

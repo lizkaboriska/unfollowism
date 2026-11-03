@@ -1,6 +1,6 @@
 import { Box, Heading, Text } from '@chakra-ui/react';
 
-import { selectChangesSince } from '@/entities/master/model/selectors.ts';
+import { selectChangesSince } from '@/entities/master';
 import { formatDate } from '@/shared/lib/dates.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 

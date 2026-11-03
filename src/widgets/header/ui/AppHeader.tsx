@@ -1,8 +1,7 @@
 import { Box, Button, HStack, Heading, Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
-import { plural } from '@/entities/master/ui/statusText.ts';
+import { selectIsDirty, selectUnsavedAccountCount, plural } from '@/entities/master';
 import { AccountPopup } from '@/features/account-popup';
 import { SaveButton } from '@/features/save-reset';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';

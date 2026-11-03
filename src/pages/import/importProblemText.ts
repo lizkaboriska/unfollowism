@@ -1,4 +1,4 @@
-import { FIELD_TYPES, IMPORT_PROBLEMS, type FieldType, type ImportProblem } from '@/entities/master/lib/index.ts';
+import { FIELD_TYPES, IMPORT_PROBLEMS, type FieldType, type ImportProblem } from '@/entities/master';
 
 const EXPECTED: Record<Exclude<FieldType, typeof FIELD_TYPES.ONE_OF>, string> = {
   [FIELD_TYPES.OBJECT]: 'an object',

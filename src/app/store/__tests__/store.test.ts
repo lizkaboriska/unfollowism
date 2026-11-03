@@ -1,20 +1,35 @@
-import { createMemoryTabDatabase, type TabStore } from '@/entities/master/api/tabStore.ts';
+import { createMemoryTabDatabase, type TabStore } from '@/entities/master';
+import {
+  selectAccount,
+  selectIsDirty,
+  selectFollowChangeCounts,
+  selectPlanStats,
+  selectTagCounts,
+  selectTags,
+  selectUnsavedDiff,
+  selectUnsavedAccountCount,
+  selectChangeSections,
+  selectTodoStartView,
+  STATUS_EVENTS,
+  importPrepared,
+  restoreTab,
+  saveMaster,
+  LIST_VIEWS,
+} from '@/entities/master';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
+import { isKept, planOf } from '@/entities/master/lib/decision.ts';
+import { IMPORT_PROBLEMS } from '@/entities/master/lib/importProblems.ts';
+import { parseMaster, toMasterFile } from '@/entities/master/lib/masterFile.ts';
+import { SESSION_CHANGES } from '@/entities/master/lib/sessionDiff.ts';
 import {
   ACTION_TYPES,
   FOLLOW_CHANGES,
-  IMPORT_PROBLEMS,
   PLAN_STATES,
   REVIEW_SCOPES,
-  SESSION_CHANGES,
   DecisionFilter,
   DecisionKind,
   TAG_FILTER_KINDS,
-  isKept,
-  parseMaster,
-  planOf,
-  toMasterFile,
-} from '@/entities/master/lib/index.ts';
+} from '@/entities/master/lib/types.ts';
 import {
   confirmRename,
   deleteTag,
@@ -28,21 +43,6 @@ import {
   setUnavailable,
   toggleTag,
 } from '@/entities/master/model/masterSlice.ts';
-import {
-  selectAccount,
-  selectIsDirty,
-  selectFollowChangeCounts,
-  selectPlanStats,
-  selectTagCounts,
-  selectTags,
-  selectUnsavedDiff,
-  selectUnsavedAccountCount,
-  selectChangeSections,
-  selectTodoStartView,
-} from '@/entities/master/model/selectors.ts';
-import { STATUS_EVENTS } from '@/entities/master/model/statuses.ts';
-import { importPrepared, restoreTab, saveMaster } from '@/entities/master/model/thunks.ts';
-import { LIST_VIEWS } from '@/entities/master/model/views.ts';
 import { selectListKeys } from '@/features/filters';
 import {
   applyFilters,

@@ -1,7 +1,7 @@
 import { Text } from '@chakra-ui/react';
 import { useCallback, useMemo, useState } from 'react';
 
-import { ReviewCard } from '@/entities/master/ui/ReviewCard.tsx';
+import { ReviewCard } from '@/entities/master';
 import { AccountPopup } from '@/features/account-popup';
 import { selectListKeys, NoResults } from '@/features/filters';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';

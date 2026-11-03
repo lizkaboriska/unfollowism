@@ -12,9 +12,16 @@ import {
   tagMatches,
   type ReadonlyAccount,
   type ReviewScope,
-} from '@/entities/master/lib/index.ts';
-import { sameKeys, selectBaseAccounts, selectChanged, selectSortedKeys } from '@/entities/master/model/selectors.ts';
-import { LIST_VIEWS, PLAN_VIEW_ACTIONS, isPlanView } from '@/entities/master/model/views.ts';
+} from '@/entities/master';
+import {
+  sameKeys,
+  selectBaseAccounts,
+  selectChanged,
+  selectSortedKeys,
+  LIST_VIEWS,
+  PLAN_VIEW_ACTIONS,
+  isPlanView,
+} from '@/entities/master';
 
 import { type FiltersState } from './filtersSlice.ts';
 

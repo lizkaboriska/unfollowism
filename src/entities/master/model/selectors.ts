@@ -4,28 +4,20 @@ import type { RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
+import { accountOf, type ChangedAccounts } from '../lib/account.ts';
+import { countPlans, planStats, type PlanStats } from '../lib/actions.ts';
+import { sameAccountData } from '../lib/masterFile.ts';
+import { followChangeMatches, relationshipStats, type FollowChangeCounts } from '../lib/scopes.ts';
+import { buildSessionDiff } from '../lib/sessionDiff.ts';
+import { countTags, tagCounts, tagsInUse, type TagCounts } from '../lib/tags.ts';
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
-  accountOf,
-  buildSessionDiff,
-  countPlans,
-  countTags,
-  followChangeMatches,
-  planStats,
-  tagCounts,
-  tagsInUse,
-  relationshipStats,
-  sameAccountData,
   type Account,
-  type ChangedAccounts,
   type FollowChange,
-  type FollowChangeCounts,
-  type PlanStats,
   type ReadonlyAccount,
   type ReadonlyAccounts,
-  type TagCounts,
-} from '../lib/index.ts';
+} from '../lib/types.ts';
 
 import { UNSAVED_IMPORT } from './masterSlice.ts';
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from './views.ts';

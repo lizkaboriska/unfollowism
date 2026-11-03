@@ -1,10 +1,8 @@
 import { Box, Heading, Progress, Stack, Text } from '@chakra-ui/react';
 import { useMemo, useState } from 'react';
 
-import { PLAN_STATES, totalOf } from '@/entities/master/lib/index.ts';
-import { selectPlanStats } from '@/entities/master/model/selectors.ts';
-import { PLAN_VIEW_ACTIONS, type PlanView } from '@/entities/master/model/views.ts';
-import { TODO_LABELS } from '@/entities/master/ui/labels.ts';
+import { PLAN_STATES, totalOf, selectPlanStats, TODO_LABELS } from '@/entities/master';
+import { PLAN_VIEW_ACTIONS, type PlanView } from '@/entities/master';
 import { selectListKeys } from '@/features/filters';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { AccountList, type ListItems } from '@/widgets/account-list';

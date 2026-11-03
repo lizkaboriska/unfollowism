@@ -1,16 +1,19 @@
 import { flushPersistence, makeTestStore, prepared } from '@/app/store/__tests__/testStore.ts';
 import type { AppStore } from '@/app/store/store.ts';
-import type { TabStore } from '@/entities/master/api/tabStore.ts';
+import type { TabStore } from '@/entities/master';
 import {
   ACTION_TYPES,
   DecisionFilter,
   PLAN_STATES,
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
-} from '@/entities/master/lib/index.ts';
-import { renameTag, setPlan, toggleTag } from '@/entities/master/model/masterSlice.ts';
-import { importPrepared, restoreTab } from '@/entities/master/model/thunks.ts';
-import { LIST_VIEWS } from '@/entities/master/model/views.ts';
+  renameTag,
+  setPlan,
+  toggleTag,
+  importPrepared,
+  restoreTab,
+  LIST_VIEWS,
+} from '@/entities/master';
 import { setQuery, setScope, setView } from '@/features/filters/model/filtersSlice.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 

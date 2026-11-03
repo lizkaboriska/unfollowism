@@ -1,4 +1,4 @@
-import { findTag, removeTagFrom, renameTagOn, tagCounts, tagsInUse } from '../index.ts';
+import { findTag, removeTagFrom, renameTagOn, tagCounts, tagsInUse } from '../tags.ts';
 
 import { account, stateWith } from './helpers.ts';
 

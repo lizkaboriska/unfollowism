@@ -8,9 +8,8 @@ import {
   type Decision,
   type SessionAccountChanges,
   type TagChangeRow,
-} from '@/entities/master/lib/index.ts';
-import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master/model/selectors.ts';
-import { plural } from '@/entities/master/ui/statusText.ts';
+} from '@/entities/master';
+import { selectIsDirty, selectUnsavedAccountCount, plural } from '@/entities/master';
 import { ResetButton, SaveButton } from '@/features/save-reset';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';

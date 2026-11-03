@@ -1,6 +1,5 @@
 import { makeTestStore, prepared } from '@/app/store/__tests__/testStore.ts';
-import { selectIsDirty } from '@/entities/master/model/selectors.ts';
-import { importPrepared, saveMaster } from '@/entities/master/model/thunks.ts';
+import { selectIsDirty, importPrepared, saveMaster } from '@/entities/master';
 
 import { guardUnload } from '../unloadGuard.ts';
 

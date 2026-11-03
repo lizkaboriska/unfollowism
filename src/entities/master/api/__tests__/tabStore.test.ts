@@ -1,7 +1,7 @@
 import { IDBDatabase, IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 
 import { must } from '../../lib/__tests__/helpers.ts';
-import { DecisionKind } from '../../lib/index.ts';
+import { DecisionKind } from '../../lib/types.ts';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabWrites } from '../tabStore.ts';
 
 import { BASE, META, NOTHING, edited } from './tabFixtures.ts';

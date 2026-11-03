@@ -1,11 +1,8 @@
 import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
 import { memo, type ReactNode } from 'react';
 
-import { PLAN_STATES, planOf, profileUrl, type ActionType, type PlanState } from '@/entities/master/lib/index.ts';
-import { keepInstead, setPlan } from '@/entities/master/model/masterSlice.ts';
-import { selectAccount } from '@/entities/master/model/selectors.ts';
-import { openProfilePopup } from '@/entities/master/ui/instagramLink.ts';
-import { relationshipNote } from '@/entities/master/ui/labels.ts';
+import { PLAN_STATES, planOf, profileUrl, type ActionType, type PlanState } from '@/entities/master';
+import { keepInstead, setPlan, selectAccount, openProfilePopup, relationshipNote } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** An underlined text button: "Keep instead", "Undo". */

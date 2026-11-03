@@ -2,7 +2,7 @@ import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { confirmRename, resetChanges } from '@/entities/master/model/masterSlice.ts';
+import { confirmRename, resetChanges } from '@/entities/master';
 
 import { selectVisibleAccountKeys } from './selectors.ts';
 

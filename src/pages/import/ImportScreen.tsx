@@ -1,18 +1,18 @@
 import { Box, Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
-import type { LastSavedStore } from '@/entities/master/api/lastSaved.ts';
 import {
+  IMPORT_STATUSES,
   IMPORT_WARNINGS,
+  ImportError,
   analyzeImport,
+  errorMessage,
+  importPrepared,
+  selectIsDirty,
   type ImportSelection,
   type ImportWarning,
-} from '@/entities/master/lib/analyzeImport.ts';
-import { ImportError } from '@/entities/master/lib/index.ts';
-import { selectIsDirty } from '@/entities/master/model/selectors.ts';
-import { IMPORT_STATUSES } from '@/entities/master/model/statuses.ts';
-import { importPrepared } from '@/entities/master/model/thunks.ts';
-import { errorMessage } from '@/entities/master/ui/statusText.ts';
+  type LastSavedStore,
+} from '@/entities/master';
 import { readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';

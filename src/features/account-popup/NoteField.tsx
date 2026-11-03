@@ -2,7 +2,7 @@ import { Input, Textarea } from '@chakra-ui/react';
 import { useState, type ChangeEvent } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
-import { setNote } from '@/entities/master/model/masterSlice.ts';
+import { setNote } from '@/entities/master';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 
 // Fields of the account popup (Review and Changes).

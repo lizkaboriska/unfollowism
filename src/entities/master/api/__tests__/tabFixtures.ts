@@ -1,4 +1,4 @@
-import type { MasterFile } from '../../lib/index.ts';
+import type { MasterFile } from '../../lib/masterFile.ts';
 import type { TabMeta, TabWrites } from '../tabStore.ts';
 
 export const META: TabMeta = {

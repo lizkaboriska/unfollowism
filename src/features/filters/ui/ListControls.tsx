@@ -2,9 +2,14 @@ import { Button, CloseButton, HStack, Input, InputGroup, Stack, Text } from '@ch
 import { useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
-import { DecisionFilter, TAG_FILTER_KINDS } from '@/entities/master/lib/index.ts';
-import { DECISION_FILTER_LABELS, SCOPE_LABELS, tagFilterLabel } from '@/entities/master/ui/labels.ts';
-import { plural } from '@/entities/master/ui/statusText.ts';
+import {
+  DecisionFilter,
+  TAG_FILTER_KINDS,
+  DECISION_FILTER_LABELS,
+  SCOPE_LABELS,
+  tagFilterLabel,
+  plural,
+} from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../model/filtersSlice.ts';

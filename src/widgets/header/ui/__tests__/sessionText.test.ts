@@ -1,13 +1,10 @@
 import {
-  DecisionKind,
-  PLAN_STATES,
   SESSION_CHANGES,
   TagChangeKind,
-  type Decision,
-  type Plans,
   type SessionChange,
   type TagChangeRow,
-} from '@/entities/master/lib/index.ts';
+} from '@/entities/master/lib/sessionDiff.ts';
+import { DecisionKind, PLAN_STATES, type Decision, type Plans } from '@/entities/master/lib/types.ts';
 
 import { changeText, tagRowText } from '../sessionText.ts';
 

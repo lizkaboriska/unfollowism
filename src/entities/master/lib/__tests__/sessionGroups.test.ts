@@ -1,11 +1,11 @@
 import {
-  DecisionKind,
   SESSION_CHANGES,
   TagChangeKind,
   groupSessionChanges,
   type SessionAccountChanges,
   type SessionChange,
-} from '../index.ts';
+} from '../sessionDiff.ts';
+import { DecisionKind } from '../types.ts';
 
 const added = (tag: string): SessionChange => ({ type: SESSION_CHANGES.TAG_ADDED, tag });
 const removed = (tag: string): SessionChange => ({ type: SESSION_CHANGES.TAG_REMOVED, tag });

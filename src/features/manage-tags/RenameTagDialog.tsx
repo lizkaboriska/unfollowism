@@ -1,9 +1,7 @@
 import { Alert, Button, Dialog, Field, Input, Portal, Stack } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { findTag } from '@/entities/master/lib/index.ts';
-import { renameTag } from '@/entities/master/model/masterSlice.ts';
-import { selectTagCounts, selectTags } from '@/entities/master/model/selectors.ts';
+import { findTag, renameTag, selectTagCounts, selectTags } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** The field and buttons; mounted per opening, so the field starts from the tag's name. */

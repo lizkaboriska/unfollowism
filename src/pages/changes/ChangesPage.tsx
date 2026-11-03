@@ -1,14 +1,14 @@
 import { Box, Button, Grid, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useCallback, useId, useState } from 'react';
 
-import { FOLLOW_CHANGES, type FollowChange } from '@/entities/master/lib/index.ts';
+import { FOLLOW_CHANGES, type FollowChange } from '@/entities/master';
 import {
   selectChangeSections,
   selectChangesSince,
   selectRelationshipStats,
-} from '@/entities/master/model/selectors.ts';
-import { CHANGE_SECTION_TITLES } from '@/entities/master/ui/labels.ts';
-import { plural } from '@/entities/master/ui/statusText.ts';
+  CHANGE_SECTION_TITLES,
+  plural,
+} from '@/entities/master';
 import { AccountPopup } from '@/features/account-popup';
 import { formatDate } from '@/shared/lib/dates.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';

@@ -1,7 +1,6 @@
 import { Box, Button, HStack, Text } from '@chakra-ui/react';
 
-import { confirmRename, dismissRename } from '@/entities/master/model/masterSlice.ts';
-import { selectAccount } from '@/entities/master/model/selectors.ts';
+import { confirmRename, dismissRename, selectAccount } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /**

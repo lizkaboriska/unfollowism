@@ -2,28 +2,12 @@ import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
 
 import { createDict } from '@/shared/lib/createDict.ts';
 
-import {
-  accountOf,
-  copyAccount,
-  followExists,
-  isKept,
-  isPastAccount,
-  keep,
-  mergeRenamed,
-  planOf,
-  removeTagFrom,
-  renameTagOn,
-  setPlan as applyPlan,
-  undecide,
-  usernameKey,
-  type Account,
-  type ActionType,
-  type ChangedAccounts,
-  type ImportFacts,
-  type Master,
-  type PlanState,
-  type ReadonlyAccount,
-} from '../lib/index.ts';
+import { accountOf, copyAccount, type ChangedAccounts } from '../lib/account.ts';
+import { followExists, isKept, isPastAccount, keep, planOf, setPlan as applyPlan, undecide } from '../lib/decision.ts';
+import { mergeRenamed } from '../lib/renames.ts';
+import { removeTagFrom, renameTagOn } from '../lib/tags.ts';
+import type { Account, ActionType, ImportFacts, Master, PlanState, ReadonlyAccount } from '../lib/types.ts';
+import { usernameKey } from '../lib/util.ts';
 
 import {
   IMPORT_STATUSES,

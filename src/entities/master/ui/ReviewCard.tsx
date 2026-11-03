@@ -3,7 +3,8 @@ import { memo } from 'react';
 
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { PLAN_STATES, isKept, isPastAccount, type ReadonlyAccount, type ReviewScope } from '../lib/index.ts';
+import { isKept, isPastAccount } from '../lib/decision.ts';
+import { PLAN_STATES, type ReadonlyAccount, type ReviewScope } from '../lib/types.ts';
 import { setKept, setPlan } from '../model/masterSlice.ts';
 import { selectAccount } from '../model/selectors.ts';
 

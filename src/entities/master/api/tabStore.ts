@@ -1,4 +1,5 @@
-import type { AccountRecord, ImportFacts, MasterFile } from '../lib/index.ts';
+import type { AccountRecord, MasterFile } from '../lib/masterFile.ts';
+import type { ImportFacts } from '../lib/types.ts';
 
 /**
  * Per-tab safety net so a reload doesn't lose work. For each open tab it keeps the

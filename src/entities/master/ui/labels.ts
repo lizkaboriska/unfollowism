@@ -1,3 +1,4 @@
+import { relationshipOf } from '../lib/scopes.ts';
 import {
   ACTION_TYPES,
   DecisionFilter,
@@ -6,7 +7,6 @@ import {
   RELATIONSHIPS,
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
-  relationshipOf,
   type ActionType,
   type FollowChange,
   type PlanState,
@@ -14,7 +14,7 @@ import {
   type Relationship,
   type ReviewScope,
   type TagFilter,
-} from '../lib/index.ts';
+} from '../lib/types.ts';
 
 export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   [RELATIONSHIPS.MUTUAL]: 'Mutual',
