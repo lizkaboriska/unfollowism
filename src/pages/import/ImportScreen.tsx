@@ -19,6 +19,8 @@ import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
 import { ExportReadyBox } from './ExportReadyBox.tsx';
+import { HowItWorksPopup } from './HowItWorksPopup.tsx';
+import { HowItWorksView } from './howItWorksView.ts';
 import { importProblemText } from './importProblemText.ts';
 import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
 
@@ -75,6 +77,8 @@ export function ImportScreen({
   const [reading, setReading] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  /** The How it works popup opened from a missing-files warning's How?; null = closed. */
+  const [howView, setHowView] = useState<HowItWorksView | null>(null);
   /** The selection whose master warning was answered (Start fresh / Use older file); a new selection asks again. */
   const [warningDismissedFor, setWarningDismissedFor] = useState<readonly ChosenFile[] | null>(null);
   /** Set by "Choose newer master": the file the next pick replaces. */
@@ -283,7 +287,32 @@ export function ImportScreen({
           </Button>
         </Stack>
       )}
-      {missing && <Warning title={missing.title}>{missing.body}</Warning>}
+      {missing && (
+        <Warning title={missing.title}>
+          {missing.body}{' '}
+          <Button
+            variant="plain"
+            h="auto"
+            p="0"
+            color="fg"
+            textDecoration="underline"
+            textUnderlineOffset="3px"
+            verticalAlign="baseline"
+            onClick={() => {
+              setHowView(HowItWorksView.EXPORT);
+            }}
+          >
+            How?
+          </Button>
+        </Warning>
+      )}
+      <HowItWorksPopup
+        view={howView}
+        onView={setHowView}
+        onClose={() => {
+          setHowView(null);
+        }}
+      />
       {selectionError && (
         <Warning title="These files can't be used" status="error">
           {selectionError}

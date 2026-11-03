@@ -317,6 +317,22 @@ test('How it works never opens by itself with work loaded: after a reload or fro
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
+test("a missing-files warning's How? opens how to get the Instagram data", async () => {
+  const { user } = await renderApp();
+  await user.upload(screen.getByTestId('file-input'), [followingJson()]);
+  const warning = (await screen.findByText(MISSING_FOLLOWERS)).closest('[role="alert"]');
+  if (!(warning instanceof HTMLElement)) {
+    throw new Error('no warning');
+  }
+  await user.click(within(warning).getByRole('button', { name: 'How?' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Get your Instagram data' });
+  expect(within(dialog).getByRole('link', { name: 'Open Accounts Center' })).toBeInTheDocument();
+  await user.click(within(dialog).getByRole('button', { name: 'Got it' }));
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
 test('dragging a file over the file box shows "Drop to add" until it leaves', async () => {
   await renderApp();
   const box = screen.getByRole('region', { name: 'Have your .zip?' });
