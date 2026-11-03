@@ -12,6 +12,19 @@ import tseslint from 'typescript-eslint';
 const TS_FILES = ['**/*.{ts,tsx}'];
 /** Feature-Sliced Design layers, top to bottom. */
 const LAYERS = ['app', 'pages', 'widgets', 'features', 'entities', 'shared'];
+/** Layers made of slices; another slice is entered only through its index.ts. */
+const SLICED = ['pages', 'widgets', 'features', 'entities'];
+/** What a layer may import: slices of lower layers through their index, and any file in shared. */
+const layerPolicies = LAYERS.filter(layer => layer !== 'shared').flatMap(layer => {
+  const lower = LAYERS.slice(LAYERS.indexOf(layer) + 1).filter(l => SLICED.includes(l));
+  return [
+    {
+      from: { element: { types: [layer] } },
+      allow: { to: { element: { types: lower }, file: { categories: ['sliceIndex'] } } },
+    },
+    { from: { element: { types: [layer] } }, allow: { to: { element: { types: ['shared'] } } } },
+  ];
+});
 
 export default tseslint.config(
   { ignores: ['dist', 'coverage'] },
@@ -61,8 +74,10 @@ export default tseslint.config(
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
-  // Feature-Sliced Design layers: a file imports only from layers below it, and slices of one layer don't import
-  // each other. Exception: any layer may type-import RootState / AppDispatch / StoreDeps from app/store.
+  // Feature-Sliced Design layers: a file imports only from layers below it; another slice only through its index.ts
+  // (its public API), and slices of one layer don't import each other. Inside a slice, files import each other
+  // directly, never through their own index.ts. Exception: any layer may type-import RootState / AppDispatch /
+  // StoreDeps from app/store.
   {
     files: ['src/**/*.{ts,tsx}'],
     plugins: { boundaries },
@@ -75,7 +90,10 @@ export default tseslint.config(
         { type: 'entities', pattern: 'src/entities/*', partialMatch: false },
         { type: 'shared', pattern: 'src/shared', partialMatch: false },
       ],
-      'boundaries/files': [{ pattern: 'src/app/store/**', category: 'appStore' }],
+      'boundaries/files': [
+        { pattern: 'src/app/store/**', category: 'appStore' },
+        { pattern: `src/{${SLICED.join(',')}}/*/index.ts`, category: 'sliceIndex' },
+      ],
       // Tests may import from any layer (FSD maintainers agree).
       'boundaries/ignore': ['**/__tests__/**', '**/*.test.{ts,tsx}', 'src/perf/**', 'src/test/**'],
       // Resolves `@/…` imports; without it they'd count as packages and go unchecked.
@@ -86,13 +104,17 @@ export default tseslint.config(
         'error',
         {
           default: 'disallow',
+          checkInternals: true,
           policies: [
-            { from: { element: { types: ['app'] } }, allow: { to: { element: { types: [...LAYERS] } } } },
-            { from: { element: { types: ['pages'] } }, allow: { to: { element: { types: LAYERS.slice(2) } } } },
-            { from: { element: { types: ['widgets'] } }, allow: { to: { element: { types: LAYERS.slice(3) } } } },
-            { from: { element: { types: ['features'] } }, allow: { to: { element: { types: LAYERS.slice(4) } } } },
-            { from: { element: { types: ['entities'] } }, allow: { to: { element: { types: ['shared'] } } } },
-            { from: { element: { types: ['shared'] } }, allow: { to: { element: { types: ['shared'] } } } },
+            ...layerPolicies,
+            { allow: { dependency: { relationship: { to: 'internal' } } } },
+            {
+              disallow: {
+                to: { file: { categories: ['sliceIndex'] } },
+                dependency: { relationship: { to: 'internal' } },
+              },
+              message: 'Inside a slice, import the file directly, not through its own index.ts.',
+            },
             {
               allow: {
                 to: { element: { types: ['app'] }, file: { categories: ['appStore'] } },
