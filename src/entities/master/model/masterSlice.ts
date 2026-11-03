@@ -1,0 +1,376 @@
+import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
+
+import { createDict } from '@/shared/lib/createDict.ts';
+
+import { accountOf, copyAccount, type ChangedAccounts } from '../lib/account.ts';
+import { followExists, isKept, isPastAccount, keep, planOf, setPlan as applyPlan, undecide } from '../lib/decision.ts';
+import { mergeRenamed } from '../lib/renames.ts';
+import { removeTagFrom, renameTagOn } from '../lib/tags.ts';
+import type { Account, ActionType, ImportFacts, Master, PlanState, ReadonlyAccount } from '../lib/types.ts';
+import { usernameKey } from '../lib/util.ts';
+
+import {
+  IMPORT_STATUSES,
+  SAVE_STATUSES,
+  STATUS_EVENTS,
+  type ImportStatus,
+  type SaveStatus,
+  type StatusEvent,
+} from './statuses.ts';
+import { importPrepared, restoreTab, saveMaster } from './thunks.ts';
+
+/**
+ * The imported master is kept as-is in `base`, and accounts edited since then live in
+ * `changed`. Edits therefore copy only the accounts being edited, never all of them.
+ * `base` is also the session baseline the Session changes drawer compares against.
+ */
+export interface MasterState {
+  base: Master | null;
+  /** Account key → current version of every account edited since the import (null = removed, see ChangedAccounts). */
+  changed: ChangedAccounts;
+  /**
+   * `changed` as written to the last downloaded file (empty if not saved since the import). Reset changes goes back to
+   * it.
+   */
+  savedChanged: ChangedAccounts;
+  /** What the import found besides the master, for the Changes page; null with nothing imported. */
+  importFacts: ImportFacts | null;
+  /** lastSavedAt of the master (from the imported file, then from each save). */
+  savedAt: string | null;
+  /** Bumped by every edit. Unsaved ⇔ revision !== savedRevision. */
+  revision: number;
+  savedRevision: number;
+  importStatus: ImportStatus;
+  saveStatus: SaveStatus;
+  /** What last happened (import, save…), for the status bar. The UI words it. */
+  status: StatusEvent | null;
+  /**
+   * `status` as it was right after the last save (or the import): Reset changes puts it back. Not restored after a
+   * reload, like `status`.
+   */
+  savedStatus: StatusEvent | null;
+  /**
+   * The last write to browser storage failed: unsaved work won't survive a reload. Cleared by the next write that
+   * works.
+   */
+  persistenceFailed: boolean;
+  /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
+  restoreFailed: boolean;
+}
+
+const initialState: MasterState = {
+  base: null,
+  changed: createDict<Account | null>(),
+  savedChanged: createDict<Account | null>(),
+  importFacts: null,
+  savedAt: null,
+  revision: 0,
+  savedRevision: 0,
+  importStatus: IMPORT_STATUSES.IDLE,
+  saveStatus: SAVE_STATUSES.IDLE,
+  status: null,
+  savedStatus: null,
+  persistenceFailed: false,
+  restoreFailed: false,
+};
+
+/** savedRevision of an import that differs from its file and hasn't been saved since. */
+export const UNSAVED_IMPORT = -1;
+
+/** `state` null = not marked (cancels the plan). */
+interface PlanPayload {
+  username: string;
+  type: ActionType;
+  state: PlanState | null;
+}
+
+/** The account as it is before this reducer runs (imported, or edited earlier). */
+function accountBefore(state: MasterState, username: string): ReadonlyAccount | undefined {
+  const before = original(state);
+  return before.base
+    ? accountOf<ReadonlyAccount>(before.base.accounts, before.changed, usernameKey(username))
+    : undefined;
+}
+
+/**
+ * Applies an edit, copying the account into `changed` on its first edit so `base` is never copied. A removed account
+ * isn't edited.
+ */
+function applyEdit(state: MasterState, key: string, edit: (account: Account) => void): void {
+  if (Object.hasOwn(state.changed, key)) {
+    const existing = state.changed[key];
+    if (existing) {
+      edit(existing);
+    }
+    return;
+  }
+  const source = original(state).base?.accounts[key];
+  if (!source) {
+    return;
+  }
+  const copy = copyAccount(source);
+  edit(copy);
+  state.changed[key] = copy;
+}
+
+/** Edits every account that has `tag` (as one change). */
+function editTagged(state: MasterState, tag: string, edit: (account: Account) => void): void {
+  const before = original(state);
+  const base = before.base;
+  if (!base) {
+    return;
+  }
+  const targets = Object.keys(base.accounts).filter(key =>
+    accountOf<ReadonlyAccount>(base.accounts, before.changed, key)?.review.tags.includes(tag),
+  );
+  for (const key of targets) {
+    applyEdit(state, key, edit);
+  }
+  if (targets.length) {
+    state.revision += 1;
+  }
+}
+
+/** Edits one account (callers have already checked that the edit changes something). */
+function editAccount(state: MasterState, username: string, edit: (account: Account) => void): void {
+  if (!accountBefore(state, username)) {
+    return;
+  }
+  applyEdit(state, usernameKey(username), edit);
+  state.revision += 1;
+}
+
+export const masterSlice = createSlice({
+  name: 'master',
+  initialState,
+  reducers: {
+    /** Keep (clears any plans), or back to needing a decision. A past account can't be kept: nothing to decide. */
+    setKept(state, { payload }: PayloadAction<{ username: string; kept: boolean }>) {
+      const before = accountBefore(state, payload.username);
+      if (!before || isKept(before) === payload.kept || (payload.kept && isPastAccount(before))) {
+        return;
+      }
+      editAccount(state, payload.username, account => {
+        if (payload.kept) {
+          keep(account);
+        } else {
+          undecide(account);
+        }
+      });
+    },
+    /**
+     * Removes one plan, keeping the account as it is ("Keep instead" in To do): with no plan left it becomes Kept, not
+     * undecided.
+     */
+    keepInstead(state, { payload }: PayloadAction<{ username: string; type: ActionType }>) {
+      const before = accountBefore(state, payload.username);
+      if (!before || planOf(before, payload.type) === undefined) {
+        return;
+      }
+      editAccount(state, payload.username, account => {
+        applyPlan(account, payload.type, undefined);
+        if (account.decision === undefined) {
+          keep(account);
+        }
+      });
+    },
+    /**
+     * Marking unavailable means you looked: an undecided account becomes Kept, unless it's a past account. Clearing it
+     * changes no decision.
+     */
+    setUnavailable(state, { payload }: PayloadAction<{ username: string; unavailable: boolean }>) {
+      if (accountBefore(state, payload.username)?.review.unavailable === payload.unavailable) {
+        return;
+      }
+      editAccount(state, payload.username, account => {
+        account.review.unavailable = payload.unavailable;
+        if (payload.unavailable && account.decision === undefined && !isPastAccount(account)) {
+          keep(account);
+        }
+      });
+    },
+    toggleTag(state, { payload }: PayloadAction<{ username: string; tag: string }>) {
+      editAccount(state, payload.username, account => {
+        const tags = account.review.tags;
+        const index = tags.indexOf(payload.tag);
+        if (index === -1) {
+          tags.push(payload.tag);
+        } else {
+          tags.splice(index, 1);
+        }
+      });
+    },
+    setNote(state, { payload }: PayloadAction<{ username: string; note: string }>) {
+      if (accountBefore(state, payload.username)?.review.notes === payload.note) {
+        return;
+      }
+      editAccount(state, payload.username, account => {
+        account.review.notes = payload.note;
+      });
+    },
+    /**
+     * Queues an Instagram action (planned → done after doing it by hand), or removes the plan with `state: null`.
+     * Queuing turns Kept into queued; removing the last plan leaves the account needing a decision.
+     */
+    setPlan(state, { payload }: PayloadAction<PlanPayload>) {
+      const before = accountBefore(state, payload.username);
+      if (!before) {
+        return;
+      }
+      const current = planOf(before, payload.type);
+      const next = payload.state ?? undefined;
+      if (current === next) {
+        return;
+      }
+      if (current === undefined && !followExists(before, payload.type)) {
+        return;
+      } // the UI only offers eligible actions
+      editAccount(state, payload.username, account => {
+        applyPlan(account, payload.type, next);
+      });
+    },
+    /** Renames a tag on every account that has it. Renaming onto an existing tag merges the two. */
+    renameTag(state, { payload }: PayloadAction<{ from: string; to: string }>) {
+      if (payload.from === payload.to) {
+        return;
+      }
+      editTagged(state, payload.from, account => {
+        renameTagOn(account, payload.from, payload.to);
+      });
+    },
+    /** Removes a tag from every account; with no account left, the tag no longer exists. */
+    deleteTag(state, { payload }: PayloadAction<{ tag: string }>) {
+      editTagged(state, payload.tag, account => {
+        removeTagFrom(account, payload.tag);
+      });
+    },
+    /**
+     * A suggested rename was right: the old account's review work moves to the new name, and the old account is
+     * removed.
+     */
+    confirmRename(state, { payload }: PayloadAction<{ from: string }>) {
+      const before = original(state);
+      const base = before.base;
+      if (!base) {
+        return;
+      }
+      const old = accountOf<ReadonlyAccount>(base.accounts, before.changed, payload.from);
+      const to = old?.renameSuggestion?.to;
+      if (!old || to === undefined || !accountOf<ReadonlyAccount>(base.accounts, before.changed, to)) {
+        return;
+      }
+      applyEdit(state, to, account => {
+        mergeRenamed(account, old);
+      });
+      state.changed[payload.from] = null;
+      state.revision += 1;
+    },
+    /** A suggested rename was wrong: the suggestion goes away, as an ordinary edit. Imports don't suggest it again. */
+    dismissRename(state, { payload }: PayloadAction<{ from: string }>) {
+      if (!accountBefore(state, payload.from)?.renameSuggestion) {
+        return;
+      }
+      editAccount(state, payload.from, account => {
+        delete account.renameSuggestion;
+      });
+    },
+    /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
+    resetChanges(state) {
+      const before = original(state);
+      if (!before.base || before.changed === before.savedChanged) {
+        return;
+      }
+      state.changed = before.savedChanged;
+      state.revision += 1;
+      if (state.savedRevision !== UNSAVED_IMPORT) {
+        state.savedRevision = state.revision;
+      }
+      state.status = before.savedStatus;
+    },
+    persistenceFailed(state) {
+      state.persistenceFailed = true;
+    },
+    /** A write to browser storage worked again after a failure. */
+    persistenceRecovered(state) {
+      state.persistenceFailed = false;
+    },
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(restoreTab.fulfilled, (state, { payload }) => {
+        if (!payload || state.base) {
+          return;
+        } // nothing stored, or the user already imported meanwhile
+        state.base = payload.base;
+        state.changed = payload.changed;
+        state.savedChanged = payload.savedChanged;
+        state.importFacts = payload.importFacts;
+        state.savedAt = payload.savedAt;
+        state.revision = payload.revision;
+        state.savedRevision = payload.savedRevision;
+      })
+      .addCase(restoreTab.rejected, state => {
+        if (!state.base) {
+          state.restoreFailed = true;
+        } // after an import meanwhile, there's nothing to warn about
+      })
+      .addCase(importPrepared.pending, state => {
+        state.importStatus = IMPORT_STATUSES.IMPORTING;
+      })
+      .addCase(importPrepared.fulfilled, (state, { payload }) => {
+        state.importStatus = IMPORT_STATUSES.IDLE;
+        state.restoreFailed = false;
+        state.base = payload.master;
+        state.changed = createDict<Account | null>();
+        state.savedChanged = state.changed;
+        state.importFacts = payload.facts;
+        state.savedAt = payload.master.lastSavedAt ?? null;
+        state.revision = 0;
+        state.savedRevision = payload.dirty ? UNSAVED_IMPORT : 0;
+        state.status = {
+          type: STATUS_EVENTS.IMPORTED,
+          isNewMaster: payload.isNewMaster,
+          followerFileCount: payload.followerFileCount,
+          summary: payload.summary,
+        };
+        state.savedStatus = state.status;
+      })
+      .addCase(importPrepared.rejected, state => {
+        state.importStatus = IMPORT_STATUSES.IDLE;
+      })
+      .addCase(saveMaster.pending, state => {
+        state.saveStatus = SAVE_STATUSES.SAVING;
+      })
+      .addCase(saveMaster.fulfilled, (state, { payload }) => {
+        state.saveStatus = SAVE_STATUSES.IDLE;
+        state.savedRevision = payload.revision;
+        state.savedAt = payload.savedAt;
+        state.savedChanged = payload.changed;
+        state.status = { type: STATUS_EVENTS.SAVED };
+        state.savedStatus = { type: STATUS_EVENTS.SAVED };
+      })
+      .addCase(saveMaster.rejected, (state, { error, meta }) => {
+        if (meta.condition) {
+          return;
+        } // skipped: a save was already running, or nothing is loaded
+        state.saveStatus = SAVE_STATUSES.IDLE;
+        state.status = { type: STATUS_EVENTS.SAVE_FAILED, reason: error.message ?? null };
+      });
+  },
+});
+
+export const {
+  setKept,
+  keepInstead,
+  setUnavailable,
+  toggleTag,
+  setNote,
+  setPlan,
+  renameTag,
+  deleteTag,
+  confirmRename,
+  dismissRename,
+  resetChanges,
+  persistenceFailed,
+  persistenceRecovered,
+} = masterSlice.actions;

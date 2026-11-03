@@ -73,9 +73,13 @@ npm run dev       # start the dev server at http://localhost:5173 (hot reload)
 
 ```
 src/
-  core/        pure logic: parsing exports, merging, plans, change lists (no React)
-  io/          reading zip/files, recognizing file types, download, browser storage
-  store/       Redux Toolkit store, thunks, selectors
-  ui/          React components and all user-facing wording
-  App.tsx      the screens
+  app/        startup, the screens, store setup, URL sync, tab safety net
+  pages/      Review, To do, Changes, Import
+  widgets/    header, nav, status line, Review top, account list
+  features/   filters, save/reset, manage tags, account popup, rename suggestion
+  entities/   master: pure logic (lib), browser storage (api), Redux state (model), shared wording (ui)
+  shared/     UI kit and theme, small helpers, address bar
 ```
+
+Layers import only from layers below them ([Feature-Sliced Design](https://feature-sliced.design/)); `npm run lint`
+checks it.

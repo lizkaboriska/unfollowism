@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   // Absolute asset paths: the app is served from the site root, and pages like /todo/unfollow must still find them.
   base: '/',
+  // `@/…` imports point at src/ (paths in tsconfig.app.json).
+  resolve: { tsconfigPaths: true },
   test: {
     globals: true,
     environment: 'jsdom',

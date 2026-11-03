@@ -1,35 +1,34 @@
 // @vitest-environment node
 // Scale benchmark: `npm run test:perf`. Not part of `npm test` (slow, machine-dependent).
 // Prints a timing table; the limits below are the agreed targets.
-import { must } from '../core/__tests__/helpers.ts';
+
+import { makeStore } from '@/app/store/store.ts';
 import {
-  ACTION_TYPES,
-  DecisionKind,
-  PLAN_STATES,
-  TagChangeKind,
-  groupSessionChanges,
-  importExport,
-  stringifyMasterFile,
-  toMasterFile,
-} from '../core/index.ts';
-import { memoryAddressBar } from '../io/addressBar.ts';
-import { analyzeImport } from '../io/analyzeImport.ts';
-import { memoryLastSaved } from '../io/lastSaved.ts';
-import { createMemoryTabDatabase } from '../io/tabStore.ts';
-import { LIST_VIEWS, setQuery, setView } from '../store/filtersSlice.ts';
-import { makeStore } from '../store/index.ts';
-import { selectListKeys } from '../store/listSlice.ts';
-import { renameTag, setNote, setPlan } from '../store/masterSlice.ts';
-import {
+  createMemoryTabDatabase,
+  analyzeImport,
+  renameTag,
+  setNote,
+  setPlan,
   selectAccount,
   selectPlanStats,
   selectRelationshipStats,
-  selectScopeTotals,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
-  selectVisibleAccountKeys,
-} from '../store/selectors.ts';
-import { importPrepared, restoreTab, saveMaster } from '../store/thunks.ts';
+  importPrepared,
+  restoreTab,
+  saveMaster,
+  LIST_VIEWS,
+} from '@/entities/master';
+import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
+import { must } from '@/entities/master/lib/__tests__/helpers.ts';
+import { stringifyMasterFile, toMasterFile } from '@/entities/master/lib/masterFile.ts';
+import { importExport } from '@/entities/master/lib/merge.ts';
+import { TagChangeKind, groupSessionChanges } from '@/entities/master/lib/sessionDiff.ts';
+import { ACTION_TYPES, DecisionKind, PLAN_STATES } from '@/entities/master/lib/types.ts';
+import { selectListKeys } from '@/features/filters';
+import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
+import { selectScopeTotals, selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
+import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
 const INSTAGRAM_FOLLOWING_CAP = 7_500;
 const MUTUAL = 5_000;
