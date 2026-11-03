@@ -3,7 +3,7 @@ import { memo } from 'react';
 
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-import { PLAN_STATES, isKept, isPastAccount, type ReadonlyAccount } from '../lib/index.ts';
+import { PLAN_STATES, isKept, isPastAccount, type ReadonlyAccount, type ReviewScope } from '../lib/index.ts';
 import { setKept, setPlan } from '../model/masterSlice.ts';
 import { selectAccount } from '../model/selectors.ts';
 
@@ -26,9 +26,16 @@ export function KeepButton({ account }: { account: ReadonlyAccount }) {
 }
 
 /** The card's queue button (see queueButton.ts): queued plans are blue. */
-function QueueControl({ account, onOpen }: { account: ReadonlyAccount; onOpen: () => void }) {
+function QueueControl({
+  account,
+  scope,
+  onOpen,
+}: {
+  account: ReadonlyAccount;
+  scope: ReviewScope;
+  onOpen: () => void;
+}) {
   const dispatch = useAppDispatch();
-  const scope = useAppSelector(s => s.filters.scope);
   const button = queueButton(account, scope);
   if (button === null) {
     return null;
@@ -60,12 +67,17 @@ function QueueControl({ account, onOpen }: { account: ReadonlyAccount; onOpen: (
   );
 }
 
-/** A Review card: who it is, its tags, and the two decisions. The name or → opens the account popup. */
+/**
+ * A Review card: who it is, its tags, and the two decisions. The name or → opens the account popup. `scope` is the
+ * list it's shown in, which decides what the queue button offers.
+ */
 export const ReviewCard = memo(function ReviewCard({
   accountKey,
+  scope,
   onOpen,
 }: {
   accountKey: string;
+  scope: ReviewScope;
   onOpen: (accountKey: string) => void;
 }) {
   const account = useAppSelector(s => selectAccount(s, accountKey));
@@ -115,7 +127,7 @@ export const ReviewCard = memo(function ReviewCard({
       {!isPastAccount(account) && (
         <SimpleGrid columns={2} gap="2" mt="2.5">
           <KeepButton account={account} />
-          <QueueControl account={account} onOpen={open} />
+          <QueueControl account={account} scope={scope} onOpen={open} />
         </SimpleGrid>
       )}
     </Box>

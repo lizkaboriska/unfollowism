@@ -15,16 +15,17 @@ const ESTIMATED_REVIEW_CARD_HEIGHT = 140;
 export function ReviewList() {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const hasList = useAppSelector(selectListKeys).length > 0;
+  const scope = useAppSelector(s => s.filters.scope);
   const open = useCallback((accountKey: string) => {
     setOpenKey(accountKey);
   }, []);
   const items = useMemo(
     (): ListItems => ({
-      render: accountKey => <ReviewCard accountKey={accountKey} onOpen={open} />,
+      render: accountKey => <ReviewCard accountKey={accountKey} scope={scope} onOpen={open} />,
       estimatedHeight: ESTIMATED_REVIEW_CARD_HEIGHT,
       empty: <NoResults />,
     }),
-    [open],
+    [scope, open],
   );
   return (
     <>

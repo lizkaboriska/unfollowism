@@ -877,6 +877,13 @@ describe('main view', () => {
     expect(shown()).toEqual(['@alice']);
   });
 
+  test('a mutual card offers the plan of the list it is in', async () => {
+    const { user } = await imported();
+    expect(cardButton('alice', 'Queue unfollow')).toBeInTheDocument(); // Following
+    await applyFilters(user, 'Followers');
+    expect(cardButton('alice', 'Queue removal')).toBeInTheDocument();
+  });
+
   test('plans: offered only when the follow exists; To do → Mark done, Undo, All done', async () => {
     const { user } = await imported();
     await applyFilters(user, 'Everyone now');
