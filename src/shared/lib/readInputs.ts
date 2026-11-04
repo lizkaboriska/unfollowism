@@ -35,8 +35,9 @@ let zipLibrary: Promise<ZipLibrary> | null = null;
 
 /**
  * Loads the zip reader in its own file, so the app's first load doesn't carry it. The Import screen calls this
- * when it opens, so the reader is ready by the time a file is picked. A failed load is forgotten: the next
- * call tries again. The native build unzips with the browser's own DecompressionStream (no bundled code for it).
+ * when it opens, so the reader is ready by the time a file is picked. A failed load is forgotten so the next call
+ * tries again; Chrome still fails it at once for the life of the page, so only a reload recovers there. The native
+ * build unzips with the browser's own DecompressionStream (no bundled code for it).
  */
 export function loadZipLibrary(): Promise<ZipLibrary> {
   zipLibrary ??= import('@zip.js/zip.js/lib/zip-core-native.js').catch((error: unknown) => {
