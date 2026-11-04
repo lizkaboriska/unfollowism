@@ -178,13 +178,18 @@ export function ChangesPage() {
         <>
           <CompareBox since={since} />
           {total === 0 && <Text color="fg.muted">Nothing changed since {formatDate(since)}.</Text>}
-          {SECTION_ORDER.filter(change => sections[change].length > 0).map(change => (
-            <Section key={change} change={change} keys={sections[change]} onOpen={open} />
-          ))}
+          {/* 32 between sections (12 + mt), so each list reads as its own group. */}
+          {total > 0 && (
+            <Stack gap="8" mt="5">
+              {SECTION_ORDER.filter(change => sections[change].length > 0).map(change => (
+                <Section key={change} change={change} keys={sections[change]} onOpen={open} />
+              ))}
+            </Stack>
+          )}
         </>
       )}
 
-      <Text textStyle="small" color="fg.muted" lineHeight="1.5">
+      <Text textStyle="small" color="fg.muted" lineHeight="1.5" mt={since !== null && total > 0 ? '5' : '0'}>
         Compared on your device using your saved progress file. Nothing is checked live with Instagram.
       </Text>
       <AccountPopup
