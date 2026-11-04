@@ -1,5 +1,5 @@
 import { Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
-import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import {
   IMPORT_STATUSES,
@@ -13,7 +13,7 @@ import {
   type ImportWarning,
   type LastSavedStore,
 } from '@/entities/master';
-import { readInputs, type InputText } from '@/shared/lib/readInputs.ts';
+import { loadZipLibrary, readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
@@ -83,6 +83,12 @@ export function ImportScreen({
   const [warningDismissedFor, setWarningDismissedFor] = useState<readonly ChosenFile[] | null>(null);
   /** Set by "Choose newer master": the file the next pick replaces. */
   const replacing = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Start loading the zip reader now, so it's ready when a file is picked. A failure here is not shown:
+    // reading a picked zip loads it again and shows its own error.
+    loadZipLibrary().catch(() => undefined);
+  }, []);
 
   // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be
   // removed.
