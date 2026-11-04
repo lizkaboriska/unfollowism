@@ -63,11 +63,14 @@ npm run dev       # start the dev server at http://localhost:5173 (hot reload)
 | `npm run format:check` | Check Prettier formatting (`npm run format` fixes it) |
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build locally |
+| `npm run size` | Check the built files against the size limits (after `npm run build`) |
 
 ### CI and deploys
 
 - Every pull request runs typecheck, lint + format check, tests and build in parallel
   ([`ci.yml`](.github/workflows/ci.yml)). `main` only accepts changes once `all-checks-passed` is green.
+- The build job also checks the size limits (`"size-limit"` in `package.json`): the files loaded at start, and the
+  zip reader the Import screen loads on its own. Raise a limit on purpose, never just to make CI pass.
 - Cloudflare Pages deploys every push to `main` to [unfollowism.pages.dev](https://unfollowism.pages.dev),
   and every other branch to a preview URL, which it posts as a comment on the pull request.
 
