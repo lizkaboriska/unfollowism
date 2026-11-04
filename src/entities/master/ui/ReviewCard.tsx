@@ -9,6 +9,7 @@ import { setKept, setPlan } from '../model/masterSlice.ts';
 import { selectAccount } from '../model/selectors.ts';
 
 import { planText, queueText, relationshipNote } from './labels.ts';
+import { ProfileLink } from './ProfileLink.tsx';
 import { QueueButtonKind, queueButton } from './queueButton.ts';
 
 /** Keep / ✓ Kept: black once kept; tapping it again takes the decision back. */
@@ -69,8 +70,9 @@ function QueueControl({
 }
 
 /**
- * A Review card: who it is, its tags, and the two decisions. The name or → opens the account popup. `scope` is the
- * list it's shown in, which decides what the queue button offers.
+ * A Review card: who it is, its tags, and the two decisions. The name opens the Instagram profile; the rest of the
+ * card's top (note, →) opens the account popup. `scope` is the list it's shown in, which decides what the queue
+ * button offers.
  */
 export const ReviewCard = memo(function ReviewCard({
   accountKey,
@@ -91,34 +93,36 @@ export const ReviewCard = memo(function ReviewCard({
   };
   return (
     <Box as="article" aria-label={`@${username}`} borderWidth="1px" p="3" opacity={review.unavailable ? 0.6 : 1}>
-      <chakra.button
-        type="button"
-        aria-label={`Open @${username}`}
-        display="flex"
-        w="full"
-        textAlign="start"
-        cursor="pointer"
-        alignItems="flex-start"
-        gap="2"
-        onClick={open}
-      >
+      {/* The popup button's ::after covers this whole top area; the name link sits above it (a link can't be inside
+          a button). */}
+      <Box position="relative" display="flex" alignItems="flex-start" gap="2">
         <Box flex="1" minW="0">
           <HStack gap="2" wrap="wrap">
-            <Text textStyle="name" wordBreak="break-all">
-              @{username}
-            </Text>
+            <ProfileLink username={username} position="relative" zIndex="1" />
             {review.unavailable && (
               <Text textStyle="small" color="fg.muted">
                 Unavailable
               </Text>
             )}
           </HStack>
-          <Text textStyle="note" color="fg.muted">
-            {relationshipNote(account)}
-          </Text>
+          <chakra.button
+            type="button"
+            aria-label={`Open @${username}`}
+            display="block"
+            textAlign="start"
+            cursor="pointer"
+            outline="none"
+            onClick={open}
+            _after={{ content: '""', position: 'absolute', inset: '0' }}
+            _focusVisible={{ _after: { outline: '2px solid', outlineColor: 'accent', outlineOffset: '2px' } }}
+          >
+            <Text textStyle="note" color="fg.muted">
+              {relationshipNote(account)}
+            </Text>
+          </chakra.button>
         </Box>
         <Text aria-hidden>→</Text>
-      </chakra.button>
+      </Box>
       {review.tags.length > 0 && (
         <Text textStyle="small" color="fg.muted" mt="2">
           {review.tags.map(tag => `#${tag}`).join(' ')}
