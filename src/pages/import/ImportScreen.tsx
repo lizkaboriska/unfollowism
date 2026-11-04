@@ -1,4 +1,4 @@
-import { Box, Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
+import { Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import {
@@ -19,6 +19,8 @@ import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
 import { ExportReadyBox } from './ExportReadyBox.tsx';
+import { HowItWorksPopup } from './HowItWorksPopup.tsx';
+import { HowItWorksView } from './howItWorksView.ts';
 import { importProblemText } from './importProblemText.ts';
 import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
 
@@ -75,6 +77,8 @@ export function ImportScreen({
   const [reading, setReading] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  /** The How it works popup opened from a missing-files warning's How?; null = closed. */
+  const [howView, setHowView] = useState<HowItWorksView | null>(null);
   /** The selection whose master warning was answered (Start fresh / Use older file); a new selection asks again. */
   const [warningDismissedFor, setWarningDismissedFor] = useState<readonly ChosenFile[] | null>(null);
   /** Set by "Choose newer master": the file the next pick replaces. */
@@ -163,8 +167,8 @@ export function ImportScreen({
       const discard = await confirm({
         title: 'Discard unsaved changes?',
         body:
-          "Your changes since the last save aren't in a downloaded master yet. Importing replaces them. " +
-          'To keep them, cancel and Save master first.',
+          "Your changes since the last save aren't in a downloaded progress file yet. Importing replaces them. " +
+          'To keep them, cancel and Save first.',
         confirmLabel: 'Import anyway',
         destructive: true,
       });
@@ -186,8 +190,6 @@ export function ImportScreen({
   // Exactly one of Following / Followers is there.
   const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
   const masterPath = master?.path;
-  // The export's files: everything readable except the file holding the master.
-  const exportFiles = chosen.filter(c => !c.readError && !c.inputs.some(i => i.path === masterPath));
   const drop = {
     dragging,
     onDragOver: (e: DragEvent) => {
@@ -213,32 +215,8 @@ export function ImportScreen({
       {restoreFailed && (
         <Warning title="Your work couldn't be restored">
           Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your last
-          saved master to continue.
+          saved progress file to continue.
         </Warning>
-      )}
-      {!chosen.length && (
-        <List.Root as="ol" listStyle="none" borderWidth="1px">
-          {[
-            'Download your Instagram data (JSON)',
-            'Choose the .zip here',
-            'Add your saved master file, if you have one',
-          ].map((step, i) => (
-            <List.Item
-              key={step}
-              minH="11"
-              px="3"
-              gap="3"
-              display="flex"
-              alignItems="center"
-              borderTopWidth={i ? '1px' : '0'}
-            >
-              <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5">
-                {i + 1}
-              </Text>
-              {step}
-            </List.Item>
-          ))}
-        </List.Root>
       )}
 
       <input
@@ -257,7 +235,6 @@ export function ImportScreen({
           followerCount={followerCount}
           master={master}
           masterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
-          exportFiles={exportFiles}
           drop={drop}
         >
           {masterWarning && (
@@ -287,9 +264,13 @@ export function ImportScreen({
           onDrop={drop.onDrop}
         >
           <Heading as="h2" id={fileBoxTitleId} textStyle="heading" color={dragging ? 'accent' : 'ink'}>
-            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'A fresh start for your feed'}
+            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'Have your .zip?'}
           </Heading>
-          <Text color="fg.muted">Choose your Instagram .zip, or drop it here on a computer.</Text>
+          <Text color="fg.muted">
+            {oneMissing
+              ? 'Choose your Instagram .zip, or drop it here.'
+              : 'Choose your Instagram .zip, or drop it here. Returning? Add your saved progress file too.'}
+          </Text>
           <Button
             w="full"
             mt="2"
@@ -303,14 +284,32 @@ export function ImportScreen({
           </Button>
         </Stack>
       )}
-      {masterWarning && (
-        <Text color="fg.muted">
-          {masterWarning.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE
-            ? 'Your Instagram data is complete. This warning is only about the master file.'
-            : 'Your Following and Followers data is ready. A master restores your saved work, not Instagram data.'}
-        </Text>
+      {missing && (
+        <Warning title={missing.title}>
+          {missing.body}{' '}
+          <Button
+            variant="plain"
+            h="auto"
+            p="0"
+            color="fg"
+            textDecoration="underline"
+            textUnderlineOffset="3px"
+            verticalAlign="baseline"
+            onClick={() => {
+              setHowView(HowItWorksView.EXPORT);
+            }}
+          >
+            How?
+          </Button>
+        </Warning>
       )}
-      {missing && <Warning title={missing.title}>{missing.body}</Warning>}
+      <HowItWorksPopup
+        view={howView}
+        onView={setHowView}
+        onClose={() => {
+          setHowView(null);
+        }}
+      />
       {selectionError && (
         <Warning title="These files can't be used" status="error">
           {selectionError}
@@ -392,10 +391,10 @@ export function ImportScreen({
           w="full"
           disabled={!selection?.prepared || reading > 0}
           loading={importing}
-          loadingText="Importing…"
+          loadingText="Loading…"
           onClick={() => void onImport()}
         >
-          Import
+          {onCancel ? 'Update' : 'Start'}
         </Button>
         {onCancel && (
           <Button variant="plain" h="auto" py="2" onClick={onCancel}>
@@ -403,19 +402,6 @@ export function ImportScreen({
           </Button>
         )}
       </Stack>
-
-      {!chosen.length && (
-        <Box>
-          <Text textStyle="control">You're always in control</Text>
-          <Text color="fg.muted">
-            We only help you make a plan. You make any changes yourself in Instagram. Save downloads your decisions as a
-            small master file.
-          </Text>
-        </Box>
-      )}
-      <Text textStyle="small" color="fg.muted" textAlign="center">
-        No login. No Instagram connection. Just your files.
-      </Text>
     </Stack>
   );
 }
@@ -445,20 +431,20 @@ function MasterWarning({
   );
   if (warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE) {
     return (
-      <Warning title="Have your saved master?" actions={buttons('Add saved master', 'Start fresh')}>
+      <Warning title="Have your progress file?" actions={buttons('Add progress file', 'Start fresh')}>
         {savedMasterMissingText(warning.lastKnownSavedAt)}
       </Warning>
     );
   }
   const dates = olderMasterDates(warning);
   return (
-    <Warning title="This master is older" actions={buttons('Choose newer master', 'Use older file')}>
+    <Warning title="This progress file is older" actions={buttons('Choose newer file', 'Use older file')}>
       <Grid as="dl" templateColumns="auto minmax(0, 1fr)" columnGap="3" rowGap="0.5" my="0.5">
-        <Text as="dt">Selected master</Text>
+        <Text as="dt">Selected file</Text>
         <Text as="dd" color="ink">
           {dates.selected ?? 'Not dated'}
         </Text>
-        <Text as="dt">Last saved master</Text>
+        <Text as="dt">Last saved</Text>
         <Text as="dd" color="ink">
           {dates.lastSaved}
         </Text>

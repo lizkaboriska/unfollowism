@@ -1,5 +1,4 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '@/entities/master';
-import { plural } from '@/entities/master';
 import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
 
 /** What's missing before the selection can be imported, as a warning. Null when nothing is. */
@@ -18,23 +17,23 @@ export function missingWarning({
   if (!hasFollowing) {
     return {
       title: 'Followers found. Following is missing.',
-      body: `Add following.json from the same export, ${downloadAgain}`,
+      body: `Add following.json from the same .zip, ${downloadAgain}`,
     };
   }
   if (!followerFileCount) {
     return {
       title: 'Following found. Followers are missing.',
-      body: `Add followers_1.json (and any followers_2.json, …) from the same export, ${downloadAgain}`,
+      body: `Add followers_1.json (and any followers_2.json, …) from the same .zip, ${downloadAgain}`,
     };
   }
   return null;
 }
 
-/** "You downloaded a master on …": the warning when no master is chosen but this browser saved one before. */
+/** "You saved one on …": the warning when no progress file is chosen but this browser saved one before. */
 export function savedMasterMissingText(lastKnownSavedAt: string): string {
   return (
-    `You downloaded a master on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
-    "Add it to bring back your past decisions. If you start fresh, they won't carry over."
+    `You saved one on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
+    "Add it to bring back your tags, notes, and choices. If you start fresh, they won't carry over."
   );
 }
 
@@ -54,33 +53,8 @@ export function olderMasterDates({
   return { selected: fileSavedAt && format(fileSavedAt), lastSaved: format(lastKnownSavedAt) };
 }
 
-/** What the older master means, under its two dates. */
+/** What the older progress file means, under its two dates. */
 export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
-  const lost = selected
-    ? `Decisions saved after ${selected} won't come back.`
-    : "Some saved decisions won't come back.";
-  return `${lost} Choose your ${lastSaved} master to keep them.`;
-}
-
-/** What the box needs to know about the export's files (everything chosen except the master). */
-export interface ExportFileInfo {
-  name: string;
-  size: number;
-  lastModified: number;
-}
-
-const megabytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 });
-const kilobytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'kilobyte', maximumFractionDigits: 0 });
-
-function fileSize(bytes: number): string {
-  return bytes >= 1_000_000 ? megabytes.format(bytes / 1_000_000) : kilobytes.format(Math.max(1, bytes / 1000));
-}
-
-/** "instagram.zip · 2.4 MB · Oct 29, 2026" for one file, "3 files" for loose files. */
-export function exportFilesText(files: readonly ExportFileInfo[]): string {
-  const [only] = files;
-  if (files.length !== 1 || !only) {
-    return plural(files.length, 'file');
-  }
-  return [only.name, fileSize(only.size), formatDate(new Date(only.lastModified).toISOString())].join(' · ');
+  const lost = selected ? `Choices saved after ${selected} won't come back.` : "Some saved choices won't come back.";
+  return `${lost} Choose your ${lastSaved} file to keep them.`;
 }

@@ -42,9 +42,9 @@ function CompareBox({ since }: { since: string }) {
   return (
     <Box as="section" aria-label="Compared files" borderWidth="1px">
       <HStack justify="space-between" px="3" py="2.5" borderBottomWidth="1px" textStyle="small" color="fg.muted">
-        <Text>{formatDate(since)} master</Text>
+        <Text>{formatDate(since)} progress file</Text>
         <Text aria-hidden>→</Text>
-        <Text color="fg">{importedAt ? `${formatDate(importedAt)} import` : 'Import'}</Text>
+        <Text color="fg">{importedAt ? `${formatDate(importedAt)} data` : 'New data'}</Text>
       </HStack>
       <Grid templateColumns="repeat(2, minmax(0, 1fr))">
         {numbers.map(({ label, before, after }) => (
@@ -161,7 +161,7 @@ export function ChangesPage() {
       )}
 
       <Text textStyle="small" color="fg.muted" lineHeight="1.5">
-        Compared on your device using your saved master file. Nothing is checked live with Instagram.
+        Compared on your device using your saved progress file. Nothing is checked live with Instagram.
       </Text>
       <AccountPopup
         accountKey={openKey}

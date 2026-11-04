@@ -204,7 +204,7 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
           <MoreAccounts count={accounts.length - MAX_ACCOUNTS} />
           {dirty && (
             <Text color="fg.muted">
-              Save downloads an updated master file with these changes. Keep it for your next import.
+              Save downloads an updated progress file with these changes. Keep it for your next import.
             </Text>
           )}
         </Stack>

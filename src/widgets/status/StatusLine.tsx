@@ -11,7 +11,7 @@ export function StatusLine() {
     return (
       <Alert.Root status="warning" role="alert">
         <Alert.Content>
-          <Alert.Title textStyle="control">⚠ Couldn't save the master file</Alert.Title>
+          <Alert.Title textStyle="control">⚠ Couldn't save the progress file</Alert.Title>
           <Alert.Description color="fg.muted">{message}</Alert.Description>
         </Alert.Content>
       </Alert.Root>

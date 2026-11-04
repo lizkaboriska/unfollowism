@@ -25,11 +25,7 @@ const imported = (overrides: Partial<ImportSummary> = {}, isNewMaster = false): 
 
 test.each([
   ['nothing yet', null, ''],
-  [
-    'new master',
-    imported({}, true),
-    'Started a new master from 1 follower file. 1 following, 1 followers. Save master to keep it.',
-  ],
+  ['new master', imported({}, true), 'Started fresh from 1 follower file. 1 following, 1 followers. Save to keep it.'],
   [
     'changed export with settled plans',
     imported({
@@ -38,7 +34,7 @@ test.each([
         reopened: { [ACTION_TYPES.UNFOLLOW]: 1, [ACTION_TYPES.REMOVE_FOLLOWER]: 0 },
       },
     }),
-    'New export loaded from 1 follower file — not saved yet. 1 following, 1 followers. ' +
+    'New Instagram data loaded from 1 follower file — not saved yet. 1 following, 1 followers. ' +
       'Since your last save: 3 new follows, 1 unfollowed, 2 new followers, 1 lost follower. ' +
       '2 planned unfollows done. 1 planned follower removal done. ' +
       '1 account marked done but still followed: back in To unfollow.',
@@ -46,7 +42,7 @@ test.each([
   [
     'same export',
     imported({ exportChanged: false }),
-    'Loaded 1 follower file: same as the last import. 1 following, 1 followers. ' +
+    'Loaded 1 follower file: same as last time. 1 following, 1 followers. ' +
       'Since your last save: 3 new follows, 1 unfollowed, 2 new followers, 1 lost follower.',
   ],
   ['saved (shown as a toast instead)', { type: STATUS_EVENTS.SAVED }, ''],

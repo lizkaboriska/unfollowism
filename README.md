@@ -20,7 +20,7 @@ You work in rounds. Each round:
    (a shorter range leaves people out, and they would look unfollowed) and format **JSON**.
    It's usually ready within minutes to a few hours; then download the `.zip`.
 2. **Import.** Open the app, then add the `.zip` (or `following.json` and every `followers_*.json`
-   from it) **and the master file you saved last time**. Files can come from different folders:
+   from it) **and the progress file you saved last time**. Files can come from different folders:
    add them one after another. They are recognized by their content, so renaming them is fine.
 3. **Review.** The tabs show:
    - **Review**: everyone, by scope (I follow, People who follow me, Mutual, …), your decision and tag.
@@ -31,7 +31,7 @@ You work in rounds. Each round:
 
    Tag accounts, add notes, and decide: tick **Kept** to keep an account as it is, or queue it **To unfollow** /
    **To remove**.
-4. **Save.** Click **Save master** to download `unfollowism_master_<date>.json`. That file
+4. **Save.** Click **Save** to download `unfollowism_progress_<date>_<time>.json`. That file
    is your record: keep it and add it to your next import. Saving also ends the round:
    "new" and "since your last save" count from it next time.
 
@@ -39,7 +39,7 @@ The next import checks your to-do list against the new export: accounts that are
 are cleared from it, and ones marked Done that are still there go back to To unfollow / To remove.
 
 **Unsaved work:** the header shows **Unsaved changes (N)**; click it to see what isn't in your
-downloaded master yet, or to undo it with **Reset changes**. A reload keeps your unsaved work,
+downloaded progress file yet, or to undo it with **Reset changes**. A reload keeps your unsaved work,
 but closing the tab does not, so save before you close.
 
 ## Development

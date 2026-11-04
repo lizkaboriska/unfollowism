@@ -1,3 +1,5 @@
+import { safeLocalStorage } from '@/shared/lib/safeLocalStorage.ts';
+
 /**
  * The lastSavedAt of the newest master downloaded from this browser, kept across days
  * and tabs (localStorage) for the "this master is older than your last save" warning.
@@ -28,14 +30,6 @@ export function localStorageLastSaved(
       }
     },
   };
-}
-
-function safeLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
 }
 
 export function memoryLastSaved(initial: string | null = null): LastSavedStore {

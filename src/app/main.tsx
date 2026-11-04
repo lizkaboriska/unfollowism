@@ -9,6 +9,7 @@ import { browserTabEnvironment, claimTab } from '@/app/tab/tabIdentity.ts';
 import { guardUnload } from '@/app/tab/unloadGuard.ts';
 import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master';
+import { localStorageHowItWorksSeen } from '@/pages/import';
 import { downloadText } from '@/shared/lib/download.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
@@ -50,7 +51,7 @@ createRoot(rootElement).render(
     <ChakraProvider value={system}>
       <Provider store={store}>
         <DialogProvider>
-          <App deps={deps} />
+          <App deps={deps} howItWorksSeen={localStorageHowItWorksSeen()} />
         </DialogProvider>
       </Provider>
     </ChakraProvider>
