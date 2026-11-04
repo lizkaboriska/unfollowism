@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:perf": "vitest run --config vitest.perf.config.ts",
+    "size": "size-limit",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -23,6 +24,25 @@
     ],
     "*.js": "prettier --write"
   },
+  "size-limit": [
+    {
+      "name": "App at start",
+      "path": [
+        "dist/assets/*.js",
+        "!dist/assets/zip-*.js"
+      ],
+      "gzip": true,
+      "limit": "235 kB"
+    },
+    {
+      "name": "Zip reader (Import screen)",
+      "path": [
+        "dist/assets/zip-*.js"
+      ],
+      "gzip": true,
+      "limit": "60 kB"
+    }
+  ],
   "dependencies": {
     "@chakra-ui/react": "3.37.0",
     "@emotion/react": "11.14.0",
@@ -38,6 +58,7 @@
   "devDependencies": {
     "@eslint-react/eslint-plugin": "5.27.2",
     "@eslint/js": "10.0.1",
+    "@size-limit/file": "14.2.0",
     "@stylistic/eslint-plugin": "5.10.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
@@ -60,6 +81,7 @@
     "jsdom": "29.1.1",
     "lint-staged": "16.4.0",
     "prettier": "3.9.10",
+    "size-limit": "14.2.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",

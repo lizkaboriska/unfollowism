@@ -57,6 +57,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Fails when the files loaded at start (or the zip reader) grow past the limits in package.json "size-limit".
+      - run: npm run size
 
   # The single check required by the main ruleset; fails if any job above failed or was cancelled.
   all-checks-passed:
