@@ -1,8 +1,7 @@
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
-import { decisionMatches, isPastAccount } from './decision.ts';
+import { isPastAccount } from './decision.ts';
 import {
-  DecisionFilter,
   FOLLOW_CHANGES,
   RELATIONSHIPS,
   REVIEW_SCOPES,
@@ -18,8 +17,6 @@ import {
   type TagFilter,
 } from './types.ts';
 import { usernameKey } from './util.ts';
-
-const ALL_TAGS: TagFilter = { kind: TAG_FILTER_KINDS.ALL };
 
 export function relationshipOf(account: ReadonlyAccount): Relationship {
   if (account.following && account.followedBy) {
@@ -157,27 +154,6 @@ export function tagMatches(account: ReadonlyAccount, tag: TagFilter): boolean {
 export function queryMatches(account: ReadonlyAccount, query: string): boolean {
   const q = query.trim().toLowerCase();
   return !q || usernameKey(account.username).includes(q);
-}
-
-export interface ScopeQuery {
-  scope: ReviewScope;
-  tag?: TagFilter;
-  decision?: DecisionFilter;
-  query?: string;
-}
-
-/** Generic so it returns mutable accounts when given mutable ones (reducers) and readonly ones otherwise. */
-export function reviewScopeAccounts<A extends ReadonlyAccount>(
-  source: { readonly accounts: Readonly<Record<string, A>> },
-  { scope, tag = ALL_TAGS, decision = DecisionFilter.ANY, query = '' }: ScopeQuery,
-): A[] {
-  return Object.values(source.accounts).filter(
-    account =>
-      scopeMatches(account, scope) &&
-      tagMatches(account, tag) &&
-      decisionMatches(account, decision) &&
-      queryMatches(account, query),
-  );
 }
 
 export interface RelationshipStats {

@@ -1,32 +1,22 @@
 import { Button, Dialog, Portal } from '@chakra-ui/react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 
-import {
-  DIALOG_KINDS,
-  DialogContext,
-  type ConfirmOptions,
-  type DialogKind,
-  type OpenDialogFn,
-} from './dialogContext.ts';
+import { DialogContext, type ConfirmOptions, type OpenDialogFn } from './dialogContext.ts';
 
-interface OpenDialog extends ConfirmOptions {
-  kind: DialogKind;
-}
-
-/** Shows the dialogs that useConfirm / useAlert (dialogHooks.ts) open, one at a time. */
+/** Shows the dialogs that useConfirm opens, one at a time. */
 export function DialogProvider({ children }: { children: ReactNode }) {
   // The last dialog stays in state after closing so its text doesn't vanish during the close animation.
-  const [dialog, setDialog] = useState<OpenDialog | null>(null);
+  const [dialog, setDialog] = useState<ConfirmOptions | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   /** Answers the dialog on screen; null once it has been answered. */
   const pending = useRef<((confirmed: boolean) => void) | null>(null);
 
   const open = useCallback<OpenDialogFn>(
-    (kind, options) =>
+    options =>
       new Promise(resolve => {
         pending.current?.(false); // a dialog opened over another one cancels it, so its caller isn't left waiting
         pending.current = resolve;
-        setDialog({ ...options, kind });
+        setDialog(options);
         setIsOpen(true);
       }),
     [],
@@ -51,7 +41,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
             close(false);
           }
         }}
-        role={dialog?.kind === DIALOG_KINDS.CONFIRM ? 'alertdialog' : 'dialog'}
+        role="alertdialog"
         placement="center"
       >
         <Portal>
@@ -73,17 +63,15 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                 >
                   {dialog?.confirmLabel}
                 </Button>
-                {dialog?.kind === DIALOG_KINDS.CONFIRM && (
-                  <Button
-                    h="11"
-                    variant="outline"
-                    onClick={() => {
-                      close(false);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                )}
+                <Button
+                  h="11"
+                  variant="outline"
+                  onClick={() => {
+                    close(false);
+                  }}
+                >
+                  Cancel
+                </Button>
               </Dialog.Footer>
             </Dialog.Content>
           </Dialog.Positioner>

@@ -10,7 +10,6 @@ import {
   followChangeMatches,
   relationshipOf,
   relationshipStats,
-  reviewScopeAccounts,
   scopeMatches,
   tagMatches,
 } from '../scopes.ts';
@@ -69,12 +68,6 @@ describe('read functions never write (safe on frozen Redux state)', () => {
       tagMatches(alice, { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' });
       tagMatches(alice, { kind: TAG_FILTER_KINDS.UNTAGGED });
       decisionMatches(alice, DecisionFilter.NEEDS_DECISION);
-      reviewScopeAccounts(frozen, {
-        scope: REVIEW_SCOPES.ALL_ACCOUNTS,
-        tag: { kind: TAG_FILTER_KINDS.ALL },
-        decision: DecisionFilter.ANY,
-        query: 'a',
-      });
       relationshipStats(frozen);
       planStats(frozen);
       planOf(alice, UNFOLLOW);
