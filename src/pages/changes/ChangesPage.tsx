@@ -44,7 +44,7 @@ function CompareBox({ since }: { since: string }) {
       <HStack justify="space-between" px="3" py="2.5" borderBottomWidth="1px" textStyle="small" color="fg.muted">
         <Text>{formatDate(since)} progress file</Text>
         <Text aria-hidden>→</Text>
-        <Text color="fg">{importedAt ? `${formatDate(importedAt)} import` : 'Import'}</Text>
+        <Text color="fg">{importedAt ? `${formatDate(importedAt)} data` : 'New data'}</Text>
       </HStack>
       <Grid templateColumns="repeat(2, minmax(0, 1fr))">
         {numbers.map(({ label, before, after }) => (

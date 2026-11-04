@@ -23,7 +23,7 @@ export function AppMenu({ onImportNew }: { onImportNew: () => void }) {
           <Menu.Positioner>
             <Menu.Content w="220px" p="0">
               <Menu.Item value="import" {...ROW} borderBottomWidth="1px" onSelect={onImportNew}>
-                Import new files
+                Add new Instagram data
               </Menu.Item>
               <Menu.Item
                 value="tags"

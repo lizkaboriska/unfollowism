@@ -70,9 +70,9 @@ const followersJson = () =>
   new File([JSON.stringify(followersFile(['alice'], ['carol']))], 'followers_1.json', { type: 'application/json' });
 const exportFiles = () => [followingJson(), followersJson()];
 
-const importButton = () => screen.getByRole('button', { name: 'Import' });
-const findReadyBox = () => screen.findByRole('region', { name: 'Your export is ready' });
-/** The rows of the "Your export is ready" box, e.g. "✓Following found2 accounts". */
+const importButton = () => screen.getByRole('button', { name: /^(Start|Update)$/ });
+const findReadyBox = () => screen.findByRole('region', { name: 'Your files are ready' });
+/** The rows of the "Your files are ready" box, e.g. "✓Instagram data2 following · 2 followers". */
 const readyRows = async () =>
   within(await findReadyBox())
     .getAllByRole('listitem')
@@ -313,7 +313,7 @@ test('How it works never opens by itself with work loaded: after a reload or fro
 
   const { user } = await renderApp({ tab: first.tab, howItWorksSeen: memoryHowItWorksSeen() });
   expect(await findRow('bob')).toBeInTheDocument();
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   expect(await screen.findByRole('heading', { name: 'Have your .zip?' })).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
@@ -346,17 +346,12 @@ test('dragging a file over the file box shows "Drop to add" until it leaves', as
 test('import → review → save works end to end', async () => {
   const { downloads, user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect(await readyRows()).toEqual([
-    '✓Following found2 accounts',
-    '✓Followers found2 accounts',
-    '–Progress fileNot selected',
-  ]);
-  expect(screen.getByText('2 files')).toBeInTheDocument(); // loose files, not one .zip
+  expect(await readyRows()).toEqual(['✓Instagram data2 following · 2 followers', '–Progress filenot selected']);
   expect(screen.queryByRole('region', { name: 'Have your .zip?' })).not.toBeInTheDocument();
   await user.click(importButton());
 
   expect(await screen.findByText(/Started fresh/)).toBeInTheDocument();
-  expect(screen.queryByText('Your export is ready')).not.toBeInTheDocument();
+  expect(screen.queryByText('Your files are ready')).not.toBeInTheDocument();
   expect(stat('Following')).toBe('2');
   expect(stat('Mutual')).toBe('1');
   expect(row('alice')).toBeInTheDocument();
@@ -413,8 +408,8 @@ test('a missing Followers file is shown and Import stays disabled', async () => 
   await user.upload(screen.getByTestId('file-input'), [followingJson()]);
   expect(await screen.findByText(MISSING_FOLLOWERS)).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: "Let's find one more file" })).toBeInTheDocument();
-  expect(screen.getByRole('alert')).toHaveTextContent(/Add followers_1\.json .* from the same export/);
-  expect(screen.queryByText('Your export is ready')).not.toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent(/Add followers_1\.json .* from the same \.zip/);
+  expect(screen.queryByText('Your files are ready')).not.toBeInTheDocument();
   expect(importButton()).toBeDisabled();
 });
 
@@ -448,7 +443,7 @@ test('an import that fails says why, and nothing is imported', async () => {
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('⚠ Import failed');
   expect(alert).toHaveTextContent('No accounts found in the Following file of this export.');
-  expect(screen.getByText('Your export is ready')).toBeInTheDocument();
+  expect(screen.getByText('Your files are ready')).toBeInTheDocument();
 });
 
 /**
@@ -470,7 +465,7 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
   expect(within(box).getByRole('heading', { name: 'Drop to add' })).toBeInTheDocument();
   fireEvent.drop(box, { dataTransfer: { files: [masterJson('2026-10-01T00:00:00.000Z')] } });
   await waitFor(async () => {
-    expect((await readyRows())[2]).toMatch(/^✓Progress fileSelected · /);
+    expect((await readyRows())[1]).toMatch(/^✓Progress filesaved /);
   });
 
   await user.click(importButton());
@@ -481,13 +476,12 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
 test('files chosen one after another add up, e.g. a master from another folder', async () => {
   const { user } = await renderApp();
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect((await readyRows())[2]).toBe('–Progress fileNot selected');
+  expect((await readyRows())[1]).toBe('–Progress filenot selected');
 
   await user.upload(screen.getByTestId('file-input'), [masterJson('2026-10-01T00:00:00.000Z')]);
   await waitFor(async () => {
-    expect((await readyRows())[2]).toMatch(/^✓Progress fileSelected · .*2026$/);
+    expect((await readyRows())[1]).toMatch(/^✓Progress filesaved .*2026$/);
   });
-  expect(screen.getByText('2 files')).toBeInTheDocument(); // the master isn't counted as part of the export
   expect(screen.getByText('following.json')).toBeInTheDocument();
   expect(screen.getByText('followers_1.json')).toBeInTheDocument();
   expect(importButton()).toBeEnabled();
@@ -534,7 +528,7 @@ test('a conflict keeps the list so the extra file can be removed', async () => {
   expect(importButton()).toBeDisabled();
 
   await user.click(screen.getByRole('button', { name: 'Remove old.json' }));
-  expect((await readyRows())[2]).toMatch(/^✓Progress fileSelected · /);
+  expect((await readyRows())[1]).toMatch(/^✓Progress filesaved /);
   expect(screen.getByText('new.json')).toBeInTheDocument();
   expect(screen.queryByText(/Found 2 progress files/)).not.toBeInTheDocument();
   expect(importButton()).toBeEnabled();
@@ -561,7 +555,7 @@ const savedBefore = () => {
 test('without a master after a previous save, a warning asks for it; Start fresh hides it; no popup', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), exportFiles());
-  expect((await readyRows())[2]).toBe('–Progress fileNot selected');
+  expect((await readyRows())[1]).toBe('–Progress filenot selected');
   const warning = within(await findReadyBox()).getByRole('alert');
   expect(warning).toHaveTextContent('⚠ Have your progress file?');
   expect(warning).toHaveTextContent('You saved one on Oct 20, 2026, but none is selected.');
@@ -593,7 +587,7 @@ test('Import works while the saved-master warning shows; a changed selection sho
 test('an older master is warned about with both dates; Use older file hides it', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), [...exportFiles(), masterJson('2026-10-01T12:00:00.000Z')]);
-  expect((await readyRows())[2]).toBe('⚠Progress fileSelected · Oct 1, 2026');
+  expect((await readyRows())[1]).toBe('⚠Progress filesaved Oct 1, 2026');
   const warning = within(await findReadyBox()).getByRole('alert');
   expect(warning).toHaveTextContent('⚠ This progress file is older');
   expect(warning).toHaveTextContent('Selected fileOct 1, 2026Last savedOct 20, 2026');
@@ -602,7 +596,7 @@ test('an older master is warned about with both dates; Use older file hides it',
 
   await user.click(within(warning).getByRole('button', { name: 'Use older file' }));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  expect((await readyRows())[2]).toBe('✓Progress fileSelected · Oct 1, 2026');
+  expect((await readyRows())[1]).toBe('✓Progress filesaved Oct 1, 2026');
 });
 
 test('Choose newer master swaps the older master for the picked one', async () => {
@@ -617,7 +611,7 @@ test('Choose newer master swaps the older master for the picked one', async () =
   await user.upload(input, [masterJson('2026-10-20T12:00:00.000Z', 'new.json')]);
 
   await waitFor(async () => {
-    expect((await readyRows())[2]).toBe('✓Progress fileSelected · Oct 20, 2026');
+    expect((await readyRows())[1]).toBe('✓Progress filesaved Oct 20, 2026');
   });
   expect(screen.queryByText('old.json')).not.toBeInTheDocument();
   expect(screen.getByText('new.json')).toBeInTheDocument();
@@ -636,7 +630,7 @@ test('Import new files can be cancelled', async () => {
   await importFiles(user, exportFiles());
   await findRow('bob');
   expect(screen.getByRole('button', { name: '● New import not saved' })).toBeInTheDocument();
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   expect(screen.getByText('Have your .zip?')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(row('bob')).toBeInTheDocument();
@@ -659,7 +653,7 @@ test('importing over unsaved work asks first', async () => {
   await findRow('bob');
   await user.click(keepButton('bob'));
 
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   await importFiles(user, exportFiles());
   const dialog = await screen.findByRole('alertdialog');
   expect(within(dialog).getByText('Discard unsaved changes?')).toBeInTheDocument();
@@ -667,7 +661,7 @@ test('importing over unsaved work asks first', async () => {
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
-  expect(screen.getByText('Your export is ready')).toBeInTheDocument(); // nothing imported
+  expect(screen.getByText('Your files are ready')).toBeInTheDocument(); // nothing imported
 
   await user.click(importButton());
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Import anyway' }));
@@ -739,7 +733,7 @@ test("work that can't be restored after a reload is reported on the import scree
 
   await importFiles(user, exportFiles());
   expect(await findRow('bob')).toBeInTheDocument();
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   expect(screen.queryByText(/couldn't be restored/)).not.toBeInTheDocument();
 });
 
@@ -750,7 +744,7 @@ test("Import shows that it's working", async () => {
     expect(importButton()).toBeEnabled();
   });
   await user.click(importButton());
-  expect(screen.getByRole('button', { name: /Importing…/ })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /Loading…/ })).toBeDisabled();
   expect(await findRow('bob')).toBeInTheDocument();
 });
 
@@ -1584,7 +1578,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   });
 
   // You unfollowed bob as planned, followed four new accounts; carol left.
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
   await importFiles(user, [master, ...exportOf(['alice', 'dan', 'gus', 'hal', 'ivy', 'jo'], ['alice'])]);
   await findRow('alice');
@@ -1636,7 +1630,7 @@ test('someone you kept who stops following you needs a decision again; past acco
   });
 
   // alice stops following you; you unfollow bob, who never followed you: bob is now a past account
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
   await importFiles(user, [master, ...exportOf(['alice'], ['carol'])]);
   await findRow('alice');
@@ -1677,7 +1671,7 @@ test('a renamed follower is suggested in No longer follow you, and confirming mo
     expect(downloads).toHaveLength(1);
   });
 
-  await fromMenu(user, 'Import new files');
+  await fromMenu(user, 'Add new Instagram data');
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
   await importFiles(user, [
     master,

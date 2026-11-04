@@ -1,5 +1,4 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '@/entities/master';
-import { plural } from '@/entities/master';
 import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
 
 /** What's missing before the selection can be imported, as a warning. Null when nothing is. */
@@ -18,13 +17,13 @@ export function missingWarning({
   if (!hasFollowing) {
     return {
       title: 'Followers found. Following is missing.',
-      body: `Add following.json from the same export, ${downloadAgain}`,
+      body: `Add following.json from the same .zip, ${downloadAgain}`,
     };
   }
   if (!followerFileCount) {
     return {
       title: 'Following found. Followers are missing.',
-      body: `Add followers_1.json (and any followers_2.json, …) from the same export, ${downloadAgain}`,
+      body: `Add followers_1.json (and any followers_2.json, …) from the same .zip, ${downloadAgain}`,
     };
   }
   return null;
@@ -58,27 +57,4 @@ export function olderMasterDates({
 export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
   const lost = selected ? `Choices saved after ${selected} won't come back.` : "Some saved choices won't come back.";
   return `${lost} Choose your ${lastSaved} file to keep them.`;
-}
-
-/** What the box needs to know about the export's files (everything chosen except the master). */
-export interface ExportFileInfo {
-  name: string;
-  size: number;
-  lastModified: number;
-}
-
-const megabytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 });
-const kilobytes = new Intl.NumberFormat(undefined, { style: 'unit', unit: 'kilobyte', maximumFractionDigits: 0 });
-
-function fileSize(bytes: number): string {
-  return bytes >= 1_000_000 ? megabytes.format(bytes / 1_000_000) : kilobytes.format(Math.max(1, bytes / 1000));
-}
-
-/** "instagram.zip · 2.4 MB · Oct 29, 2026" for one file, "3 files" for loose files. */
-export function exportFilesText(files: readonly ExportFileInfo[]): string {
-  const [only] = files;
-  if (files.length !== 1 || !only) {
-    return plural(files.length, 'file');
-  }
-  return [only.name, fileSize(only.size), formatDate(new Date(only.lastModified).toISOString())].join(' · ');
 }

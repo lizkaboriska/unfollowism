@@ -190,8 +190,6 @@ export function ImportScreen({
   // Exactly one of Following / Followers is there.
   const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
   const masterPath = master?.path;
-  // The export's files: everything readable except the file holding the master.
-  const exportFiles = chosen.filter(c => !c.readError && !c.inputs.some(i => i.path === masterPath));
   const drop = {
     dragging,
     onDragOver: (e: DragEvent) => {
@@ -237,7 +235,6 @@ export function ImportScreen({
           followerCount={followerCount}
           master={master}
           masterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
-          exportFiles={exportFiles}
           drop={drop}
         >
           {masterWarning && (
@@ -394,10 +391,10 @@ export function ImportScreen({
           w="full"
           disabled={!selection?.prepared || reading > 0}
           loading={importing}
-          loadingText="Importing…"
+          loadingText="Loading…"
           onClick={() => void onImport()}
         >
-          Import
+          {onCancel ? 'Update' : 'Start'}
         </Button>
         {onCancel && (
           <Button variant="plain" h="auto" py="2" onClick={onCancel}>

@@ -5,8 +5,6 @@ import type { RecognizedFiles } from '@/entities/master';
 import { plural } from '@/entities/master';
 import { formatDate } from '@/shared/lib/dates.ts';
 
-import { exportFilesText, type ExportFileInfo } from './importText.ts';
-
 /** Handlers that let files be dropped on a box; `dragging` turns its frame blue. */
 export interface DropTarget {
   dragging: boolean;
@@ -15,18 +13,19 @@ export interface DropTarget {
   onDrop: (event: DragEvent) => void;
 }
 
+/** One line of the box: a mark (✓, ⚠ or –), what it is, and the details under it. */
 function Row({ mark, label, value }: { mark: string; label: string; value: string }) {
   return (
-    <List.Item minH="11" px="3" gap="2.5" display="flex" alignItems="center" borderTopWidth="1px">
+    <List.Item minH="11" px="3" py="2" gap="2.5" display="flex" alignItems="center" borderTopWidth="1px">
       <Text as="span" w="3.5" color={mark === '–' ? 'fg.muted' : 'ink'} aria-hidden="true">
         {mark}
       </Text>
-      <Text as="span" flex="1">
-        {label}
-      </Text>
-      <Text as="span" textStyle="small" color="fg.muted">
-        {value}
-      </Text>
+      <Stack as="span" gap="0" flex="1">
+        <Text as="span">{label}</Text>
+        <Text as="span" textStyle="small" color="fg.muted">
+          {value}
+        </Text>
+      </Stack>
     </List.Item>
   );
 }
@@ -40,7 +39,6 @@ export function ExportReadyBox({
   followerCount,
   master,
   masterOlder,
-  exportFiles,
   drop,
   children,
 }: {
@@ -48,7 +46,6 @@ export function ExportReadyBox({
   followerCount: number;
   master: RecognizedFiles['master'];
   masterOlder: boolean;
-  exportFiles: readonly ExportFileInfo[];
   drop: DropTarget;
   children?: ReactNode;
 }) {
@@ -64,25 +61,23 @@ export function ExportReadyBox({
       onDragLeave={drop.onDragLeave}
       onDrop={drop.onDrop}
     >
-      <Stack gap="0.5" px="3" pt="4" pb="3">
-        <Heading as="h2" id={titleId} textStyle="heading" color={drop.dragging ? 'accent' : 'ink'}>
-          {drop.dragging ? 'Drop to add' : 'Your export is ready'}
-        </Heading>
-        <Text textStyle="small" color="fg.muted">
-          {exportFilesText(exportFiles)}
-        </Text>
-      </Stack>
+      <Heading as="h2" id={titleId} textStyle="heading" color={drop.dragging ? 'accent' : 'ink'} px="3" pt="4" pb="3">
+        {drop.dragging ? 'Drop to add' : 'Your files are ready'}
+      </Heading>
       <List.Root listStyle="none">
-        <Row mark="✓" label="Following found" value={plural(followingCount, 'account')} />
-        <Row mark="✓" label="Followers found" value={plural(followerCount, 'account')} />
+        <Row
+          mark="✓"
+          label="Instagram data"
+          value={`${String(followingCount)} following · ${plural(followerCount, 'follower')}`}
+        />
         {master ? (
           <Row
             mark={masterOlder ? '⚠' : '✓'}
             label="Progress file"
-            value={master.savedAt ? `Selected · ${formatDate(master.savedAt)}` : 'Selected'}
+            value={master.savedAt ? `saved ${formatDate(master.savedAt)}` : 'selected'}
           />
         ) : (
-          <Row mark="–" label="Progress file" value="Not selected" />
+          <Row mark="–" label="Progress file" value="not selected" />
         )}
       </List.Root>
       {children && (
