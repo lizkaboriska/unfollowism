@@ -2,6 +2,7 @@ import { createMemoryTabDatabase, type TabStore } from '@/entities/master';
 import { memoryLastSaved, type LastSavedStore } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { analyzeImport, type PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
+import { nextPaint } from '@/shared/lib/nextPaint.ts';
 import type { ValueOf } from '@/shared/lib/valueOf.ts';
 import { memoryAddressBar, type AddressBar } from '@/shared/url/addressBar.ts';
 
@@ -29,6 +30,7 @@ export function makeTestStore({
   let clock = new Date(now);
   const store = makeStore({
     now: () => clock,
+    nextPaint,
     download:
       download ??
       ((filename, text) => {

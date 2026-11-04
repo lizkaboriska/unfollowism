@@ -26,7 +26,7 @@ function TextButton({ onClick, children }: { onClick: () => void; children: Reac
 /** "✓ Done · Undo" or "Kept · Undo": what happened to the row, and the way back to queued. */
 function Settled({ label, onUndo }: { label: string; onUndo: () => void }) {
   return (
-    <HStack gap="3" flexShrink="0">
+    <HStack gap="2" flexShrink="0">
       <Text textStyle="control">{label}</Text>
       <TextButton onClick={onUndo}>Undo</TextButton>
     </HStack>
@@ -52,7 +52,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
 
   return (
     <Box as="article" aria-label={`@${username}`} borderWidth="1px" p="3">
-      <HStack justify="space-between" align="flex-start" gap="2.5">
+      <HStack justify="space-between" align="flex-start" gap="2">
         <Box minW="0">
           <Text textStyle="name" wordBreak="break-all">
             @{username}
@@ -69,12 +69,12 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
         {plan === undefined && <Settled label="Kept" onUndo={undo} />}
       </HStack>
       {account.review.tags.length > 0 && (
-        <Text textStyle="small" color="fg.muted" mt="2.5">
+        <Text textStyle="small" color="fg.muted" mt="2">
           {account.review.tags.map(tag => `#${tag}`).join(' ')}
         </Text>
       )}
       {plan === PLAN_STATES.PLANNED && (
-        <SimpleGrid columns={2} gap="2" mt="2.5">
+        <SimpleGrid columns={2} gap="2" mt="2">
           <Button asChild variant="outline">
             <a href={profileUrl(username)} target="_blank" rel="noopener noreferrer" onClick={openProfilePopup}>
               Open in Instagram ↗

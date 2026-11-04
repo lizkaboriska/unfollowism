@@ -28,6 +28,7 @@ import { ACTION_TYPES, DecisionKind, PLAN_STATES } from '@/entities/master/lib/t
 import { selectListKeys } from '@/features/filters';
 import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
 import { selectScopeTotals, selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
+import { nextPaint } from '@/shared/lib/nextPaint.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
 const INSTAGRAM_FOLLOWING_CAP = 7_500;
@@ -80,6 +81,7 @@ async function run(total: number) {
   const database = createMemoryTabDatabase();
   const deps = {
     now: () => new Date(),
+    nextPaint,
     download: () => undefined,
     tab: database.forTab('t'),
     lastSaved: memoryLastSaved(),

@@ -1,21 +1,20 @@
-import { Alert, Text } from '@chakra-ui/react';
+import { Alert } from '@chakra-ui/react';
 
 import { STATUS_EVENTS, statusText } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
-/** What last happened: the import message, or a warning box that stays while the last save failed. */
+/** A warning box that stays while the last save failed; nothing otherwise. */
 export function StatusLine() {
   const status = useAppSelector(s => s.master.status);
-  const message = statusText(status);
-  if (status?.type === STATUS_EVENTS.SAVE_FAILED) {
-    return (
-      <Alert.Root status="warning" role="alert">
-        <Alert.Content>
-          <Alert.Title textStyle="control">⚠ Couldn't save the progress file</Alert.Title>
-          <Alert.Description color="fg.muted">{message}</Alert.Description>
-        </Alert.Content>
-      </Alert.Root>
-    );
+  if (status?.type !== STATUS_EVENTS.SAVE_FAILED) {
+    return null;
   }
-  return message ? <Text>{message}</Text> : null;
+  return (
+    <Alert.Root status="warning" role="alert">
+      <Alert.Content>
+        <Alert.Title textStyle="control">⚠ Couldn't save the progress file</Alert.Title>
+        <Alert.Description color="fg.muted">{statusText(status)}</Alert.Description>
+      </Alert.Content>
+    </Alert.Root>
+  );
 }

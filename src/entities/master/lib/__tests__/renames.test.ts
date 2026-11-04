@@ -196,7 +196,7 @@ test('plans on a renamed account are remembered and not reported as done', () =>
     T2,
   );
   expect(suggestions(result)).toEqual({ alice: { to: 'alice_new', plans: [UNFOLLOW, REMOVE_FOLLOWER] } });
-  expect(result.summary.plans.completed).toEqual({ [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 }); // only bob's unfollow
+  expect(result.plans.completed).toEqual({ [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 }); // only bob's unfollow
   expect(planOf(must(result.master.accounts.alice), UNFOLLOW)).toBeUndefined();
 });
 

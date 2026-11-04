@@ -98,7 +98,7 @@ describe('import', () => {
     expect(s.master.base?.lastImportAt).toBe('2026-10-27T12:00:00.000Z');
     expect(Object.keys(s.master.changed)).toEqual([]); // the imported master is the session baseline
     expect(selectIsDirty(s)).toBe(true);
-    expect(s.master.status).toMatchObject({ type: STATUS_EVENTS.IMPORTED, isNewMaster: true });
+    expect(s.master.status).toBeNull(); // an import says nothing
   });
 
   test('re-importing the saved master with the same export is clean', async () => {
@@ -850,7 +850,7 @@ describe('renames', () => {
     const t = await renamedStore();
     const state = t.store.getState();
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
-    expect(state.master.status).toMatchObject({ summary: { plans: { completed: { [REMOVE_FOLLOWER]: 0 } } } });
+    expect(state.master.importFacts?.completedPlans).toEqual({}); // carol's removal isn't done: she was renamed
     expect(lostFollowers(state)).toEqual(['carol']);
     expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(4); // alice, bob, carol (past), carol_2
   });

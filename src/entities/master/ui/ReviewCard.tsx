@@ -126,7 +126,7 @@ export const ReviewCard = memo(function ReviewCard({
       )}
       {/* A past account has nothing left to decide. */}
       {!isPastAccount(account) && (
-        <SimpleGrid columns={2} gap="2" mt="2.5">
+        <SimpleGrid columns={2} gap="2" mt="2">
           <KeepButton account={account} />
           <QueueControl account={account} scope={scope} onOpen={open} />
         </SimpleGrid>

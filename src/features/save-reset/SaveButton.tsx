@@ -4,7 +4,7 @@ import { selectHasProject, selectIsDirty, SAVE_STATUSES, saveMaster } from '@/en
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
 
-export const SAVED_TOAST = '✓ Progress file downloaded. Keep it for your next import.';
+export const SAVED_TOAST = '✓ Progress file downloaded. Add it next time.';
 
 /**
  * Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked.

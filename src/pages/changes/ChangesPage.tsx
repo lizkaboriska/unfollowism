@@ -30,7 +30,10 @@ const SECTION_NOTES: Partial<Record<FollowChange, string>> = {
   [FOLLOW_CHANGES.LOST_FOLLOWERS]: 'People change their feeds. It’s okay.',
 };
 
-/** The saved master against the new import: the two dates, then Following and Followers before → after. */
+/**
+ * The saved master against the new import, as a small table: the two dates head the columns, then Following and
+ * Followers with each before number under the old date and each after number under the new one.
+ */
 function CompareBox({ since }: { since: string }) {
   const importedAt = useAppSelector(s => s.master.base?.lastImportAt ?? null);
   const facts = useAppSelector(s => s.master.importFacts);
@@ -40,21 +43,42 @@ function CompareBox({ since }: { since: string }) {
     { label: 'Followers', before: facts?.followersBefore, after: stats.followers },
   ];
   return (
-    <Box as="section" aria-label="Compared files" borderWidth="1px">
-      <HStack justify="space-between" px="3" py="2.5" borderBottomWidth="1px" textStyle="small" color="fg.muted">
-        <Text>{formatDate(since)} progress file</Text>
-        <Text aria-hidden>→</Text>
-        <Text color="fg">{importedAt ? `${formatDate(importedAt)} data` : 'New data'}</Text>
-      </HStack>
-      <Grid templateColumns="repeat(2, minmax(0, 1fr))">
-        {numbers.map(({ label, before, after }) => (
-          <Stack key={label} p="3" gap="1">
-            <Text color="fg.muted">{label}</Text>
-            <Text textStyle="number">{before === undefined ? after : `${before} → ${after}`}</Text>
-          </Stack>
-        ))}
-      </Grid>
-    </Box>
+    <Grid
+      as="section"
+      aria-label="Compared files"
+      borderWidth="1px"
+      p="3"
+      templateColumns="auto minmax(0, 1fr) auto minmax(0, 1fr)"
+      columnGap="2"
+      rowGap="1.5"
+      alignItems="baseline"
+      textAlign="center"
+    >
+      <Box />
+      <Text textStyle="small" color="fg.muted">
+        {formatDate(since)}
+      </Text>
+      <Text textStyle="small" color="fg.muted" aria-hidden>
+        →
+      </Text>
+      <Text textStyle="small">{importedAt ? formatDate(importedAt) : 'New data'}</Text>
+      {numbers.map(({ label, before, after }) => (
+        <Grid key={label} role="group" aria-label={label} gridColumn="1 / -1" templateColumns="subgrid">
+          <Text color="fg.muted" textAlign="start">
+            {label}
+          </Text>
+          <Text textStyle="number" fontSize={{ base: '1.5rem', sm: '2rem' }}>
+            {before}
+          </Text>
+          <Text textStyle="number" fontSize={{ base: '1.5rem', sm: '2rem' }} aria-hidden>
+            {before === undefined ? '' : '→'}
+          </Text>
+          <Text textStyle="number" fontSize={{ base: '1.5rem', sm: '2rem' }}>
+            {after}
+          </Text>
+        </Grid>
+      ))}
+    </Grid>
   );
 }
 
@@ -73,7 +97,7 @@ function Section({
   const shown = expanded ? keys : keys.slice(0, FIRST_ROWS);
   const note = SECTION_NOTES[change];
   return (
-    <Stack as="section" aria-labelledby={headingId} gap="2.5">
+    <Stack as="section" aria-labelledby={headingId} gap="2">
       <Box>
         <HStack justify="space-between" align="baseline">
           <Heading as="h2" id={headingId} textStyle="heading">
@@ -133,7 +157,7 @@ export function ChangesPage() {
   const total = SECTION_ORDER.reduce((sum, change) => sum + sections[change].length, 0);
 
   return (
-    <Stack gap="6">
+    <Stack gap="3">
       <Stack gap="1">
         <Heading as="h1" textStyle="title">
           Changes
@@ -149,18 +173,25 @@ export function ChangesPage() {
       </Stack>
 
       {since === null ? (
-        <Text color="fg.muted">Nothing to compare yet. Save once, and your next import shows what changed.</Text>
+        <Text color="fg.muted">
+          Nothing to compare yet. Save once, and next time you add Instagram data, this shows what changed.
+        </Text>
       ) : (
         <>
           <CompareBox since={since} />
           {total === 0 && <Text color="fg.muted">Nothing changed since {formatDate(since)}.</Text>}
-          {SECTION_ORDER.filter(change => sections[change].length > 0).map(change => (
-            <Section key={change} change={change} keys={sections[change]} onOpen={open} />
-          ))}
+          {/* 32 between sections (12 + mt), so each list reads as its own group. */}
+          {total > 0 && (
+            <Stack gap="8" mt="5">
+              {SECTION_ORDER.filter(change => sections[change].length > 0).map(change => (
+                <Section key={change} change={change} keys={sections[change]} onOpen={open} />
+              ))}
+            </Stack>
+          )}
         </>
       )}
 
-      <Text textStyle="small" color="fg.muted" lineHeight="1.5">
+      <Text textStyle="small" color="fg.muted" lineHeight="1.5" mt={since !== null && total > 0 ? '5' : '0'}>
         Compared on your device using your saved progress file. Nothing is checked live with Instagram.
       </Text>
       <AccountPopup

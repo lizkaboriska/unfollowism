@@ -13,6 +13,7 @@ import { followersFile, followingFile, must } from '@/entities/master/lib/__test
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
 import { memoryHowItWorksSeen } from '@/pages/import/howItWorksSeen.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
+import { nextPaint as realNextPaint } from '@/shared/lib/nextPaint.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
@@ -31,12 +32,15 @@ async function renderApp({
   howItWorksSeen = memoryHowItWorksSeen(true),
   waitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
+  /** Hold it to see the in-between state of an import. */
+  nextPaint = realNextPaint,
   /** Called before each download; throw to make the save fail. */
   beforeDownload = () => undefined,
 } = {}) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now,
+    nextPaint,
     download: (filename, text) => {
       beforeDownload();
       downloads.push({ filename, text });
@@ -350,7 +354,8 @@ test('import → review → save works end to end', async () => {
   expect(screen.queryByRole('region', { name: 'Have your .zip?' })).not.toBeInTheDocument();
   await user.click(importButton());
 
-  expect(await screen.findByText(/Started fresh/)).toBeInTheDocument();
+  expect(await findRow('alice')).toBeInTheDocument();
+  expect(screen.queryByText(/follower file/)).not.toBeInTheDocument(); // no import message above the page
   expect(screen.queryByText('Your files are ready')).not.toBeInTheDocument();
   expect(stat('Following')).toBe('2');
   expect(stat('Mutual')).toBe('1');
@@ -373,7 +378,6 @@ test('import → review → save works end to end', async () => {
   expect(screen.queryByRole('button', { name: 'All decisions saved' })).not.toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
-  expect(screen.queryByText(/Started fresh/)).not.toBeInTheDocument(); // the import message gives way
 });
 
 test('a failed save shows a warning that stays until a save works', async () => {
@@ -629,7 +633,7 @@ test('Import new files can be cancelled', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow('bob');
-  expect(screen.getByRole('button', { name: '● New import not saved' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● New data not saved' })).toBeInTheDocument();
   await fromMenu(user, 'Add new Instagram data');
   expect(screen.getByText('Have your .zip?')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -738,13 +742,19 @@ test("work that can't be restored after a reload is reported on the import scree
 });
 
 test("Import shows that it's working", async () => {
-  const { user } = await renderApp();
+  // Held until the check below, so a fast import can't finish before the test looks.
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const { user } = await renderApp({ nextPaint: () => gate });
   await user.upload(screen.getByTestId('file-input'), exportFiles());
   await waitFor(() => {
     expect(importButton()).toBeEnabled();
   });
   await user.click(importButton());
   expect(screen.getByRole('button', { name: /Loading…/ })).toBeDisabled();
+  release();
   expect(await findRow('bob')).toBeInTheDocument();
 });
 
@@ -769,7 +779,9 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
   await fromMenu(user, 'Reset changes');
   const dialog = await screen.findByRole('alertdialog');
   // Started from an export only: nothing was saved yet, so Reset goes back to the import.
-  expect(within(dialog).getByText('Your changes to 1 account since the import will be undone.')).toBeInTheDocument();
+  expect(
+    within(dialog).getByText('Your changes to 1 account since adding the data will be undone.'),
+  ).toBeInTheDocument();
   expect(within(dialog).getByText('Instagram stays as it is.')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => {
@@ -1379,7 +1391,7 @@ describe('unsaved changes popup', () => {
     await closeAccount(user, 'alice');
 
     const p = await openPopup(user, '● Unsaved · 2 changed accounts');
-    expect(within(p).getByText('2 changed accounts since the import')).toBeInTheDocument(); // never saved
+    expect(within(p).getByText('2 changed accounts since adding the data')).toBeInTheDocument(); // never saved
     const tagRow = within(p).getByRole('button', { name: /^\+ #dog tag/ });
     expect(tagRow).toHaveTextContent('1 account ▾');
     expect(within(p).queryByText(/#home/)).not.toBeInTheDocument();
@@ -1457,8 +1469,8 @@ describe('unsaved changes popup', () => {
 
   test('only a new import: nothing per account, Save on, Reset off', async () => {
     const { user } = await imported();
-    const p = await openPopup(user, '● New import not saved');
-    expect(within(p).getByText('New import, no account changes')).toBeInTheDocument();
+    const p = await openPopup(user, '● New data not saved');
+    expect(within(p).getByText('New data, no account changes')).toBeInTheDocument();
     expect(within(p).getByRole('button', { name: 'Save' })).toBeEnabled();
     expect(within(p).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
   });
@@ -1586,8 +1598,12 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
 
   expect(screen.getByText(/^6 changes since /)).toBeInTheDocument();
   const compared = screen.getByRole('region', { name: 'Compared files' });
-  expect(within(compared).getByText('3 → 6')).toBeInTheDocument(); // following
-  expect(within(compared).getByText('2 → 1')).toBeInTheDocument(); // followers
+  const following = within(compared).getByRole('group', { name: 'Following' });
+  expect(within(following).getByText('3')).toBeInTheDocument();
+  expect(within(following).getByText('6')).toBeInTheDocument();
+  const followers = within(compared).getByRole('group', { name: 'Followers' });
+  expect(within(followers).getByText('2')).toBeInTheDocument();
+  expect(within(followers).getByText('1')).toBeInTheDocument();
   const sectionTitles = screen
     .getAllByRole('region')
     .filter(region => region.hasAttribute('aria-labelledby'))

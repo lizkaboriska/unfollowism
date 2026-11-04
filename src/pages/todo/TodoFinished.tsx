@@ -40,7 +40,7 @@ export function TodoFinished({ done, onViewCompleted }: { done: number; onViewCo
           Your queue is clear. A little more room for what you love.
         </Text>
         <Text color="fg.muted" mt="2.5">
-          Your next import confirms the changes you made in Instagram.
+          Next time you add Instagram data, the changes you made in Instagram are confirmed.
         </Text>
         <Stack gap="2" mt="4.5">
           <Button variant="outline" onClick={onViewCompleted}>
