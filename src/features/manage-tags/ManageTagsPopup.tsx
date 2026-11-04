@@ -108,7 +108,7 @@ export function ManageTagsPopup({ open, onClose }: { open: boolean; onClose: () 
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
+          <Drawer.Content>
             <Drawer.Header display="block">
               <Drawer.Title textStyle="heading">Manage tags</Drawer.Title>
               <Text textStyle="small" color="fg.muted">

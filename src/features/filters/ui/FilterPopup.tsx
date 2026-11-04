@@ -181,7 +181,7 @@ export function FilterPopup({
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
+          <Drawer.Content>
             <Drawer.Header>
               <Drawer.Title textStyle="heading">Filter</Drawer.Title>
             </Drawer.Header>
