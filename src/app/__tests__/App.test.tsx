@@ -1586,8 +1586,12 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
 
   expect(screen.getByText(/^6 changes since /)).toBeInTheDocument();
   const compared = screen.getByRole('region', { name: 'Compared files' });
-  expect(within(compared).getByText('3 → 6')).toBeInTheDocument(); // following
-  expect(within(compared).getByText('2 → 1')).toBeInTheDocument(); // followers
+  const following = within(compared).getByRole('group', { name: 'Following' });
+  expect(within(following).getByText('3')).toBeInTheDocument();
+  expect(within(following).getByText('6')).toBeInTheDocument();
+  const followers = within(compared).getByRole('group', { name: 'Followers' });
+  expect(within(followers).getByText('2')).toBeInTheDocument();
+  expect(within(followers).getByText('1')).toBeInTheDocument();
   const sectionTitles = screen
     .getAllByRole('region')
     .filter(region => region.hasAttribute('aria-labelledby'))
