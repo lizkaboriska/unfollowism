@@ -64,7 +64,7 @@ function noLongerChanged(stored: Accounts | null, current: Accounts): string[] {
 }
 
 /**
- * Keeps this tab's reload safety net up to date on every change:
+ * Keeps the browser backup up to date on every change:
  * - a new import stores the whole master once (it is also the session baseline);
  * - an edit stores only the edited account (~1 KB), however large the master;
  * - a save stores the edited accounts as written to the file, for Reset changes after a reload;
@@ -122,8 +122,8 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       }
       return true;
     } catch (error) {
-      console.error("Writing the tab's backup to browser storage failed:", error);
-      // Storage may now hold anything (or nothing, if the tab's data was deleted): the next write starts over with
+      console.error('Writing the backup to browser storage failed:', error);
+      // Storage may now hold anything (or nothing, if the browser deleted it): the next write starts over with
       // replace.
       storedBase = null;
       storedChanged = null;

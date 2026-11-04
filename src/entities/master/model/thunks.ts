@@ -88,7 +88,7 @@ function reviveAccounts(records: Record<string, unknown>, path: string): Changed
 }
 
 /**
- * Reads back what this tab stored: the imported master and the accounts changed since
+ * Reads back the browser backup: the imported master and the accounts changed since
  * (current versions, and versions as in the last downloaded file).
  * Everything goes through the strict readers, which throw if the stored data is unusable.
  */
@@ -109,7 +109,7 @@ function reviveTab(stored: StoredBackup): RestoredSession {
 }
 
 /**
- * After a reload: puts back whatever this tab was working on. Null for a new tab (nothing stored);
+ * On start: puts back the work in the browser backup. Null when nothing is stored;
  * rejected when something is stored but can't be read back (see MasterState.restoreFailed).
  */
 export const restoreBackup = createAppThunk<RestoredSession | null, undefined>(

@@ -14,7 +14,7 @@ export const addressChanged = createAction('url/addressChanged');
 /**
  * Keeps the page and Review's filters in the URL, so a reload shows the same screen and Back goes to the last page:
  * - the URL is read once, when the store is made;
- * - when this tab's work is restored, the store takes the URL's page and filters (plain /todo opens the tab
+ * - when the backed-up work is restored, the store takes the URL's page and filters (plain /todo opens the tab
  *   selectTodoStartView picks), and the URL is rewritten in full, dropping anything it didn't understand;
  * - with no work to restore, Welcome shows and the URL goes back to "/";
  * - from then on, a page change adds a Back step and a filter change rewrites the current one;

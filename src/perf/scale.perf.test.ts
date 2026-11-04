@@ -4,7 +4,7 @@
 
 import { makeStore } from '@/app/store/store.ts';
 import {
-  createMemoryTabDatabase,
+  createMemoryBackupStore,
   analyzeImport,
   renameTag,
   setNote,
@@ -78,12 +78,12 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 const mb = (bytes: number) => `${(bytes / 1e6).toFixed(1)} MB`;
 
 async function run(total: number) {
-  const database = createMemoryTabDatabase();
+  const backup = createMemoryBackupStore();
   const deps = {
     now: () => new Date(),
     nextPaint,
     download: () => undefined,
-    backup: database.forTab('t'),
+    backup,
     lastSaved: memoryLastSaved(),
     address: memoryAddressBar(),
   };
@@ -159,7 +159,7 @@ async function run(total: number) {
   await flush();
 
   const [, saveMs] = await timeAsync(() => store.dispatch(saveMaster()).unwrap());
-  const reloaded = makeStore({ ...deps, backup: database.forTab('t') });
+  const reloaded = makeStore({ ...deps, backup });
   const [, restoreMs] = await timeAsync(() => reloaded.dispatch(restoreBackup()).unwrap());
 
   rows.push(

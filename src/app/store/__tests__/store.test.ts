@@ -1,4 +1,4 @@
-import { createMemoryTabDatabase, type BackupStore } from '@/entities/master';
+import { createMemoryBackupStore, type BackupStore } from '@/entities/master';
 import {
   selectAccount,
   selectIsDirty,
@@ -688,7 +688,7 @@ describe('reload safety net', () => {
 
   test('a storage read that fails is reported; a new tab is not', async () => {
     const unreadable = makeTestStore({
-      backup: { ...createMemoryTabDatabase().forTab('t'), load: () => Promise.reject(new Error('no idb')) },
+      backup: { ...createMemoryBackupStore(), load: () => Promise.reject(new Error('no idb')) },
     });
     await unreadable.store.dispatch(restoreBackup());
     expect(unreadable.store.getState().master.restoreFailed).toBe(true);
@@ -720,7 +720,7 @@ describe('storage write failures', () => {
   });
 
   /** A backup store whose writes fail while `failing.on` is set; counts every write attempt. */
-  function flakyBackup(inner: BackupStore = createMemoryTabDatabase().forTab('t')) {
+  function flakyBackup(inner: BackupStore = createMemoryBackupStore()) {
     const failing = { on: false, attempts: 0 };
     const attempt = <T>(write: () => Promise<T>) => {
       failing.attempts += 1;
@@ -762,15 +762,20 @@ describe('storage write failures', () => {
     expect(await storedNote(backup, 'bob')).toBe('my last edit');
   });
 
-  test('a tab whose stored data was deleted gets it rebuilt', async () => {
-    const db = createMemoryTabDatabase();
-    const { backup } = flakyBackup(db.forTab('t'));
+  test('a backup whose stored data was deleted gets it rebuilt', async () => {
+    let inner = createMemoryBackupStore();
+    const { backup } = flakyBackup({
+      durable: true,
+      load: () => inner.load(),
+      replace: (...args) => inner.replace(...args),
+      update: (...args) => inner.update(...args),
+    });
     const t = await importedWithFakeTimers(backup);
 
-    await db.deleteTab('t');
+    inner = createMemoryBackupStore(); // the browser deleted the stored data
     t.store.dispatch(setNote({ username: 'bob', note: 'after the loss' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(t.store.getState().master.persistenceFailed).toBe(true); // an update needs the stored tab
+    expect(t.store.getState().master.persistenceFailed).toBe(true); // an update needs the stored backup
 
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]); // the retry writes everything again
     expect(t.store.getState().master.persistenceFailed).toBe(false);

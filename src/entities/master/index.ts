@@ -45,9 +45,8 @@ export { profileUrl, usernameKey } from './lib/util.ts';
 // api
 export { type LastSavedStore, localStorageLastSaved } from './api/lastSaved.ts';
 export {
-  createMemoryTabDatabase,
-  openIndexedDbTabDatabase,
-  type TabDatabase,
+  createMemoryBackupStore,
+  openIndexedDbBackupStore,
   type BackupMeta,
   type BackupStore,
 } from './api/backupStore.ts';

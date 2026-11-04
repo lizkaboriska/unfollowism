@@ -1,4 +1,4 @@
-import { createMemoryTabDatabase, type BackupStore } from '@/entities/master';
+import { createMemoryBackupStore, type BackupStore } from '@/entities/master';
 import { memoryLastSaved, type LastSavedStore } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { analyzeImport, type PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
@@ -15,7 +15,7 @@ export interface Download {
 
 export function makeTestStore({
   now = '2026-10-27T12:00:00.000Z',
-  backup = createMemoryTabDatabase().forTab('tab-1'),
+  backup = createMemoryBackupStore(),
   lastSaved = memoryLastSaved(),
   address = memoryAddressBar(),
   download,
@@ -61,7 +61,7 @@ export interface RecordedWrite {
 }
 
 /** Wraps a backup store and records every write (account keys only), to assert what gets written when. */
-export function recordingBackup(inner: BackupStore = createMemoryTabDatabase().forTab('tab-1')) {
+export function recordingBackup(inner: BackupStore = createMemoryBackupStore()) {
   const writes: RecordedWrite[] = [];
   const backup: BackupStore = {
     durable: inner.durable,

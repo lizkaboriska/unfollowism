@@ -23,7 +23,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
   const [importOpen, setImportOpen] = useState(false);
   const [restoring, setRestoring] = useState(true);
 
-  // After a reload, silently continue where this tab left off.
+  // On start, silently continue the work in the browser backup.
   useEffect(() => {
     void dispatch(restoreBackup()).finally(() => {
       setRestoring(false);

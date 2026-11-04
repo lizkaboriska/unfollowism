@@ -54,7 +54,7 @@ export interface MasterState {
    * works.
    */
   persistenceFailed: boolean;
-  /** This tab had work stored before the reload, but it couldn't be read back. Cleared by the next import. */
+  /** Work was stored in the browser backup, but it couldn't be read back. Cleared by the next import. */
   restoreFailed: boolean;
 }
 

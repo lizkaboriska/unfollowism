@@ -1,13 +1,13 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
-import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
+import { IDBFactory } from 'fake-indexeddb';
 import { Provider } from 'react-redux';
 
 import { App } from '@/app/App.tsx';
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { makeStore } from '@/app/store/store.ts';
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type BackupStore } from '@/entities/master';
+import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from '@/entities/master';
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
@@ -26,7 +26,8 @@ afterEach(() => {
 });
 
 async function renderApp({
-  backup = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1'),
+  /** Default: a fresh IndexedDB backup. */
+  backup: givenBackup = undefined as BackupStore | undefined,
   lastSaved = memoryLastSaved(),
   /** Seen by default, so the How it works popup doesn't cover the screen in every test. */
   howItWorksSeen = memoryHowItWorksSeen(true),
@@ -37,6 +38,7 @@ async function renderApp({
   /** Called before each download; throw to make the save fail. */
   beforeDownload = () => undefined,
 } = {}) {
+  const backup = givenBackup ?? (await openIndexedDbBackupStore(new IDBFactory()));
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now,
@@ -59,7 +61,7 @@ async function renderApp({
       </Provider>
     </ChakraProvider>,
   );
-  // The app first checks browser storage for this tab's work ("Loading your work…").
+  // The app first checks the browser backup for work ("Loading your work…").
   if (waitForRestore) {
     await waitFor(() => {
       expect(screen.queryByText('Loading your work…')).not.toBeInTheDocument();
@@ -686,7 +688,7 @@ test('importing over unsaved work asks first', async () => {
 });
 
 test("a browser that can't keep the work warns on Review, once something is imported", async () => {
-  const { user } = await renderApp({ backup: createMemoryTabDatabase().forTab('memory') });
+  const { user } = await renderApp({ backup: createMemoryBackupStore() });
   expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // nothing to lose yet
   await importFiles(user, exportFiles());
   await findRow('bob');
@@ -742,7 +744,7 @@ test('a reload shows Loading your work… instead of flashing the import screen'
 });
 
 test("work that can't be restored after a reload is reported on the import screen", async () => {
-  const backup = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1');
+  const backup = await openIndexedDbBackupStore(new IDBFactory());
   const { user } = await renderApp({ backup: { ...backup, load: () => Promise.reject(new Error('unreadable')) } });
   expect(screen.getByRole('alert')).toHaveTextContent("⚠ Your work couldn't be restored");
 

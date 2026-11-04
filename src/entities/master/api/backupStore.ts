@@ -2,18 +2,17 @@ import type { AccountRecord, MasterFile } from '../lib/masterFile.ts';
 import type { ImportFacts } from '../lib/types.ts';
 
 /**
- * Per-tab safety net so a reload doesn't lose work. For each open tab it keeps the
- * imported master once (`base`, which is also the session baseline) plus a record for
- * every account changed since, so an edit writes ~1 KB however large the master is.
- * It also keeps the changed accounts as they were in the last downloaded file, so
- * Reset changes still works after a reload. The downloaded master file stays the real record.
+ * The browser backup, so a reload or a closed browser doesn't lose work; one for the whole browser. It keeps the
+ * imported master once (`base`, which is also the session baseline) plus a record for every account changed since, so
+ * an edit writes ~1 KB however large the master is. It also keeps the changed accounts as they were in the last
+ * downloaded file, so Reset changes still works after a reload. The downloaded master file stays the real record.
  */
 export interface BackupMeta {
   revision: number;
   savedRevision: number;
   /** The master's lastSavedAt, which changes on every save. */
   lastSavedAt?: string;
-  /** When this tab's data was last written. */
+  /** When the backup was last written. */
   storedAt: string;
   /** What the import found besides the master (see ImportFacts). */
   importFacts: ImportFacts;
@@ -41,28 +40,21 @@ export interface BackupStore {
   /** False for the in-memory fallback: work then does not survive a reload. */
   readonly durable: boolean;
   load(): Promise<StoredBackup | null>;
-  /** New import: drops everything stored for this tab and starts over from `base`. */
+  /** New import: drops everything stored and starts over from `base`. */
   replace(base: MasterFile, meta: BackupMeta, writes: BackupWrites): Promise<void>;
   /** An edit, save or reset: writes only the given accounts; `removed` are no longer changed (after a reset). */
   update(meta: BackupMeta, writes: BackupWrites & { removed: string[] }): Promise<void>;
 }
 
-/** Storage-wide operations used when tabs start up. */
-export interface TabDatabase {
-  forTab(tabId: string): BackupStore;
-  tabIds(): Promise<string[]>;
-  copyTab(from: string, to: string): Promise<void>;
-  deleteTab(tabId: string): Promise<void>;
-}
-
 const DB_NAME = 'unfollowism';
 // Bump on any change of the stored shape: older data is dropped, not migrated.
-const DB_VERSION = 6;
-const TABS = 'tabs'; // tabId → base
-const META = 'meta'; // tabId → BackupMeta. Rewritten on every edit, so kept apart from the (large) base.
-const ACCOUNTS = 'accounts'; // [tabId, accountKey] → AccountRecord
-const SAVED_ACCOUNTS = 'savedAccounts'; // [tabId, accountKey] → AccountRecord
+const DB_VERSION = 7;
+const BASE = 'base'; // KEY → base
+const META = 'meta'; // KEY → BackupMeta. Rewritten on every edit, so kept apart from the (large) base.
+const ACCOUNTS = 'accounts'; // accountKey → AccountRecord
+const SAVED_ACCOUNTS = 'savedAccounts'; // accountKey → AccountRecord
 const ACCOUNT_STORES = [ACCOUNTS, SAVED_ACCOUNTS] as const;
+const KEY = 'backup';
 
 function done<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -89,16 +81,25 @@ function committed(tx: IDBTransaction): Promise<void> {
   });
 }
 
-export function openIndexedDbTabDatabase(
-  factory: IDBFactory = indexedDB,
-  keyRange: typeof IDBKeyRange = IDBKeyRange,
-): TabDatabase {
-  let dbPromise: Promise<IDBDatabase> | null = null;
+/** Account key → record, from one account store. */
+async function loadAccounts(store: IDBObjectStore): Promise<Record<string, unknown>> {
+  const [keys, records] = await Promise.all([done(store.getAllKeys()), done(store.getAll())]);
+  const accounts: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+  keys.forEach((key, i) => {
+    accounts[key as string] = records[i];
+  });
+  return accounts;
+}
 
-  /** Every [tabId, accountKey] key of one tab. Arrays sort after strings, so [tabId, []] bounds them all. */
-  function tabRange(tabId: string): IDBKeyRange {
-    return keyRange.bound([tabId], [tabId, []]);
+function putAccounts(store: IDBObjectStore, records: Record<string, unknown>): void {
+  for (const [key, record] of Object.entries(records)) {
+    store.put(record, key);
   }
+}
+
+/** Opens the database first, so a browser that blocks storage fails here (the caller then keeps work in memory). */
+export async function openIndexedDbBackupStore(factory: IDBFactory = indexedDB): Promise<BackupStore> {
+  let dbPromise: Promise<IDBDatabase> | null = null;
 
   function db(): Promise<IDBDatabase> {
     dbPromise ??= new Promise((resolve, reject) => {
@@ -108,7 +109,7 @@ export function openIndexedDbTabDatabase(
         for (const name of [...database.objectStoreNames]) {
           database.deleteObjectStore(name);
         }
-        for (const name of [TABS, META, ...ACCOUNT_STORES]) {
+        for (const name of [BASE, META, ...ACCOUNT_STORES]) {
           database.createObjectStore(name);
         }
       };
@@ -128,119 +129,55 @@ export function openIndexedDbTabDatabase(
     });
     return dbPromise;
   }
-
-  /** Account key → record, for one tab in one account store. */
-  async function loadAccounts(store: IDBObjectStore, tabId: string): Promise<Record<string, unknown>> {
-    const [keys, records] = await Promise.all([
-      done(store.getAllKeys(tabRange(tabId))),
-      done(store.getAll(tabRange(tabId))),
-    ]);
-    const accounts: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-    keys.forEach((key, i) => {
-      accounts[(key as [string, string])[1]] = records[i];
-    });
-    return accounts;
-  }
-
-  function putAccounts(store: IDBObjectStore, tabId: string, records: Record<string, unknown>): void {
-    for (const [key, record] of Object.entries(records)) {
-      store.put(record, [tabId, key]);
-    }
-  }
-
-  function forTab(tabId: string): BackupStore {
-    return {
-      durable: true,
-      async load() {
-        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readonly');
-        const [base, meta, changed, saved] = await Promise.all([
-          done(tx.objectStore(TABS).get(tabId)) as Promise<unknown>,
-          done(tx.objectStore(META).get(tabId)) as Promise<BackupMeta | undefined>,
-          loadAccounts(tx.objectStore(ACCOUNTS), tabId),
-          loadAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId),
-        ]);
-        if (base === undefined || !meta) {
-          return null;
-        }
-        return { base, meta, changed, saved };
-      },
-
-      async replace(base, meta, writes) {
-        const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
-        for (const name of ACCOUNT_STORES) {
-          tx.objectStore(name).delete(tabRange(tabId));
-        }
-        tx.objectStore(TABS).put(base, tabId);
-        tx.objectStore(META).put(meta, tabId);
-        putAccounts(tx.objectStore(ACCOUNTS), tabId, writes.changed);
-        putAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId, writes.saved);
-        await committed(tx);
-      },
-
-      // Never touches the base: an edit writes ~1 KB however large the master is.
-      async update(meta, writes) {
-        const tx = (await db()).transaction([META, ...ACCOUNT_STORES], 'readwrite');
-        const metas = tx.objectStore(META);
-        if ((await done(metas.getKey(tabId))) === undefined) {
-          tx.abort();
-          throw new Error('Nothing stored for this tab yet');
-        }
-        metas.put(meta, tabId);
-        const accounts = tx.objectStore(ACCOUNTS);
-        for (const key of writes.removed) {
-          accounts.delete([tabId, key]);
-        }
-        putAccounts(accounts, tabId, writes.changed);
-        putAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId, writes.saved);
-        await committed(tx);
-      },
-    };
-  }
+  await db();
 
   return {
-    forTab,
+    durable: true,
 
-    async tabIds() {
-      const tx = (await db()).transaction(TABS, 'readonly');
-      return (await done(tx.objectStore(TABS).getAllKeys())).map(String);
+    async load() {
+      const tx = (await db()).transaction([BASE, META, ...ACCOUNT_STORES], 'readonly');
+      const [base, meta, changed, saved] = await Promise.all([
+        done(tx.objectStore(BASE).get(KEY)) as Promise<unknown>,
+        done(tx.objectStore(META).get(KEY)) as Promise<BackupMeta | undefined>,
+        loadAccounts(tx.objectStore(ACCOUNTS)),
+        loadAccounts(tx.objectStore(SAVED_ACCOUNTS)),
+      ]);
+      if (base === undefined || !meta) {
+        return null;
+      }
+      return { base, meta, changed, saved };
     },
 
-    async copyTab(from, to) {
-      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
-      const tabs = tx.objectStore(TABS);
-      const metas = tx.objectStore(META);
-      const [base, meta, ...accountSets] = await Promise.all([
-        done(tabs.get(from)) as Promise<unknown>,
-        done(metas.get(from)) as Promise<BackupMeta | undefined>,
-        ...ACCOUNT_STORES.map(name => loadAccounts(tx.objectStore(name), from)),
-      ]);
-      if (base !== undefined && meta) {
-        tabs.put(base, to);
-        metas.put(meta, to);
-        ACCOUNT_STORES.forEach((name, i) => {
-          putAccounts(tx.objectStore(name), to, accountSets[i] ?? {});
-        });
+    async replace(base, meta, writes) {
+      const tx = (await db()).transaction([BASE, META, ...ACCOUNT_STORES], 'readwrite');
+      for (const name of ACCOUNT_STORES) {
+        tx.objectStore(name).clear();
       }
+      tx.objectStore(BASE).put(base, KEY);
+      tx.objectStore(META).put(meta, KEY);
+      putAccounts(tx.objectStore(ACCOUNTS), writes.changed);
+      putAccounts(tx.objectStore(SAVED_ACCOUNTS), writes.saved);
       await committed(tx);
     },
 
-    async deleteTab(tabId) {
-      const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readwrite');
-      tx.objectStore(TABS).delete(tabId);
-      tx.objectStore(META).delete(tabId);
-      for (const name of ACCOUNT_STORES) {
-        tx.objectStore(name).delete(tabRange(tabId));
+    // Never touches the base: an edit writes ~1 KB however large the master is.
+    async update(meta, writes) {
+      const tx = (await db()).transaction([META, ...ACCOUNT_STORES], 'readwrite');
+      const metas = tx.objectStore(META);
+      if ((await done(metas.getKey(KEY))) === undefined) {
+        tx.abort();
+        throw new Error('Nothing stored yet');
       }
+      metas.put(meta, KEY);
+      const accounts = tx.objectStore(ACCOUNTS);
+      for (const key of writes.removed) {
+        accounts.delete(key);
+      }
+      putAccounts(accounts, writes.changed);
+      putAccounts(tx.objectStore(SAVED_ACCOUNTS), writes.saved);
       await committed(tx);
     },
   };
-}
-
-interface MemoryTab {
-  base: unknown;
-  meta: BackupMeta;
-  changed: Map<string, unknown>;
-  saved: Map<string, unknown>;
 }
 
 function cloneRecords(records: Map<string, unknown>): Record<string, unknown> {
@@ -258,67 +195,39 @@ function putRecords(target: Map<string, unknown>, records: Record<string, unknow
 }
 
 /** In-memory version: tests, and browsers without IndexedDB (work then survives only while the tab is open). */
-export function createMemoryTabDatabase(): TabDatabase {
-  const tabs = new Map<string, MemoryTab>();
+export function createMemoryBackupStore(): BackupStore {
+  let stored: { base: unknown; meta: BackupMeta; changed: Map<string, unknown>; saved: Map<string, unknown> } | null =
+    null;
 
   return {
-    forTab(tabId) {
-      return {
-        durable: false,
-        load() {
-          const tab = tabs.get(tabId);
-          if (!tab) {
-            return Promise.resolve(null);
-          }
-          return Promise.resolve({
-            base: structuredClone(tab.base),
-            meta: structuredClone(tab.meta),
-            changed: cloneRecords(tab.changed),
-            saved: cloneRecords(tab.saved),
-          });
-        },
-        replace(base, meta, writes) {
-          const tab: MemoryTab = {
-            base: structuredClone(base),
-            meta: structuredClone(meta),
-            changed: new Map(),
-            saved: new Map(),
-          };
-          putRecords(tab.changed, writes.changed);
-          putRecords(tab.saved, writes.saved);
-          tabs.set(tabId, tab);
-          return Promise.resolve();
-        },
-        update(meta, writes) {
-          const tab = tabs.get(tabId);
-          if (!tab) {
-            return Promise.reject(new Error('Nothing stored for this tab yet'));
-          }
-          tab.meta = structuredClone(meta);
-          for (const key of writes.removed) {
-            tab.changed.delete(key);
-          }
-          putRecords(tab.changed, writes.changed);
-          putRecords(tab.saved, writes.saved);
-          return Promise.resolve();
-        },
-      };
-    },
-    tabIds: () => Promise.resolve([...tabs.keys()]),
-    copyTab(from, to) {
-      const tab = tabs.get(from);
-      if (tab) {
-        tabs.set(to, {
-          base: structuredClone(tab.base),
-          meta: structuredClone(tab.meta),
-          changed: new Map(tab.changed),
-          saved: new Map(tab.saved),
-        });
+    durable: false,
+    load() {
+      if (!stored) {
+        return Promise.resolve(null);
       }
+      return Promise.resolve({
+        base: structuredClone(stored.base),
+        meta: structuredClone(stored.meta),
+        changed: cloneRecords(stored.changed),
+        saved: cloneRecords(stored.saved),
+      });
+    },
+    replace(base, meta, writes) {
+      stored = { base: structuredClone(base), meta: structuredClone(meta), changed: new Map(), saved: new Map() };
+      putRecords(stored.changed, writes.changed);
+      putRecords(stored.saved, writes.saved);
       return Promise.resolve();
     },
-    deleteTab(tabId) {
-      tabs.delete(tabId);
+    update(meta, writes) {
+      if (!stored) {
+        return Promise.reject(new Error('Nothing stored yet'));
+      }
+      stored.meta = structuredClone(meta);
+      for (const key of writes.removed) {
+        stored.changed.delete(key);
+      }
+      putRecords(stored.changed, writes.changed);
+      putRecords(stored.saved, writes.saved);
       return Promise.resolve();
     },
   };
