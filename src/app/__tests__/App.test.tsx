@@ -1229,6 +1229,24 @@ describe('Review cards and the account popup', () => {
   const pressed = (button: HTMLElement) => button.getAttribute('aria-pressed') === 'true';
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 
+  test("the card's name opens the Instagram profile, the note opens the popup", async () => {
+    const { user } = await imported();
+    const open = vi.spyOn(window, 'open').mockReturnValue({ focus: () => undefined } as Window);
+    const link = within(row('bob')).getByRole('link', { name: '@bob ↗' });
+    expect(link).toHaveAttribute('href', 'https://www.instagram.com/bob');
+    await user.click(link);
+    expect(open).toHaveBeenCalledWith(
+      'https://www.instagram.com/bob',
+      'unfollowism-profile',
+      expect.stringContaining('popup=yes'),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    open.mockRestore();
+
+    await user.click(within(row('bob')).getByText('Not following back'));
+    expect(await screen.findByRole('dialog', { name: '@bob' })).toBeInTheDocument();
+  });
+
   test('Keep and the queue button switch back when tapped again', async () => {
     const { user } = await imported();
     expect(within(row('alice')).getByText('Mutual')).toBeInTheDocument();
