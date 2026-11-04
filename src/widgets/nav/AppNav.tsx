@@ -28,6 +28,8 @@ function NavItem({
       justifyContent={{ base: 'center', md: 'flex-start' }}
       px={{ md: '3.5' }}
       textStyle="control"
+      // A button has its own 1px border on every side; only the line between items is kept.
+      borderWidth="0"
       borderLeftWidth={{ base: '1px', md: '0' }}
       borderTopWidth={{ base: '0', md: '1px' }}
       borderColor="ink"
