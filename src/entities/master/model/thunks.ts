@@ -3,7 +3,6 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
-import { nextPaint } from '@/shared/lib/nextPaint.ts';
 
 import type { StoredTab } from '../api/tabStore.ts';
 import type { ChangedAccounts } from '../lib/account.ts';
@@ -25,7 +24,7 @@ const createAppThunk = createAsyncThunk.withTypes<{ state: RootState; dispatch: 
 export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rejectValue: ImportProblem }>(
   'master/import',
   async (prepared, { extra, rejectWithValue }) => {
-    await nextPaint(); // let "Importing…" show before the merge, which can take seconds for large accounts
+    await extra.nextPaint(); // let "Importing…" show before the merge, which can take seconds for large accounts
     try {
       return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
     } catch (error) {

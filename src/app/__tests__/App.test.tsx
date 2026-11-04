@@ -13,6 +13,7 @@ import { followersFile, followingFile, must } from '@/entities/master/lib/__test
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
 import { memoryHowItWorksSeen } from '@/pages/import/howItWorksSeen.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
+import { nextPaint as realNextPaint } from '@/shared/lib/nextPaint.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
@@ -31,12 +32,15 @@ async function renderApp({
   howItWorksSeen = memoryHowItWorksSeen(true),
   waitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
+  /** Hold it to see the in-between state of an import. */
+  nextPaint = realNextPaint,
   /** Called before each download; throw to make the save fail. */
   beforeDownload = () => undefined,
 } = {}) {
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now,
+    nextPaint,
     download: (filename, text) => {
       beforeDownload();
       downloads.push({ filename, text });
@@ -738,13 +742,19 @@ test("work that can't be restored after a reload is reported on the import scree
 });
 
 test("Import shows that it's working", async () => {
-  const { user } = await renderApp();
+  // Held until the check below, so a fast import can't finish before the test looks.
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const { user } = await renderApp({ nextPaint: () => gate });
   await user.upload(screen.getByTestId('file-input'), exportFiles());
   await waitFor(() => {
     expect(importButton()).toBeEnabled();
   });
   await user.click(importButton());
   expect(screen.getByRole('button', { name: /Loading…/ })).toBeDisabled();
+  release();
   expect(await findRow('bob')).toBeInTheDocument();
 });
 

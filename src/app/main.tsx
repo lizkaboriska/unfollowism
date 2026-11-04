@@ -11,6 +11,7 @@ import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
 import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master';
 import { localStorageHowItWorksSeen } from '@/pages/import';
 import { downloadText } from '@/shared/lib/download.ts';
+import { nextPaint } from '@/shared/lib/nextPaint.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
@@ -38,6 +39,7 @@ async function openTabStore(): Promise<TabStore> {
 
 const deps: StoreDeps = {
   now: () => new Date(),
+  nextPaint,
   download: downloadText,
   tab: await openTabStore(),
   lastSaved: localStorageLastSaved(),
