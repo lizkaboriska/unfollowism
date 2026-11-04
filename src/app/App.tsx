@@ -9,6 +9,7 @@ import { ImportHero, ImportScreen, type HowItWorksSeen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
 import { TodoPage } from '@/pages/todo';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
 import { Toaster } from '@/shared/ui/Toaster.tsx';
 import { AppHeader } from '@/widgets/header';
 import { AppNav } from '@/widgets/nav';
@@ -79,7 +80,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
         />
       )}
       {showImport ? (
-        <Box maxW="5xl" mx="auto" p="5">
+        <Box maxW={PAGE_WIDTH} mx="auto" p="5">
           <ImportScreen
             lastSaved={deps.lastSaved}
             onImported={() => {
@@ -96,7 +97,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
         </Box>
       ) : (
         // The bottom nav covers the end of the page on a phone, so the page leaves room for it.
-        <HStack maxW="5xl" mx="auto" p="5" pb={{ base: '84px', md: '5' }} gap="5" align="flex-start">
+        <HStack maxW={PAGE_WIDTH} mx="auto" p="5" pb={{ base: '84px', md: '5' }} gap="5" align="flex-start">
           <AppNav />
           <Stack gap="3" flex="1" minW="0">
             <StorageWarning durable={deps.tab.durable} />
