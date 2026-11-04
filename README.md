@@ -38,8 +38,9 @@ The next import checks your To do list against the new export: accounts that are
 are cleared from it, and ones marked done that are still there go back to To do.
 
 **Unsaved work:** the header shows **● Unsaved · N changed accounts**. Click it to see what isn't in your
-progress file yet, or to undo it with **Reset changes**. A reload keeps your unsaved work,
-but closing the tab does not, so save before you close.
+progress file yet, or to undo it with **Reset changes**. Unsaved work is kept in this browser,
+even after you close it, but only your progress file keeps it for good, so save often. The app works
+in one tab at a time: another tab shows **Open in another tab**, and **Use here** moves your work there.
 
 Made for phones first; on a computer it's the same app in a centered column.
 
@@ -74,8 +75,8 @@ npm run dev       # start the dev server at http://localhost:5173 (hot reload)
 
 ```
 src/
-  app/        startup, the screens, store setup, URL sync, tab safety net
-  pages/      Review, To do, Changes, Import
+  app/        startup, the screens, store setup, URL sync, one-active-tab lock
+  pages/      Review, To do, Changes, Import, Open in another tab
   widgets/    header, nav, status line, Review top, account list
   features/   filters, save/reset, manage tags, account popup, rename suggestion
   entities/   master: pure logic (lib), browser storage (api), Redux state (model), shared wording (ui)
