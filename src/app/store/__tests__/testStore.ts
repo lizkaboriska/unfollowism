@@ -1,4 +1,4 @@
-import { createMemoryTabDatabase, type TabStore } from '@/entities/master';
+import { createMemoryBackupStore, type BackupStore } from '@/entities/master';
 import { memoryLastSaved, type LastSavedStore } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { analyzeImport, type PreparedImport } from '@/entities/master/lib/analyzeImport.ts';
@@ -15,13 +15,13 @@ export interface Download {
 
 export function makeTestStore({
   now = '2026-10-27T12:00:00.000Z',
-  tab = createMemoryTabDatabase().forTab('tab-1'),
+  backup = createMemoryBackupStore(),
   lastSaved = memoryLastSaved(),
   address = memoryAddressBar(),
   download,
 }: {
   now?: string;
-  tab?: TabStore;
+  backup?: BackupStore;
   lastSaved?: LastSavedStore;
   address?: AddressBar;
   download?: (filename: string, text: string) => void | Promise<void>;
@@ -36,14 +36,14 @@ export function makeTestStore({
       ((filename, text) => {
         downloads.push({ filename, text });
       }),
-    tab,
+    backup,
     lastSaved,
     address,
   });
   return {
     store,
     downloads,
-    tab,
+    backup,
     lastSaved,
     setNow: (iso: string) => {
       clock = new Date(iso);
@@ -60,10 +60,10 @@ export interface RecordedWrite {
   removed: string[];
 }
 
-/** Wraps a tab store and records every write (account keys only), to assert what gets written when. */
-export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab('tab-1')) {
+/** Wraps a backup store and records every write (account keys only), to assert what gets written when. */
+export function recordingBackup(inner: BackupStore = createMemoryBackupStore()) {
   const writes: RecordedWrite[] = [];
-  const tab: TabStore = {
+  const backup: BackupStore = {
     durable: inner.durable,
     load: () => inner.load(),
     replace: (base, meta, w) => {
@@ -80,7 +80,7 @@ export function recordingTab(inner: TabStore = createMemoryTabDatabase().forTab(
       return inner.update(meta, w);
     },
   };
-  return { tab, writes };
+  return { backup, writes };
 }
 
 /** Lets the persistence listener finish its (async) storage writes. */

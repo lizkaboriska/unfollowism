@@ -1,13 +1,13 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
-import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
+import { IDBFactory } from 'fake-indexeddb';
 import { Provider } from 'react-redux';
 
 import { App } from '@/app/App.tsx';
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { makeStore } from '@/app/store/store.ts';
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master';
+import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from '@/entities/master';
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
@@ -26,7 +26,8 @@ afterEach(() => {
 });
 
 async function renderApp({
-  tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1'),
+  /** Default: a fresh IndexedDB backup. */
+  backup: givenBackup = undefined as BackupStore | undefined,
   lastSaved = memoryLastSaved(),
   /** Seen by default, so the How it works popup doesn't cover the screen in every test. */
   howItWorksSeen = memoryHowItWorksSeen(true),
@@ -37,6 +38,7 @@ async function renderApp({
   /** Called before each download; throw to make the save fail. */
   beforeDownload = () => undefined,
 } = {}) {
+  const backup = givenBackup ?? (await openIndexedDbBackupStore(new IDBFactory()));
   const downloads: { filename: string; text: string }[] = [];
   const deps: StoreDeps = {
     now,
@@ -45,7 +47,7 @@ async function renderApp({
       beforeDownload();
       downloads.push({ filename, text });
     },
-    tab,
+    backup,
     lastSaved,
     address: browserAddressBar(),
   };
@@ -59,13 +61,13 @@ async function renderApp({
       </Provider>
     </ChakraProvider>,
   );
-  // The app first checks browser storage for this tab's work ("Loading your work…").
+  // The app first checks the browser backup for work ("Loading your work…").
   if (waitForRestore) {
     await waitFor(() => {
       expect(screen.queryByText('Loading your work…')).not.toBeInTheDocument();
     });
   }
-  return { downloads, user: userEvent.setup(), unmount: view.unmount, tab };
+  return { downloads, user: userEvent.setup(), unmount: view.unmount, backup };
 }
 
 const followingJson = () =>
@@ -326,7 +328,7 @@ test('How it works never opens by itself with work loaded: after a reload or fro
   await findRow('bob');
   first.unmount();
 
-  const { user } = await renderApp({ tab: first.tab, howItWorksSeen: memoryHowItWorksSeen() });
+  const { user } = await renderApp({ backup: first.backup, howItWorksSeen: memoryHowItWorksSeen() });
   expect(await findRow('bob')).toBeInTheDocument();
   await fromMenu(user, 'Add new Instagram data');
   expect(await screen.findByRole('heading', { name: 'Have your .zip?' })).toBeInTheDocument();
@@ -686,7 +688,7 @@ test('importing over unsaved work asks first', async () => {
 });
 
 test("a browser that can't keep the work warns on Review, once something is imported", async () => {
-  const { user } = await renderApp({ tab: createMemoryTabDatabase().forTab('memory') });
+  const { user } = await renderApp({ backup: createMemoryBackupStore() });
   expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // nothing to lose yet
   await importFiles(user, exportFiles());
   await findRow('bob');
@@ -702,11 +704,11 @@ test('a reload silently continues where the tab left off', async () => {
   await findRow('bob');
   await first.user.click(keepButton('bob'));
   await waitFor(async () => {
-    expect(Object.keys((await first.tab.load())?.changed ?? {})).toContain('bob');
+    expect(Object.keys((await first.backup.load())?.changed ?? {})).toContain('bob');
   }); // the tick is stored
   first.unmount();
 
-  await renderApp({ tab: first.tab }); // same tab storage, fresh page
+  await renderApp({ backup: first.backup }); // same backup, fresh page
   expect(await findRow('bob')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
   expect(isKept('bob')).toBe(true);
@@ -717,7 +719,7 @@ test('a reload shows Loading your work… instead of flashing the import screen'
   await importFiles(first.user, exportFiles());
   await findRow('bob');
   await waitFor(async () => {
-    expect(await first.tab.load()).not.toBeNull();
+    expect(await first.backup.load()).not.toBeNull();
   }); // the import is stored
   first.unmount();
 
@@ -725,14 +727,14 @@ test('a reload shows Loading your work… instead of flashing the import screen'
   const gate = new Promise<void>(resolve => {
     release = resolve;
   });
-  const slowTab: TabStore = {
-    ...first.tab,
+  const slowBackup: BackupStore = {
+    ...first.backup,
     load: async () => {
       await gate;
-      return first.tab.load();
+      return first.backup.load();
     },
   };
-  await renderApp({ tab: slowTab, waitForRestore: false });
+  await renderApp({ backup: slowBackup, waitForRestore: false });
   const loading = screen.getByRole('status');
   expect(loading).toHaveTextContent('Loading your work…');
   expect(within(loading).getByRole('heading', { name: 'Unfollowism' })).toBeInTheDocument();
@@ -742,8 +744,8 @@ test('a reload shows Loading your work… instead of flashing the import screen'
 });
 
 test("work that can't be restored after a reload is reported on the import screen", async () => {
-  const tab = openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange).forTab('tab-1');
-  const { user } = await renderApp({ tab: { ...tab, load: () => Promise.reject(new Error('unreadable')) } });
+  const backup = await openIndexedDbBackupStore(new IDBFactory());
+  const { user } = await renderApp({ backup: { ...backup, load: () => Promise.reject(new Error('unreadable')) } });
   expect(screen.getByRole('alert')).toHaveTextContent("⚠ Your work couldn't be restored");
 
   await importFiles(user, exportFiles());
@@ -1051,7 +1053,7 @@ describe('main view', () => {
 
   test('the URL follows the page, list and search; a reload on any page shows it again', async () => {
     const url = () => window.location.pathname + window.location.search;
-    const { user, tab, unmount } = await imported();
+    const { user, backup, unmount } = await imported();
     expect(url()).toBe('/');
     await applyFilters(user, 'Followers');
     await user.click(cardButton('carol', 'Queue removal'));
@@ -1064,13 +1066,13 @@ describe('main view', () => {
     await user.click(navItem(/^Review$/));
     expect(url()).toBe('/?list=followers&q=al');
     await waitFor(async () => {
-      expect(Object.keys((await tab.load())?.changed ?? {})).toContain('carol');
+      expect(Object.keys((await backup.load())?.changed ?? {})).toContain('carol');
     }); // the plan is stored
     unmount();
 
     const reload = async (at: string) => {
       window.history.replaceState(null, '', at);
-      const page = await renderApp({ tab });
+      const page = await renderApp({ backup });
       await screen.findByRole('navigation', { name: 'Main' });
       return page;
     };
@@ -1121,13 +1123,13 @@ describe('main view', () => {
     await importFiles(first.user, exportFiles());
     await findRow('bob');
     await waitFor(async () => {
-      expect(await first.tab.load()).not.toBeNull();
+      expect(await first.backup.load()).not.toBeNull();
     });
     expect(window.location.pathname + window.location.search).toBe('/'); // no work yet: Welcome cleaned it up
     first.unmount();
 
     window.history.replaceState(null, '', '/somewhere?list=friends&decision=kept&q=al');
-    await renderApp({ tab: first.tab });
+    await renderApp({ backup: first.backup });
     await screen.findByRole('navigation', { name: 'Main' });
     expect(navItem(/^Review$/)).toHaveAttribute('aria-current', 'page');
     expect(window.location.pathname + window.location.search).toBe('/?decision=kept&q=al');
@@ -1730,12 +1732,12 @@ test('a renamed follower is suggested in No longer follow you, and confirming mo
 
   // A reload keeps the suggestion, like any unsaved edit.
   await waitFor(async () => {
-    expect((await first.tab.load())?.base).toMatchObject({
+    expect((await first.backup.load())?.base).toMatchObject({
       accounts: { carol: { renameSuggestion: { to: 'carol_2' } } },
     });
   });
   first.unmount();
-  user = (await renderApp({ tab: first.tab, now })).user;
+  user = (await renderApp({ backup: first.backup, now })).user;
 
   await user.click(await screen.findByRole('button', { name: /^Changes/ }));
   expect(rowsOf('No longer follow you')).toEqual(['@carol']);

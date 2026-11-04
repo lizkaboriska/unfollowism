@@ -5,13 +5,15 @@ import { Provider } from 'react-redux';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { makeStore } from '@/app/store/store.ts';
-import { browserTabEnvironment, claimTab } from '@/app/tab/tabIdentity.ts';
+import { activeTab, browserTabLocks } from '@/app/tab/activeTab.ts';
 import { guardUnload } from '@/app/tab/unloadGuard.ts';
 import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master';
+import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from '@/entities/master';
 import { localStorageHowItWorksSeen } from '@/pages/import';
+import { OtherTabScreen } from '@/pages/other-tab';
 import { downloadText } from '@/shared/lib/download.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
+import { persistStorage } from '@/shared/lib/persistStorage.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
@@ -23,39 +25,65 @@ if (!rootElement) {
   throw new Error('Missing #root element');
 }
 
-/** This tab's reload safety net; falls back to memory (no reload survival) if browser storage is unavailable. */
-async function openTabStore(): Promise<TabStore> {
+/** The browser backup; falls back to memory (no reload survival) if browser storage is unavailable. */
+async function openBackupStore(): Promise<BackupStore> {
   try {
     if (typeof indexedDB === 'undefined') {
       throw new Error('IndexedDB unavailable');
     }
-    const database = openIndexedDbTabDatabase();
-    return database.forTab(await claimTab(database, browserTabEnvironment()));
+    return await openIndexedDbBackupStore();
   } catch (error) {
     console.error('Browser storage unavailable, keeping work in memory only:', error);
-    return createMemoryTabDatabase().forTab('memory');
+    return createMemoryBackupStore();
   }
 }
 
-const deps: StoreDeps = {
-  now: () => new Date(),
-  nextPaint,
-  download: downloadText,
-  tab: await openTabStore(),
-  lastSaved: localStorageLastSaved(),
-  address: browserAddressBar(),
-};
-const store = makeStore(deps);
-guardUnload(store, () => selectIsDirty(store.getState()));
+const root = createRoot(rootElement);
+let stopGuard: (() => void) | null = null;
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <ChakraProvider value={system}>
-      <Provider store={store}>
-        <DialogProvider>
-          <App deps={deps} howItWorksSeen={localStorageHowItWorksSeen()} />
-        </DialogProvider>
-      </Provider>
-    </ChakraProvider>
-  </StrictMode>,
-);
+async function startApp(): Promise<void> {
+  void persistStorage();
+  const deps: StoreDeps = {
+    now: () => new Date(),
+    nextPaint,
+    download: downloadText,
+    backup: await openBackupStore(),
+    lastSaved: localStorageLastSaved(),
+    address: browserAddressBar(),
+  };
+  const store = makeStore(deps);
+  stopGuard = guardUnload(store, () => selectIsDirty(store.getState()));
+  root.render(
+    <StrictMode>
+      <ChakraProvider value={system}>
+        <Provider store={store}>
+          <DialogProvider>
+            <App deps={deps} howItWorksSeen={localStorageHowItWorksSeen()} />
+          </DialogProvider>
+        </Provider>
+      </ChakraProvider>
+    </StrictMode>,
+  );
+}
+
+// Another tab took over: reload, which shows the Open in another tab page (no "Leave site?": the work is stored).
+const tab = activeTab(browserTabLocks(), () => {
+  stopGuard?.();
+  window.location.reload();
+});
+if (await tab.claim()) {
+  await startApp();
+} else {
+  root.render(
+    <StrictMode>
+      <ChakraProvider value={system}>
+        <OtherTabScreen
+          onUseHere={async () => {
+            await tab.takeOver();
+            await startApp();
+          }}
+        />
+      </ChakraProvider>
+    </StrictMode>,
+  );
+}

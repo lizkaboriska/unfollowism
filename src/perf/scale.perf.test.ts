@@ -4,7 +4,7 @@
 
 import { makeStore } from '@/app/store/store.ts';
 import {
-  createMemoryTabDatabase,
+  createMemoryBackupStore,
   analyzeImport,
   renameTag,
   setNote,
@@ -15,7 +15,7 @@ import {
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   importPrepared,
-  restoreTab,
+  restoreBackup,
   saveMaster,
   LIST_VIEWS,
 } from '@/entities/master';
@@ -78,12 +78,12 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 const mb = (bytes: number) => `${(bytes / 1e6).toFixed(1)} MB`;
 
 async function run(total: number) {
-  const database = createMemoryTabDatabase();
+  const backup = createMemoryBackupStore();
   const deps = {
     now: () => new Date(),
     nextPaint,
     download: () => undefined,
-    tab: database.forTab('t'),
+    backup,
     lastSaved: memoryLastSaved(),
     address: memoryAddressBar(),
   };
@@ -159,8 +159,8 @@ async function run(total: number) {
   await flush();
 
   const [, saveMs] = await timeAsync(() => store.dispatch(saveMaster()).unwrap());
-  const reloaded = makeStore({ ...deps, tab: database.forTab('t') });
-  const [, restoreMs] = await timeAsync(() => reloaded.dispatch(restoreTab()).unwrap());
+  const reloaded = makeStore({ ...deps, backup });
+  const [, restoreMs] = await timeAsync(() => reloaded.dispatch(restoreBackup()).unwrap());
 
   rows.push(
     ['read + classify export and master', analyzeMs, 0],

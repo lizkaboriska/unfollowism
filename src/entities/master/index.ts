@@ -45,12 +45,11 @@ export { profileUrl, usernameKey } from './lib/util.ts';
 // api
 export { type LastSavedStore, localStorageLastSaved } from './api/lastSaved.ts';
 export {
-  createMemoryTabDatabase,
-  openIndexedDbTabDatabase,
-  type TabDatabase,
-  type TabMeta,
-  type TabStore,
-} from './api/tabStore.ts';
+  createMemoryBackupStore,
+  openIndexedDbBackupStore,
+  type BackupMeta,
+  type BackupStore,
+} from './api/backupStore.ts';
 
 // model
 export {
@@ -89,7 +88,7 @@ export {
   selectUnsavedDiff,
 } from './model/selectors.ts';
 export { IMPORT_STATUSES, SAVE_STATUSES, STATUS_EVENTS } from './model/statuses.ts';
-export { importPrepared, restoreTab, saveMaster } from './model/thunks.ts';
+export { importPrepared, restoreBackup, saveMaster } from './model/thunks.ts';
 export { isPlanView, LIST_VIEWS, type ListView, PLAN_VIEW_ACTIONS, type PlanView, TODO_VIEWS } from './model/views.ts';
 
 // ui
