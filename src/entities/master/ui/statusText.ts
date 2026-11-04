@@ -1,9 +1,5 @@
 import { isRecord } from '@/shared/lib/checks.ts';
 
-import type { PlanOutcomes } from '../lib/actions.ts';
-import type { ImportSummary } from '../lib/merge.ts';
-import type { FollowChangeCounts } from '../lib/scopes.ts';
-import { ACTION_TYPES } from '../lib/types.ts';
 import { STATUS_EVENTS, type StatusEvent } from '../model/statuses.ts';
 
 /** The message of a caught error: a string, an Error, or the plain { message } object Redux Toolkit passes on. */
@@ -21,57 +17,12 @@ export function plural(count: number, singular: string, pluralForm = `${singular
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-function changesText(c: FollowChangeCounts): string {
-  return (
-    `Since your last save: ${plural(c.newFollows, 'new follow')}, ${c.unfollowed} unfollowed, ` +
-    `${plural(c.newFollowers, 'new follower')}, ${plural(c.lostFollowers, 'lost follower')}.`
-  );
-}
-
-function plansText({ completed, reopened }: PlanOutcomes): string {
-  const parts: string[] = [];
-  if (completed[ACTION_TYPES.UNFOLLOW]) {
-    parts.push(`${plural(completed[ACTION_TYPES.UNFOLLOW], 'planned unfollow')} done.`);
-  }
-  if (completed[ACTION_TYPES.REMOVE_FOLLOWER]) {
-    parts.push(`${plural(completed[ACTION_TYPES.REMOVE_FOLLOWER], 'planned follower removal')} done.`);
-  }
-  if (reopened[ACTION_TYPES.UNFOLLOW]) {
-    parts.push(
-      `${plural(reopened[ACTION_TYPES.UNFOLLOW], 'account')} marked done but still followed: back in To unfollow.`,
-    );
-  }
-  if (reopened[ACTION_TYPES.REMOVE_FOLLOWER]) {
-    parts.push(
-      `${plural(reopened[ACTION_TYPES.REMOVE_FOLLOWER], 'account')} marked done but still following you: ` +
-        'back in To remove.',
-    );
-  }
-  return parts.map(part => ` ${part}`).join('');
-}
-
-function importText(isNewMaster: boolean, followerFileCount: number, summary: ImportSummary): string {
-  const files = plural(followerFileCount, 'follower file');
-  const counts = `${summary.followingCount} following, ${summary.followersCount} followers.`;
-  const details = `${changesText(summary.changes)}${plansText(summary.plans)}`;
-
-  if (isNewMaster) {
-    return `Started fresh from ${files}. ${counts} Save to keep it.`;
-  }
-  if (summary.exportChanged) {
-    return `New Instagram data loaded from ${files} — not saved yet. ${counts} ${details}`;
-  }
-  return `Loaded ${files}: same as last time. ${counts} ${details}`;
-}
-
-/** Status-line text for what last happened; a save says nothing here (it shows a toast). */
+/** Status-line text: only a failed save says something (a save shows a toast instead). */
 export function statusText(status: StatusEvent | null): string {
   if (!status) {
     return '';
   }
   switch (status.type) {
-    case STATUS_EVENTS.IMPORTED:
-      return importText(status.isNewMaster, status.followerFileCount, status.summary);
     case STATUS_EVENTS.SAVED:
       return '';
     case STATUS_EVENTS.SAVE_FAILED:

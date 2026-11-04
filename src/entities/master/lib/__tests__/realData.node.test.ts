@@ -39,7 +39,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
         followerNames().map(n => read(`connections/${n}`)),
       );
     const first = importExport(read(MASTER), sameExport(), NOW);
-    expect(first.summary.exportChanged).toBe(false);
+    expect(first.exportChanged).toBe(false);
     const before = parseMaster(read(MASTER)).accounts;
     expect(Object.keys(first.master.accounts)).toEqual(Object.keys(before));
     for (const [key, account] of Object.entries(first.master.accounts)) {
@@ -77,8 +77,8 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     followerRaws[0] = (followerRaws[0] ?? []).slice(3);
 
     const result = importExport(master, bundle(following, followerRaws), NOW);
-    expect(result.summary.exportChanged).toBe(true);
-    expect(result.summary.plans.completed[ACTION_TYPES.UNFOLLOW]).toBe(planned.size);
+    expect(result.exportChanged).toBe(true);
+    expect(result.plans.completed[ACTION_TYPES.UNFOLLOW]).toBe(planned.size);
     for (const key of planned) {
       expect(result.master.accounts[key]).toMatchObject({ following: null, unfollowedSeenAt: NOW });
     }

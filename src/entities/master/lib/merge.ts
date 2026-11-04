@@ -6,7 +6,7 @@ import { IMPORT_PROBLEMS, ImportError } from './importProblems.ts';
 import { parseMaster } from './masterFile.ts';
 import { dedupeAccounts } from './parse.ts';
 import { findRenames, settleRenameSuggestions } from './renames.ts';
-import { followChangeCounts, setFollows, type FollowChangeCounts } from './scopes.ts';
+import { setFollows } from './scopes.ts';
 import { FORMAT_VERSION, type Account, type ExportEntry, type Follow, type ImportFacts, type Master } from './types.ts';
 import { usernameKey } from './util.ts';
 
@@ -17,25 +17,15 @@ export interface ExportBundle {
   followerFileCount: number;
 }
 
-/** What an import found, for the status message. */
-export interface ImportSummary {
-  /** False when the export has exactly the same following/followers, with the same dates, as the previous import. */
-  exportChanged: boolean;
-  followingCount: number;
-  followersCount: number;
-  /** What changed since the imported master was saved (see followChangeMatches). */
-  changes: FollowChangeCounts;
-  plans: PlanOutcomes;
-}
-
 export interface ImportResult {
   master: Master;
-  summary: ImportSummary;
   facts: ImportFacts;
-  isNewMaster: boolean;
+  /** False when the export has exactly the same following/followers, with the same dates, as the previous import. */
+  exportChanged: boolean;
+  /** Plans this import found done, and "done" plans it found not done after all (back in To do). */
+  plans: PlanOutcomes;
   /** Whether the imported state differs from the master file and should be saved. */
   dirty: boolean;
-  followerFileCount: number;
 }
 
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
@@ -150,29 +140,20 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
     now,
     base?.lastSavedAt !== undefined,
   );
-  const summary: ImportSummary = {
-    exportChanged,
-    followingCount: Object.values(accounts).filter(a => a.following).length,
-    followersCount: Object.values(accounts).filter(a => a.followedBy).length,
-    changes: followChangeCounts({ accounts }, base?.lastSavedAt ?? null),
-    plans,
-  };
-
   const master: Master = {
     version: FORMAT_VERSION,
     accounts,
     // Re-importing the same export doesn't make the data any newer.
-    lastImportAt: summary.exportChanged || !base ? now : base.lastImportAt,
+    lastImportAt: exportChanged || !base ? now : base.lastImportAt,
     ...(base?.lastSavedAt === undefined ? {} : { lastSavedAt: base.lastSavedAt }),
   };
 
   const decisionsSettled = totalOf(plans.completed) + totalOf(plans.reopened) + undecided > 0;
   return {
     master,
-    summary,
     facts: { followingBefore, followersBefore, completedPlans },
-    isNewMaster,
+    exportChanged,
+    plans,
     dirty: isNewMaster || exportChanged || decisionsSettled,
-    followerFileCount: bundle.followerFileCount,
   };
 }

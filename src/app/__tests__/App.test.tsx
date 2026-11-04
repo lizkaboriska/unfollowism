@@ -354,7 +354,8 @@ test('import → review → save works end to end', async () => {
   expect(screen.queryByRole('region', { name: 'Have your .zip?' })).not.toBeInTheDocument();
   await user.click(importButton());
 
-  expect(await screen.findByText(/Started fresh/)).toBeInTheDocument();
+  expect(await findRow('alice')).toBeInTheDocument();
+  expect(screen.queryByText(/follower file/)).not.toBeInTheDocument(); // no import message above the page
   expect(screen.queryByText('Your files are ready')).not.toBeInTheDocument();
   expect(stat('Following')).toBe('2');
   expect(stat('Mutual')).toBe('1');
@@ -377,7 +378,6 @@ test('import → review → save works end to end', async () => {
   expect(screen.queryByRole('button', { name: 'All decisions saved' })).not.toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
-  expect(screen.queryByText(/Started fresh/)).not.toBeInTheDocument(); // the import message gives way
 });
 
 test('a failed save shows a warning that stays until a save works', async () => {

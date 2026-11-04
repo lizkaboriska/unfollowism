@@ -327,13 +327,8 @@ export const masterSlice = createSlice({
         state.savedAt = payload.master.lastSavedAt ?? null;
         state.revision = 0;
         state.savedRevision = payload.dirty ? UNSAVED_IMPORT : 0;
-        state.status = {
-          type: STATUS_EVENTS.IMPORTED,
-          isNewMaster: payload.isNewMaster,
-          followerFileCount: payload.followerFileCount,
-          summary: payload.summary,
-        };
-        state.savedStatus = state.status;
+        state.status = null;
+        state.savedStatus = null;
       })
       .addCase(importPrepared.rejected, state => {
         state.importStatus = IMPORT_STATUSES.IDLE;
