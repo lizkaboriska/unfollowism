@@ -172,9 +172,9 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
   const neverSaved = useAppSelector(s => s.master.savedAt === null);
 
   const subtitle = changedCount
-    ? `${plural(changedCount, 'changed account')} since ${neverSaved ? 'the import' : 'your last save'}`
+    ? `${plural(changedCount, 'changed account')} since ${neverSaved ? 'adding the data' : 'your last save'}`
     : dirty
-      ? 'New import, no account changes'
+      ? 'New data, no account changes'
       : 'No edits since your last save.';
 
   return (
@@ -203,9 +203,7 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
           )}
           <MoreAccounts count={accounts.length - MAX_ACCOUNTS} />
           {dirty && (
-            <Text color="fg.muted">
-              Save downloads an updated progress file with these changes. Keep it for your next import.
-            </Text>
+            <Text color="fg.muted">Save downloads an updated progress file with these changes. Add it next time.</Text>
           )}
         </Stack>
       </Drawer.Body>

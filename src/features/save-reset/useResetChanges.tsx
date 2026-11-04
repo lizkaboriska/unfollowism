@@ -17,7 +17,7 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
 
   async function reset() {
     // Never saved (started from an Instagram export only): Reset goes back to the import, and there's no master file.
-    const since = neverSaved ? 'since the import' : 'since your last save';
+    const since = neverSaved ? 'since adding the data' : 'since your last save';
     const confirmed = await confirm({
       title: 'Reset unsaved changes?',
       body: (

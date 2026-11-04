@@ -24,7 +24,7 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
     ? 'All decisions saved'
     : unsavedCount
       ? `● Unsaved · ${plural(unsavedCount, 'changed account')}`
-      : '● New import not saved';
+      : '● New data not saved';
   const color = dirty ? 'accent' : 'fg.muted';
 
   return (

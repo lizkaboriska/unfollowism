@@ -80,7 +80,8 @@ export function TodoPage({ view }: { view: PlanView }) {
           <Box borderWidth="1px" p="3">
             <Text textStyle="control">You make the changes in Instagram</Text>
             <Text color="fg.muted" lineHeight="1.5">
-              Open the profile, make the change there, then mark it done here. Your next import confirms it.
+              Open the profile, make the change there, then mark it done here. Next time you add Instagram data,
+              it&apos;s confirmed.
             </Text>
           </Box>
           <TodoTabs view={view}>

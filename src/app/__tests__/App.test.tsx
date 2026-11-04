@@ -633,7 +633,7 @@ test('Import new files can be cancelled', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow('bob');
-  expect(screen.getByRole('button', { name: '● New import not saved' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● New data not saved' })).toBeInTheDocument();
   await fromMenu(user, 'Add new Instagram data');
   expect(screen.getByText('Have your .zip?')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -779,7 +779,9 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
   await fromMenu(user, 'Reset changes');
   const dialog = await screen.findByRole('alertdialog');
   // Started from an export only: nothing was saved yet, so Reset goes back to the import.
-  expect(within(dialog).getByText('Your changes to 1 account since the import will be undone.')).toBeInTheDocument();
+  expect(
+    within(dialog).getByText('Your changes to 1 account since adding the data will be undone.'),
+  ).toBeInTheDocument();
   expect(within(dialog).getByText('Instagram stays as it is.')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => {
@@ -1389,7 +1391,7 @@ describe('unsaved changes popup', () => {
     await closeAccount(user, 'alice');
 
     const p = await openPopup(user, '● Unsaved · 2 changed accounts');
-    expect(within(p).getByText('2 changed accounts since the import')).toBeInTheDocument(); // never saved
+    expect(within(p).getByText('2 changed accounts since adding the data')).toBeInTheDocument(); // never saved
     const tagRow = within(p).getByRole('button', { name: /^\+ #dog tag/ });
     expect(tagRow).toHaveTextContent('1 account ▾');
     expect(within(p).queryByText(/#home/)).not.toBeInTheDocument();
@@ -1467,8 +1469,8 @@ describe('unsaved changes popup', () => {
 
   test('only a new import: nothing per account, Save on, Reset off', async () => {
     const { user } = await imported();
-    const p = await openPopup(user, '● New import not saved');
-    expect(within(p).getByText('New import, no account changes')).toBeInTheDocument();
+    const p = await openPopup(user, '● New data not saved');
+    expect(within(p).getByText('New data, no account changes')).toBeInTheDocument();
     expect(within(p).getByRole('button', { name: 'Save' })).toBeEnabled();
     expect(within(p).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
   });

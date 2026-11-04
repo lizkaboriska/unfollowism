@@ -173,7 +173,9 @@ export function ChangesPage() {
       </Stack>
 
       {since === null ? (
-        <Text color="fg.muted">Nothing to compare yet. Save once, and your next import shows what changed.</Text>
+        <Text color="fg.muted">
+          Nothing to compare yet. Save once, and next time you add Instagram data, this shows what changed.
+        </Text>
       ) : (
         <>
           <CompareBox since={since} />
