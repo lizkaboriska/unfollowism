@@ -241,7 +241,7 @@ export function UnsavedPopup({
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
+          <Drawer.Content>
             <UnsavedChanges
               onClose={onClose}
               onOpenAccount={username => {

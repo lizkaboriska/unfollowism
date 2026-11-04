@@ -198,7 +198,7 @@ export function AccountPopup({ accountKey, onClose }: { accountKey: string | nul
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
-          <Drawer.Content maxW="xl" mx="auto" maxH="90dvh" borderTopWidth="1px">
+          <Drawer.Content>
             {account && (
               <>
                 <Drawer.Header display="block">

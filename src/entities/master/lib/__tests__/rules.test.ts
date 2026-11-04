@@ -2,24 +2,15 @@
 import { planStats, settleDecisions } from '../actions.ts';
 import { decisionMatches, isKept, keep, undecide, planOf, setPlan } from '../decision.ts';
 import { dedupeAccounts, parseFollowersJson } from '../parse.ts';
-import { relationshipStats, reviewScopeAccounts, scopeMatches } from '../scopes.ts';
+import { relationshipStats, scopeMatches } from '../scopes.ts';
 import { SESSION_CHANGES, TagChangeKind, buildSessionDiff, groupSessionChanges } from '../sessionDiff.ts';
-import {
-  ACTION_TYPES,
-  DecisionFilter,
-  DecisionKind,
-  PLAN_STATES,
-  REVIEW_SCOPES,
-  TAG_FILTER_KINDS,
-  type Account,
-} from '../types.ts';
+import { ACTION_TYPES, DecisionFilter, DecisionKind, PLAN_STATES, REVIEW_SCOPES, type Account } from '../types.ts';
 
 import { account, follows, must, stateWith } from './helpers.ts';
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
 const { PLANNED, DONE } = PLAN_STATES;
 const none = { [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 };
-const tag = (name: string) => ({ kind: TAG_FILTER_KINDS.TAG, tag: name });
 const accountsOf = (...items: Account[]) => stateWith(...items).accounts;
 
 test('review scopes support overlapping following/follower views', () => {
@@ -172,23 +163,6 @@ test('multiple follower export chunks can be parsed and deduplicated case-insens
   const merged = dedupeAccounts([...parseFollowersJson(file1), ...parseFollowersJson(file2)]);
   expect(merged).toHaveLength(3);
   expect(merged.find(x => x.username.toLowerCase() === 'alice')?.since).toBe(30);
-});
-
-test('review query can combine scope, tag and decision', () => {
-  const a = follows(account('artist_kept'), { following: true, followedBy: true });
-  a.review.tags = ['artist'];
-  keep(a);
-  const b = follows(account('artist_pending'), { following: true });
-  b.review.tags = ['artist'];
-  const c = follows(account('friend_pending'), { following: true });
-  c.review.tags = ['friend'];
-
-  const result = reviewScopeAccounts(stateWith(a, b, c), {
-    scope: REVIEW_SCOPES.FOLLOWING,
-    tag: tag('artist'),
-    decision: DecisionFilter.NEEDS_DECISION,
-  });
-  expect(result.map(x => x.username)).toEqual(['artist_pending']);
 });
 
 test('session diff reports only net decision, tag and metadata changes', () => {

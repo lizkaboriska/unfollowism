@@ -309,6 +309,17 @@ test('How it works opens by itself on the first visit, and not again once closed
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
+test('the × closes How it works too, and it counts as seen', async () => {
+  const seen = memoryHowItWorksSeen();
+  const { user } = await renderApp({ howItWorksSeen: seen });
+  const dialog = await screen.findByRole('dialog', { name: 'How it works' });
+  await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  expect(seen.get()).toBe(true);
+});
+
 test('How it works never opens by itself with work loaded: after a reload or from the menu', async () => {
   const first = await renderApp();
   await importFiles(first.user, exportFiles());

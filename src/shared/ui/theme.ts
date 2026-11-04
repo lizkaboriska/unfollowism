@@ -156,7 +156,28 @@ export const system = createSystem(
       },
       slotRecipes: {
         dialog: { slots: ['backdrop'], base: { backdrop: { bg: 'overlay' } } },
-        drawer: { slots: ['backdrop'], base: { backdrop: { bg: 'overlay' } } },
+        // The bottom popups (Account, Filter, Unsaved changes, Manage tags): at the bottom on a phone; on a computer
+        // centered like the dialogs (same width, frame and animation), since a bar stuck to the bottom of a wide
+        // screen looks lost. The frame is the theme's box shadow, so only a phone needs the top line.
+        drawer: {
+          slots: ['backdrop', 'positioner', 'content'],
+          base: { backdrop: { bg: 'overlay' } },
+          variants: {
+            placement: {
+              bottom: {
+                positioner: { alignItems: { base: 'flex-end', md: 'center' } },
+                content: {
+                  maxW: { base: 'xl', md: 'md' },
+                  mx: 'auto',
+                  maxH: '90dvh',
+                  borderTopWidth: { base: '1px', md: '0' },
+                  _open: { animationName: { base: 'slide-from-bottom-full, fade-in', md: 'scale-in, fade-in' } },
+                  _closed: { animationName: { base: 'slide-to-bottom-full, fade-out', md: 'scale-out, fade-out' } },
+                },
+              },
+            },
+          },
+        },
         // Warnings are framed white boxes; errors use the destructive red.
         alert: {
           slots: ['root'],

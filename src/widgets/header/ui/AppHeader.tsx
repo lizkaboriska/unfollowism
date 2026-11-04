@@ -5,6 +5,7 @@ import { selectIsDirty, selectUnsavedAccountCount, plural } from '@/entities/mas
 import { AccountPopup } from '@/features/account-popup';
 import { SaveButton } from '@/features/save-reset';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
 
 import { AppMenu } from './AppMenu.tsx';
 import { UnsavedPopup } from './UnsavedPopup.tsx';
@@ -28,49 +29,51 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
   const color = dirty ? 'accent' : 'fg.muted';
 
   return (
-    <HStack as="header" h="72px" px="5" justify="space-between" borderBottomWidth="1px" gap="3">
-      <Box>
-        <Heading textStyle="appName" lineHeight="1">
-          Unfollowism
-        </Heading>
-        {dirty ? (
-          <Button
-            variant="plain"
-            h="auto"
-            p="0"
-            textStyle="small"
-            color={color}
-            textDecoration="underline"
-            textUnderlineOffset="3px"
-            onClick={() => {
-              setUnsavedOpen(true);
-            }}
-          >
-            {indicator}
-          </Button>
-        ) : (
-          <Text textStyle="small" color={color}>
-            {indicator}
-          </Text>
-        )}
-      </Box>
-      <HStack gap="1.5">
-        <SaveButton h="10" />
-        <AppMenu onImportNew={onImportNew} />
+    <Box as="header" borderBottomWidth="1px">
+      <HStack maxW={PAGE_WIDTH} mx="auto" h="72px" px="5" justify="space-between" gap="3">
+        <Box>
+          <Heading textStyle="appName" lineHeight="1">
+            Unfollowism
+          </Heading>
+          {dirty ? (
+            <Button
+              variant="plain"
+              h="auto"
+              p="0"
+              textStyle="small"
+              color={color}
+              textDecoration="underline"
+              textUnderlineOffset="3px"
+              onClick={() => {
+                setUnsavedOpen(true);
+              }}
+            >
+              {indicator}
+            </Button>
+          ) : (
+            <Text textStyle="small" color={color}>
+              {indicator}
+            </Text>
+          )}
+        </Box>
+        <HStack gap="1.5">
+          <SaveButton h="10" />
+          <AppMenu onImportNew={onImportNew} />
+        </HStack>
+        <UnsavedPopup
+          open={unsavedOpen}
+          onClose={() => {
+            setUnsavedOpen(false);
+          }}
+          onOpenAccount={setAccountKey}
+        />
+        <AccountPopup
+          accountKey={accountKey}
+          onClose={() => {
+            setAccountKey(null);
+          }}
+        />
       </HStack>
-      <UnsavedPopup
-        open={unsavedOpen}
-        onClose={() => {
-          setUnsavedOpen(false);
-        }}
-        onOpenAccount={setAccountKey}
-      />
-      <AccountPopup
-        accountKey={accountKey}
-        onClose={() => {
-          setAccountKey(null);
-        }}
-      />
-    </HStack>
+    </Box>
   );
 }
