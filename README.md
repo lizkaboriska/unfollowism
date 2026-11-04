@@ -22,25 +22,26 @@ You work in rounds. Each round:
 2. **Import.** Open the app, then add the `.zip` (or `following.json` and every `followers_*.json`
    from it) **and the progress file you saved last time**. Files can come from different folders:
    add them one after another. They are recognized by their content, so renaming them is fine.
-3. **Review.** The tabs show:
-   - **Review**: everyone, by scope (I follow, People who follow me, Mutual, …), your decision and tag.
-   - **New follows**: people you followed since your last save.
-   - **To do**: accounts you marked **To unfollow** or **To remove**. Do it on Instagram
-     (the name opens their profile), then tick **Done**.
-   - **I unfollowed / New followers / Lost followers**: what changed since your last save.
-
-   Tag accounts, add notes, and decide: tick **Kept** to keep an account as it is, or queue it **To unfollow** /
-   **To remove**.
+3. **Decide.** The app has three pages:
+   - **Review**: everyone, by list (Following, Followers, Mutual, …), with search and a Filter for tag and
+     decision. On each account, **Keep** it as it is, or **Queue unfollow** / **Queue removal**. The `→` opens it
+     to add tags and a note.
+   - **Changes**: what changed since your last save: new followers, who no longer follows you, who you started
+     and stopped following.
+   - **To do**: your queued unfollows and removals. Do them in Instagram (**Open in Instagram**), then
+     **Mark done**.
 4. **Save.** Click **Save** to download `unfollowism_progress_<date>_<time>.json`. That file
    is your record: keep it and add it to your next import. Saving also ends the round:
    "new" and "since your last save" count from it next time.
 
-The next import checks your to-do list against the new export: accounts that are really gone
-are cleared from it, and ones marked Done that are still there go back to To unfollow / To remove.
+The next import checks your To do list against the new export: accounts that are really gone
+are cleared from it, and ones marked done that are still there go back to To do.
 
-**Unsaved work:** the header shows **Unsaved changes (N)**; click it to see what isn't in your
-downloaded progress file yet, or to undo it with **Reset changes**. A reload keeps your unsaved work,
+**Unsaved work:** the header shows **● Unsaved · N changed accounts**. Click it to see what isn't in your
+progress file yet, or to undo it with **Reset changes**. A reload keeps your unsaved work,
 but closing the tab does not, so save before you close.
+
+Made for phones first; on a computer it's the same app in a centered column.
 
 ## Development
 
