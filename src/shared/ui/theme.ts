@@ -1,4 +1,32 @@
-import { createSystem, defaultConfig, defineConfig } from '@chakra-ui/react';
+import { createSystem, defaultBaseConfig, defineConfig, mergeConfigs } from '@chakra-ui/react';
+import {
+  alertSlotRecipe,
+  animationStyles,
+  breakpoints,
+  buttonRecipe,
+  cssVarsPrefix,
+  cssVarsRoot,
+  dialogSlotRecipe,
+  drawerSlotRecipe,
+  fieldSlotRecipe,
+  globalCss,
+  headingRecipe,
+  inputRecipe,
+  keyframes,
+  layerStyles,
+  linkRecipe,
+  listSlotRecipe,
+  menuSlotRecipe,
+  progressSlotRecipe,
+  semanticTokens,
+  spinnerRecipe,
+  switchSlotRecipe,
+  tabsSlotRecipe,
+  textStyles,
+  textareaRecipe,
+  toastSlotRecipe,
+  tokens,
+} from '@chakra-ui/react/theme';
 
 // The G2f design system (REDESIGN.md): black on white, square, 1px ink lines, one electric blue. Light only.
 // Chakra's own components read the semantic tokens below, so overriding them restyles every component at once.
@@ -35,8 +63,53 @@ function fieldText(designSize: 'xs' | 'sm' | 'md') {
 // Soft shadows become a 1px ink frame (dialogs, menus, popovers).
 const frame = { value: `0 0 0 1px ${INK}` };
 
+/**
+ * Chakra's default theme (tokens, colors, animations, global styles) with the styles of only the components the app
+ * uses: the full set carries ~80 components' styles. A component used without its recipe here shows up unstyled, so
+ * add its recipe when starting to use a new one (CloseButton uses button's, a loading Button also spinner's).
+ */
+const chakraTheme = mergeConfigs(
+  defaultBaseConfig,
+  defineConfig({
+    // Chakra's defaultThemeConfig piece by piece: spreading that object would keep every recipe in the bundle.
+    preflight: true,
+    cssVarsPrefix,
+    cssVarsRoot,
+    globalCss,
+    theme: {
+      breakpoints,
+      keyframes,
+      tokens,
+      semanticTokens,
+      textStyles,
+      layerStyles,
+      animationStyles,
+      recipes: {
+        button: buttonRecipe,
+        heading: headingRecipe,
+        input: inputRecipe,
+        link: linkRecipe,
+        spinner: spinnerRecipe,
+        textarea: textareaRecipe,
+      },
+      slotRecipes: {
+        alert: alertSlotRecipe,
+        dialog: dialogSlotRecipe,
+        drawer: drawerSlotRecipe,
+        field: fieldSlotRecipe,
+        list: listSlotRecipe,
+        menu: menuSlotRecipe,
+        progress: progressSlotRecipe,
+        switch: switchSlotRecipe,
+        tabs: tabsSlotRecipe,
+        toast: toastSlotRecipe,
+      },
+    },
+  }),
+);
+
 export const system = createSystem(
-  defaultConfig,
+  chakraTheme,
   defineConfig({
     globalCss: {
       html: { colorPalette: 'ink' },
