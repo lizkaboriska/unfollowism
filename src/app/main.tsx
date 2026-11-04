@@ -13,6 +13,7 @@ import { localStorageHowItWorksSeen } from '@/pages/import';
 import { OtherTabScreen } from '@/pages/other-tab';
 import { downloadText } from '@/shared/lib/download.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
+import { persistStorage } from '@/shared/lib/persistStorage.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
@@ -41,6 +42,7 @@ const root = createRoot(rootElement);
 let stopGuard: (() => void) | null = null;
 
 async function startApp(): Promise<void> {
+  void persistStorage();
   const deps: StoreDeps = {
     now: () => new Date(),
     nextPaint,
