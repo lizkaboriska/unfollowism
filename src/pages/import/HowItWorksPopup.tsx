@@ -1,4 +1,4 @@
-import { Button, Dialog, HStack, List, Portal, Stack, Text } from '@chakra-ui/react';
+import { Button, CloseButton, Drawer, HStack, List, Portal, Stack, Text } from '@chakra-ui/react';
 import type { ReactNode } from 'react';
 
 import { HowItWorksView } from './howItWorksView.ts';
@@ -137,23 +137,22 @@ export function HowItWorksPopup({
   onClose: () => void;
 }) {
   return (
-    <Dialog.Root
+    <Drawer.Root
       open={view !== null}
       onOpenChange={e => {
         if (!e.open) {
           onClose();
         }
       }}
-      placement="center"
-      scrollBehavior="inside"
+      placement="bottom"
       lazyMount
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content mx="4">
-            <Dialog.Header flexDirection="column" alignItems="flex-start" gap="3">
+        <Drawer.Backdrop />
+        <Drawer.Positioner>
+          <Drawer.Content>
+            <Drawer.Header flexDirection="column" alignItems="flex-start" gap="3">
               {view === HowItWorksView.EXPORT && (
                 <Button
                   {...LINK}
@@ -164,11 +163,11 @@ export function HowItWorksPopup({
                   <span aria-hidden="true">← </span>How it works
                 </Button>
               )}
-              <Dialog.Title textStyle="heading">
+              <Drawer.Title textStyle="heading">
                 {view === HowItWorksView.EXPORT ? 'Get your Instagram data' : 'How it works'}
-              </Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Body>
+              </Drawer.Title>
+            </Drawer.Header>
+            <Drawer.Body>
               {view === HowItWorksView.EXPORT ? (
                 <ExportSteps />
               ) : (
@@ -178,15 +177,18 @@ export function HowItWorksPopup({
                   }}
                 />
               )}
-            </Dialog.Body>
-            <Dialog.Footer flexDirection="column" alignItems="stretch">
+            </Drawer.Body>
+            <Drawer.Footer flexDirection="column" alignItems="stretch">
               <Button h="11" onClick={onClose}>
                 Got it
               </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
+            </Drawer.Footer>
+            <Drawer.CloseTrigger asChild>
+              <CloseButton variant="outline" aria-label="Close" />
+            </Drawer.CloseTrigger>
+          </Drawer.Content>
+        </Drawer.Positioner>
       </Portal>
-    </Dialog.Root>
+    </Drawer.Root>
   );
 }
