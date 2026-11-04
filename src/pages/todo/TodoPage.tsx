@@ -68,7 +68,7 @@ export function TodoPage({ view }: { view: PlanView }) {
   }
 
   return (
-    <Stack gap="5">
+    <Stack gap="3">
       <Stack gap="2">
         <Heading as="h1" textStyle="title">
           To do

@@ -16,7 +16,7 @@ export function RenameSuggestion({ accountKey }: { accountKey: string }) {
   }
 
   return (
-    <Box role="note" mx="3" mb="3" borderWidth="1px" px="3" py="2.5">
+    <Box role="note" mx="3" mb="3" borderWidth="1px" p="3">
       <Text lineHeight="1.4">
         <Text as="span" textStyle="control">
           ⚠ Looks renamed
@@ -25,7 +25,7 @@ export function RenameSuggestion({ accountKey }: { accountKey: string }) {
           to @{newName}: same follow dates.
         </Text>
       </Text>
-      <Stack gap="2" mt="2.5">
+      <Stack gap="2" mt="2">
         <Button variant="outline" w="full" h="10" onClick={() => dispatch(confirmRename({ from: accountKey }))}>
           <Text as="span" minW="0" truncate>
             Move to @{newName}

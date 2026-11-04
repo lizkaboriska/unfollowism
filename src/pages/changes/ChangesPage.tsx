@@ -97,7 +97,7 @@ function Section({
   const shown = expanded ? keys : keys.slice(0, FIRST_ROWS);
   const note = SECTION_NOTES[change];
   return (
-    <Stack as="section" aria-labelledby={headingId} gap="2.5">
+    <Stack as="section" aria-labelledby={headingId} gap="2">
       <Box>
         <HStack justify="space-between" align="baseline">
           <Heading as="h2" id={headingId} textStyle="heading">
@@ -157,7 +157,7 @@ export function ChangesPage() {
   const total = SECTION_ORDER.reduce((sum, change) => sum + sections[change].length, 0);
 
   return (
-    <Stack gap="6">
+    <Stack gap="3">
       <Stack gap="1">
         <Heading as="h1" textStyle="title">
           Changes

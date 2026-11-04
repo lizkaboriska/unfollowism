@@ -98,7 +98,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
         // The bottom nav covers the end of the page on a phone, so the page leaves room for it.
         <HStack maxW="5xl" mx="auto" p="5" pb={{ base: '84px', md: '5' }} gap="5" align="flex-start">
           <AppNav />
-          <Stack gap="4" flex="1" minW="0">
+          <Stack gap="3" flex="1" minW="0">
             <StorageWarning durable={deps.tab.durable} />
             <StatusLine />
             {view === LIST_VIEWS.REVIEW && (
