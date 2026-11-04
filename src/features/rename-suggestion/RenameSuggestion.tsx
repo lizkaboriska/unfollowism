@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Text } from '@chakra-ui/react';
+import { Box, Button, Stack, Text } from '@chakra-ui/react';
 
 import { confirmRename, dismissRename, selectAccount } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
@@ -25,12 +25,15 @@ export function RenameSuggestion({ accountKey }: { accountKey: string }) {
           to @{newName}: same follow dates.
         </Text>
       </Text>
-      <HStack gap="2" mt="2.5">
-        <Button variant="outline" flex="1" h="10" onClick={() => dispatch(confirmRename({ from: accountKey }))}>
-          Move to @{newName}
+      <Stack gap="2" mt="2.5">
+        <Button variant="outline" w="full" h="10" onClick={() => dispatch(confirmRename({ from: accountKey }))}>
+          <Text as="span" minW="0" truncate>
+            Move to @{newName}
+          </Text>
         </Button>
         <Button
           variant="plain"
+          w="full"
           h="10"
           px="2"
           textDecoration="underline"
@@ -39,7 +42,7 @@ export function RenameSuggestion({ accountKey }: { accountKey: string }) {
         >
           Not a rename
         </Button>
-      </HStack>
+      </Stack>
     </Box>
   );
 }
