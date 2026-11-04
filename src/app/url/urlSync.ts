@@ -2,7 +2,7 @@ import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { selectTodoStartView, restoreTab, LIST_VIEWS } from '@/entities/master';
+import { selectTodoStartView, restoreBackup, LIST_VIEWS } from '@/entities/master';
 import { setView, showUrlFilters } from '@/features/filters';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 
@@ -53,14 +53,14 @@ export function startUrlSync(
   }
 
   listener.startListening({
-    matcher: isAnyOf(restoreTab.fulfilled, restoreTab.rejected),
+    matcher: isAnyOf(restoreBackup.fulfilled, restoreBackup.rejected),
     effect: (action, api) => {
       if (startUsed) {
         return; // a second restore (React's development double run) leaves the screen alone
       }
       startUsed = true;
       restored = true;
-      if (restoreTab.fulfilled.match(action) && action.payload) {
+      if (restoreBackup.fulfilled.match(action) && action.payload) {
         const asked = filtersFromUrl(start.pathname, start.search);
         takeFromAddress(() => {
           api.dispatch(showUrlFilters({ ...asked, view: asked.view ?? selectTodoStartView(api.getState()) }));

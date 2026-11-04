@@ -4,7 +4,7 @@ import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 
-import type { StoredTab } from '../api/tabStore.ts';
+import type { StoredBackup } from '../api/backupStore.ts';
 import type { ChangedAccounts } from '../lib/account.ts';
 import type { PreparedImport } from '../lib/analyzeImport.ts';
 import { ImportError, type ImportProblem } from '../lib/importProblems.ts';
@@ -92,7 +92,7 @@ function reviveAccounts(records: Record<string, unknown>, path: string): Changed
  * (current versions, and versions as in the last downloaded file).
  * Everything goes through the strict readers, which throw if the stored data is unusable.
  */
-function reviveTab(stored: StoredTab): RestoredSession {
+function reviveTab(stored: StoredBackup): RestoredSession {
   const base = parseMaster(stored.base);
   const changed = reviveAccounts(stored.changed, 'changed');
   const savedChanged = reviveAccounts(stored.saved, 'saved');
@@ -112,10 +112,10 @@ function reviveTab(stored: StoredTab): RestoredSession {
  * After a reload: puts back whatever this tab was working on. Null for a new tab (nothing stored);
  * rejected when something is stored but can't be read back (see MasterState.restoreFailed).
  */
-export const restoreTab = createAppThunk<RestoredSession | null, undefined>(
-  'master/restoreTab',
+export const restoreBackup = createAppThunk<RestoredSession | null, undefined>(
+  'master/restoreBackup',
   async (_, { extra }) => {
-    const stored = await extra.tab.load();
+    const stored = await extra.backup.load();
     return stored ? reviveTab(stored) : null;
   },
 );

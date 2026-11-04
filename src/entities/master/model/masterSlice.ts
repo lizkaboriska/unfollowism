@@ -17,7 +17,7 @@ import {
   type SaveStatus,
   type StatusEvent,
 } from './statuses.ts';
-import { importPrepared, restoreTab, saveMaster } from './thunks.ts';
+import { importPrepared, restoreBackup, saveMaster } from './thunks.ts';
 
 /**
  * The imported master is kept as-is in `base`, and accounts edited since then live in
@@ -297,7 +297,7 @@ export const masterSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(restoreTab.fulfilled, (state, { payload }) => {
+      .addCase(restoreBackup.fulfilled, (state, { payload }) => {
         if (!payload || state.base) {
           return;
         } // nothing stored, or the user already imported meanwhile
@@ -309,7 +309,7 @@ export const masterSlice = createSlice({
         state.revision = payload.revision;
         state.savedRevision = payload.savedRevision;
       })
-      .addCase(restoreTab.rejected, state => {
+      .addCase(restoreBackup.rejected, state => {
         if (!state.base) {
           state.restoreFailed = true;
         } // after an import meanwhile, there's nothing to warn about

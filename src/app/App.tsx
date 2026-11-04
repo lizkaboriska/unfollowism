@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { addressChanged } from '@/app/url/urlSync.ts';
-import { selectHasProject, restoreTab, LIST_VIEWS, isPlanView } from '@/entities/master';
+import { selectHasProject, restoreBackup, LIST_VIEWS, isPlanView } from '@/entities/master';
 import { ChangesPage } from '@/pages/changes';
 import { ImportHero, ImportScreen, type HowItWorksSeen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
@@ -25,7 +25,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
 
   // After a reload, silently continue where this tab left off.
   useEffect(() => {
-    void dispatch(restoreTab()).finally(() => {
+    void dispatch(restoreBackup()).finally(() => {
       setRestoring(false);
     });
   }, [dispatch]);
@@ -100,7 +100,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
         <HStack maxW={PAGE_WIDTH} mx="auto" p="5" pb={{ base: '84px', md: '5' }} gap="5" align="flex-start">
           <AppNav />
           <Stack gap="3" flex="1" minW="0">
-            <StorageWarning durable={deps.tab.durable} />
+            <StorageWarning durable={deps.backup.durable} />
             <StatusLine />
             {view === LIST_VIEWS.REVIEW && (
               <>

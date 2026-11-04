@@ -15,7 +15,7 @@ import {
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   importPrepared,
-  restoreTab,
+  restoreBackup,
   saveMaster,
   LIST_VIEWS,
 } from '@/entities/master';
@@ -83,7 +83,7 @@ async function run(total: number) {
     now: () => new Date(),
     nextPaint,
     download: () => undefined,
-    tab: database.forTab('t'),
+    backup: database.forTab('t'),
     lastSaved: memoryLastSaved(),
     address: memoryAddressBar(),
   };
@@ -159,8 +159,8 @@ async function run(total: number) {
   await flush();
 
   const [, saveMs] = await timeAsync(() => store.dispatch(saveMaster()).unwrap());
-  const reloaded = makeStore({ ...deps, tab: database.forTab('t') });
-  const [, restoreMs] = await timeAsync(() => reloaded.dispatch(restoreTab()).unwrap());
+  const reloaded = makeStore({ ...deps, backup: database.forTab('t') });
+  const [, restoreMs] = await timeAsync(() => reloaded.dispatch(restoreBackup()).unwrap());
 
   rows.push(
     ['read + classify export and master', analyzeMs, 0],

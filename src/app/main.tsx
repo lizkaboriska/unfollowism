@@ -8,7 +8,7 @@ import { makeStore } from '@/app/store/store.ts';
 import { browserTabEnvironment, claimTab } from '@/app/tab/tabIdentity.ts';
 import { guardUnload } from '@/app/tab/unloadGuard.ts';
 import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabStore } from '@/entities/master';
+import { createMemoryTabDatabase, openIndexedDbTabDatabase, type BackupStore } from '@/entities/master';
 import { localStorageHowItWorksSeen } from '@/pages/import';
 import { downloadText } from '@/shared/lib/download.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
@@ -24,7 +24,7 @@ if (!rootElement) {
 }
 
 /** This tab's reload safety net; falls back to memory (no reload survival) if browser storage is unavailable. */
-async function openTabStore(): Promise<TabStore> {
+async function openBackupStore(): Promise<BackupStore> {
   try {
     if (typeof indexedDB === 'undefined') {
       throw new Error('IndexedDB unavailable');
@@ -41,7 +41,7 @@ const deps: StoreDeps = {
   now: () => new Date(),
   nextPaint,
   download: downloadText,
-  tab: await openTabStore(),
+  backup: await openBackupStore(),
   lastSaved: localStorageLastSaved(),
   address: browserAddressBar(),
 };

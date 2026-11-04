@@ -2,14 +2,14 @@ import { IDBDatabase, IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 
 import { must } from '../../lib/__tests__/helpers.ts';
 import { DecisionKind } from '../../lib/types.ts';
-import { createMemoryTabDatabase, openIndexedDbTabDatabase, type TabWrites } from '../tabStore.ts';
+import { createMemoryTabDatabase, openIndexedDbTabDatabase, type BackupWrites } from '../backupStore.ts';
 
-import { BASE, META, NOTHING, edited } from './tabFixtures.ts';
+import { BASE, META, NOTHING, edited } from './backupFixtures.ts';
 
 describe.each([
   ['IndexedDB', () => openIndexedDbTabDatabase(new IDBFactory(), IDBKeyRange)],
   ['memory', () => createMemoryTabDatabase()],
-])('%s tab store', (_, open) => {
+])('%s backup store', (_, open) => {
   test('stores the base once and changed accounts on top; tabs are isolated', async () => {
     const db = open();
     const tab = db.forTab('a');
@@ -47,7 +47,7 @@ describe.each([
   test('an account keyed __proto__ comes back as an ordinary account', async () => {
     const tab = open().forTab('a');
     // a literal would set the prototype
-    const records = JSON.parse('{"__proto__":{"username":"__proto__"}}') as TabWrites['changed'];
+    const records = JSON.parse('{"__proto__":{"username":"__proto__"}}') as BackupWrites['changed'];
     await tab.replace(BASE, META, { changed: records, saved: records });
     const loaded = must(await tab.load());
     expect(Object.keys(loaded.changed)).toEqual(['__proto__']);
@@ -105,7 +105,7 @@ describe.each([
   });
 });
 
-describe('IndexedDB tab store', () => {
+describe('IndexedDB backup store', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

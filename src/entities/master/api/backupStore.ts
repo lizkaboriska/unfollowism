@@ -8,7 +8,7 @@ import type { ImportFacts } from '../lib/types.ts';
  * It also keeps the changed accounts as they were in the last downloaded file, so
  * Reset changes still works after a reload. The downloaded master file stays the real record.
  */
-export interface TabMeta {
+export interface BackupMeta {
   revision: number;
   savedRevision: number;
   /** The master's lastSavedAt, which changes on every save. */
@@ -19,9 +19,9 @@ export interface TabMeta {
   importFacts: ImportFacts;
 }
 
-export interface StoredTab {
+export interface StoredBackup {
   base: unknown;
-  meta: TabMeta;
+  meta: BackupMeta;
   /** Account key → latest record (null = removed), for accounts changed since import. */
   changed: Record<string, unknown>;
   /** Account key → record as in the last downloaded file, for accounts changed between import and that save. */
@@ -32,24 +32,24 @@ export interface StoredTab {
  * Account records to write: changed accounts, and accounts as they were in the last downloaded file. null = removed
  * since the import.
  */
-export interface TabWrites {
+export interface BackupWrites {
   changed: Record<string, AccountRecord | null>;
   saved: Record<string, AccountRecord | null>;
 }
 
-export interface TabStore {
+export interface BackupStore {
   /** False for the in-memory fallback: work then does not survive a reload. */
   readonly durable: boolean;
-  load(): Promise<StoredTab | null>;
+  load(): Promise<StoredBackup | null>;
   /** New import: drops everything stored for this tab and starts over from `base`. */
-  replace(base: MasterFile, meta: TabMeta, writes: TabWrites): Promise<void>;
+  replace(base: MasterFile, meta: BackupMeta, writes: BackupWrites): Promise<void>;
   /** An edit, save or reset: writes only the given accounts; `removed` are no longer changed (after a reset). */
-  update(meta: TabMeta, writes: TabWrites & { removed: string[] }): Promise<void>;
+  update(meta: BackupMeta, writes: BackupWrites & { removed: string[] }): Promise<void>;
 }
 
 /** Storage-wide operations used when tabs start up. */
 export interface TabDatabase {
-  forTab(tabId: string): TabStore;
+  forTab(tabId: string): BackupStore;
   tabIds(): Promise<string[]>;
   copyTab(from: string, to: string): Promise<void>;
   deleteTab(tabId: string): Promise<void>;
@@ -59,7 +59,7 @@ const DB_NAME = 'unfollowism';
 // Bump on any change of the stored shape: older data is dropped, not migrated.
 const DB_VERSION = 6;
 const TABS = 'tabs'; // tabId → base
-const META = 'meta'; // tabId → TabMeta. Rewritten on every edit, so kept apart from the (large) base.
+const META = 'meta'; // tabId → BackupMeta. Rewritten on every edit, so kept apart from the (large) base.
 const ACCOUNTS = 'accounts'; // [tabId, accountKey] → AccountRecord
 const SAVED_ACCOUNTS = 'savedAccounts'; // [tabId, accountKey] → AccountRecord
 const ACCOUNT_STORES = [ACCOUNTS, SAVED_ACCOUNTS] as const;
@@ -148,14 +148,14 @@ export function openIndexedDbTabDatabase(
     }
   }
 
-  function forTab(tabId: string): TabStore {
+  function forTab(tabId: string): BackupStore {
     return {
       durable: true,
       async load() {
         const tx = (await db()).transaction([TABS, META, ...ACCOUNT_STORES], 'readonly');
         const [base, meta, changed, saved] = await Promise.all([
           done(tx.objectStore(TABS).get(tabId)) as Promise<unknown>,
-          done(tx.objectStore(META).get(tabId)) as Promise<TabMeta | undefined>,
+          done(tx.objectStore(META).get(tabId)) as Promise<BackupMeta | undefined>,
           loadAccounts(tx.objectStore(ACCOUNTS), tabId),
           loadAccounts(tx.objectStore(SAVED_ACCOUNTS), tabId),
         ]);
@@ -211,7 +211,7 @@ export function openIndexedDbTabDatabase(
       const metas = tx.objectStore(META);
       const [base, meta, ...accountSets] = await Promise.all([
         done(tabs.get(from)) as Promise<unknown>,
-        done(metas.get(from)) as Promise<TabMeta | undefined>,
+        done(metas.get(from)) as Promise<BackupMeta | undefined>,
         ...ACCOUNT_STORES.map(name => loadAccounts(tx.objectStore(name), from)),
       ]);
       if (base !== undefined && meta) {
@@ -238,7 +238,7 @@ export function openIndexedDbTabDatabase(
 
 interface MemoryTab {
   base: unknown;
-  meta: TabMeta;
+  meta: BackupMeta;
   changed: Map<string, unknown>;
   saved: Map<string, unknown>;
 }

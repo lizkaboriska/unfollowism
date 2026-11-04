@@ -3,7 +3,7 @@ import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 import {
   persistenceFailed,
   persistenceRecovered,
-  restoreTab,
+  restoreBackup,
   toAccountRecord,
   toMasterFile,
   type AccountRecord,
@@ -11,7 +11,7 @@ import {
   type ImportFacts,
   type Master,
   type MasterState,
-  type TabMeta,
+  type BackupMeta,
 } from '@/entities/master';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
@@ -24,7 +24,7 @@ type Accounts = DeepReadonly<ChangedAccounts>;
 /** Waits before each retry of a failed write. */
 export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
 
-function toMeta(state: MasterState, importFacts: ImportFacts, storedAt: string): TabMeta {
+function toMeta(state: MasterState, importFacts: ImportFacts, storedAt: string): BackupMeta {
   return {
     revision: state.revision,
     savedRevision: state.savedRevision,
@@ -80,7 +80,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
 
   // A restore puts back exactly what is stored: remember it instead of writing it again.
   listener.startListening({
-    actionCreator: restoreTab.fulfilled,
+    actionCreator: restoreBackup.fulfilled,
     effect: (_action, api) => {
       const { base, changed, savedChanged } = api.getState().master;
       storedBase = base;
@@ -103,12 +103,12 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     const meta = toMeta(state, importFacts, api.extra.now().toISOString());
     try {
       if (base !== storedBase) {
-        await api.extra.tab.replace(toMasterFile(base), meta, {
+        await api.extra.backup.replace(toMasterFile(base), meta, {
           changed: newlyChanged(null, changed, base.lastSavedAt),
           saved: newlyChanged(null, savedChanged, base.lastSavedAt),
         });
       } else {
-        await api.extra.tab.update(meta, {
+        await api.extra.backup.update(meta, {
           changed: newlyChanged(storedChanged, changed, base.lastSavedAt),
           removed: noLongerChanged(storedChanged, changed),
           saved: newlyChanged(storedSaved, savedChanged, base.lastSavedAt),
@@ -137,7 +137,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
 
   listener.startListening({
     predicate: (action, current, previous) =>
-      !restoreTab.fulfilled.match(action) &&
+      !restoreBackup.fulfilled.match(action) &&
       (current.master.base !== previous.master.base ||
         current.master.changed !== previous.master.changed ||
         current.master.savedChanged !== previous.master.savedChanged ||

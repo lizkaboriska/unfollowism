@@ -1,4 +1,4 @@
-import { createMemoryTabDatabase, type TabStore } from '@/entities/master';
+import { createMemoryTabDatabase, type BackupStore } from '@/entities/master';
 import {
   selectAccount,
   selectIsDirty,
@@ -12,7 +12,7 @@ import {
   selectTodoStartView,
   STATUS_EVENTS,
   importPrepared,
-  restoreTab,
+  restoreBackup,
   saveMaster,
   LIST_VIEWS,
 } from '@/entities/master';
@@ -68,7 +68,7 @@ import {
   flushPersistence,
   makeTestStore,
   prepared,
-  recordingTab,
+  recordingBackup,
   type RecordedWrite,
 } from './testStore.ts';
 
@@ -432,8 +432,8 @@ describe('reset changes', () => {
     t.store.dispatch(setNote({ username: 'carol', note: 'after save' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ tab: t.tab });
-    await reloaded.store.dispatch(restoreTab());
+    const reloaded = makeTestStore({ backup: t.backup });
+    await reloaded.store.dispatch(restoreBackup());
     expect(selectUnsavedAccountCount(reloaded.store.getState())).toBe(2);
     reloaded.store.dispatch(resetChanges());
     expect(kept(reloaded, 'bob')).toBe(true);
@@ -442,8 +442,8 @@ describe('reset changes', () => {
     expect(selectIsDirty(reloaded.store.getState())).toBe(false);
     await flushPersistence();
 
-    const again = makeTestStore({ tab: t.tab }); // and the reset itself survives a reload
-    await again.store.dispatch(restoreTab());
+    const again = makeTestStore({ backup: t.backup }); // and the reset itself survives a reload
+    await again.store.dispatch(restoreBackup());
     expect(review(again, 'carol').notes).toBe('');
     expect(selectIsDirty(again.store.getState())).toBe(false);
   });
@@ -538,8 +538,8 @@ describe('list refresh', () => {
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // bob needs a decision again
     await flushPersistence();
 
-    const reloaded = makeTestStore({ tab: t.tab });
-    await reloaded.store.dispatch(restoreTab());
+    const reloaded = makeTestStore({ backup: t.backup });
+    await reloaded.store.dispatch(restoreBackup());
     expect(selectListKeys(reloaded.store.getState())).toEqual(['alice', 'bob', 'carol']);
   });
 });
@@ -551,8 +551,8 @@ describe('reload safety net', () => {
     t.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ tab: t.tab });
-    await reloaded.store.dispatch(restoreTab());
+    const reloaded = makeTestStore({ backup: t.backup });
+    await reloaded.store.dispatch(restoreBackup());
     const before = t.store.getState();
     const after = reloaded.store.getState();
 
@@ -576,8 +576,8 @@ describe('reload safety net', () => {
     });
     await flushPersistence();
 
-    const reloaded = makeTestStore({ tab: t.tab });
-    await reloaded.store.dispatch(restoreTab());
+    const reloaded = makeTestStore({ backup: t.backup });
+    await reloaded.store.dispatch(restoreBackup());
     expect(reloaded.store.getState().master.importFacts).toEqual(t.store.getState().master.importFacts);
   });
 
@@ -593,8 +593,8 @@ describe('reload safety net', () => {
     t.store.dispatch(setNote({ username: '__proto__', note: 'after save' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ tab: t.tab });
-    await reloaded.store.dispatch(restoreTab());
+    const reloaded = makeTestStore({ backup: t.backup });
+    await reloaded.store.dispatch(restoreBackup());
     expect(account(reloaded, '__proto__').review).toMatchObject({ tags: ['__proto__'], notes: 'after save' });
     reloaded.store.dispatch(resetChanges());
     expect(account(reloaded, '__proto__').review).toMatchObject({ tags: ['__proto__'], notes: '' });
@@ -602,13 +602,13 @@ describe('reload safety net', () => {
 
   test('a new tab (nothing stored) starts empty', async () => {
     const { store } = makeTestStore();
-    expect(await store.dispatch(restoreTab()).unwrap()).toBeNull();
+    expect(await store.dispatch(restoreBackup()).unwrap()).toBeNull();
     expect(store.getState().master.base).toBeNull();
   });
 
   test('import stores the master once; each edit stores only the accounts it changed', async () => {
-    const { tab, writes } = recordingTab();
-    const t = makeTestStore({ tab });
+    const { backup, writes } = recordingBackup();
+    const t = makeTestStore({ backup });
     await t.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
     expect(writes).toEqual([write(WRITES.REPLACE)]);
@@ -644,9 +644,9 @@ describe('reload safety net', () => {
     first.store.dispatch(setKept({ username: 'bob', kept: true }));
     await flushPersistence();
 
-    const { tab, writes } = recordingTab(first.tab);
-    const reloaded = makeTestStore({ tab });
-    await reloaded.store.dispatch(restoreTab());
+    const { backup, writes } = recordingBackup(first.backup);
+    const reloaded = makeTestStore({ backup });
+    await reloaded.store.dispatch(restoreBackup());
     await flushPersistence();
     expect(writes).toEqual([]);
 
@@ -662,14 +662,14 @@ describe('reload safety net', () => {
     await t.store.dispatch(importPrepared(prepared({ following: [['zed']], followers: [['zed']] }))).unwrap();
     await flushPersistence();
 
-    const stored = must(await t.tab.load());
+    const stored = must(await t.backup.load());
     expect(Object.keys(stored.changed)).toEqual([]);
     expect(Object.keys((stored.base as { accounts: object }).accounts)).toEqual(['zed']);
   });
 
   test('unusable stored data is reported, and the next import clears the report', async () => {
     const t = makeTestStore();
-    await t.tab.replace(
+    await t.backup.replace(
       { version: 1, lastImportAt: 'x', accounts: { bob: { username: '' } } },
       {
         revision: 1,
@@ -679,7 +679,7 @@ describe('reload safety net', () => {
       },
       { changed: {}, saved: {} },
     );
-    await t.store.dispatch(restoreTab());
+    await t.store.dispatch(restoreBackup());
     expect(t.store.getState().master).toMatchObject({ base: null, restoreFailed: true });
 
     await t.store.dispatch(importPrepared(prepared())).unwrap();
@@ -688,27 +688,27 @@ describe('reload safety net', () => {
 
   test('a storage read that fails is reported; a new tab is not', async () => {
     const unreadable = makeTestStore({
-      tab: { ...createMemoryTabDatabase().forTab('t'), load: () => Promise.reject(new Error('no idb')) },
+      backup: { ...createMemoryTabDatabase().forTab('t'), load: () => Promise.reject(new Error('no idb')) },
     });
-    await unreadable.store.dispatch(restoreTab());
+    await unreadable.store.dispatch(restoreBackup());
     expect(unreadable.store.getState().master.restoreFailed).toBe(true);
 
     const fresh = makeTestStore();
-    await fresh.store.dispatch(restoreTab());
+    await fresh.store.dispatch(restoreBackup());
     expect(fresh.store.getState().master.restoreFailed).toBe(false);
   });
 
   test('storage failures are surfaced, not swallowed, and saving still works', async () => {
-    const failing: TabStore = {
+    const failing: BackupStore = {
       durable: true,
       load: () => Promise.reject(new Error('no idb')),
       replace: () => Promise.reject(new Error('quota')),
       update: () => Promise.reject(new Error('quota')),
     };
-    const t = await importedStore({ tab: failing });
+    const t = await importedStore({ backup: failing });
     await flushPersistence();
     expect(t.store.getState().master.persistenceFailed).toBe(true);
-    await t.store.dispatch(restoreTab());
+    await t.store.dispatch(restoreBackup());
     expect(t.store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
     await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
   });
@@ -719,37 +719,37 @@ describe('storage write failures', () => {
     vi.useRealTimers();
   });
 
-  /** A tab store whose writes fail while `failing.on` is set; counts every write attempt. */
-  function flakyTab(inner: TabStore = createMemoryTabDatabase().forTab('t')) {
+  /** A backup store whose writes fail while `failing.on` is set; counts every write attempt. */
+  function flakyBackup(inner: BackupStore = createMemoryTabDatabase().forTab('t')) {
     const failing = { on: false, attempts: 0 };
     const attempt = <T>(write: () => Promise<T>) => {
       failing.attempts += 1;
       return failing.on ? Promise.reject(new Error('quota')) : write();
     };
-    const tab: TabStore = {
+    const backup: BackupStore = {
       durable: true,
       load: () => inner.load(),
       replace: (...args) => attempt(() => inner.replace(...args)),
       update: (...args) => attempt(() => inner.update(...args)),
     };
-    return { tab, failing };
+    return { backup, failing };
   }
 
   /** Imports with real timers (the import waits for a paint), then switches to fake ones to step through retries. */
-  async function importedWithFakeTimers(tab: TabStore) {
-    const t = makeTestStore({ tab });
+  async function importedWithFakeTimers(backup: BackupStore) {
+    const t = makeTestStore({ backup });
     await t.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
     vi.useFakeTimers();
     return t;
   }
 
-  const storedNote = async (tab: TabStore, key: string) =>
-    (must(await tab.load()).changed[key] as { review?: { notes: string } } | undefined)?.review?.notes;
+  const storedNote = async (backup: BackupStore, key: string) =>
+    (must(await backup.load()).changed[key] as { review?: { notes: string } } | undefined)?.review?.notes;
 
   test('a failed write is retried by itself, and the warning clears once storage works again', async () => {
-    const { tab, failing } = flakyTab();
-    const t = await importedWithFakeTimers(tab);
+    const { backup, failing } = flakyBackup();
+    const t = await importedWithFakeTimers(backup);
 
     failing.on = true;
     t.store.dispatch(setNote({ username: 'bob', note: 'my last edit' }));
@@ -759,13 +759,13 @@ describe('storage write failures', () => {
     failing.on = false; // no further edit: the retry alone has to store it
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
     expect(t.store.getState().master.persistenceFailed).toBe(false);
-    expect(await storedNote(tab, 'bob')).toBe('my last edit');
+    expect(await storedNote(backup, 'bob')).toBe('my last edit');
   });
 
   test('a tab whose stored data was deleted gets it rebuilt', async () => {
     const db = createMemoryTabDatabase();
-    const { tab } = flakyTab(db.forTab('t'));
-    const t = await importedWithFakeTimers(tab);
+    const { backup } = flakyBackup(db.forTab('t'));
+    const t = await importedWithFakeTimers(backup);
 
     await db.deleteTab('t');
     t.store.dispatch(setNote({ username: 'bob', note: 'after the loss' }));
@@ -774,13 +774,13 @@ describe('storage write failures', () => {
 
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]); // the retry writes everything again
     expect(t.store.getState().master.persistenceFailed).toBe(false);
-    expect(must(await tab.load()).base).toMatchObject({ accounts: { bob: { username: 'bob' } } });
-    expect(await storedNote(tab, 'bob')).toBe('after the loss');
+    expect(must(await backup.load()).base).toMatchObject({ accounts: { bob: { username: 'bob' } } });
+    expect(await storedNote(backup, 'bob')).toBe('after the loss');
   });
 
   test('after the last retry it waits for the next change', async () => {
-    const { tab, failing } = flakyTab();
-    const t = await importedWithFakeTimers(tab);
+    const { backup, failing } = flakyBackup();
+    const t = await importedWithFakeTimers(backup);
 
     failing.on = true;
     failing.attempts = 0;
@@ -792,7 +792,7 @@ describe('storage write failures', () => {
     t.store.dispatch(setNote({ username: 'bob', note: 'y' }));
     await vi.advanceTimersByTimeAsync(0);
     expect(t.store.getState().master.persistenceFailed).toBe(false);
-    expect(await storedNote(tab, 'bob')).toBe('y');
+    expect(await storedNote(backup, 'bob')).toBe('y');
   });
 });
 
@@ -909,14 +909,14 @@ describe('renames', () => {
   test('an open suggestion survives a reload, and so does a confirmed rename', async () => {
     const t = await renamedStore();
     await flushPersistence();
-    const reloaded = makeTestStore({ tab: t.tab });
-    await reloaded.store.dispatch(restoreTab());
+    const reloaded = makeTestStore({ backup: t.backup });
+    await reloaded.store.dispatch(restoreBackup());
     expect(account(reloaded, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
 
     reloaded.store.dispatch(confirmRename({ from: 'carol' }));
     await flushPersistence();
-    const again = makeTestStore({ tab: t.tab });
-    await again.store.dispatch(restoreTab());
+    const again = makeTestStore({ backup: t.backup });
+    await again.store.dispatch(restoreBackup());
     expect(selectAccount(again.store.getState(), 'carol')).toBeUndefined();
     expect(account(again, 'carol_2').review.notes).toBe('old note');
     again.store.dispatch(resetChanges()); // and the removal can still be undone

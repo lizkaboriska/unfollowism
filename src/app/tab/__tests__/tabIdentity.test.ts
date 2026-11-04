@@ -1,5 +1,5 @@
 import { createMemoryTabDatabase } from '@/entities/master';
-import { BASE, META, NOTHING } from '@/entities/master/api/__tests__/tabFixtures.ts';
+import { BASE, META, NOTHING } from '@/entities/master/api/__tests__/backupFixtures.ts';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
 
 import { claimTab, type TabEnvironment } from '../tabIdentity.ts';
