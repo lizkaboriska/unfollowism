@@ -9,6 +9,10 @@ import {
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectChangeSections,
+  selectChangesTotal,
+  selectRenamePairs,
+  RenameMatch,
+  RenameState,
   selectTodoStartView,
   STATUS_EVENTS,
   importPrepared,
@@ -34,6 +38,7 @@ import {
   confirmRename,
   deleteTag,
   dismissRename,
+  undoRename,
   renameTag,
   resetChanges,
   keepInstead,
@@ -803,6 +808,8 @@ describe('storage write failures', () => {
 
 describe('renames', () => {
   const lostFollowers = (state: RootState) => selectChangeSections(state)[FOLLOW_CHANGES.LOST_FOLLOWERS];
+  const newFollowers = (state: RootState) => selectChangeSections(state)[FOLLOW_CHANGES.NEW_FOLLOWERS];
+  const pairs = (state: RootState) => selectRenamePairs(state).map(({ from, to, state: at }) => ({ from, to, at }));
   /**
    * carol (follows me, tagged, noted, queued for removal) is saved, then shows up as carol_2 with the same
    * date.
@@ -856,7 +863,13 @@ describe('renames', () => {
     const state = t.store.getState();
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
     expect(state.master.importFacts?.completedPlans).toEqual({}); // carol's removal isn't done: she was renamed
-    expect(lostFollowers(state)).toEqual(['carol']);
+    expect(selectRenamePairs(state)).toEqual([
+      { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.WAITING },
+    ]);
+    // Neither name is listed elsewhere while the rename waits; the pair counts as one change.
+    expect(lostFollowers(state)).toEqual([]);
+    expect(newFollowers(state)).toEqual([]);
+    expect(selectChangesTotal(state)).toBe(1);
     expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(4); // alice, bob, carol (past), carol_2
   });
 
@@ -870,7 +883,10 @@ describe('renames', () => {
       decision: { kind: DecisionKind.QUEUED, plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED } },
       review: { tags: ['artist'], notes: 'old note' },
     });
-    expect(lostFollowers(state)).toEqual([]); // the old account leaves No longer follow you
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.MOVED }]);
+    expect(lostFollowers(state)).toEqual([]);
+    expect(newFollowers(state)).toEqual([]); // the new name is no new follower
+    expect(selectChangesTotal(state)).toBe(1);
     expect(selectScopeTotals(state)[REVIEW_SCOPES.ALL_ACCOUNTS]).toBe(3); // carol is gone, carol_2 stays
     expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(0);
     expect(selectTagCounts(state).artist).toBe(1);
@@ -892,7 +908,7 @@ describe('renames', () => {
     t.store.dispatch(resetChanges());
     expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
     expect(account(t, 'carol_2').review.tags).toEqual([]);
-    expect(lostFollowers(t.store.getState())).toEqual(['carol']);
+    expect(pairs(t.store.getState())).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
   });
 
   test('Not a rename is an ordinary edit: unsaved, listed, undone by Reset', async () => {
@@ -905,10 +921,53 @@ describe('renames', () => {
     expect(selectUnsavedDiff(state)).toEqual([
       { username: 'carol', changes: [{ type: SESSION_CHANGES.RENAME_DISMISSED }] },
     ]);
-    expect(selectFollowChangeCounts(state)[FOLLOW_CHANGES.LOST_FOLLOWERS]).toBe(1); // still lost since the last save
+    // Two different accounts: each back in its list, and the decided pair still shown.
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.NOT_RENAME }]);
+    expect(lostFollowers(state)).toEqual(['carol']);
+    expect(newFollowers(state)).toEqual(['carol_2']);
+    expect(selectChangesTotal(state)).toBe(3);
 
     t.store.dispatch(resetChanges());
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
+  });
+
+  test('Undo takes back Move: both names as at the last save, the rename waits again, nothing unsaved', async () => {
+    const t = await renamedStore();
+    await t.store.dispatch(saveMaster()).unwrap(); // the new data saved, the rename still waiting
+    t.store.dispatch(toggleTag({ username: 'carol_2', tag: 'friend' })); // an edit to the new name before Move
+    t.store.dispatch(confirmRename({ from: 'carol' }));
+
+    t.store.dispatch(undoRename({ from: 'carol' }));
+    const state = t.store.getState();
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
+    expect(account(t, 'carol_2').review.tags).toEqual([]); // edits since the save are undone too
+    expect(selectIsDirty(state)).toBe(false);
+  });
+
+  test('Undo takes back Not a rename, and keeps other unsaved edits', async () => {
+    const t = await renamedStore();
+    t.store.dispatch(toggleTag({ username: 'alice', tag: 'friend' }));
+    t.store.dispatch(dismissRename({ from: 'carol' }));
+    t.store.dispatch(undoRename({ from: 'carol' }));
+    const state = t.store.getState();
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    expect(account(t, 'alice').review.tags).toEqual(['friend']);
+    expect(selectIsDirty(state)).toBe(true);
+  });
+
+  test('after a save, Undo goes back to the import: the rename waits again, to be saved', async () => {
+    const t = await renamedStore();
+    t.store.dispatch(dismissRename({ from: 'carol' }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    t.store.dispatch(undoRename({ from: 'carol' }));
+    const state = t.store.getState();
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
+    expect(selectIsDirty(state)).toBe(true);
+
+    t.store.dispatch(confirmRename({ from: 'carol' }));
+    expect(account(t, 'carol_2').review.tags).toEqual(['artist']);
   });
 
   test('an open suggestion survives a reload, and so does a confirmed rename', async () => {
@@ -928,7 +987,7 @@ describe('renames', () => {
     expect(account(again, 'carol').review.notes).toBe('old note');
   });
 
-  test('an open suggestion survives Save master and the next import, and stays in Lost followers', async () => {
+  test('an open suggestion survives Save master and the next import, and still waits', async () => {
     const t = await renamedStore();
     await t.store.dispatch(saveMaster()).unwrap();
     const master: unknown = JSON.parse(must(t.downloads[1]).text);
@@ -951,7 +1010,7 @@ describe('renames', () => {
       )
       .unwrap();
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
-    expect(lostFollowers(t.store.getState())).toEqual(['carol']);
+    expect(pairs(t.store.getState())).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
   });
 });
 

@@ -1,1 +1,1 @@
-export { RenameSuggestion } from './RenameSuggestion.tsx';
+export { RenamePairRow } from './RenamePairRow.tsx';

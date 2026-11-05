@@ -4,9 +4,8 @@ import { FIELD_TYPES, IMPORT_PROBLEMS } from '../importProblems.ts';
 import { parseMaster, stringifyMasterFile, toMasterFile } from '../masterFile.ts';
 import { importExport, type ExportBundle, type ImportResult } from '../merge.ts';
 import { parseFollowersJson, parseFollowingJson } from '../parse.ts';
-import { mergeRenamed } from '../renames.ts';
-import { followChangeMatches } from '../scopes.ts';
-import { ACTION_TYPES, DecisionKind, FOLLOW_CHANGES, PLAN_STATES, type Master } from '../types.ts';
+import { mergeRenamed, renameHiddenKeys, renamePairs, RenameMatch, RenameState, suggestedRenames } from '../renames.ts';
+import { ACTION_TYPES, DecisionKind, PLAN_STATES, type Master } from '../types.ts';
 
 import { followersFile, followingFile, must, problemOf } from './helpers.ts';
 
@@ -158,22 +157,57 @@ test('an account that stopped following me but that I still follow is no rename'
   expect(suggestions(result)).toEqual({});
 });
 
-test('an account only I follow is never suggested (it shows in I unfollowed)', () => {
+/** bob (only I follow him) renamed to bob_new (same following date). */
+const bobRenamed = (
+  followers: Entries = [
+    ['alice', 201],
+    ['carol', 203],
+  ],
+) =>
+  bundle(
+    [
+      ['alice', 101],
+      ['bob_new', 102],
+    ],
+    followers,
+  );
+
+test('an account only I follow is matched by its following date', () => {
+  expect(suggestions(importExport(first(), bobRenamed(), T2))).toEqual({ bob: { to: 'bob_new', plans: [] } });
+});
+
+test('a following date never matches a follower date', () => {
+  // bob (only I follow him, since 102) is gone; a new follower has 102 as its follower date.
   const result = importExport(
     first(),
     bundle(
-      [
-        ['alice', 101],
-        ['bob_new', 102],
-      ],
+      [['alice', 101]],
       [
         ['alice', 201],
         ['carol', 203],
+        ['bob_new', 102],
       ],
     ),
     T2,
   );
   expect(suggestions(result)).toEqual({});
+});
+
+test('an open suggestion on an account only I followed stays while I follow the new name', () => {
+  const second = asFile(importExport(first(), bobRenamed(), T2).master);
+  expect(suggestions(importExport(second, bobRenamed(), T3))).toEqual({ bob: { to: 'bob_new', plans: [] } });
+  const unfollowedNewName = importExport(
+    second,
+    bundle(
+      [['alice', 101]],
+      [
+        ['alice', 201],
+        ['carol', 203],
+      ],
+    ),
+    T3,
+  );
+  expect(suggestions(unfollowedNewName)).toEqual({});
 });
 
 test('plans on a renamed account are remembered and not reported as done', () => {
@@ -200,14 +234,13 @@ test('plans on a renamed account are remembered and not reported as done', () =>
   expect(planOf(must(result.master.accounts.alice), UNFOLLOW)).toBeUndefined();
 });
 
-test('an open suggestion is saved in the master, read back, and kept in Lost followers until decided', () => {
+test('an open suggestion is saved in the master and read back', () => {
   const second = importExport(first(), carolRenamed(), T2);
   const saved = asFile({ ...second.master, lastSavedAt: T2 }) as { accounts: Record<string, unknown> };
   expect(saved.accounts.carol).toMatchObject({ renameSuggestion: { to: 'carol_2' } }); // no empty "plans"
 
   const third = importExport(saved, carolRenamed(), T3); // same export again, after the save
   expect(suggestions(third)).toEqual({ carol: { to: 'carol_2', plans: [] } });
-  expect(followChangeMatches(must(third.master.accounts.carol), FOLLOW_CHANGES.LOST_FOLLOWERS, T2)).toBe(true);
 });
 
 test('a later import drops a suggestion that no longer holds', () => {
@@ -316,4 +349,33 @@ test('confirming with only one note keeps it as it is', () => {
   onlyNew.review.notes = 'new note';
   mergeRenamed(onlyNew, createAccount('dave'));
   expect(onlyNew.review.notes).toBe('new note');
+});
+
+test('rename pairs: waiting, moved and not a rename, with the matched dates', () => {
+  const base = importExport(
+    first(),
+    bundle(
+      [
+        ['alice_new', 101],
+        ['bob_new', 102],
+      ],
+      [
+        ['alice_new', 201],
+        ['carol_2', 203],
+      ],
+    ),
+    T2,
+  ).master.accounts;
+  const fromKeys = suggestedRenames(base);
+  expect(fromKeys).toEqual(['alice', 'bob', 'carol']);
+
+  const carol = { ...must(base.carol) };
+  delete carol.renameSuggestion;
+  const pairs = renamePairs(base, { alice: null, carol }, fromKeys);
+  expect(pairs).toEqual([
+    { from: 'alice', to: 'alice_new', match: RenameMatch.BOTH, state: RenameState.MOVED },
+    { from: 'bob', to: 'bob_new', match: RenameMatch.FOLLOWING, state: RenameState.WAITING },
+    { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.NOT_RENAME },
+  ]);
+  expect([...renameHiddenKeys(pairs)].sort()).toEqual(['alice_new', 'bob', 'bob_new']);
 });

@@ -9,8 +9,7 @@ import {
   type FollowChange,
   type ReadonlyAccount,
 } from '@/entities/master';
-import { selectAccount, COMPLETED_PLAN_BADGES, planText } from '@/entities/master';
-import { RenameSuggestion } from '@/features/rename-suggestion';
+import { isKept, selectAccount, COMPLETED_PLAN_BADGES, planText } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** The plan whose completion explains why an account is in a change list. */
@@ -21,7 +20,7 @@ const EXPLAINED_BY: Partial<Record<FollowChange, ActionType>> = {
 
 /**
  * A queued decision as a row shows it ("Unfollow queued", "Both queued"): work still waiting in To do. Null
- * otherwise: Kept means nothing to do, so on Changes it would only be noise.
+ * otherwise: Kept shows quietly instead, and an undecided row shows nothing.
  */
 function queuedText(account: ReadonlyAccount): string | null {
   const queued = Object.values(ACTION_TYPES).flatMap(type => {
@@ -31,7 +30,10 @@ function queuedText(account: ReadonlyAccount): string | null {
   return queued.length > 1 ? 'Both queued' : (queued[0] ?? null);
 }
 
-/** One account on the Changes page: name, why it's here when a plan did it, a queued plan, → opens its popup. */
+/**
+ * One account on the Changes page: name, why it's here when a plan did it, a queued plan or a quiet Kept, → opens
+ * its popup.
+ */
 export const ChangeRow = memo(function ChangeRow({
   accountKey,
   change,
@@ -81,9 +83,13 @@ export const ChangeRow = memo(function ChangeRow({
             {queued}
           </Text>
         )}
+        {!queued && isKept(account) && (
+          <Text textStyle="small" fontWeight="500" py="0.5" flexShrink="0" color="fg.muted">
+            ✓ Kept
+          </Text>
+        )}
         <Text aria-hidden>→</Text>
       </chakra.button>
-      {change === FOLLOW_CHANGES.LOST_FOLLOWERS && <RenameSuggestion accountKey={accountKey} />}
     </Box>
   );
 });

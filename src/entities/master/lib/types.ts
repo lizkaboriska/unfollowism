@@ -112,12 +112,12 @@ export interface Account {
   unfollowedSeenAt?: string;
   /** When an import found they no longer follow you; absent while they do (or never did). */
   unfollowedMeSeenAt?: string;
-  /** On a lost follower: an import thinks it was renamed (see renames.ts); absent when not, or once decided. */
+  /** On an account gone from the export: an import thinks it was renamed (see renames.ts); absent if not or decided. */
   renameSuggestion?: RenameSuggestion;
 }
 
 /**
- * A likely rename: the account stopped following you, and a username never seen before appeared with
+ * A likely rename: the account is gone from the export, and a username never seen before appeared with
  * exactly the same follow dates. Instagram exports have no account id, so this is the only trace a rename leaves.
  */
 export interface RenameSuggestion {
