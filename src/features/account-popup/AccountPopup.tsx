@@ -152,7 +152,7 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
             · just for you
           </Text>
         </Text>
-        <NoteField username={username} note={review.notes} multiline />
+        <NoteField username={username} note={review.notes} />
       </Box>
       <Box as="dl" display="grid" gridTemplateColumns="auto 1fr" columnGap="4" rowGap="1">
         <Text as="dt" color="fg.muted">
