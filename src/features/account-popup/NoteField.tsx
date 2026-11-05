@@ -1,5 +1,5 @@
-import { Input, Textarea } from '@chakra-ui/react';
-import { useState, type ChangeEvent } from 'react';
+import { Textarea } from '@chakra-ui/react';
+import { useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
 import { setNote } from '@/entities/master';
@@ -15,15 +15,7 @@ const NOTE_DEBOUNCE_MS = 300;
  * Shows what you type at once; a change from elsewhere (Reset changes, a confirmed rename) shows when you're not
  * typing.
  */
-export function NoteField({
-  username,
-  note,
-  multiline = false,
-}: {
-  username: string;
-  note: string;
-  multiline?: boolean;
-}) {
+export function NoteField({ username, note }: { username: string; note: string }) {
   const dispatch = useAppDispatch();
   const [draft, setDraft] = useState(note);
   // flushOnExit: a card scrolled away (or a page closed) mid-typing still stores the note.
@@ -42,17 +34,19 @@ export function NoteField({
     }
   }
 
-  const field = {
-    name: `note-${username}`,
-    autoComplete: 'off',
-    placeholder: 'Add note…',
-    'aria-label': `Note for @${username}`,
-    value: draft,
-    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setDraft(e.currentTarget.value);
-      storeNote(e.currentTarget.value);
-    },
-    onBlur: () => storeNote.flush(),
-  };
-  return multiline ? <Textarea rows={2} {...field} /> : <Input size="sm" {...field} />;
+  return (
+    <Textarea
+      rows={2}
+      name={`note-${username}`}
+      autoComplete="off"
+      placeholder="Add note…"
+      aria-label={`Note for @${username}`}
+      value={draft}
+      onChange={e => {
+        setDraft(e.currentTarget.value);
+        storeNote(e.currentTarget.value);
+      }}
+      onBlur={() => storeNote.flush()}
+    />
+  );
 }

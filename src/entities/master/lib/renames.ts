@@ -93,7 +93,7 @@ export function settleRenameSuggestions(accounts: Record<string, Account>): void
   }
 }
 
-/** Joins merged notes. Notes are edited in a one-line field, which would drop a line break. */
+/** Joins merged notes. */
 const NOTE_SEPARATOR = ' · ';
 
 /**

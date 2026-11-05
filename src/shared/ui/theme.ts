@@ -231,7 +231,7 @@ export const system = createSystem(
         dialog: { slots: ['backdrop'], base: { backdrop: { bg: 'overlay' } } },
         // The bottom popups (Account, Filter, Unsaved changes, Manage tags): at the bottom on a phone; on a computer
         // centered like the dialogs (same width, frame and animation), since a bar stuck to the bottom of a wide
-        // screen looks lost. The frame is the theme's box shadow, so only a phone needs the top line.
+        // screen looks lost. The frame is the theme's box shadow, on phones too.
         drawer: {
           slots: ['backdrop', 'positioner', 'content'],
           base: { backdrop: { bg: 'overlay' } },
@@ -243,7 +243,6 @@ export const system = createSystem(
                   maxW: { base: 'xl', md: 'md' },
                   mx: 'auto',
                   maxH: '90dvh',
-                  borderTopWidth: { base: '1px', md: '0' },
                   _open: { animationName: { base: 'slide-from-bottom-full, fade-in', md: 'scale-in, fade-in' } },
                   _closed: { animationName: { base: 'slide-to-bottom-full, fade-out', md: 'scale-out, fade-out' } },
                 },
