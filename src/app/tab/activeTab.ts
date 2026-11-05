@@ -13,7 +13,7 @@ const TOOK_OVER = 'took-over';
  * The active tab holds a Web Lock for as long as it is open; the browser releases it when the tab closes.
  */
 export interface ActiveTab {
-  /** Becomes the active tab if no other tab is; resolves false if another tab is. */
+  /** Becomes the active tab if no other tab is; resolves false if another tab is. Never rejects. */
   claim(): Promise<boolean>;
   /** "Use here": takes the lock from the other tab (which gets `onLost`) and resolves once this tab is active. */
   takeOver(): Promise<void>;
@@ -53,7 +53,15 @@ export function activeTab(locks: TabLocks, channel: TabChannel, onLost: () => vo
   }
 
   return {
-    claim: () => hold({ ifAvailable: true }),
+    async claim() {
+      try {
+        return await hold({ ifAvailable: true });
+      } catch (error) {
+        // Chrome refuses the lock when the site may not store data: work without it rather than not start at all.
+        console.error('Could not get the tab lock, working without it:', error);
+        return true;
+      }
+    },
     async takeOver() {
       try {
         await hold({ steal: true });
