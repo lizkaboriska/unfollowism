@@ -1650,7 +1650,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   await user.click(screen.getByRole('button', { name: 'Show fewer' }));
   expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
 
-  // A row opens the account popup. A queued plan shows on the row; Kept doesn't (nothing left to do).
+  // A row opens the account popup. A queued plan shows on the row, Kept quietly, an undecided row nothing.
   const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
   await user.click(screen.getByRole('button', { name: 'Open @gus' }));
   let popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
@@ -1661,7 +1661,10 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
   await user.click(within(popup).getByRole('button', { name: 'Keep' }));
   await closeAccount(user, 'gus');
-  expect(gus()).not.toHaveTextContent(/Kept|queued/);
+  expect(gus()).toHaveTextContent('@gus✓ Kept');
+  expect(within(section('You started following')).getByRole('listitem', { name: '@hal' })).not.toHaveTextContent(
+    /Kept|queued/,
+  );
 });
 
 test('someone you kept who stops following you needs a decision again; past accounts have none', async () => {

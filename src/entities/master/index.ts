@@ -8,7 +8,7 @@ export {
   type ImportWarning,
   type RecognizedFiles,
 } from './lib/analyzeImport.ts';
-export { decisionMatches, followExists, isPastAccount, planOf } from './lib/decision.ts';
+export { decisionMatches, followExists, isKept, isPastAccount, planOf } from './lib/decision.ts';
 export { FIELD_TYPES, type FieldType, IMPORT_PROBLEMS, ImportError, type ImportProblem } from './lib/importProblems.ts';
 export { type AccountRecord, toAccountRecord, toMasterFile } from './lib/masterFile.ts';
 export { type RenamePair, RenameMatch, RenameState } from './lib/renames.ts';
