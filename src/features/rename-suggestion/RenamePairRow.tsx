@@ -56,9 +56,28 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
           </Text>
           <ProfileLink username={toName} />
         </Text>
-        {waiting && <Text color="fg.muted">{MATCH_TEXT[pair.match]}</Text>}
+        {pair.state === RenameState.WAITING ? (
+          <Text color="fg.muted">{MATCH_TEXT[pair.match]}</Text>
+        ) : (
+          // A third short line: Undo keeps its 40px tap area by overlapping the lines around it.
+          <HStack alignSelf="stretch" justify="space-between" gap="2">
+            <Text color="fg.muted">{DECIDED_TEXT[pair.state]}</Text>
+            <Button
+              variant="plain"
+              h="10"
+              px="2"
+              my="-2"
+              me="-2"
+              textDecoration="underline"
+              textUnderlineOffset="3px"
+              onClick={() => dispatch(undoRename({ from: pair.from }))}
+            >
+              Undo
+            </Button>
+          </HStack>
+        )}
       </Stack>
-      {pair.state === RenameState.WAITING ? (
+      {waiting && (
         <HStack justify="space-between" gap="2">
           <Button variant="outline" h="10" onClick={() => dispatch(confirmRename({ from: pair.from }))}>
             Move to new name
@@ -73,21 +92,6 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
             onClick={() => dispatch(dismissRename({ from: pair.from }))}
           >
             Not a rename
-          </Button>
-        </HStack>
-      ) : (
-        <HStack justify="space-between" gap="2" minH="10">
-          <Text color="fg.muted">{DECIDED_TEXT[pair.state]}</Text>
-          <Button
-            variant="plain"
-            h="10"
-            px="2"
-            me="-2"
-            textDecoration="underline"
-            textUnderlineOffset="3px"
-            onClick={() => dispatch(undoRename({ from: pair.from }))}
-          >
-            Undo
           </Button>
         </HStack>
       )}
