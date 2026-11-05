@@ -11,6 +11,7 @@ export {
 export { decisionMatches, followExists, isPastAccount, planOf } from './lib/decision.ts';
 export { FIELD_TYPES, type FieldType, IMPORT_PROBLEMS, ImportError, type ImportProblem } from './lib/importProblems.ts';
 export { type AccountRecord, toAccountRecord, toMasterFile } from './lib/masterFile.ts';
+export { type RenamePair, RenameMatch, RenameState } from './lib/renames.ts';
 export { queryMatches, relationshipOf, scopeMatches, tagMatches } from './lib/scopes.ts';
 export {
   groupSessionChanges,
@@ -75,7 +76,9 @@ export {
   selectChanged,
   selectChangeSections,
   selectChangesSince,
+  selectChangesTotal,
   selectFollowChangeCounts,
+  selectRenamePairs,
   selectHasProject,
   selectIsDirty,
   selectPlanStats,
@@ -94,6 +97,7 @@ export { isPlanView, LIST_VIEWS, type ListView, PLAN_VIEW_ACTIONS, type PlanView
 // ui
 export { KeepButton, ReviewCard } from './ui/ReviewCard.tsx';
 export { openProfilePopup } from './ui/instagramLink.ts';
+export { ProfileLink } from './ui/ProfileLink.tsx';
 export {
   CHANGE_SECTION_TITLES,
   COMPLETED_PLAN_BADGES,

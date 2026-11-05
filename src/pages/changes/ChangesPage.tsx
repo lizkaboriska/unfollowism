@@ -5,6 +5,7 @@ import { FOLLOW_CHANGES, type FollowChange } from '@/entities/master';
 import {
   selectChangeSections,
   selectChangesSince,
+  selectChangesTotal,
   selectRelationshipStats,
   CHANGE_SECTION_TITLES,
   plural,
@@ -14,6 +15,7 @@ import { formatDate } from '@/shared/lib/dates.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { ChangeRow } from './ChangeRow.tsx';
+import { RenamesSection } from './RenamesSection.tsx';
 
 /** Rows a section shows before "Show all". */
 const FIRST_ROWS = 3;
@@ -143,8 +145,8 @@ function Section({
 }
 
 /**
- * What changed between the master you imported and the new export: four sections of rows. Each row opens the
- * account popup. Without a saved master there is nothing to compare with yet.
+ * What changed between the master you imported and the new export: the suggested renames, then four sections of
+ * rows. Each row opens the account popup. Without a saved master there is nothing to compare with yet.
  */
 export function ChangesPage() {
   const since = useAppSelector(selectChangesSince);
@@ -154,7 +156,7 @@ export function ChangesPage() {
     setOpenKey(accountKey);
   }, []);
 
-  const total = SECTION_ORDER.reduce((sum, change) => sum + sections[change].length, 0);
+  const total = useAppSelector(selectChangesTotal);
 
   return (
     <Stack gap="3">
@@ -183,6 +185,7 @@ export function ChangesPage() {
           {/* 32 between sections (12 + mt), so each list reads as its own group. */}
           {total > 0 && (
             <Stack gap="8" mt="5">
+              <RenamesSection />
               {SECTION_ORDER.filter(change => sections[change].length > 0).map(change => (
                 <Section key={change} change={change} keys={sections[change]} onOpen={open} />
               ))}

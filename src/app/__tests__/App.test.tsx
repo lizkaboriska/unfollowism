@@ -1690,7 +1690,7 @@ test('someone you kept who stops following you needs a decision again; past acco
   expect(within(popup).queryByText('Your decision')).not.toBeInTheDocument();
 });
 
-test('a renamed follower is suggested in No longer follow you, and confirming moves its work', async () => {
+test('a renamed follower is listed in Possible renames, and moving it moves its work', async () => {
   const datedExport = (followers: [string, number][]) => [
     new File([JSON.stringify(followingFile(['alice', 101], ['bob', 102]))], 'following.json', {
       type: 'application/json',
@@ -1728,7 +1728,7 @@ test('a renamed follower is suggested in No longer follow you, and confirming mo
     ]),
   ]);
   expect(await findRow('carol_2')).toBeInTheDocument();
-  expect(screen.queryByText(/Looks renamed/)).not.toBeInTheDocument(); // only in No longer follow you, on Changes
+  expect(screen.queryByText(/Possible renames/)).not.toBeInTheDocument(); // only on Changes
 
   // A reload keeps the suggestion, like any unsaved edit.
   await waitFor(async () => {
@@ -1740,13 +1740,18 @@ test('a renamed follower is suggested in No longer follow you, and confirming mo
   user = (await renderApp({ backup: first.backup, now })).user;
 
   await user.click(await screen.findByRole('button', { name: /^Changes/ }));
-  expect(rowsOf('No longer follow you')).toEqual(['@carol']);
-  const card = within(section('No longer follow you')).getByRole('listitem', { name: '@carol' });
-  expect(within(card).getByRole('note')).toHaveTextContent('⚠ Looks renamed to @carol_2: same follow dates.');
-  await user.click(within(card).getByRole('button', { name: 'Move to @carol_2' }));
-  await waitFor(() => {
-    expect(screen.queryByRole('region', { name: 'No longer follow you' })).not.toBeInTheDocument();
+  const pair = within(await screen.findByRole('region', { name: 'Possible renames' })).getByRole('listitem', {
+    name: '@carol to @carol_2',
   });
+  expect(pair).toHaveTextContent('They followed you, same date.');
+  expect(within(pair).getByRole('link', { name: '@carol_2 ↗' })).toBeInTheDocument();
+  // Neither name is listed elsewhere while the rename waits.
+  expect(screen.queryByRole('region', { name: 'No longer follow you' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'New followers' })).not.toBeInTheDocument();
+  await user.click(within(pair).getByRole('button', { name: 'Move to new name' }));
+  const renames = await screen.findByRole('region', { name: 'Renames' });
+  expect(within(renames).getByRole('listitem', { name: '@carol to @carol_2' })).toHaveTextContent('✓ Moved');
+  expect(screen.queryByRole('region', { name: 'New followers' })).not.toBeInTheDocument(); // no new follower
 
   await user.click(navItem(/^Review$/));
   await applyFilters(user, 'Followers'); // filters start fresh after the reload

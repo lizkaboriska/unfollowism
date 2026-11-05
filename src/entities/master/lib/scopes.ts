@@ -81,8 +81,8 @@ function followedAfter(follow: DeepReadonly<Follow> | null, since: number): bool
 
 /**
  * Whether the account belongs to a change list. `since` is when the imported master was
- * saved; null (no saved master yet) means everything counts. A lost follower with an open
- * rename suggestion stays in lost followers until it is decided, however long ago it left.
+ * saved; null (no saved master yet) means everything counts. Renames are left out by the
+ * selectors (renameHiddenKeys), not here.
  */
 export function followChangeMatches(account: ReadonlyAccount, change: FollowChange, since: string | null): boolean {
   const sinceMs = since === null ? Number.NEGATIVE_INFINITY : Date.parse(since);
@@ -95,7 +95,7 @@ export function followChangeMatches(account: ReadonlyAccount, change: FollowChan
     case FOLLOW_CHANGES.UNFOLLOWED:
       return after(account.unfollowedSeenAt);
     case FOLLOW_CHANGES.LOST_FOLLOWERS:
-      return after(account.unfollowedMeSeenAt) || account.renameSuggestion !== undefined;
+      return after(account.unfollowedMeSeenAt);
   }
 }
 

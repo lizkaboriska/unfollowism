@@ -7,6 +7,7 @@ import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 import { accountOf, type ChangedAccounts } from '../lib/account.ts';
 import { countPlans, planStats, type PlanStats } from '../lib/actions.ts';
 import { sameAccountData } from '../lib/masterFile.ts';
+import { renameHiddenKeys, renamePairs, suggestedRenames, type RenamePair } from '../lib/renames.ts';
 import { followChangeMatches, relationshipStats, type FollowChangeCounts } from '../lib/scopes.ts';
 import { buildSessionDiff } from '../lib/sessionDiff.ts';
 import { countTags, tagCounts, tagsInUse, type TagCounts } from '../lib/tags.ts';
@@ -118,28 +119,48 @@ const selectBaseChangeSections = createSelector(
     ),
 );
 
+/** Old accounts with a rename suggestion from the import. Once per import. */
+const selectSuggestedRenames = createSelector([selectBaseAccounts], accounts => suggestedRenames(accounts));
+
+/** The import's rename suggestions and where each stands now (Changes, Possible renames). */
+export const selectRenamePairs = createSelector(
+  [selectBaseAccounts, selectChanged, selectSuggestedRenames],
+  (base, changed, fromKeys): readonly RenamePair[] => renamePairs(base, changed, fromKeys),
+);
+
 /**
  * The Changes page's sections now. Edits never change follows, so an edit can only take an account out: a removed
- * account (a confirmed rename) leaves its lists, and deciding a rename takes it out of No longer follow you. Only the
- * listed accounts are checked again, never all of them.
+ * account (a confirmed rename) leaves its lists. Renames have their own section: both names are left out while
+ * waiting, and the new name once moved (see renameHiddenKeys). Only the listed accounts are checked again.
  */
 export const selectChangeSections = createSelector(
-  [selectBaseChangeSections, selectChanged, selectChangesSince],
-  (sections, changed, since): ChangeSections =>
-    byChange(change =>
+  [selectBaseChangeSections, selectChanged, selectChangesSince, selectRenamePairs],
+  (sections, changed, since, pairs): ChangeSections => {
+    const hidden = renameHiddenKeys(pairs);
+    return byChange(change =>
       sections[change].filter(key => {
+        if (hidden.has(key)) {
+          return false;
+        }
         if (!Object.hasOwn(changed, key)) {
           return true;
         }
         const account = changed[key];
         return !!account && followChangeMatches(account, change, since);
       }),
-    ),
+    );
+  },
 );
 
 /** Sizes of the change lists. */
 export const selectFollowChangeCounts = createSelector([selectChangeSections], (sections): FollowChangeCounts =>
   byChange(change => sections[change].length),
+);
+
+/** Everything on the Changes page: the listed accounts, and each rename pair as one change. */
+export const selectChangesTotal = createSelector(
+  [selectFollowChangeCounts, selectRenamePairs],
+  (counts, pairs): number => Object.values(counts).reduce((sum, n) => sum + n, 0) + pairs.length,
 );
 
 /**

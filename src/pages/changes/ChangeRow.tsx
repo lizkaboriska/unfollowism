@@ -10,7 +10,6 @@ import {
   type ReadonlyAccount,
 } from '@/entities/master';
 import { selectAccount, COMPLETED_PLAN_BADGES, planText } from '@/entities/master';
-import { RenameSuggestion } from '@/features/rename-suggestion';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** The plan whose completion explains why an account is in a change list. */
@@ -83,7 +82,6 @@ export const ChangeRow = memo(function ChangeRow({
         )}
         <Text aria-hidden>→</Text>
       </chakra.button>
-      {change === FOLLOW_CHANGES.LOST_FOLLOWERS && <RenameSuggestion accountKey={accountKey} />}
     </Box>
   );
 });
