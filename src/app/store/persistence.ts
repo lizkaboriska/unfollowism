@@ -1,4 +1,4 @@
-import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
+import { createAction, type ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
 import {
   persistenceFailed,
@@ -23,6 +23,9 @@ type Accounts = DeepReadonly<ChangedAccounts>;
 
 /** Waits before each retry of a failed write. */
 export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
+
+/** Another tab took over the backup: this tab writes nothing more to it, not even a pending retry. */
+export const persistenceStopped = createAction('persistence/stopped');
 
 function toMeta(state: MasterState, importFacts: ImportFacts, storedAt: string): BackupMeta {
   return {
@@ -69,7 +72,8 @@ function noLongerChanged(stored: Accounts | null, current: Accounts): string[] {
  * - an edit stores only the edited account (~1 KB), however large the master;
  * - a save stores the edited accounts as written to the file, for Reset changes after a reload;
  * - a change arriving while a write is running is folded into one follow-up write;
- * - a failed write is retried after each of RETRY_DELAYS_MS, then on the next change.
+ * - a failed write is retried after each of RETRY_DELAYS_MS, then on the next change;
+ * - after persistenceStopped, nothing is written.
  */
 export function startPersistence(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>): void {
   let storedBase: DeepReadonly<Master> | null = null;
@@ -77,6 +81,14 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
   let storedSaved: Accounts | null = null;
   let changes = 0;
   let writing = false;
+  let stopped = false;
+
+  listener.startListening({
+    actionCreator: persistenceStopped,
+    effect: () => {
+      stopped = true;
+    },
+  });
 
   // A restore puts back exactly what is stored: remember it instead of writing it again.
   listener.startListening({
@@ -89,12 +101,15 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     },
   });
 
-  /** True when storage now holds the latest state (or there is nothing to store). */
+  /** True when storage now holds the latest state (or there is nothing to store, or this tab stopped writing). */
   async function writeLatest(api: {
     getState: () => RootState;
     extra: StoreDeps;
     dispatch: AppDispatch;
   }): Promise<boolean> {
+    if (stopped) {
+      return true;
+    }
     const state = api.getState().master;
     const { base, changed, savedChanged, importFacts } = state;
     if (!base || !importFacts) {

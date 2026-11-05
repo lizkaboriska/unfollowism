@@ -64,7 +64,7 @@ import {
   selectScopeTotals,
 } from '@/features/filters/model/selectors.ts';
 
-import { RETRY_DELAYS_MS } from '../persistence.ts';
+import { RETRY_DELAYS_MS, persistenceStopped } from '../persistence.ts';
 import type { RootState } from '../store.ts';
 
 import {
@@ -803,6 +803,23 @@ describe('storage write failures', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(t.store.getState().master.persistenceFailed).toBe(false);
     expect(await storedNote(backup, 'bob')).toBe('y');
+  });
+
+  test('once stopped, neither a pending retry nor a new edit writes', async () => {
+    const { backup, failing } = flakyBackup();
+    const t = await importedWithFakeTimers(backup);
+
+    failing.on = true;
+    t.store.dispatch(setNote({ username: 'bob', note: 'before' }));
+    await vi.advanceTimersByTimeAsync(0);
+    failing.attempts = 0;
+    failing.on = false;
+
+    t.store.dispatch(persistenceStopped());
+    t.store.dispatch(setNote({ username: 'bob', note: 'after' }));
+    await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0) * 2);
+    expect(failing.attempts).toBe(0);
+    expect(await storedNote(backup, 'bob')).toBeUndefined();
   });
 });
 
