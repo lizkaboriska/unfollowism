@@ -1749,7 +1749,12 @@ test('a renamed follower is listed in Possible renames, and moving it moves its 
   expect(screen.queryByRole('region', { name: 'No longer follow you' })).not.toBeInTheDocument();
   expect(screen.queryByRole('region', { name: 'New followers' })).not.toBeInTheDocument();
   await user.click(within(pair).getByRole('button', { name: 'Move to new name' }));
-  const renames = await screen.findByRole('region', { name: 'Renames' });
+  let renames = await screen.findByRole('region', { name: 'Renames' });
+  expect(within(renames).getByRole('listitem', { name: '@carol to @carol_2' })).toHaveTextContent('✓ Moved');
+  await user.click(within(renames).getByRole('button', { name: 'Undo' })); // waits again
+  const again = await screen.findByRole('region', { name: 'Possible renames' });
+  await user.click(within(again).getByRole('button', { name: 'Move to new name' }));
+  renames = await screen.findByRole('region', { name: 'Renames' });
   expect(within(renames).getByRole('listitem', { name: '@carol to @carol_2' })).toHaveTextContent('✓ Moved');
   expect(screen.queryByRole('region', { name: 'New followers' })).not.toBeInTheDocument(); // no new follower
 

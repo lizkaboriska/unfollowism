@@ -37,6 +37,8 @@ export interface RenamePair {
   to: string;
   match: RenameMatch;
   state: RenameState;
+  /** Decided since the last save (or the import): Undo can take it back. */
+  undoable: boolean;
 }
 
 /** A rename found by an import: the old account's key and the suggestion to put on it. */
@@ -136,14 +138,20 @@ export function suggestedRenames(accounts: Readonly<Record<string, ReadonlyAccou
 }
 
 /**
- * The renames the import suggested (`fromKeys`, see suggestedRenames) and where each stands after the edits: still
- * suggested = waiting, the old account removed = moved, the suggestion gone = not a rename.
+ * The renames the import suggested (`fromKeys`, see suggestedRenames) and where each stands after the edits (`changed`)
+ * and at the last save (`savedChanged`): still suggested = waiting, the old account removed = moved, the suggestion
+ * gone = not a rename.
  */
 export function renamePairs(
   base: Readonly<Record<string, ReadonlyAccount>>,
   changed: Readonly<ChangedAccounts<ReadonlyAccount>>,
+  savedChanged: Readonly<ChangedAccounts<ReadonlyAccount>>,
   fromKeys: readonly string[],
 ): RenamePair[] {
+  const stateIn = (edits: Readonly<ChangedAccounts<ReadonlyAccount>>, from: string): RenameState => {
+    const account = accountOf(base, edits, from);
+    return !account ? RenameState.MOVED : account.renameSuggestion ? RenameState.WAITING : RenameState.NOT_RENAME;
+  };
   return fromKeys.flatMap(from => {
     const to = base[from]?.renameSuggestion?.to;
     // The old name's follows are cleared by the import (it's gone): the new name has the matched ones.
@@ -151,15 +159,15 @@ export function renamePairs(
     if (to === undefined || !target) {
       return [];
     }
-    const now = accountOf(base, changed, from);
-    const state = !now ? RenameState.MOVED : now.renameSuggestion ? RenameState.WAITING : RenameState.NOT_RENAME;
+    const state = stateIn(changed, from);
     const match =
       target.following && target.followedBy
         ? RenameMatch.BOTH
         : target.following
           ? RenameMatch.FOLLOWING
           : RenameMatch.FOLLOWER;
-    return [{ from, to, match, state }];
+    const undoable = state !== RenameState.WAITING && stateIn(savedChanged, from) === RenameState.WAITING;
+    return [{ from, to, match, state, undoable }];
   });
 }
 

@@ -124,8 +124,8 @@ const selectSuggestedRenames = createSelector([selectBaseAccounts], accounts => 
 
 /** The import's rename suggestions and where each stands now (Changes, Possible renames). */
 export const selectRenamePairs = createSelector(
-  [selectBaseAccounts, selectChanged, selectSuggestedRenames],
-  (base, changed, fromKeys): readonly RenamePair[] => renamePairs(base, changed, fromKeys),
+  [selectBaseAccounts, selectChanged, selectSavedChanged, selectSuggestedRenames],
+  (base, changed, savedChanged, fromKeys): readonly RenamePair[] => renamePairs(base, changed, savedChanged, fromKeys),
 );
 
 /**

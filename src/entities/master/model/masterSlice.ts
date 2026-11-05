@@ -58,6 +58,12 @@ export interface MasterState {
   restoreFailed: boolean;
 }
 
+/** Whether two edit sets hold the same accounts (the same objects: edits copy, so equal means untouched). */
+function sameEdits(a: Readonly<ChangedAccounts>, b: Readonly<ChangedAccounts>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && a[key] === b[key]);
+}
+
 const initialState: MasterState = {
   base: null,
   changed: createDict<Account | null>(),
@@ -274,6 +280,35 @@ export const masterSlice = createSlice({
         delete account.renameSuggestion;
       });
     },
+    /**
+     * Takes back Move or Not a rename: both names go back to how they were at the last save (or the import), so the
+     * rename waits again. Edits to either name since then are undone too.
+     */
+    undoRename(state, { payload }: PayloadAction<{ from: string }>) {
+      const before = original(state);
+      const to = before.base?.accounts[payload.from]?.renameSuggestion?.to;
+      if (to === undefined) {
+        return;
+      }
+      const pair = new Set([payload.from, to]);
+      const changed = createDict<Account | null>();
+      for (const [key, account] of Object.entries(before.changed)) {
+        if (!pair.has(key)) {
+          changed[key] = account;
+        }
+      }
+      for (const key of pair) {
+        if (Object.hasOwn(before.savedChanged, key)) {
+          changed[key] = before.savedChanged[key] ?? null;
+        }
+      }
+      state.changed = changed;
+      state.revision += 1;
+      // Nothing else edited since the save: back to saved, as after Reset changes.
+      if (sameEdits(changed, before.savedChanged) && state.savedRevision !== UNSAVED_IMPORT) {
+        state.savedRevision = state.revision;
+      }
+    },
     /** Undoes everything not in the downloaded file yet: back to the last save, or to the import if not saved since. */
     resetChanges(state) {
       const before = original(state);
@@ -365,6 +400,7 @@ export const {
   deleteTag,
   confirmRename,
   dismissRename,
+  undoRename,
   resetChanges,
   persistenceFailed,
   persistenceRecovered,

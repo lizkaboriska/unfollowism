@@ -351,7 +351,7 @@ test('confirming with only one note keeps it as it is', () => {
   expect(onlyNew.review.notes).toBe('new note');
 });
 
-test('rename pairs: waiting, moved and not a rename, with the matched dates', () => {
+test('rename pairs: waiting, moved and not a rename, the matched dates, and Undo only since the save', () => {
   const base = importExport(
     first(),
     bundle(
@@ -371,11 +371,12 @@ test('rename pairs: waiting, moved and not a rename, with the matched dates', ()
 
   const carol = { ...must(base.carol) };
   delete carol.renameSuggestion;
-  const pairs = renamePairs(base, { alice: null, carol }, fromKeys);
+  // alice was moved before the last save, carol since then.
+  const pairs = renamePairs(base, { alice: null, carol }, { alice: null }, fromKeys);
   expect(pairs).toEqual([
-    { from: 'alice', to: 'alice_new', match: RenameMatch.BOTH, state: RenameState.MOVED },
-    { from: 'bob', to: 'bob_new', match: RenameMatch.FOLLOWING, state: RenameState.WAITING },
-    { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.NOT_RENAME },
+    { from: 'alice', to: 'alice_new', match: RenameMatch.BOTH, state: RenameState.MOVED, undoable: false },
+    { from: 'bob', to: 'bob_new', match: RenameMatch.FOLLOWING, state: RenameState.WAITING, undoable: false },
+    { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.NOT_RENAME, undoable: true },
   ]);
   expect([...renameHiddenKeys(pairs)].sort()).toEqual(['alice_new', 'bob', 'bob_new']);
 });

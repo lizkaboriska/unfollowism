@@ -38,6 +38,7 @@ import {
   confirmRename,
   deleteTag,
   dismissRename,
+  undoRename,
   renameTag,
   resetChanges,
   keepInstead,
@@ -863,7 +864,7 @@ describe('renames', () => {
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
     expect(state.master.importFacts?.completedPlans).toEqual({}); // carol's removal isn't done: she was renamed
     expect(selectRenamePairs(state)).toEqual([
-      { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.WAITING },
+      { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.WAITING, undoable: false },
     ]);
     // Neither name is listed elsewhere while the rename waits; the pair counts as one change.
     expect(lostFollowers(state)).toEqual([]);
@@ -928,6 +929,39 @@ describe('renames', () => {
 
     t.store.dispatch(resetChanges());
     expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
+  });
+
+  test('Undo takes back Move: both names as at the last save, the rename waits again, nothing unsaved', async () => {
+    const t = await renamedStore();
+    await t.store.dispatch(saveMaster()).unwrap(); // the new data saved, the rename still waiting
+    t.store.dispatch(toggleTag({ username: 'carol_2', tag: 'friend' })); // an edit to the new name before Move
+    t.store.dispatch(confirmRename({ from: 'carol' }));
+    expect(selectRenamePairs(t.store.getState())[0]).toMatchObject({ state: RenameState.MOVED, undoable: true });
+
+    t.store.dispatch(undoRename({ from: 'carol' }));
+    const state = t.store.getState();
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
+    expect(account(t, 'carol_2').review.tags).toEqual([]); // edits since the save are undone too
+    expect(selectIsDirty(state)).toBe(false);
+  });
+
+  test('Undo takes back Not a rename, and keeps other unsaved edits', async () => {
+    const t = await renamedStore();
+    t.store.dispatch(toggleTag({ username: 'alice', tag: 'friend' }));
+    t.store.dispatch(dismissRename({ from: 'carol' }));
+    t.store.dispatch(undoRename({ from: 'carol' }));
+    const state = t.store.getState();
+    expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    expect(account(t, 'alice').review.tags).toEqual(['friend']);
+    expect(selectIsDirty(state)).toBe(true);
+  });
+
+  test('after a save, a decided rename has no Undo', async () => {
+    const t = await renamedStore();
+    t.store.dispatch(confirmRename({ from: 'carol' }));
+    await t.store.dispatch(saveMaster()).unwrap();
+    expect(selectRenamePairs(t.store.getState())[0]).toMatchObject({ state: RenameState.MOVED, undoable: false });
   });
 
   test('an open suggestion survives a reload, and so does a confirmed rename', async () => {

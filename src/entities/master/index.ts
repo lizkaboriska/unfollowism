@@ -57,6 +57,7 @@ export {
   confirmRename,
   deleteTag,
   dismissRename,
+  undoRename,
   keepInstead,
   masterSlice,
   type MasterState,
