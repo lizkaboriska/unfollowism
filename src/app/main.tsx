@@ -5,7 +5,7 @@ import { Provider } from 'react-redux';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { makeStore } from '@/app/store/store.ts';
-import { activeTab, browserTabLocks } from '@/app/tab/activeTab.ts';
+import { activeTab, browserTabChannel, browserTabLocks } from '@/app/tab/activeTab.ts';
 import { guardUnload } from '@/app/tab/unloadGuard.ts';
 import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
 import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from '@/entities/master';
@@ -67,7 +67,7 @@ async function startApp(): Promise<void> {
 }
 
 // Another tab took over: reload, which shows the Open in another tab page (no "Leave site?": the work is stored).
-const tab = activeTab(browserTabLocks(), () => {
+const tab = activeTab(browserTabLocks(), browserTabChannel(), () => {
   stopGuard?.();
   window.location.reload();
 });
