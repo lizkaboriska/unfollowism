@@ -158,22 +158,57 @@ test('an account that stopped following me but that I still follow is no rename'
   expect(suggestions(result)).toEqual({});
 });
 
-test('an account only I follow is never suggested (it shows in I unfollowed)', () => {
+/** bob (only I follow him) renamed to bob_new (same following date). */
+const bobRenamed = (
+  followers: Entries = [
+    ['alice', 201],
+    ['carol', 203],
+  ],
+) =>
+  bundle(
+    [
+      ['alice', 101],
+      ['bob_new', 102],
+    ],
+    followers,
+  );
+
+test('an account only I follow is matched by its following date', () => {
+  expect(suggestions(importExport(first(), bobRenamed(), T2))).toEqual({ bob: { to: 'bob_new', plans: [] } });
+});
+
+test('a following date never matches a follower date', () => {
+  // bob (only I follow him, since 102) is gone; a new follower has 102 as its follower date.
   const result = importExport(
     first(),
     bundle(
-      [
-        ['alice', 101],
-        ['bob_new', 102],
-      ],
+      [['alice', 101]],
       [
         ['alice', 201],
         ['carol', 203],
+        ['bob_new', 102],
       ],
     ),
     T2,
   );
   expect(suggestions(result)).toEqual({});
+});
+
+test('an open suggestion on an account only I followed stays while I follow the new name', () => {
+  const second = asFile(importExport(first(), bobRenamed(), T2).master);
+  expect(suggestions(importExport(second, bobRenamed(), T3))).toEqual({ bob: { to: 'bob_new', plans: [] } });
+  const unfollowedNewName = importExport(
+    second,
+    bundle(
+      [['alice', 101]],
+      [
+        ['alice', 201],
+        ['carol', 203],
+      ],
+    ),
+    T3,
+  );
+  expect(suggestions(unfollowedNewName)).toEqual({});
 });
 
 test('plans on a renamed account are remembered and not reported as done', () => {

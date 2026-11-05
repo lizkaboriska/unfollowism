@@ -14,12 +14,15 @@ export interface FoundRename {
   suggestion: RenameSuggestion;
 }
 
-/** The follow dates that identify an account across a rename; null when a date is unknown (no match then). */
+/**
+ * The follow dates that identify an account across a rename; null when it has no follow or a date is unknown (no
+ * match then). `undefined` = no follow that way.
+ */
 function signature(following: number | null | undefined, followedBy: number | null | undefined): string | null {
-  if (following === null || followedBy === null || followedBy === undefined) {
+  if (following === null || followedBy === null || (following === undefined && followedBy === undefined)) {
     return null;
   }
-  return `${following ?? '-'}:${followedBy}`;
+  return `${following ?? '-'}:${followedBy ?? '-'}`;
 }
 
 /** Signature → account key, for signatures seen exactly once; one shared by two accounts is ambiguous and dropped. */
@@ -41,9 +44,9 @@ function unique(entries: readonly (readonly [key: string, signature: string | nu
 
 /**
  * Likely renames in a fresh export, read before the follows are updated (`accounts` still holds
- * the previous ones). Old side: accounts that followed you and are gone from the export entirely.
- * New side: usernames not seen before. Matched when both have the same follower date and, if you
- * followed them, the same following date, and each date occurs on exactly one account of its side.
+ * the previous ones). Old side: accounts gone from the export entirely. New side: usernames not seen before.
+ * Matched when both have the same follow dates in the same directions (follower date, following date, or both),
+ * and those dates occur on exactly one account of each side.
  */
 export function findRenames(
   accounts: Readonly<Record<string, ReadonlyAccount>>,
@@ -52,13 +55,13 @@ export function findRenames(
 ): FoundRename[] {
   const gone = unique(
     Object.entries(accounts)
-      .filter(([key, account]) => account.followedBy !== null && !followers.has(key) && !following.has(key))
+      .filter(([key]) => !followers.has(key) && !following.has(key))
       .map(([key, account]) => [key, signature(account.following?.since, account.followedBy?.since)] as const),
   );
   const appeared = unique(
-    [...followers]
-      .filter(([key]) => !Object.hasOwn(accounts, key))
-      .map(([key, entry]) => [key, signature(following.get(key)?.since, entry.since)] as const),
+    [...new Set([...followers.keys(), ...following.keys()])]
+      .filter(key => !Object.hasOwn(accounts, key))
+      .map(key => [key, signature(following.get(key)?.since, followers.get(key)?.since)] as const),
   );
 
   const found: FoundRename[] = [];
@@ -78,7 +81,7 @@ export function findRenames(
 
 /**
  * WRITE: after an import has updated the follows, drops open suggestions that no longer hold:
- * the old name is back in the export, or the new name no longer follows you.
+ * the old name is back in the export, or the new name is gone from it.
  */
 export function settleRenameSuggestions(accounts: Record<string, Account>): void {
   for (const account of Object.values(accounts)) {
@@ -87,7 +90,7 @@ export function settleRenameSuggestions(accounts: Record<string, Account>): void
       continue;
     }
     const target = accounts[suggestion.to];
-    if (account.following || account.followedBy || !target?.followedBy) {
+    if (account.following || account.followedBy || !(target?.following || target?.followedBy)) {
       delete account.renameSuggestion;
     }
   }
