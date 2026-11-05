@@ -4,18 +4,21 @@ import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
-import { makeStore } from '@/app/store/store.ts';
+import { makeStore, type AppStore } from '@/app/store/store.ts';
 import { activeTab, browserTabChannel, browserTabLocks } from '@/app/tab/activeTab.ts';
+import { handleTakenOver } from '@/app/tab/takenOver.ts';
 import { guardUnload } from '@/app/tab/unloadGuard.ts';
 import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
 import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from '@/entities/master';
 import { localStorageHowItWorksSeen } from '@/pages/import';
 import { OtherTabScreen } from '@/pages/other-tab';
+import { TabStoppedScreen } from '@/pages/tab-stopped';
 import { downloadText } from '@/shared/lib/download.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
 import { persistStorage } from '@/shared/lib/persistStorage.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
+import { Toaster } from '@/shared/ui/Toaster.tsx';
 import { browserAddressBar } from '@/shared/url/addressBar.ts';
 
 import { App } from './App.tsx';
@@ -40,6 +43,7 @@ async function openBackupStore(): Promise<BackupStore> {
 
 const root = createRoot(rootElement);
 let stopGuard: (() => void) | null = null;
+let started: { store: AppStore; durable: boolean } | null = null;
 
 async function startApp(): Promise<void> {
   void persistStorage();
@@ -52,6 +56,7 @@ async function startApp(): Promise<void> {
     address: browserAddressBar(),
   };
   const store = makeStore(deps);
+  started = { store, durable: deps.backup.durable };
   stopGuard = guardUnload(store, () => selectIsDirty(store.getState()));
   root.render(
     <StrictMode>
@@ -66,10 +71,26 @@ async function startApp(): Promise<void> {
   );
 }
 
-// Another tab took over: reload, which shows the Open in another tab page (no "Leave site?": the work is stored).
+// Another tab took over: reload to Open in another tab, or This tab stopped if the work here isn't stored.
 const tab = activeTab(browserTabLocks(), browserTabChannel(), () => {
-  stopGuard?.();
-  window.location.reload();
+  handleTakenOver(started?.store ?? null, started?.durable ?? false, {
+    stopGuard: () => stopGuard?.(),
+    reload: () => {
+      window.location.reload();
+    },
+    showStopped: store => {
+      root.render(
+        <StrictMode>
+          <ChakraProvider value={system}>
+            <Provider store={store}>
+              <TabStoppedScreen />
+              <Toaster />
+            </Provider>
+          </ChakraProvider>
+        </StrictMode>,
+      );
+    },
+  });
 });
 if (await tab.claim()) {
   await startApp();
