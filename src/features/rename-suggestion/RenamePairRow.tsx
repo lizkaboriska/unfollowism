@@ -27,7 +27,7 @@ const DECIDED_TEXT: Record<Exclude<RenameState, RenameState.WAITING>, string> = 
 
 /**
  * One suggested rename on Changes: the old name, → the new one (both open the profile), and either the choice (move
- * the review work to the new name, or not a rename) or what was decided, with Undo until the next save.
+ * the review work to the new name, or not a rename) or what was decided, with Undo until the next import.
  */
 export function RenamePairRow({ pair }: { pair: RenamePair }) {
   const dispatch = useAppDispatch();
@@ -78,19 +78,17 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
       ) : (
         <HStack justify="space-between" gap="2" minH="10">
           <Text color="fg.muted">{DECIDED_TEXT[pair.state]}</Text>
-          {pair.undoable && (
-            <Button
-              variant="plain"
-              h="10"
-              px="2"
-              me="-2"
-              textDecoration="underline"
-              textUnderlineOffset="3px"
-              onClick={() => dispatch(undoRename({ from: pair.from }))}
-            >
-              Undo
-            </Button>
-          )}
+          <Button
+            variant="plain"
+            h="10"
+            px="2"
+            me="-2"
+            textDecoration="underline"
+            textUnderlineOffset="3px"
+            onClick={() => dispatch(undoRename({ from: pair.from }))}
+          >
+            Undo
+          </Button>
         </HStack>
       )}
     </Stack>

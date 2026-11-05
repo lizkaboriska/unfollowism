@@ -281,15 +281,19 @@ export const masterSlice = createSlice({
       });
     },
     /**
-     * Takes back Move or Not a rename: both names go back to how they were at the last save (or the import), so the
-     * rename waits again. Edits to either name since then are undone too.
+     * Takes back Move or Not a rename, until the next import: the rename waits again. Decided since the last save:
+     * both names go back to how they were saved. Saved after deciding: back to how the import left them (the next save
+     * writes that). Edits to either name since then are undone too.
      */
     undoRename(state, { payload }: PayloadAction<{ from: string }>) {
       const before = original(state);
-      const to = before.base?.accounts[payload.from]?.renameSuggestion?.to;
-      if (to === undefined) {
+      const base = before.base;
+      const to = base?.accounts[payload.from]?.renameSuggestion?.to;
+      if (!base || to === undefined) {
         return;
       }
+      const waitedAtSave = !!accountOf<ReadonlyAccount>(base.accounts, before.savedChanged, payload.from)
+        ?.renameSuggestion;
       const pair = new Set([payload.from, to]);
       const changed = createDict<Account | null>();
       for (const [key, account] of Object.entries(before.changed)) {
@@ -297,9 +301,11 @@ export const masterSlice = createSlice({
           changed[key] = account;
         }
       }
-      for (const key of pair) {
-        if (Object.hasOwn(before.savedChanged, key)) {
-          changed[key] = before.savedChanged[key] ?? null;
+      if (waitedAtSave) {
+        for (const key of pair) {
+          if (Object.hasOwn(before.savedChanged, key)) {
+            changed[key] = before.savedChanged[key] ?? null;
+          }
         }
       }
       state.changed = changed;
