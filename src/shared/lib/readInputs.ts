@@ -9,6 +9,11 @@ export interface InputText {
 
 const JSON_FILE = /\.json$/i;
 const HTML_FILE = /\.html?$/i;
+/**
+ * The JSON files read from a zip, by name: Instagram's Following and Followers files and a progress file (also with
+ * the " (1)" a browser adds to a repeated download). A full export's other JSON (messages, likes, …) can be large.
+ */
+const ZIP_JSON_TO_READ = /^(following|followers_\d+|unfollowism_.*)\.json$/i;
 
 function displayPath(file: File): string {
   // Folder pickers expose the relative path; plain file pickers only the name.
@@ -48,8 +53,8 @@ export function loadZipLibrary(): Promise<ZipLibrary> {
 }
 
 /**
- * Reads the zip's list of files, then only the JSON entries: media in a multi-GB export is never
- * read, and HTML entries are listed by name without being decompressed.
+ * Reads the zip's list of files, then only the JSON entries named in ZIP_JSON_TO_READ: media and the rest of a
+ * multi-GB export are never decompressed, and HTML entries are listed by name only.
  */
 async function readZip(file: File, path: string): Promise<InputText[]> {
   const { BlobReader, TextWriter, ZipReader } = await loadZipLibrary();
@@ -61,9 +66,10 @@ async function readZip(file: File, path: string): Promise<InputText[]> {
         continue;
       }
       const entryPath = `${path}/${entry.filename}`;
-      if (HTML_FILE.test(entry.filename)) {
+      const name = entry.filename.split('/').at(-1) ?? '';
+      if (HTML_FILE.test(name)) {
         result.push({ path: entryPath, text: '' });
-      } else if (JSON_FILE.test(entry.filename)) {
+      } else if (ZIP_JSON_TO_READ.test(name)) {
         result.push({ path: entryPath, text: await entry.getData(new TextWriter()) });
       }
     }
