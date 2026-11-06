@@ -63,6 +63,8 @@ export default tseslint.config(
       ],
       // prefer-inline: also catches a second import from a module when one of them has an inline `type` specifier.
       'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
+      // An import of only inline types (`import { type A }`) is kept as an empty import (verbatimModuleSyntax).
+      '@typescript-eslint/no-import-type-side-effects': 'error',
 
       // React
       '@eslint-react/no-missing-key': 'error',

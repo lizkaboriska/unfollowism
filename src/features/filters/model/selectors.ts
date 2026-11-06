@@ -21,7 +21,7 @@ import {
   isPlanView,
 } from '@/entities/master';
 
-import { type FiltersState } from './filtersSlice.ts';
+import type { FiltersState } from './filtersSlice.ts';
 
 export const selectFilters = (s: RootState) => s.filters;
 
