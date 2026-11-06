@@ -97,6 +97,16 @@ describe('active tab', () => {
     await expect(tab.takeOver()).resolves.toBeUndefined();
   });
 
+  test('a browser that refuses the lock (site data blocked): the app still starts', async () => {
+    const locks: TabLocks = {
+      request: () => Promise.reject(new DOMException('The request was denied.', 'SecurityError')),
+    };
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(activeTab(locks, null, vi.fn()).claim()).resolves.toBe(true);
+    expect(error).toHaveBeenCalledOnce();
+    error.mockRestore();
+  });
+
   test('a browser that refuses to take over: this tab works anyway', async () => {
     const locks: TabLocks = {
       request: () => Promise.reject(new DOMException('steal is not supported', 'NotSupportedError')),

@@ -7,10 +7,10 @@ import { toaster } from '@/shared/ui/toasts.ts';
 export const SAVED_TOAST = '✓ Progress file downloaded. Add it next time.';
 
 /**
- * Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked.
- * Shared by the header and the Unsaved changes popup.
+ * Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked; `children`
+ * replaces the label "Save". Shared by the header, the Unsaved changes popup and the This tab stopped page.
  */
-export function SaveButton({ onSaved, ...props }: ButtonProps & { onSaved?: () => void }) {
+export function SaveButton({ onSaved, children, ...props }: ButtonProps & { onSaved?: () => void }) {
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
   const dirty = useAppSelector(selectIsDirty);
@@ -30,7 +30,7 @@ export function SaveButton({ onSaved, ...props }: ButtonProps & { onSaved?: () =
         })
       }
     >
-      Save
+      {children ?? 'Save'}
     </Button>
   );
 }
