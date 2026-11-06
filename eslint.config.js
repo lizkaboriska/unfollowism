@@ -61,7 +61,8 @@ export default tseslint.config(
           alphabetize: { order: 'asc', caseInsensitive: true },
         },
       ],
-      'import-x/no-duplicates': 'error',
+      // prefer-inline: also catches a second import from a module when one of them has an inline `type` specifier.
+      'import-x/no-duplicates': ['error', { 'prefer-inline': true }],
 
       // React
       '@eslint-react/no-missing-key': 'error',
