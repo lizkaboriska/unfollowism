@@ -36,6 +36,27 @@ describe('readInputs', () => {
     expect(inputs.find(i => i.path.endsWith('.html'))?.text).toBe('');
   });
 
+  test('from a zip, reads only the follow files and a progress file; other JSON stays packed', async () => {
+    const progress = JSON.stringify({ accounts: {} });
+    const zip = await zipOf({
+      [`${DIR}/following.json`]: following,
+      [`${DIR}/followers_1.json`]: followers1,
+      [`${DIR}/followers_2.json`]: followers1,
+      [`${DIR}/close_friends.json`]: '[]',
+      'instagram-me-2026/your_instagram_activity/likes/liked_posts.json': JSON.stringify(Array(10_000).fill({ x: 1 })),
+      'instagram-me-2026/your_instagram_activity/messages/inbox/a/message_1.json': '{}',
+      'unfollowism_progress_2026-11-06_10-00-00 (1).json': progress,
+    });
+    const inputs = await readInputs([new File([zip], 'me.zip')]);
+    expect(inputs.map(i => i.path).sort()).toEqual([
+      `me.zip/${DIR}/followers_1.json`,
+      `me.zip/${DIR}/followers_2.json`,
+      `me.zip/${DIR}/following.json`,
+      'me.zip/unfollowism_progress_2026-11-06_10-00-00 (1).json',
+    ]);
+    expect(inputs.find(i => i.path.includes('unfollowism_'))?.text).toBe(progress);
+  });
+
   test('reads loose JSON files and ignores unrelated file types', async () => {
     const inputs = await readInputs([
       new File([following], 'following.json'),
