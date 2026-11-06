@@ -6,8 +6,8 @@ import {
   type Decision,
   type SessionChange,
   type TagChangeRow,
+  planText,
 } from '@/entities/master';
-import { planText } from '@/entities/master';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
 /** "Needs a decision", "Kept", "Unfollow queued", "Unfollow done + Removal queued". `null` = needs a decision. */

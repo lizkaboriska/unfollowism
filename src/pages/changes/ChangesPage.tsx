@@ -1,8 +1,9 @@
 import { Box, Button, Grid, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useCallback, useId, useState } from 'react';
 
-import { FOLLOW_CHANGES, type FollowChange } from '@/entities/master';
 import {
+  FOLLOW_CHANGES,
+  type FollowChange,
   selectChangeSections,
   selectChangesSince,
   selectChangesTotal,

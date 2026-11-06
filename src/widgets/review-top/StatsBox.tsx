@@ -1,7 +1,6 @@
 import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
 
-import { REVIEW_SCOPES, type ReviewScope } from '@/entities/master';
-import { selectRelationshipStats } from '@/entities/master';
+import { REVIEW_SCOPES, type ReviewScope, selectRelationshipStats } from '@/entities/master';
 import { setScope } from '@/features/filters';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 

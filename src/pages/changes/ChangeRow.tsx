@@ -8,8 +8,11 @@ import {
   type ActionType,
   type FollowChange,
   type ReadonlyAccount,
+  isKept,
+  selectAccount,
+  COMPLETED_PLAN_BADGES,
+  planText,
 } from '@/entities/master';
-import { isKept, selectAccount, COMPLETED_PLAN_BADGES, planText } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** The plan whose completion explains why an account is in a change list. */
