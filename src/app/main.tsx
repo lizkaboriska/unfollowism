@@ -8,8 +8,13 @@ import { makeStore, type AppStore } from '@/app/store/store.ts';
 import { activeTab, browserTabChannel, browserTabLocks } from '@/app/tab/activeTab.ts';
 import { handleTakenOver } from '@/app/tab/takenOver.ts';
 import { guardUnload } from '@/app/tab/unloadGuard.ts';
-import { localStorageLastSaved, selectIsDirty } from '@/entities/master';
-import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from '@/entities/master';
+import {
+  localStorageLastSaved,
+  selectIsDirty,
+  createMemoryBackupStore,
+  openIndexedDbBackupStore,
+  type BackupStore,
+} from '@/entities/master';
 import { localStorageHowItWorksSeen } from '@/pages/import';
 import { OtherTabScreen } from '@/pages/other-tab';
 import { TabStoppedScreen } from '@/pages/tab-stopped';

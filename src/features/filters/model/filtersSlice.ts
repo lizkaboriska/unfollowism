@@ -8,8 +8,8 @@ import {
   type TagFilter,
   LIST_VIEWS,
   type ListView,
+  renameTag,
 } from '@/entities/master';
-import { renameTag } from '@/entities/master';
 
 export interface FiltersState {
   scope: ReviewScope;

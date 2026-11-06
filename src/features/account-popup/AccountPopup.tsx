@@ -24,8 +24,6 @@ import {
   type ActionType,
   type Follow,
   type ReadonlyAccount,
-} from '@/entities/master';
-import {
   setPlan,
   setUnavailable,
   toggleTag,

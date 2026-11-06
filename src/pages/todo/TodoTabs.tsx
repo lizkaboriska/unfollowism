@@ -1,8 +1,7 @@
 import { Tabs, Text } from '@chakra-ui/react';
 import type { ReactNode } from 'react';
 
-import { PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from '@/entities/master';
-import { TODO_LABELS } from '@/entities/master';
+import { PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView, TODO_LABELS } from '@/entities/master';
 import { setView } from '@/features/filters';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
 import { useTodoCount } from '@/widgets/nav';

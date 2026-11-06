@@ -1,5 +1,6 @@
-import { createMemoryBackupStore, type BackupStore } from '@/entities/master';
 import {
+  createMemoryBackupStore,
+  type BackupStore,
   selectAccount,
   selectIsDirty,
   selectFollowChangeCounts,

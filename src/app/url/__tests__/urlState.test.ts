@@ -1,6 +1,5 @@
-import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter } from '@/entities/master';
-import { LIST_VIEWS } from '@/entities/master';
-import { type FiltersState } from '@/features/filters';
+import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type TagFilter, LIST_VIEWS } from '@/entities/master';
+import type { FiltersState } from '@/features/filters';
 
 import { URL_DEFAULTS, filtersFromUrl, filtersToUrl } from '../urlState.ts';
 

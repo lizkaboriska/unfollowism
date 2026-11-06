@@ -1,7 +1,7 @@
 import { flushPersistence, makeTestStore, prepared } from '@/app/store/__tests__/testStore.ts';
 import type { AppStore } from '@/app/store/store.ts';
-import type { BackupStore } from '@/entities/master';
 import {
+  type BackupStore,
   ACTION_TYPES,
   DecisionFilter,
   PLAN_STATES,
