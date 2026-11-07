@@ -17,4 +17,7 @@ if (typeof window !== 'undefined') {
       Object.defineProperty(Element.prototype, method, { value: () => undefined });
     }
   }
+  // The account list scrolls the window (TanStack window virtualizer); jsdom's window.scrollTo only logs
+  // "Not implemented".
+  window.scrollTo = () => undefined;
 }
