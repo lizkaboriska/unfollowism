@@ -27,12 +27,11 @@ export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
 /** Another tab took over the backup: this tab writes nothing more to it, not even a pending retry. */
 export const persistenceStopped = createAction('persistence/stopped');
 
-function toMeta(state: MasterState, importFacts: ImportFacts, storedAt: string): BackupMeta {
+function toMeta(state: MasterState, importFacts: ImportFacts): BackupMeta {
   return {
     revision: state.revision,
     savedRevision: state.savedRevision,
     ...(state.savedAt === null ? {} : { lastSavedAt: state.savedAt }),
-    storedAt,
     importFacts,
   };
 }
@@ -115,7 +114,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     if (!base || !importFacts) {
       return true;
     }
-    const meta = toMeta(state, importFacts, api.extra.now().toISOString());
+    const meta = toMeta(state, importFacts);
     try {
       if (base !== storedBase) {
         await api.extra.backup.replace(toMasterFile(base), meta, {

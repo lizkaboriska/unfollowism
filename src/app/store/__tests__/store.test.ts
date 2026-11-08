@@ -680,7 +680,6 @@ describe('reload safety net', () => {
       {
         revision: 1,
         savedRevision: 0,
-        storedAt: 'x',
         importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
       },
       { changed: {}, saved: {} },

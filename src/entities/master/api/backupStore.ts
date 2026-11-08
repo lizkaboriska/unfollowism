@@ -12,8 +12,6 @@ export interface BackupMeta {
   savedRevision: number;
   /** The master's lastSavedAt, which changes on every save. */
   lastSavedAt?: string;
-  /** When the backup was last written. */
-  storedAt: string;
   /** What the import found besides the master (see ImportFacts). */
   importFacts: ImportFacts;
 }
