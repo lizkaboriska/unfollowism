@@ -316,18 +316,13 @@ export function fromAccountRecord(value: unknown, path: string): Account {
   return account;
 }
 
-/**
- * The single entry point for a master coming from outside (file import, browser
- * storage). Accepts only the current format and returns a fresh working master.
- * Unknown top-level fields are dropped; unknown account fields are rejected. Never mutates `raw`.
- */
 const IMPORT_FACTS_FIELDS: ReadonlySet<string> = new Set([
   'followingBefore',
   'followersBefore',
   'completedPlans',
 ] satisfies (keyof ImportFacts)[]);
 
-/** Strict reader for ImportFacts as stored in the tab's backup (they are never in the master file). */
+/** Strict reader for ImportFacts as stored in the browser backup (they are never in the master file). */
 function parseImportFacts(value: unknown, path: string): ImportFacts {
   const r = record(value, path);
   rejectUnknownFields(r, IMPORT_FACTS_FIELDS, path);
@@ -365,6 +360,11 @@ export function parseBackupMeta(value: unknown, path: string): BackupMeta {
   };
 }
 
+/**
+ * The single entry point for a master coming from outside (file import, browser
+ * storage). Accepts only the current format and returns a fresh working master.
+ * Unknown top-level fields are dropped; unknown account fields are rejected. Never mutates `raw`.
+ */
 export function parseMaster(raw: unknown): Master {
   if (!isRecord(raw) || !isRecord(raw.accounts)) {
     throw new ImportError({ kind: IMPORT_PROBLEMS.NOT_A_MASTER });
