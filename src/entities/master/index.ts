@@ -10,7 +10,7 @@ export {
 } from './lib/analyzeImport.ts';
 export { decisionMatches, followExists, isKept, isPastAccount, planOf } from './lib/decision.ts';
 export { FIELD_TYPES, type FieldType, IMPORT_PROBLEMS, ImportError, type ImportProblem } from './lib/importProblems.ts';
-export { type AccountRecord, toAccountRecord, toMasterFile } from './lib/masterFile.ts';
+export { type AccountRecord, type BackupMeta, toAccountRecord, toMasterFile } from './lib/masterFile.ts';
 export { type RenamePair, RenameMatch, RenameState } from './lib/renames.ts';
 export { queryMatches, relationshipOf, scopeMatches, tagMatches } from './lib/scopes.ts';
 export {
@@ -45,12 +45,7 @@ export { profileUrl, usernameKey } from './lib/util.ts';
 
 // api
 export { type LastSavedStore, localStorageLastSaved } from './api/lastSaved.ts';
-export {
-  createMemoryBackupStore,
-  openIndexedDbBackupStore,
-  type BackupMeta,
-  type BackupStore,
-} from './api/backupStore.ts';
+export { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } from './api/backupStore.ts';
 
 // model
 export {

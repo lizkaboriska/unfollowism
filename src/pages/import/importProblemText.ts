@@ -8,6 +8,7 @@ const EXPECTED: Record<Exclude<FieldType, typeof FIELD_TYPES.ONE_OF>, string> = 
   [FIELD_TYPES.NON_EMPTY_TEXT]: 'non-empty text',
   [FIELD_TYPES.BOOLEAN]: 'true or false',
   [FIELD_TYPES.NUMBER_OR_NULL]: 'a number or null',
+  [FIELD_TYPES.WHOLE_NUMBER]: 'a whole number',
   [FIELD_TYPES.DATE]: 'a date',
 };
 

@@ -181,6 +181,10 @@ function numOrNull(value: unknown, path: string): number | null {
     : fail(path, FIELD_TYPES.NUMBER_OR_NULL);
 }
 
+function wholeNumber(value: unknown, path: string): number {
+  return typeof value === 'number' && Number.isInteger(value) ? value : fail(path, FIELD_TYPES.WHOLE_NUMBER);
+}
+
 /** One of a constant object's values, e.g. oneOf(value, PLAN_STATES, path). */
 function oneOf<T extends string>(value: unknown, options: Readonly<Record<string, T>>, path: string): T {
   const allowed: readonly string[] = Object.values(options);
@@ -324,7 +328,7 @@ const IMPORT_FACTS_FIELDS: ReadonlySet<string> = new Set([
 ] satisfies (keyof ImportFacts)[]);
 
 /** Strict reader for ImportFacts as stored in the tab's backup (they are never in the master file). */
-export function parseImportFacts(value: unknown, path: string): ImportFacts {
+function parseImportFacts(value: unknown, path: string): ImportFacts {
   const r = record(value, path);
   rejectUnknownFields(r, IMPORT_FACTS_FIELDS, path);
   const count = (field: string) =>
@@ -335,6 +339,30 @@ export function parseImportFacts(value: unknown, path: string): ImportFacts {
     completedPlans[key] = array(types, itemPath).map((type, i) => oneOf(type, ACTION_TYPES, `${itemPath}[${i}]`));
   }
   return { followingBefore: count('followingBefore'), followersBefore: count('followersBefore'), completedPlans };
+}
+
+/** What the browser backup keeps besides the master and the changed accounts. */
+export interface BackupMeta {
+  revision: number;
+  savedRevision: number;
+  /** The master's lastSavedAt, which changes on every save. */
+  lastSavedAt?: string;
+  /** What the import found besides the master (see ImportFacts). */
+  importFacts: ImportFacts;
+}
+
+/**
+ * Strict reader for BackupMeta as stored in the browser backup. Unknown fields are ignored: one a past version wrote
+ * is harmless, while a missing or renamed one is caught.
+ */
+export function parseBackupMeta(value: unknown, path: string): BackupMeta {
+  const r = record(value, path);
+  return {
+    revision: wholeNumber(r.revision, `${path}.revision`),
+    savedRevision: wholeNumber(r.savedRevision, `${path}.savedRevision`),
+    ...(r.lastSavedAt === undefined ? {} : { lastSavedAt: date(r.lastSavedAt, `${path}.lastSavedAt`) }),
+    importFacts: parseImportFacts(r.importFacts, `${path}.importFacts`),
+  };
 }
 
 export function parseMaster(raw: unknown): Master {

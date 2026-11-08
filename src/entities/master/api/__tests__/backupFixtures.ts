@@ -1,5 +1,5 @@
-import type { MasterFile } from '../../lib/masterFile.ts';
-import type { BackupMeta, BackupWrites } from '../backupStore.ts';
+import type { BackupMeta, MasterFile } from '../../lib/masterFile.ts';
+import type { BackupWrites } from '../backupStore.ts';
 
 export const META: BackupMeta = {
   revision: 2,
