@@ -1,5 +1,5 @@
 import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
-import { memo, type ReactNode } from 'react';
+import { memo } from 'react';
 
 import {
   PLAN_STATES,
@@ -14,24 +14,7 @@ import {
   relationshipNote,
 } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
-
-/** An underlined text button: "Keep instead", "Undo". */
-function TextButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <Button
-      variant="plain"
-      h="auto"
-      p="0"
-      textStyle="body"
-      textDecoration="underline"
-      textUnderlineOffset="3px"
-      _hover={{ color: 'accent' }}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
-  );
-}
+import { TextButton } from '@/shared/ui/TextButton.tsx';
 
 /** "✓ Done · Undo" or "Kept · Undo": what happened to the row, and the way back to queued. */
 function Settled({ label, onUndo }: { label: string; onUndo: () => void }) {
