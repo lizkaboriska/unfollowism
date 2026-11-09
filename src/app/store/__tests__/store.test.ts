@@ -680,7 +680,6 @@ describe('reload safety net', () => {
       {
         revision: 1,
         savedRevision: 0,
-        storedAt: 'x',
         importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
       },
       { changed: {}, saved: {} },
@@ -690,6 +689,23 @@ describe('reload safety net', () => {
 
     await t.store.dispatch(importPrepared(prepared())).unwrap();
     expect(t.store.getState().master.restoreFailed).toBe(false);
+  });
+
+  test("stored details without the edit counter are reported, so unsaved work can't look saved", async () => {
+    const t = await importedStore();
+    t.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
+    await flushPersistence();
+    const withoutRevision: BackupStore = {
+      ...t.backup,
+      load: async () => {
+        const stored = must(await t.backup.load());
+        return { ...stored, meta: { ...(stored.meta as object), revision: undefined } };
+      },
+    };
+
+    const reloaded = makeTestStore({ backup: withoutRevision });
+    await reloaded.store.dispatch(restoreBackup());
+    expect(reloaded.store.getState().master).toMatchObject({ base: null, restoreFailed: true });
   });
 
   test('a storage read that fails is reported; a new tab is not', async () => {

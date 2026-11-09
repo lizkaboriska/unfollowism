@@ -26,7 +26,7 @@ describe.each([
 
     const loaded = must(await backup.load());
     expect(loaded.base).toEqual(BASE);
-    expect(loaded.meta.revision).toBe(4);
+    expect(loaded.meta).toEqual({ ...META, revision: 4 });
     expect(Object.keys(loaded.changed).sort()).toEqual(['bob', 'constructor']);
     const key: string = 'constructor';
     expect(loaded.changed[key]).toEqual({ username: 'constructor', followerSince: 5 });

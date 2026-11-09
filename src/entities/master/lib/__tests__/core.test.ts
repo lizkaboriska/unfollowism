@@ -1,7 +1,7 @@
 import { planStats } from '../actions.ts';
 import { followExists, planOf, decisionMatches } from '../decision.ts';
 import { FIELD_TYPES, IMPORT_PROBLEMS, type FieldType } from '../importProblems.ts';
-import { parseMaster, stringifyMasterFile, toMasterFile } from '../masterFile.ts';
+import { parseBackupMeta, parseMaster, stringifyMasterFile, toMasterFile } from '../masterFile.ts';
 import { importExport, type ExportBundle, type ImportResult } from '../merge.ts';
 import { parseFollowersJson, parseFollowingJson } from '../parse.ts';
 import { createReview } from '../review.ts';
@@ -257,6 +257,45 @@ describe('master file', () => {
     const raw = saved();
     raw.accounts.BOB = { ...raw.accounts.bob, username: 'BOB' };
     expect(problemOf(() => parseMaster(raw))).toEqual({ kind: IMPORT_PROBLEMS.DUPLICATE_ACCOUNT, username: 'BOB' });
+  });
+});
+
+describe('backup meta', () => {
+  const meta = () => ({
+    revision: 3,
+    savedRevision: -1,
+    lastSavedAt: '2026-10-27T12:00:00Z',
+    importFacts: { followingBefore: 2, followersBefore: 1, completedPlans: { bob: [ACTION_TYPES.UNFOLLOW] } },
+  });
+  const invalid = (path: string, expected: FieldType) => ({ kind: IMPORT_PROBLEMS.INVALID_FIELD, path, expected });
+
+  test('reads it back as stored; a field a past version wrote is ignored', () => {
+    expect(parseBackupMeta(meta(), 'meta')).toEqual(meta());
+    expect(parseBackupMeta({ ...meta(), storedAt: '2026-10-27T12:00:00Z' }, 'meta')).toEqual(meta());
+    const neverSaved = { ...meta(), lastSavedAt: undefined };
+    expect(parseBackupMeta(neverSaved, 'meta')).not.toHaveProperty('lastSavedAt');
+  });
+
+  test('rejects a missing or broken edit counter, which would make unsaved work look saved', () => {
+    expect(problemOf(() => parseBackupMeta({ ...meta(), revision: undefined }, 'meta'))).toEqual(
+      invalid('meta.revision', FIELD_TYPES.WHOLE_NUMBER),
+    );
+    expect(problemOf(() => parseBackupMeta({ ...meta(), savedRevision: 1.5 }, 'meta'))).toEqual(
+      invalid('meta.savedRevision', FIELD_TYPES.WHOLE_NUMBER),
+    );
+    expect(problemOf(() => parseBackupMeta({ ...meta(), revision: '3' }, 'meta'))).toEqual(
+      invalid('meta.revision', FIELD_TYPES.WHOLE_NUMBER),
+    );
+  });
+
+  test('rejects a save time that is not a date, and broken import facts', () => {
+    expect(problemOf(() => parseBackupMeta({ ...meta(), lastSavedAt: 'yesterday' }, 'meta'))).toEqual(
+      invalid('meta.lastSavedAt', FIELD_TYPES.DATE),
+    );
+    expect(problemOf(() => parseBackupMeta({ ...meta(), importFacts: undefined }, 'meta'))).toEqual(
+      invalid('meta.importFacts', FIELD_TYPES.OBJECT),
+    );
+    expect(problemOf(() => parseBackupMeta(null, 'meta'))).toEqual(invalid('meta', FIELD_TYPES.OBJECT));
   });
 });
 

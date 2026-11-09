@@ -1,5 +1,4 @@
-import type { AccountRecord, MasterFile } from '../lib/masterFile.ts';
-import type { ImportFacts } from '../lib/types.ts';
+import type { AccountRecord, BackupMeta, MasterFile } from '../lib/masterFile.ts';
 
 /**
  * The browser backup, so a reload or a closed browser doesn't lose work; one for the whole browser. It keeps the
@@ -7,20 +6,9 @@ import type { ImportFacts } from '../lib/types.ts';
  * an edit writes ~1 KB however large the master is. It also keeps the changed accounts as they were in the last
  * downloaded file, so Reset changes still works after a reload. The downloaded master file stays the real record.
  */
-export interface BackupMeta {
-  revision: number;
-  savedRevision: number;
-  /** The master's lastSavedAt, which changes on every save. */
-  lastSavedAt?: string;
-  /** When the backup was last written. */
-  storedAt: string;
-  /** What the import found besides the master (see ImportFacts). */
-  importFacts: ImportFacts;
-}
-
 export interface StoredBackup {
   base: unknown;
-  meta: BackupMeta;
+  meta: unknown;
   /** Account key → latest record (null = removed), for accounts changed since import. */
   changed: Record<string, unknown>;
   /** Account key → record as in the last downloaded file, for accounts changed between import and that save. */
@@ -138,11 +126,11 @@ export async function openIndexedDbBackupStore(factory: IDBFactory = indexedDB):
       const tx = (await db()).transaction([BASE, META, ...ACCOUNT_STORES], 'readonly');
       const [base, meta, changed, saved] = await Promise.all([
         done(tx.objectStore(BASE).get(KEY)) as Promise<unknown>,
-        done(tx.objectStore(META).get(KEY)) as Promise<BackupMeta | undefined>,
+        done(tx.objectStore(META).get(KEY)) as Promise<unknown>,
         loadAccounts(tx.objectStore(ACCOUNTS)),
         loadAccounts(tx.objectStore(SAVED_ACCOUNTS)),
       ]);
-      if (base === undefined || !meta) {
+      if (base === undefined || meta === undefined) {
         return null;
       }
       return { base, meta, changed, saved };

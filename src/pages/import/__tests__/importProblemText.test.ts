@@ -52,6 +52,11 @@ test.each<[string, ImportProblem, string]>([
     'Invalid progress file: lastSavedAt should be a date.',
   ],
   [
+    'not a whole number',
+    { kind: IMPORT_PROBLEMS.INVALID_FIELD, path: 'meta.revision', expected: FIELD_TYPES.WHOLE_NUMBER },
+    'Invalid progress file: meta.revision should be a whole number.',
+  ],
+  [
     'not one of the options',
     {
       kind: IMPORT_PROBLEMS.INVALID_FIELD,

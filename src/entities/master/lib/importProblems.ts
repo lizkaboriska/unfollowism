@@ -9,6 +9,7 @@ export const FIELD_TYPES = {
   NON_EMPTY_TEXT: 'nonEmptyText',
   BOOLEAN: 'boolean',
   NUMBER_OR_NULL: 'numberOrNull',
+  WHOLE_NUMBER: 'wholeNumber',
   DATE: 'date',
   ONE_OF: 'oneOf',
 } as const;

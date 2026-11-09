@@ -1,10 +1,9 @@
-import type { MasterFile } from '../../lib/masterFile.ts';
-import type { BackupMeta, BackupWrites } from '../backupStore.ts';
+import type { BackupMeta, MasterFile } from '../../lib/masterFile.ts';
+import type { BackupWrites } from '../backupStore.ts';
 
 export const META: BackupMeta = {
   revision: 2,
   savedRevision: 0,
-  storedAt: '2026-10-27T12:00:00Z',
   importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
 };
 export const NOTHING: BackupWrites = { changed: {}, saved: {} };

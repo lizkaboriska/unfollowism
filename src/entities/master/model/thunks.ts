@@ -8,7 +8,7 @@ import type { StoredBackup } from '../api/backupStore.ts';
 import type { ChangedAccounts } from '../lib/account.ts';
 import type { PreparedImport } from '../lib/analyzeImport.ts';
 import { ImportError, type ImportProblem } from '../lib/importProblems.ts';
-import { currentMaster, fromAccountRecord, parseImportFacts, parseMaster, serializeMaster } from '../lib/masterFile.ts';
+import { currentMaster, fromAccountRecord, parseBackupMeta, parseMaster, serializeMaster } from '../lib/masterFile.ts';
 import { masterFileName } from '../lib/masterFileName.ts';
 import { importExport, type ImportResult } from '../lib/merge.ts';
 import type { ImportFacts, Account, Master } from '../lib/types.ts';
@@ -96,12 +96,12 @@ function reviveTab(stored: StoredBackup): RestoredSession {
   const base = parseMaster(stored.base);
   const changed = reviveAccounts(stored.changed, 'changed');
   const savedChanged = reviveAccounts(stored.saved, 'saved');
-  const { meta } = stored;
+  const meta = parseBackupMeta(stored.meta, 'meta');
   return {
     base,
     changed,
     savedChanged,
-    importFacts: parseImportFacts(meta.importFacts, 'importFacts'),
+    importFacts: meta.importFacts,
     savedAt: meta.lastSavedAt ?? base.lastSavedAt ?? null,
     revision: meta.revision,
     savedRevision: meta.savedRevision,
