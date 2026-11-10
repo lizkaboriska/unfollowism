@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Heading, Text } from '@chakra-ui/react';
+import { Box, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
 import { selectIsDirty, selectUnsavedAccountCount, plural } from '@/entities/master';
@@ -6,6 +6,7 @@ import { AccountPopup } from '@/features/account-popup';
 import { SaveButton } from '@/features/save-reset';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
+import { TextButton } from '@/shared/ui/TextButton.tsx';
 
 import { AppMenu } from './AppMenu.tsx';
 import { UnsavedPopup } from './UnsavedPopup.tsx';
@@ -31,31 +32,29 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
   return (
     <Box as="header" borderBottomWidth="1px">
       <HStack maxW={PAGE_WIDTH} mx="auto" h="72px" px="5" justify="space-between" gap="3">
-        <Box>
+        <Stack gap="0" align="flex-start">
           <Heading textStyle="appName" lineHeight="1">
             Unfollowism
           </Heading>
           {dirty ? (
-            <Button
-              variant="plain"
-              h="auto"
-              p="0"
+            // 11 px text: 13 + 14 px of the 40 px tap area hang above and below it.
+            <TextButton
               textStyle="small"
               color={color}
-              textDecoration="underline"
-              textUnderlineOffset="3px"
+              mt="-13px"
+              mb="-14px"
               onClick={() => {
                 setUnsavedOpen(true);
               }}
             >
               {indicator}
-            </Button>
+            </TextButton>
           ) : (
             <Text textStyle="small" color={color}>
               {indicator}
             </Text>
           )}
-        </Box>
+        </Stack>
         <HStack gap="1.5">
           <SaveButton h="10" />
           <AppMenu onImportNew={onImportNew} />
