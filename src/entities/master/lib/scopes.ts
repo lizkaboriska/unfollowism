@@ -34,16 +34,16 @@ export function relationshipOf(account: ReadonlyAccount): Relationship {
 /**
  * WRITE: records the follows found in the latest export (absent entry = no follow).
  * A follow that appears or disappears is dated with this import (`seenAt`); the opposite change clears that date.
- * Appearing follows are dated only with `datesNew`: without a saved master every follow counts as new anyway.
+ * Appearing follows are dated only with `shouldDateNew`: without a saved master every follow counts as new anyway.
  */
 export function setFollows(
   account: Account,
   following: ExportEntry | undefined,
   followedBy: ExportEntry | undefined,
   seenAt: string,
-  datesNew: boolean,
+  shouldDateNew: boolean,
 ): void {
-  if (datesNew && !account.following && following) {
+  if (shouldDateNew && !account.following && following) {
     account.followedSeenAt = seenAt;
   }
   if (!following) {
@@ -55,7 +55,7 @@ export function setFollows(
   if (following) {
     delete account.unfollowedSeenAt;
   }
-  if (datesNew && !account.followedBy && followedBy) {
+  if (shouldDateNew && !account.followedBy && followedBy) {
     account.followedMeSeenAt = seenAt;
   }
   if (!followedBy) {
@@ -152,8 +152,8 @@ export function tagMatches(account: ReadonlyAccount, tag: TagFilter): boolean {
 }
 
 export function queryMatches(account: ReadonlyAccount, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  return !q || usernameKey(account.username).includes(q);
+  const normalizedQuery = query.trim().toLowerCase();
+  return !normalizedQuery || usernameKey(account.username).includes(normalizedQuery);
 }
 
 export interface RelationshipStats {

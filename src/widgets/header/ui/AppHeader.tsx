@@ -17,18 +17,18 @@ import { UnsavedPopup } from './UnsavedPopup.tsx';
  * While something is unsaved the line is an underlined link that opens the list of unsaved changes.
  */
 export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
-  const dirty = useAppSelector(selectIsDirty);
+  const isDirty = useAppSelector(selectIsDirty);
   const unsavedCount = useAppSelector(selectUnsavedAccountCount);
-  const [unsavedOpen, setUnsavedOpen] = useState(false);
+  const [isUnsavedOpen, setUnsavedOpen] = useState(false);
   /** The account opened from the Unsaved changes popup. */
   const [accountKey, setAccountKey] = useState<string | null>(null);
 
-  const indicator = !dirty
+  const indicator = !isDirty
     ? 'All decisions saved'
     : unsavedCount
       ? `● Unsaved · ${plural(unsavedCount, 'changed account')}`
       : '● New data not saved';
-  const color = dirty ? 'accent' : 'fg.muted';
+  const color = isDirty ? 'accent' : 'fg.muted';
 
   return (
     <Box as="header" borderBottomWidth="1px">
@@ -37,7 +37,7 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
           <Heading textStyle="appName" lineHeight="1">
             Unfollowism
           </Heading>
-          {dirty ? (
+          {isDirty ? (
             // 11 px text: 13 + 14 px of the 40 px tap area hang above and below it.
             <TextButton
               textStyle="small"
@@ -61,7 +61,7 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
           <AppMenu onImportNew={onImportNew} />
         </HStack>
         <UnsavedPopup
-          open={unsavedOpen}
+          open={isUnsavedOpen}
           onClose={() => {
             setUnsavedOpen(false);
           }}

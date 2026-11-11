@@ -84,13 +84,13 @@ export function NewTag({
       placeholder="new tag…"
       aria-label={`New tag for @${username}`}
       value={draft}
-      onChange={e => {
-        setDraft(e.currentTarget.value);
+      onChange={event => {
+        setDraft(event.currentTarget.value);
       }}
       onKeyDown={onKeyDown}
-      onBlur={e => {
+      onBlur={event => {
         if (!closedByKey.current) {
-          add(e.currentTarget.value);
+          add(event.currentTarget.value);
           setDraft(null);
         }
       }}

@@ -34,11 +34,11 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
   const dispatch = useAppDispatch();
   // The old account is gone once moved: its name is kept in the imported data, like the new one's.
   const fromName = useAppSelector(state => selectImportedUsername(state, pair.from));
-  const toName = useAppSelector(s => selectAccount(s, pair.to)?.username);
+  const toName = useAppSelector(state => selectAccount(state, pair.to)?.username);
   if (fromName === undefined || toName === undefined) {
     return null;
   }
-  const waiting = pair.state === RenameState.WAITING;
+  const isWaiting = pair.state === RenameState.WAITING;
 
   return (
     <Stack
@@ -78,7 +78,7 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
           </HStack>
         )}
       </Stack>
-      {waiting && (
+      {isWaiting && (
         <HStack justify="space-between" gap="2">
           <Button variant="outline" h="10" onClick={() => dispatch(confirmRename({ from: pair.from }))}>
             Move to new name

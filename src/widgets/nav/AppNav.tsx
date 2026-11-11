@@ -48,7 +48,7 @@ function NavItem({
 /** Review · Changes · To do: a bottom bar on a phone, a framed list beside the page on desktop. */
 export function AppNav() {
   const dispatch = useAppDispatch();
-  const view = useAppSelector(s => s.filters.view);
+  const view = useAppSelector(state => state.filters.view);
   const todoCount = useTodoCount();
   const todoStartView = useAppSelector(selectTodoStartView);
   const changesTotal = useChangesTotal();
@@ -94,7 +94,7 @@ export function AppNav() {
       />
       <NavItem
         label="To do"
-        count={TODO_VIEWS.reduce((sum, v) => sum + todoCount(v), 0)}
+        count={TODO_VIEWS.reduce((sum, todoView) => sum + todoCount(todoView), 0)}
         active={isPlanView(view)}
         onClick={openTodo}
       />

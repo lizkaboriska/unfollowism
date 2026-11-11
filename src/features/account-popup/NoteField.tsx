@@ -42,9 +42,9 @@ export function NoteField({ username, note }: { username: string; note: string }
       placeholder="Add note…"
       aria-label={`Note for @${username}`}
       value={draft}
-      onChange={e => {
-        setDraft(e.currentTarget.value);
-        storeNote(e.currentTarget.value);
+      onChange={event => {
+        setDraft(event.currentTarget.value);
+        storeNote(event.currentTarget.value);
       }}
       onBlur={() => storeNote.flush()}
     />

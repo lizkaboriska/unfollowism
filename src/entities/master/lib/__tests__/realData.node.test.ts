@@ -17,15 +17,15 @@ import { must } from './helpers.ts';
 const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const NOW = '2030-01-01T00:00:00.000Z';
 const MASTER = 'instagram_master_tracker.json';
-const realData = existsSync(join(ROOT, MASTER)) && existsSync(join(ROOT, 'connections/following.json'));
+const hasRealData = existsSync(join(ROOT, MASTER)) && existsSync(join(ROOT, 'connections/following.json'));
 
-describe.skipIf(!realData)('your real data (local only)', () => {
+describe.skipIf(!hasRealData)('your real data (local only)', () => {
   const text = (path: string) => readFileSync(join(ROOT, path), 'utf8');
   const read = (path: string): unknown => JSON.parse(text(path));
   const followerNames = () =>
     readdirSync(join(ROOT, 'connections'))
-      .filter(n => /^followers_\d+\.json$/.test(n))
-      .sort((a, b) => parseInt(a.slice(10)) - parseInt(b.slice(10)));
+      .filter(fileName => /^followers_\d+\.json$/.test(fileName))
+      .sort((first, second) => parseInt(first.slice(10)) - parseInt(second.slice(10)));
   const bundle = (following: unknown, followerRaws: unknown[]) => ({
     following: parseFollowingJson(following),
     followers: followerRaws.flatMap(parseFollowersJson),
@@ -36,10 +36,10 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     const sameExport = () =>
       bundle(
         read('connections/following.json'),
-        followerNames().map(n => read(`connections/${n}`)),
+        followerNames().map(fileName => read(`connections/${fileName}`)),
       );
     const first = importExport(read(MASTER), sameExport(), NOW);
-    expect(first.exportChanged).toBe(false);
+    expect(first.hasExportChanged).toBe(false);
     const before = parseMaster(read(MASTER)).accounts;
     expect(Object.keys(first.master.accounts)).toEqual(Object.keys(before));
     for (const [key, account] of Object.entries(first.master.accounts)) {
@@ -53,7 +53,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
 
     const saved = stringifyMasterFile(toMasterFile(first.master));
     const second = importExport(JSON.parse(saved), sameExport(), NOW);
-    expect(second.dirty).toBe(false);
+    expect(second.isDirty).toBe(false);
     expect(stringifyMasterFile(toMasterFile(second.master))).toBe(saved);
   });
 
@@ -61,7 +61,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     const master = read(MASTER);
     const planned = new Set(
       Object.entries(parseMaster(master).accounts)
-        .filter(([, a]) => planOf(a, ACTION_TYPES.UNFOLLOW) !== undefined)
+        .filter(([, account]) => planOf(account, ACTION_TYPES.UNFOLLOW) !== undefined)
         .map(([key]) => key),
     );
     expect(planned.size).toBeGreaterThan(0);
@@ -71,13 +71,13 @@ describe.skipIf(!realData)('your real data (local only)', () => {
       item => !planned.has(usernameKey(item.title)),
     );
     const followerRaws = followerNames().map(
-      n => read(`connections/${n}`) as { string_list_data: { value: string }[] }[],
+      fileName => read(`connections/${fileName}`) as { string_list_data: { value: string }[] }[],
     );
     const left = (followerRaws[0] ?? []).slice(0, 3).map(item => usernameKey(must(item.string_list_data[0]).value));
     followerRaws[0] = (followerRaws[0] ?? []).slice(3);
 
     const result = importExport(master, bundle(following, followerRaws), NOW);
-    expect(result.exportChanged).toBe(true);
+    expect(result.hasExportChanged).toBe(true);
     expect(result.plans.completed[ACTION_TYPES.UNFOLLOW]).toBe(planned.size);
     for (const key of planned) {
       expect(result.master.accounts[key]).toMatchObject({ following: null, unfollowedSeenAt: NOW });

@@ -131,7 +131,7 @@ export function settleRenameSuggestions(accounts: Record<string, Account>): void
 export function suggestedRenames(accounts: Readonly<Record<string, ReadonlyAccount>>): readonly string[] {
   return Object.entries(accounts)
     .filter(([, account]) => account.renameSuggestion !== undefined)
-    .sort(([, a], [, b]) => a.username.localeCompare(b.username))
+    .sort(([, first], [, second]) => first.username.localeCompare(second.username))
     .map(([key]) => key);
 }
 

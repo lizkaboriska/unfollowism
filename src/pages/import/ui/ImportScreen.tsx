@@ -41,8 +41,8 @@ export function ImportScreen({
 }) {
   const confirm = useConfirm();
   const isDirty = useAppSelector(selectIsDirty);
-  const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
-  const restoreFailed = useAppSelector(s => s.master.restoreFailed);
+  const isImporting = useAppSelector(state => state.master.importStatus === IMPORT_STATUSES.IMPORTING);
+  const hasRestoreFailed = useAppSelector(state => state.master.hasRestoreFailed);
   const {
     chosen,
     isReading,
@@ -84,15 +84,15 @@ export function ImportScreen({
       return;
     }
     if (isDirty) {
-      const discard = await confirm({
+      const shouldDiscard = await confirm({
         title: 'Discard unsaved changes?',
         body:
           "Your changes since the last save aren't in a downloaded progress file yet. Importing replaces them. " +
           'To keep them, cancel and Save first.',
         confirmLabel: 'Import anyway',
-        destructive: true,
+        isDestructive: true,
       });
-      if (!discard) {
+      if (!shouldDiscard) {
         return;
       }
     }
@@ -108,7 +108,7 @@ export function ImportScreen({
 
   return (
     <Stack gap="5">
-      {restoreFailed && (
+      {hasRestoreFailed && (
         <Warning title="Your work couldn't be restored">
           Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your last
           saved progress file to continue.
@@ -130,7 +130,7 @@ export function ImportScreen({
           followingCount={followingCount}
           followerCount={followerCount}
           master={master}
-          masterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
+          isMasterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
           drop={drop}
         >
           {masterWarning && (
@@ -195,7 +195,7 @@ export function ImportScreen({
         <Button
           w="full"
           disabled={!selection?.prepared || isReading}
-          loading={importing}
+          loading={isImporting}
           loadingText="Loading…"
           onClick={() => void onImport()}
         >

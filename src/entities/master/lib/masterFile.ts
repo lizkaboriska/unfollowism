@@ -58,8 +58,8 @@ export interface AccountRecord {
 
 // ── Writing ──────────────────────────────────────────────────────────────────
 
-function isDefaultReview(r: DeepReadonly<Review>): boolean {
-  return !r.unavailable && r.tags.length === 0 && r.notes === '';
+function isDefaultReview(review: DeepReadonly<Review>): boolean {
+  return !review.unavailable && review.tags.length === 0 && review.notes === '';
 }
 
 /**
@@ -119,8 +119,8 @@ function comparableRecord(account: ReadonlyAccount): string {
 }
 
 /** Whether two accounts hold the same data. Tag order doesn't matter, as in the Unsaved changes list. */
-export function sameAccountData(a: ReadonlyAccount, b: ReadonlyAccount): boolean {
-  return a === b || comparableRecord(a) === comparableRecord(b);
+export function sameAccountData(left: ReadonlyAccount, right: ReadonlyAccount): boolean {
+  return left === right || comparableRecord(left) === comparableRecord(right);
 }
 
 export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
@@ -200,8 +200,8 @@ function oneOf<T extends string>(value: unknown, options: Readonly<Record<string
 }
 
 /** Rejected rather than dropped: losing a field silently could lose your work. */
-function rejectUnknownFields(r: Record<string, unknown>, known: ReadonlySet<string>, path: string): void {
-  for (const key of Object.keys(r)) {
+function rejectUnknownFields(fields: Record<string, unknown>, known: ReadonlySet<string>, path: string): void {
+  for (const key of Object.keys(fields)) {
     if (!known.has(key)) {
       throw new ImportError({ kind: IMPORT_PROBLEMS.UNKNOWN_FIELD, path: `${path}.${key}` });
     }
@@ -215,12 +215,12 @@ function strings(value: unknown, path: string): string[] {
 const REVIEW_FIELDS: ReadonlySet<string> = new Set(['unavailable', 'tags', 'notes'] satisfies (keyof Review)[]);
 
 function parseReview(value: unknown, path: string): Review {
-  const r = record(value, path);
-  rejectUnknownFields(r, REVIEW_FIELDS, path);
+  const fields = record(value, path);
+  rejectUnknownFields(fields, REVIEW_FIELDS, path);
   return {
-    unavailable: bool(r.unavailable, `${path}.unavailable`),
-    tags: strings(r.tags, `${path}.tags`),
-    notes: str(r.notes, `${path}.notes`),
+    unavailable: bool(fields.unavailable, `${path}.unavailable`),
+    tags: strings(fields.tags, `${path}.tags`),
+    notes: str(fields.notes, `${path}.notes`),
   };
 }
 
@@ -229,20 +229,20 @@ function date(value: unknown, path: string): string {
 }
 
 /** A follow is recorded by the presence of its "since" field (null = time unknown). */
-function follow(present: boolean, since: unknown, path: string): Follow | null {
-  return present ? { since: numOrNull(since, path) } : null;
+function follow(isPresent: boolean, since: unknown, path: string): Follow | null {
+  return isPresent ? { since: numOrNull(since, path) } : null;
 }
 
 const RENAME_FIELDS: ReadonlySet<string> = new Set(['to', 'plans'] satisfies (keyof RenameSuggestion)[]);
 
 function parseRenameSuggestion(value: unknown, path: string): RenameSuggestion {
-  const r = record(value, path);
-  rejectUnknownFields(r, RENAME_FIELDS, path);
+  const fields = record(value, path);
+  rejectUnknownFields(fields, RENAME_FIELDS, path);
   const plans =
-    r.plans === undefined
+    fields.plans === undefined
       ? []
-      : array(r.plans, `${path}.plans`).map((type, i) => oneOf(type, ACTION_TYPES, `${path}.plans[${i}]`));
-  return { to: nonEmptyStr(r.to, `${path}.to`), plans };
+      : array(fields.plans, `${path}.plans`).map((type, i) => oneOf(type, ACTION_TYPES, `${path}.plans[${i}]`));
+  return { to: nonEmptyStr(fields.to, `${path}.to`), plans };
 }
 
 const KEPT_FIELDS: ReadonlySet<string> = new Set(['kind']);
@@ -251,14 +251,14 @@ const PLAN_FIELDS: ReadonlySet<string> = new Set(Object.values(ACTION_TYPES));
 
 /** Kept, or queued with at least one plan. */
 function parseDecision(value: unknown, path: string): Decision {
-  const r = record(value, path);
-  const kind = oneOf(r.kind, DecisionKind, `${path}.kind`);
+  const fields = record(value, path);
+  const kind = oneOf(fields.kind, DecisionKind, `${path}.kind`);
   if (kind === DecisionKind.KEPT) {
-    rejectUnknownFields(r, KEPT_FIELDS, path);
+    rejectUnknownFields(fields, KEPT_FIELDS, path);
     return { kind };
   }
-  rejectUnknownFields(r, QUEUED_FIELDS, path);
-  const raw = record(r.plans, `${path}.plans`);
+  rejectUnknownFields(fields, QUEUED_FIELDS, path);
+  const raw = record(fields.plans, `${path}.plans`);
   rejectUnknownFields(raw, PLAN_FIELDS, `${path}.plans`);
   const plans: Plans = {};
   for (const type of Object.values(ACTION_TYPES)) {
@@ -287,31 +287,31 @@ const ACCOUNT_FIELDS: ReadonlySet<string> = new Set([
 
 /** Builds the working account from its saved record. */
 export function fromAccountRecord(value: unknown, path: string): Account {
-  const r = record(value, path);
-  rejectUnknownFields(r, ACCOUNT_FIELDS, path);
+  const fields = record(value, path);
+  rejectUnknownFields(fields, ACCOUNT_FIELDS, path);
   const account: Account = {
-    username: nonEmptyStr(r.username, `${path}.username`),
-    following: follow('followingSince' in r, r.followingSince, `${path}.followingSince`),
-    followedBy: follow('followerSince' in r, r.followerSince, `${path}.followerSince`),
-    review: r.review === undefined ? createReview() : parseReview(r.review, `${path}.review`),
+    username: nonEmptyStr(fields.username, `${path}.username`),
+    following: follow('followingSince' in fields, fields.followingSince, `${path}.followingSince`),
+    followedBy: follow('followerSince' in fields, fields.followerSince, `${path}.followerSince`),
+    review: fields.review === undefined ? createReview() : parseReview(fields.review, `${path}.review`),
   };
-  if (r.decision !== undefined) {
-    account.decision = parseDecision(r.decision, `${path}.decision`);
+  if (fields.decision !== undefined) {
+    account.decision = parseDecision(fields.decision, `${path}.decision`);
   }
-  if (r.followedSeenAt !== undefined) {
-    account.followedSeenAt = date(r.followedSeenAt, `${path}.followedSeenAt`);
+  if (fields.followedSeenAt !== undefined) {
+    account.followedSeenAt = date(fields.followedSeenAt, `${path}.followedSeenAt`);
   }
-  if (r.followedMeSeenAt !== undefined) {
-    account.followedMeSeenAt = date(r.followedMeSeenAt, `${path}.followedMeSeenAt`);
+  if (fields.followedMeSeenAt !== undefined) {
+    account.followedMeSeenAt = date(fields.followedMeSeenAt, `${path}.followedMeSeenAt`);
   }
-  if (r.unfollowedSeenAt !== undefined) {
-    account.unfollowedSeenAt = date(r.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
+  if (fields.unfollowedSeenAt !== undefined) {
+    account.unfollowedSeenAt = date(fields.unfollowedSeenAt, `${path}.unfollowedSeenAt`);
   }
-  if (r.unfollowedMeSeenAt !== undefined) {
-    account.unfollowedMeSeenAt = date(r.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
+  if (fields.unfollowedMeSeenAt !== undefined) {
+    account.unfollowedMeSeenAt = date(fields.unfollowedMeSeenAt, `${path}.unfollowedMeSeenAt`);
   }
-  if (r.renameSuggestion !== undefined) {
-    account.renameSuggestion = parseRenameSuggestion(r.renameSuggestion, `${path}.renameSuggestion`);
+  if (fields.renameSuggestion !== undefined) {
+    account.renameSuggestion = parseRenameSuggestion(fields.renameSuggestion, `${path}.renameSuggestion`);
   }
   return account;
 }
@@ -324,12 +324,12 @@ const IMPORT_FACTS_FIELDS: ReadonlySet<string> = new Set([
 
 /** Strict reader for ImportFacts as stored in the browser backup (they are never in the master file). */
 function parseImportFacts(value: unknown, path: string): ImportFacts {
-  const r = record(value, path);
-  rejectUnknownFields(r, IMPORT_FACTS_FIELDS, path);
+  const fields = record(value, path);
+  rejectUnknownFields(fields, IMPORT_FACTS_FIELDS, path);
   const count = (field: string) =>
-    numOrNull(r[field], `${path}.${field}`) ?? fail(`${path}.${field}`, FIELD_TYPES.NUMBER_OR_NULL);
+    numOrNull(fields[field], `${path}.${field}`) ?? fail(`${path}.${field}`, FIELD_TYPES.NUMBER_OR_NULL);
   const completedPlans = createDict<ActionType[]>();
-  for (const [key, types] of Object.entries(record(r.completedPlans, `${path}.completedPlans`))) {
+  for (const [key, types] of Object.entries(record(fields.completedPlans, `${path}.completedPlans`))) {
     const itemPath = `${path}.completedPlans.${key}`;
     completedPlans[key] = array(types, itemPath).map((type, i) => oneOf(type, ACTION_TYPES, `${itemPath}[${i}]`));
   }
@@ -351,12 +351,12 @@ export interface BackupMeta {
  * is harmless, while a missing or renamed one is caught.
  */
 export function parseBackupMeta(value: unknown, path: string): BackupMeta {
-  const r = record(value, path);
+  const fields = record(value, path);
   return {
-    revision: wholeNumber(r.revision, `${path}.revision`),
-    savedRevision: wholeNumber(r.savedRevision, `${path}.savedRevision`),
-    ...(r.lastSavedAt === undefined ? {} : { lastSavedAt: date(r.lastSavedAt, `${path}.lastSavedAt`) }),
-    importFacts: parseImportFacts(r.importFacts, `${path}.importFacts`),
+    revision: wholeNumber(fields.revision, `${path}.revision`),
+    savedRevision: wholeNumber(fields.savedRevision, `${path}.savedRevision`),
+    ...(fields.lastSavedAt === undefined ? {} : { lastSavedAt: date(fields.lastSavedAt, `${path}.lastSavedAt`) }),
+    importFacts: parseImportFacts(fields.importFacts, `${path}.importFacts`),
   };
 }
 

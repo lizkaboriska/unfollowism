@@ -13,14 +13,14 @@ export const SAVED_TOAST = '✓ Progress file downloaded. Add it next time.';
 export function SaveButton({ onSaved, children, ...props }: ButtonProps & { onSaved?: () => void }) {
   const dispatch = useAppDispatch();
   const hasData = useAppSelector(selectHasData);
-  const dirty = useAppSelector(selectIsDirty);
+  const isDirty = useAppSelector(selectIsDirty);
   const isSaving = useAppSelector(selectIsSaving);
   return (
     <Button
-      variant={dirty ? 'solid' : 'outline'}
+      variant={isDirty ? 'solid' : 'outline'}
       {...props}
       loading={isSaving}
-      disabled={!hasData || !dirty}
+      disabled={!hasData || !isDirty}
       onClick={() =>
         void dispatch(saveMaster()).then(result => {
           if (saveMaster.fulfilled.match(result)) {

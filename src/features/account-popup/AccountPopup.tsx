@@ -108,18 +108,18 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
       <Section legend="Tags">
         <Wrap gap="2" role="group" aria-label={`Tags for @${username}`}>
           {tags.map(tag => {
-            const on = review.tags.includes(tag);
+            const isOn = review.tags.includes(tag);
             return (
               <Button
                 key={tag}
                 size="sm"
                 h="8"
-                variant={on ? 'solid' : 'outline'}
-                aria-pressed={on}
+                variant={isOn ? 'solid' : 'outline'}
+                aria-pressed={isOn}
                 aria-label={tag}
                 onClick={() => dispatch(toggleTag({ username, tag }))}
               >
-                {on ? `✓ ${tag}` : tag}
+                {isOn ? `✓ ${tag}` : tag}
               </Button>
             );
           })}
@@ -129,7 +129,7 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
       <Switch.Root
         name={`unavailable-${username}`}
         checked={review.unavailable}
-        onCheckedChange={e => dispatch(setUnavailable({ username, unavailable: e.checked }))}
+        onCheckedChange={details => dispatch(setUnavailable({ username, unavailable: details.checked }))}
         display="flex"
         justifyContent="space-between"
         gap="4"
@@ -179,12 +179,12 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
 
 /** Everything about one account: decision, tags, unavailable, note, dates and its Instagram profile. */
 export function AccountPopup({ accountKey, onClose }: { accountKey: string | null; onClose: () => void }) {
-  const account = useAppSelector(s => (accountKey === null ? undefined : selectAccount(s, accountKey)));
+  const account = useAppSelector(state => (accountKey === null ? undefined : selectAccount(state, accountKey)));
   return (
     <Drawer.Root
       open={account !== undefined}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}

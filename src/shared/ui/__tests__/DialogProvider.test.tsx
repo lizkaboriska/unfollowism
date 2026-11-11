@@ -11,8 +11,8 @@ test('a dialog opened over another one cancels the first, and the second still a
   function Asker() {
     const confirm = useConfirm();
     const ask = (title: string) => {
-      void confirm({ title, body: title, confirmLabel: 'Yes' }).then(answer => {
-        answers.push([title, answer]);
+      void confirm({ title, body: title, confirmLabel: 'Yes' }).then(isConfirmed => {
+        answers.push([title, isConfirmed]);
       });
     };
     return (

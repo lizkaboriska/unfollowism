@@ -64,20 +64,25 @@ export interface RecordedWrite {
 export function recordingBackup(inner: BackupStore = createMemoryBackupStore()) {
   const writes: RecordedWrite[] = [];
   const backup: BackupStore = {
-    durable: inner.durable,
+    isDurable: inner.isDurable,
     load: () => inner.load(),
-    replace: (base, meta, w) => {
-      writes.push({ kind: WRITES.REPLACE, accounts: Object.keys(w.changed), saved: Object.keys(w.saved), removed: [] });
-      return inner.replace(base, meta, w);
+    replace: (base, meta, backupWrites) => {
+      writes.push({
+        kind: WRITES.REPLACE,
+        accounts: Object.keys(backupWrites.changed),
+        saved: Object.keys(backupWrites.saved),
+        removed: [],
+      });
+      return inner.replace(base, meta, backupWrites);
     },
-    update: (meta, w) => {
+    update: (meta, backupWrites) => {
       writes.push({
         kind: WRITES.UPDATE,
-        accounts: Object.keys(w.changed),
-        saved: Object.keys(w.saved),
-        removed: w.removed,
+        accounts: Object.keys(backupWrites.changed),
+        saved: Object.keys(backupWrites.saved),
+        removed: backupWrites.removed,
       });
-      return inner.update(meta, w);
+      return inner.update(meta, backupWrites);
     },
   };
   return { backup, writes };
@@ -115,8 +120,8 @@ export function prepared({
 
 export function deferred() {
   let resolve!: () => void;
-  const promise = new Promise<void>(r => {
-    resolve = r;
+  const promise = new Promise<void>(resolvePromise => {
+    resolve = resolvePromise;
   });
   return { promise, resolve };
 }

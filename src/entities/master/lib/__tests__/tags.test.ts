@@ -3,9 +3,9 @@ import { findTag, removeTagFrom, renameTagOn, tagCounts, tagsInUse } from '../ta
 import { account, stateWith } from './helpers.ts';
 
 function tagged(name: string, ...tags: string[]) {
-  const a = account(name);
-  a.review.tags = tags;
-  return a;
+  const taggedAccount = account(name);
+  taggedAccount.review.tags = tags;
+  return taggedAccount;
 }
 
 test('tags exist only while an account has them, listed alphabetically', () => {
@@ -20,11 +20,11 @@ test('an existing tag is found in any letter case', () => {
 });
 
 test('renaming merges into a tag the account already has; removing drops just that tag', () => {
-  const a = tagged('a', 'illustration', 'artist', 'dog');
-  renameTagOn(a, 'illustration', 'artist');
-  expect(a.review.tags).toEqual(['artist', 'dog']);
-  renameTagOn(a, 'dog', 'dogs');
-  expect(a.review.tags).toEqual(['artist', 'dogs']);
-  removeTagFrom(a, 'artist');
-  expect(a.review.tags).toEqual(['dogs']);
+  const user = tagged('a', 'illustration', 'artist', 'dog');
+  renameTagOn(user, 'illustration', 'artist');
+  expect(user.review.tags).toEqual(['artist', 'dog']);
+  renameTagOn(user, 'dog', 'dogs');
+  expect(user.review.tags).toEqual(['artist', 'dogs']);
+  removeTagFrom(user, 'artist');
+  expect(user.review.tags).toEqual(['dogs']);
 });

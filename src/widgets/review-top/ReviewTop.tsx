@@ -11,9 +11,9 @@ import { StatsBox } from './StatsBox.tsx';
 
 /** The top of the Review tab: heading, your numbers, and the controls for what the list shows. */
 export function ReviewTop() {
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [tagsOpen, setTagsOpen] = useState(false);
-  const followersOnly = useAppSelector(s => s.filters.scope === REVIEW_SCOPES.FOLLOWS_YOU_ONLY);
+  const [isFilterOpen, setFilterOpen] = useState(false);
+  const [isTagsOpen, setTagsOpen] = useState(false);
+  const isFollowersOnly = useAppSelector(state => state.filters.scope === REVIEW_SCOPES.FOLLOWS_YOU_ONLY);
   return (
     <>
       <ReviewHeading />
@@ -23,11 +23,11 @@ export function ReviewTop() {
           setFilterOpen(true);
         }}
       />
-      {followersOnly && (
+      {isFollowersOnly && (
         <Text color="fg.muted">Queue a follower removal here. You&apos;ll make the change yourself in Instagram.</Text>
       )}
       <FilterPopup
-        open={filterOpen}
+        open={isFilterOpen}
         onClose={() => {
           setFilterOpen(false);
         }}
@@ -37,7 +37,7 @@ export function ReviewTop() {
         }}
       />
       <ManageTagsPopup
-        open={tagsOpen}
+        open={isTagsOpen}
         onClose={() => {
           setTagsOpen(false);
         }}

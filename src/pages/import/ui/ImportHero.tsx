@@ -11,11 +11,11 @@ import { HowItWorksView } from './howItWorksView.ts';
 /**
  * The top of the Welcome and Import screen, the same in every state: app name, slogan, what the app does, the privacy
  * promise, and the How it works button (the four steps and how to get the Instagram data, in a popup).
- * On a first visit (`firstVisit`: no work loaded) the popup opens by itself, until this browser has closed it once.
+ * On a first visit (`isFirstVisit`: no work loaded) the popup opens by itself, until this browser has closed it once.
  */
-export function ImportHero({ seen, firstVisit }: { seen: HowItWorksSeen; firstVisit: boolean }) {
+export function ImportHero({ seen, isFirstVisit: isFirstVisit }: { seen: HowItWorksSeen; isFirstVisit: boolean }) {
   const [view, setView] = useState<HowItWorksView | null>(() =>
-    firstVisit && !seen.get() ? HowItWorksView.STEPS : null,
+    isFirstVisit && !seen.get() ? HowItWorksView.STEPS : null,
   );
   const privacyTitleId = useId();
   return (

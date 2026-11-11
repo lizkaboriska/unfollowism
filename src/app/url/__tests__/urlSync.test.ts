@@ -23,21 +23,21 @@ import { addressChanged } from '../urlSync.ts';
 
 /** A tab with stored work: alice tagged "friends", plus whatever `edit` does. */
 async function storedBackup(edit: (store: AppStore) => void = () => undefined): Promise<BackupStore> {
-  const t = makeTestStore();
-  await t.store.dispatch(importPrepared(prepared())).unwrap();
-  t.store.dispatch(toggleTag({ username: 'alice', tag: 'friends' }));
-  edit(t.store);
+  const { store, backup } = makeTestStore();
+  await store.dispatch(importPrepared(prepared())).unwrap();
+  store.dispatch(toggleTag({ username: 'alice', tag: 'friends' }));
+  edit(store);
   await flushPersistence();
-  return t.backup;
+  return backup;
 }
 
 /** A fresh page at `url` over `tab`, after the restore. */
 async function reloadAt(url: string, backup: BackupStore) {
   const address = memoryAddressBar(url);
-  const t = makeTestStore({ backup, address });
-  address.onBackOrForward(() => t.store.dispatch(addressChanged())); // as the app does
-  await t.store.dispatch(restoreBackup());
-  return { store: t.store, address };
+  const { store } = makeTestStore({ backup, address });
+  address.onBackOrForward(() => store.dispatch(addressChanged())); // as the app does
+  await store.dispatch(restoreBackup());
+  return { store, address };
 }
 
 describe('URL sync', () => {
@@ -87,18 +87,18 @@ describe('URL sync', () => {
 
   test('nothing is written before the restore; afterwards every page and filter change is', async () => {
     const address = memoryAddressBar('/changes');
-    const t = makeTestStore({ backup: await storedBackup(), address });
-    t.store.dispatch(setScope(REVIEW_SCOPES.MUTUAL)); // before the restore
+    const { store } = makeTestStore({ backup: await storedBackup(), address });
+    store.dispatch(setScope(REVIEW_SCOPES.MUTUAL)); // before the restore
     expect(address.url).toBe('/changes');
 
-    await t.store.dispatch(restoreBackup());
-    t.store.dispatch(setView(LIST_VIEWS.REVIEW));
-    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS));
-    t.store.dispatch(setQuery('al b'));
+    await store.dispatch(restoreBackup());
+    store.dispatch(setView(LIST_VIEWS.REVIEW));
+    store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS));
+    store.dispatch(setQuery('al b'));
     expect(address.url).toBe('/?list=followers&q=al+b');
-    t.store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
+    store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
     expect(address.url).toBe('/todo/unfollow');
-    t.store.dispatch(setView(LIST_VIEWS.REVIEW));
+    store.dispatch(setView(LIST_VIEWS.REVIEW));
     expect(address.url).toBe('/?list=followers&q=al+b'); // Review's filters come back with it
   });
 

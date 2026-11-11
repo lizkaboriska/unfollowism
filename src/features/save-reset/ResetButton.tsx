@@ -12,8 +12,8 @@ export function ResetButton({ onReset, ...props }: ButtonProps & { onReset?: () 
       {...props}
       disabled={!canReset}
       onClick={() =>
-        void reset().then(done => {
-          if (done) {
+        void reset().then(isDone => {
+          if (isDone) {
             onReset?.();
           }
         })

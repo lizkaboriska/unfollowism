@@ -12,7 +12,7 @@ import { NoteField } from '../NoteField.tsx';
 
 /** The note field as the account popup shows it: fed from the store. */
 function BobNote() {
-  const note = useAppSelector(s => selectAccount(s, 'bob')?.review.notes ?? '');
+  const note = useAppSelector(state => selectAccount(state, 'bob')?.review.notes ?? '');
   return <NoteField username="bob" note={note} />;
 }
 

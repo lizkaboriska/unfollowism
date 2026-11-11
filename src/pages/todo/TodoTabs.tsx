@@ -18,19 +18,19 @@ export function TodoTabs({ view, children }: { view: PlanView; children: ReactNo
       value={view}
       variant="plain"
       onValueChange={({ value }) => {
-        const next = TODO_VIEWS.find(v => v === value);
+        const next = TODO_VIEWS.find(tabView => tabView === value);
         if (next) {
           dispatch(setView(next));
         }
       }}
     >
       <Tabs.List display="grid" gridTemplateColumns="repeat(2, minmax(0, 1fr))" borderWidth="1px" w="full">
-        {TODO_VIEWS.map(v => {
-          const left = count(v);
+        {TODO_VIEWS.map(tabView => {
+          const left = count(tabView);
           return (
             <Tabs.Trigger
-              key={v}
-              value={v}
+              key={tabView}
+              value={tabView}
               h="11"
               justifyContent="center"
               gap="1.5"
@@ -39,10 +39,10 @@ export function TodoTabs({ view, children }: { view: PlanView; children: ReactNo
               _notFirst={{ borderLeftWidth: '1px', borderColor: 'ink' }}
               _selected={{ bg: 'ink', color: 'paper' }}
             >
-              {TODO_LABELS[PLAN_VIEW_ACTIONS[v]].tab}
+              {TODO_LABELS[PLAN_VIEW_ACTIONS[tabView]].tab}
               {left > 0 && ' '}
               {left > 0 && (
-                <Text as="span" textStyle="count" color={v === view ? 'paper' : 'accent'}>
+                <Text as="span" textStyle="count" color={tabView === view ? 'paper' : 'accent'}>
                   {left}
                 </Text>
               )}

@@ -9,7 +9,7 @@ const ROW = { h: '12', px: '3.5', textStyle: 'control' } as const;
 /** The ⋯ menu: framed rows divided by 1px lines; Reset changes in red. */
 export function AppMenu({ onImportNew }: { onImportNew: () => void }) {
   const { canReset, reset } = useResetChanges();
-  const [tagsOpen, setTagsOpen] = useState(false);
+  const [isTagsOpen, setTagsOpen] = useState(false);
 
   return (
     <>
@@ -43,7 +43,7 @@ export function AppMenu({ onImportNew }: { onImportNew: () => void }) {
         </Portal>
       </Menu.Root>
       <ManageTagsPopup
-        open={tagsOpen}
+        open={isTagsOpen}
         onClose={() => {
           setTagsOpen(false);
         }}

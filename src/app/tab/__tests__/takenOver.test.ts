@@ -10,57 +10,57 @@ function actions() {
 /** A store with one unsaved edit. */
 async function editedStore() {
   const recorded = recordingBackup();
-  const t = makeTestStore({ backup: recorded.backup });
-  await t.store.dispatch(importPrepared(prepared())).unwrap();
-  t.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
+  const testStore = makeTestStore({ backup: recorded.backup });
+  await testStore.store.dispatch(importPrepared(prepared())).unwrap();
+  testStore.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
   await flushPersistence();
-  return { ...t, writes: recorded.writes };
+  return { ...testStore, writes: recorded.writes };
 }
 
 test('stored work: reloads without "Leave site?"', async () => {
-  const t = await editedStore();
-  const a = actions();
-  handleTakenOver(t.store, true, a);
-  expect(a.stopGuard).toHaveBeenCalledOnce();
-  expect(a.reload).toHaveBeenCalledOnce();
-  expect(a.showStopped).not.toHaveBeenCalled();
+  const { store } = await editedStore();
+  const spies = actions();
+  handleTakenOver(store, true, spies);
+  expect(spies.stopGuard).toHaveBeenCalledOnce();
+  expect(spies.reload).toHaveBeenCalledOnce();
+  expect(spies.showStopped).not.toHaveBeenCalled();
 });
 
 test('still starting: reloads', () => {
-  const a = actions();
-  handleTakenOver(null, false, a);
-  expect(a.reload).toHaveBeenCalledOnce();
-  expect(a.showStopped).not.toHaveBeenCalled();
+  const spies = actions();
+  handleTakenOver(null, false, spies);
+  expect(spies.reload).toHaveBeenCalledOnce();
+  expect(spies.showStopped).not.toHaveBeenCalled();
 });
 
 test('storage off with unsaved work: no reload, This tab stopped, nothing more written', async () => {
-  const t = await editedStore();
-  const a = actions();
-  handleTakenOver(t.store, false, a);
-  expect(a.reload).not.toHaveBeenCalled();
-  expect(a.stopGuard).not.toHaveBeenCalled();
-  expect(a.showStopped).toHaveBeenCalledExactlyOnceWith(t.store);
+  const { store, writes } = await editedStore();
+  const spies = actions();
+  handleTakenOver(store, false, spies);
+  expect(spies.reload).not.toHaveBeenCalled();
+  expect(spies.stopGuard).not.toHaveBeenCalled();
+  expect(spies.showStopped).toHaveBeenCalledExactlyOnceWith(store);
 
-  const writes = t.writes.length;
-  t.store.dispatch(setNote({ username: 'bob', note: 'after' }));
+  const writeCountBefore = writes.length;
+  store.dispatch(setNote({ username: 'bob', note: 'after' }));
   await flushPersistence();
-  expect(t.writes).toHaveLength(writes);
+  expect(writes).toHaveLength(writeCountBefore);
 });
 
 test('writes failing with unsaved work: This tab stopped', async () => {
-  const t = await editedStore();
-  t.store.dispatch(persistenceFailed());
-  const a = actions();
-  handleTakenOver(t.store, true, a);
-  expect(a.reload).not.toHaveBeenCalled();
-  expect(a.showStopped).toHaveBeenCalledExactlyOnceWith(t.store);
+  const { store } = await editedStore();
+  store.dispatch(persistenceFailed());
+  const spies = actions();
+  handleTakenOver(store, true, spies);
+  expect(spies.reload).not.toHaveBeenCalled();
+  expect(spies.showStopped).toHaveBeenCalledExactlyOnceWith(store);
 });
 
 test('storage off but everything saved: reloads', async () => {
-  const t = await editedStore();
-  await t.store.dispatch(saveMaster()).unwrap();
-  const a = actions();
-  handleTakenOver(t.store, false, a);
-  expect(a.reload).toHaveBeenCalledOnce();
-  expect(a.showStopped).not.toHaveBeenCalled();
+  const { store } = await editedStore();
+  await store.dispatch(saveMaster()).unwrap();
+  const spies = actions();
+  handleTakenOver(store, false, spies);
+  expect(spies.reload).toHaveBeenCalledOnce();
+  expect(spies.showStopped).not.toHaveBeenCalled();
 });

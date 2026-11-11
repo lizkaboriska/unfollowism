@@ -15,13 +15,13 @@ export function RenamesSection() {
   if (pairs.length === 0) {
     return null;
   }
-  const waiting = pairs.some(pair => pair.state === RenameState.WAITING);
+  const isWaiting = pairs.some(pair => pair.state === RenameState.WAITING);
   return (
     <Stack as="section" aria-labelledby={headingId} gap="2">
       <Box>
         <HStack justify="space-between" align="baseline">
           <Heading as="h2" id={headingId} textStyle="heading">
-            {waiting ? 'Possible renames' : 'Renames'}
+            {isWaiting ? 'Possible renames' : 'Renames'}
           </Heading>
           <Text textStyle="small" color="fg.muted">
             {pairs.length}

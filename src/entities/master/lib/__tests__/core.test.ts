@@ -318,14 +318,18 @@ describe('importExport', () => {
       bundle(followingFile(['Alice', 100], ['bob', 200]), followersFile(['alice', 300]), followersFile(['carol', 400])),
       T1,
     );
-    expect(result.dirty).toBe(true);
+    expect(result.isDirty).toBe(true);
     expect(result.master.lastImportAt).toBe(T1);
     expect(must(result.master.accounts.alice).following).toEqual({ since: 100 });
     expect(must(result.master.accounts.alice).followedBy).toEqual({ since: 300 });
     expect(relationshipOf(must(result.master.accounts.carol))).toBe(RELATIONSHIPS.FOLLOWS_YOU_ONLY);
-    expect(Object.values(result.master.accounts).some(a => a.unfollowedSeenAt ?? a.unfollowedMeSeenAt)).toBe(false);
+    expect(
+      Object.values(result.master.accounts).some(account => account.unfollowedSeenAt ?? account.unfollowedMeSeenAt),
+    ).toBe(false);
     // Without a saved master everything counts as new, so follows aren't dated either.
-    expect(Object.values(result.master.accounts).some(a => a.followedSeenAt ?? a.followedMeSeenAt)).toBe(false);
+    expect(
+      Object.values(result.master.accounts).some(account => account.followedSeenAt ?? account.followedMeSeenAt),
+    ).toBe(false);
     expect(changesOf(result)).toEqual(changes(2, 0, 2, 0));
   });
 
@@ -340,8 +344,8 @@ describe('importExport', () => {
       bundle(followingFile(['Alice']), followersFile(['alice'], ['dave', AFTER_T1])),
       T3,
     );
-    expect(result.exportChanged).toBe(false);
-    expect(result.dirty).toBe(false);
+    expect(result.hasExportChanged).toBe(false);
+    expect(result.isDirty).toBe(false);
     expect(result.master.lastImportAt).toBe(T2);
     expect(result.master.accounts).toEqual(earlier.accounts);
     expect(changesOf(result)).toEqual(changes(0, 1, 1, 1)); // bob unfollowed, dave new, carol lost (all since T1)
@@ -358,8 +362,8 @@ describe('importExport', () => {
       bundle(followingFile(['alice', AFTER_T1]), followersFile(['alice'])),
       T3,
     );
-    expect(result.exportChanged).toBe(true);
-    expect(result.dirty).toBe(true);
+    expect(result.hasExportChanged).toBe(true);
+    expect(result.isDirty).toBe(true);
     expect(result.master.lastImportAt).toBe(T3);
     expect(must(result.master.accounts.alice).following).toEqual({ since: AFTER_T1 });
     expect(changesOf(result)[FOLLOW_CHANGES.NEW_FOLLOWS]).toBe(1); // followed again after the last save
@@ -375,7 +379,7 @@ describe('importExport', () => {
       T2,
     );
 
-    expect(result.exportChanged).toBe(true);
+    expect(result.hasExportChanged).toBe(true);
     expect(changesOf(result)).toEqual(changes(0, 1, 1, 1));
     expect(result.master.accounts.bob?.unfollowedSeenAt).toBe(T2);
     expect(result.master.accounts.carol?.unfollowedMeSeenAt).toBe(T2);
@@ -427,7 +431,9 @@ describe('importExport', () => {
     expect(toMasterFile(imported).accounts.erin).toHaveProperty('followedSeenAt', T2);
 
     const downloaded = toMasterFile({ ...imported, lastSavedAt: T3 });
-    expect(Object.values(downloaded.accounts).some(a => a.followedSeenAt ?? a.followedMeSeenAt)).toBe(false);
+    expect(Object.values(downloaded.accounts).some(account => account.followedSeenAt ?? account.followedMeSeenAt)).toBe(
+      false,
+    );
     const next = importExport(JSON.parse(stringifyMasterFile(downloaded)), sameExport, T3);
     expect(changesOf(next)[FOLLOW_CHANGES.NEW_FOLLOWS]).toBe(0); // erin was new before that save, not after
   });
@@ -473,7 +479,7 @@ describe('importExport', () => {
     expect(result.master.accounts.bob?.decision).toBeUndefined();
     expect(planOf(must(result.master.accounts.alice), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
     expect(planOf(must(result.master.accounts.carol), REMOVE_FOLLOWER)).toBe(PLAN_STATES.PLANNED);
-    expect(result.dirty).toBe(true);
+    expect(result.isDirty).toBe(true);
   });
 
   test('rejects exports with an empty side', () => {
@@ -504,7 +510,7 @@ describe('parsing', () => {
       parseFollowersJson([
         { title: 't', string_list_data: [] },
         { string_list_data: [{ value: 'v', timestamp: 5 }] },
-      ]).map(a => a.username),
+      ]).map(account => account.username),
     ).toEqual(['t', 'v']);
   });
 

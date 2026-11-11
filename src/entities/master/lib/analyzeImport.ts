@@ -103,16 +103,19 @@ export function analyzeImport(inputs: readonly InputText[], lastKnownSavedAt: st
     seenChunks.add(name);
   }
   if (masters.length > 1) {
-    throw new ImportError({ kind: IMPORT_PROBLEMS.SEVERAL_MASTERS, names: masters.map(m => baseName(m.path)) });
+    throw new ImportError({
+      kind: IMPORT_PROBLEMS.SEVERAL_MASTERS,
+      names: masters.map(masterFile => baseName(masterFile.path)),
+    });
   }
 
   if ((!following || !followers.length) && htmlCount) {
     throw new ImportError({ kind: IMPORT_PROBLEMS.HTML_EXPORT });
   }
 
-  followers.sort((a, b) => followerChunkNumber(a.path) - followerChunkNumber(b.path));
+  followers.sort((first, second) => followerChunkNumber(first.path) - followerChunkNumber(second.path));
   const followingEntries = following && parseFollowingJson(following.data);
-  const followerEntries = followers.length ? followers.flatMap(f => parseFollowersJson(f.data)) : null;
+  const followerEntries = followers.length ? followers.flatMap(file => parseFollowersJson(file.data)) : null;
 
   const master = masters[0] ?? null;
   const masterSavedAt = typeof master?.data.lastSavedAt === 'string' ? master.data.lastSavedAt : null;

@@ -22,11 +22,11 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  function close(confirmed: boolean) {
+  function close(isConfirmed: boolean) {
     if (!pending.current) {
       return;
     }
-    pending.current(confirmed);
+    pending.current(isConfirmed);
     pending.current = null;
     setIsOpen(false);
   }
@@ -36,8 +36,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog.Root
         open={isOpen}
-        onOpenChange={e => {
-          if (!e.open) {
+        onOpenChange={details => {
+          if (!details.open) {
             close(false);
           }
         }}
@@ -56,7 +56,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
               <Dialog.Footer flexDirection="column" alignItems="stretch" gap="2">
                 <Button
                   h="11"
-                  {...(dialog?.destructive ? { variant: 'outline', colorPalette: 'danger' } : {})}
+                  {...(dialog?.isDestructive ? { variant: 'outline', colorPalette: 'danger' } : {})}
                   onClick={() => {
                     close(true);
                   }}

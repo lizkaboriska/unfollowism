@@ -53,15 +53,18 @@ export interface MasterState {
    * The last write to browser storage failed: unsaved work won't survive a reload. Cleared by the next write that
    * works.
    */
-  persistenceFailed: boolean;
+  hasPersistenceFailed: boolean;
   /** Work was stored in the browser backup, but it couldn't be read back. Cleared by the next import. */
-  restoreFailed: boolean;
+  hasRestoreFailed: boolean;
 }
 
 /** Whether two edit sets hold the same accounts (the same objects: edits copy, so equal means untouched). */
-function sameEdits(a: Readonly<ChangedAccounts>, b: Readonly<ChangedAccounts>): boolean {
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && a[key] === b[key]);
+function sameEdits(left: Readonly<ChangedAccounts>, right: Readonly<ChangedAccounts>): boolean {
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every(key => Object.hasOwn(right, key) && left[key] === right[key])
+  );
 }
 
 const initialState: MasterState = {
@@ -76,8 +79,8 @@ const initialState: MasterState = {
   saveStatus: SAVE_STATUSES.IDLE,
   status: null,
   savedStatus: null,
-  persistenceFailed: false,
-  restoreFailed: false,
+  hasPersistenceFailed: false,
+  hasRestoreFailed: false,
 };
 
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
@@ -151,13 +154,13 @@ export const masterSlice = createSlice({
   initialState,
   reducers: {
     /** Keep (clears any plans), or back to needing a decision. A past account can't be kept: nothing to decide. */
-    setKept(state, { payload }: PayloadAction<{ username: string; kept: boolean }>) {
+    setKept(state, { payload }: PayloadAction<{ username: string; isKept: boolean }>) {
       const before = accountBefore(state, payload.username);
-      if (!before || isKept(before) === payload.kept || (payload.kept && isPastAccount(before))) {
+      if (!before || isKept(before) === payload.isKept || (payload.isKept && isPastAccount(before))) {
         return;
       }
       editAccount(state, payload.username, account => {
-        if (payload.kept) {
+        if (payload.isKept) {
           keep(account);
         } else {
           undecide(account);
@@ -292,7 +295,7 @@ export const masterSlice = createSlice({
       if (!base || to === undefined) {
         return;
       }
-      const waitedAtSave = !!accountOf<ReadonlyAccount>(base.accounts, before.savedChanged, payload.from)
+      const wasWaitingAtSave = !!accountOf<ReadonlyAccount>(base.accounts, before.savedChanged, payload.from)
         ?.renameSuggestion;
       const pair = new Set([payload.from, to]);
       const changed = createDict<Account | null>();
@@ -301,7 +304,7 @@ export const masterSlice = createSlice({
           changed[key] = account;
         }
       }
-      if (waitedAtSave) {
+      if (wasWaitingAtSave) {
         for (const key of pair) {
           if (Object.hasOwn(before.savedChanged, key)) {
             changed[key] = before.savedChanged[key] ?? null;
@@ -329,11 +332,11 @@ export const masterSlice = createSlice({
       state.status = before.savedStatus;
     },
     persistenceFailed(state) {
-      state.persistenceFailed = true;
+      state.hasPersistenceFailed = true;
     },
     /** A write to browser storage worked again after a failure. */
     persistenceRecovered(state) {
-      state.persistenceFailed = false;
+      state.hasPersistenceFailed = false;
     },
   },
   extraReducers: builder => {
@@ -352,7 +355,7 @@ export const masterSlice = createSlice({
       })
       .addCase(restoreBackup.rejected, state => {
         if (!state.base) {
-          state.restoreFailed = true;
+          state.hasRestoreFailed = true;
         } // after an import meanwhile, there's nothing to warn about
       })
       .addCase(importPrepared.pending, state => {
@@ -360,14 +363,14 @@ export const masterSlice = createSlice({
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
         state.importStatus = IMPORT_STATUSES.IDLE;
-        state.restoreFailed = false;
+        state.hasRestoreFailed = false;
         state.base = payload.master;
         state.changed = createDict<Account | null>();
         state.savedChanged = state.changed;
         state.importFacts = payload.facts;
         state.savedAt = payload.master.lastSavedAt ?? null;
         state.revision = 0;
-        state.savedRevision = payload.dirty ? UNSAVED_IMPORT : 0;
+        state.savedRevision = payload.isDirty ? UNSAVED_IMPORT : 0;
         state.status = null;
         state.savedStatus = null;
       })

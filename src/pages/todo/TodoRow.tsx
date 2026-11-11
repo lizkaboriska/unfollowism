@@ -33,7 +33,7 @@ function Settled({ label, onUndo }: { label: string; onUndo: () => void }) {
  */
 export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey: string; type: ActionType }) {
   const dispatch = useAppDispatch();
-  const account = useAppSelector(s => selectAccount(s, accountKey));
+  const account = useAppSelector(state => selectAccount(state, accountKey));
   if (!account) {
     return null;
   }

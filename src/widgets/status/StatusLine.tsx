@@ -5,7 +5,7 @@ import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** A warning box that stays while the last save failed; nothing otherwise. */
 export function StatusLine() {
-  const status = useAppSelector(s => s.master.status);
+  const status = useAppSelector(state => state.master.status);
   if (status?.type !== STATUS_EVENTS.SAVE_FAILED) {
     return null;
   }

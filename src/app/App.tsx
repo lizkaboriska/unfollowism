@@ -20,9 +20,9 @@ import { StatusLine, StorageWarning } from '@/widgets/status';
 export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen: HowItWorksSeen }) {
   const dispatch = useAppDispatch();
   const hasData = useAppSelector(selectHasData);
-  const view = useAppSelector(s => s.filters.view);
-  const [importOpen, setImportOpen] = useState(false);
-  const [restoring, setRestoring] = useState(true);
+  const view = useAppSelector(state => state.filters.view);
+  const [isImportOpen, setImportOpen] = useState(false);
+  const [isRestoring, setRestoring] = useState(true);
 
   // On start, silently continue the work in the browser backup.
   useEffect(() => {
@@ -53,7 +53,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
     };
   }, []);
 
-  if (restoring && !hasData) {
+  if (isRestoring && !hasData) {
     return (
       <Stack minH="100dvh" align="center" justify="center" gap="1" p="5" role="status">
         <Heading textStyle="appName" lineHeight="1">
@@ -66,13 +66,13 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
     );
   }
 
-  const showImport = !hasData || importOpen;
+  const shouldShowImport = !hasData || isImportOpen;
 
   return (
     <Box minH="100dvh">
       <Toaster />
-      {showImport ? (
-        <ImportHero seen={howItWorksSeen} firstVisit={!hasData} />
+      {shouldShowImport ? (
+        <ImportHero seen={howItWorksSeen} isFirstVisit={!hasData} />
       ) : (
         <AppHeader
           onImportNew={() => {
@@ -80,7 +80,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
           }}
         />
       )}
-      {showImport ? (
+      {shouldShowImport ? (
         <Box maxW={PAGE_WIDTH} mx="auto" p="5">
           <ImportScreen
             lastSaved={deps.lastSaved}
@@ -101,7 +101,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
         <HStack maxW={PAGE_WIDTH} mx="auto" p="5" pb={{ base: '84px', md: '5' }} gap="5" align="flex-start">
           <AppNav />
           <Stack gap="3" flex="1" minW="0">
-            <StorageWarning durable={deps.backup.durable} />
+            <StorageWarning isDurable={deps.backup.isDurable} />
             <StatusLine />
             {view === LIST_VIEWS.REVIEW && (
               <>

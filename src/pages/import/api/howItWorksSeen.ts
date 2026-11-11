@@ -32,12 +32,12 @@ export function localStorageHowItWorksSeen(
   };
 }
 
-export function memoryHowItWorksSeen(initial = false): HowItWorksSeen {
-  let seen = initial;
+export function memoryHowItWorksSeen(wasSeen = false): HowItWorksSeen {
+  let isSeen = wasSeen;
   return {
-    get: () => seen,
+    get: () => isSeen,
     set: () => {
-      seen = true;
+      isSeen = true;
     },
   };
 }

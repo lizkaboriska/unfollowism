@@ -4,9 +4,9 @@ import { ACTION_TYPES, PLAN_STATES, REVIEW_SCOPES, type ReviewScope } from '../.
 import { QueueButtonKind, offeredAction, queueButton } from '../queueButton.ts';
 
 const { UNFOLLOW, REMOVE_FOLLOWER } = ACTION_TYPES;
-const mutual = () => follows(account('mutual'), { following: true, followedBy: true });
-const notBack = () => follows(account('notback'), { following: true });
-const followerOnly = () => follows(account('fan'), { followedBy: true });
+const mutual = () => follows(account('mutual'), { isFollowing: true, isFollowedBy: true });
+const notBack = () => follows(account('notback'), { isFollowing: true });
+const followerOnly = () => follows(account('fan'), { isFollowedBy: true });
 const past = () => follows(account('gone'), {});
 
 test.each<[string, () => ReturnType<typeof account>, ReviewScope, string | null]>([
@@ -27,22 +27,22 @@ test.each<[string, () => ReturnType<typeof account>, ReviewScope, string | null]
 });
 
 test('the button shows what is queued, even when it is not the offered action', () => {
-  const a = mutual();
-  expect(queueButton(a, REVIEW_SCOPES.FOLLOWING)).toEqual({ kind: QueueButtonKind.OFFER, type: UNFOLLOW });
+  const user = mutual();
+  expect(queueButton(user, REVIEW_SCOPES.FOLLOWING)).toEqual({ kind: QueueButtonKind.OFFER, type: UNFOLLOW });
 
-  setPlan(a, REMOVE_FOLLOWER, PLAN_STATES.PLANNED); // queued from the popup
-  expect(queueButton(a, REVIEW_SCOPES.FOLLOWING)).toEqual({
+  setPlan(user, REMOVE_FOLLOWER, PLAN_STATES.PLANNED); // queued from the popup
+  expect(queueButton(user, REVIEW_SCOPES.FOLLOWING)).toEqual({
     kind: QueueButtonKind.QUEUED,
     type: REMOVE_FOLLOWER,
     state: PLAN_STATES.PLANNED,
   });
 
-  setPlan(a, UNFOLLOW, PLAN_STATES.PLANNED);
-  expect(queueButton(a, REVIEW_SCOPES.FOLLOWING)).toEqual({ kind: QueueButtonKind.BOTH });
+  setPlan(user, UNFOLLOW, PLAN_STATES.PLANNED);
+  expect(queueButton(user, REVIEW_SCOPES.FOLLOWING)).toEqual({ kind: QueueButtonKind.BOTH });
 
-  setPlan(a, REMOVE_FOLLOWER, undefined);
-  setPlan(a, UNFOLLOW, PLAN_STATES.DONE); // marked done in To do
-  expect(queueButton(a, REVIEW_SCOPES.FOLLOWERS)).toEqual({
+  setPlan(user, REMOVE_FOLLOWER, undefined);
+  setPlan(user, UNFOLLOW, PLAN_STATES.DONE); // marked done in To do
+  expect(queueButton(user, REVIEW_SCOPES.FOLLOWERS)).toEqual({
     kind: QueueButtonKind.QUEUED,
     type: UNFOLLOW,
     state: PLAN_STATES.DONE,

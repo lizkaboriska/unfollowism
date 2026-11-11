@@ -16,13 +16,13 @@ function TagLine({ tag, count, onRename }: { tag: string; count: number; onRenam
   const confirm = useConfirm();
 
   async function remove() {
-    const confirmed = await confirm({
+    const isConfirmed = await confirm({
       title: `Delete #${tag}?`,
       body: `It will be removed from ${plural(count, 'account')}. Their decisions and notes stay.`,
       confirmLabel: 'Delete',
-      destructive: true,
+      isDestructive: true,
     });
-    if (confirmed) {
+    if (isConfirmed) {
       dispatch(deleteTag({ tag }));
     }
   }
@@ -97,8 +97,8 @@ export function ManageTagsPopup({ open, onClose }: { open: boolean; onClose: () 
   return (
     <Drawer.Root
       open={open}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}

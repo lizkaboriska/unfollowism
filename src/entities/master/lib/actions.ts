@@ -18,7 +18,7 @@ export function emptyActionCounts(): ActionCounts {
 }
 
 export function totalOf(counts: Readonly<ActionCounts>): number {
-  return Object.values(counts).reduce((sum, n) => sum + n, 0);
+  return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
 
 export interface PlanOutcomes {
@@ -57,8 +57,8 @@ export function settleDecisions(
   let undecided = 0;
   for (const [key, account] of Object.entries(source.accounts)) {
     // Before plans settle: a removal you did turns into Kept below, and must not count as them leaving.
-    const keptBefore = isKept(account);
-    let completed = false;
+    const wasKeptBefore = isKept(account);
+    let isCompleted = false;
     for (const type of Object.values(ACTION_TYPES)) {
       const plan = planOf(account, type);
       if (plan === undefined) {
@@ -66,7 +66,7 @@ export function settleDecisions(
       }
       if (!followExists(account, type)) {
         setPlan(account, type, undefined);
-        completed = true;
+        isCompleted = true;
         if (!uncounted.has(key)) {
           outcomes.completed[type] += 1;
           (completedPlans[key] ??= []).push(type);
@@ -77,13 +77,13 @@ export function settleDecisions(
       }
     }
     // Every plan happened: you acted on the account, so it counts as decided.
-    if (completed && account.decision === undefined && !isPastAccount(account)) {
+    if (isCompleted && account.decision === undefined && !isPastAccount(account)) {
       keep(account);
     }
     if (account.renameSuggestion !== undefined || account.decision === undefined) {
       continue;
     }
-    if (isPastAccount(account) || (keptBefore && lostFollowers.has(key))) {
+    if (isPastAccount(account) || (wasKeptBefore && lostFollowers.has(key))) {
       undecide(account);
       undecided += 1;
     }

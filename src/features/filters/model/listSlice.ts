@@ -29,7 +29,7 @@ export const listSlice = createSlice({
 
 export const { listRefreshed } = listSlice.actions;
 
-export const selectListKeys = (s: RootState): readonly string[] => s.list.keys;
+export const selectListKeys = (state: RootState): readonly string[] => state.list.keys;
 
 export function startListRefresh(listener: ListenerMiddlewareInstance<RootState, AppDispatch, StoreDeps>): void {
   listener.startListening({

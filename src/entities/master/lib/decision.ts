@@ -61,10 +61,10 @@ export function setPlan(account: Account, type: ActionType, state: PlanState | u
     throw new Error(`setPlan: no follow for ${type}`);
   }
   const plans: Plans = {};
-  for (const t of Object.values(ACTION_TYPES)) {
-    const plan = t === type ? state : current[t];
+  for (const actionType of Object.values(ACTION_TYPES)) {
+    const plan = actionType === type ? state : current[actionType];
     if (plan !== undefined) {
-      plans[t] = plan;
+      plans[actionType] = plan;
     }
   }
   if (Object.keys(plans).length > 0) {

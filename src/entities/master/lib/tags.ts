@@ -28,7 +28,7 @@ export function tagCounts(source: DeepReadonly<Pick<Master, 'accounts'>>): TagCo
 export function tagsInUse(counts: Readonly<TagCounts>): string[] {
   return Object.keys(counts)
     .filter(tag => (counts[tag] ?? 0) > 0)
-    .sort((a, b) => a.localeCompare(b));
+    .sort((first, second) => first.localeCompare(second));
 }
 
 /** The existing tag with this name in any letter case, so "Artist" reuses "artist". Undefined if none. */

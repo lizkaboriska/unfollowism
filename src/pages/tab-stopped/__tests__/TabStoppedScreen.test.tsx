@@ -10,12 +10,12 @@ import { system } from '@/shared/ui/theme.ts';
 import { TabStoppedScreen } from '../TabStoppedScreen.tsx';
 
 test('says the tab stopped and the work did not move; Save progress file downloads it', async () => {
-  const t = makeTestStore();
-  await t.store.dispatch(importPrepared(prepared())).unwrap();
-  t.store.dispatch(setNote({ username: 'bob', note: 'not stored' }));
+  const { store, downloads } = makeTestStore();
+  await store.dispatch(importPrepared(prepared())).unwrap();
+  store.dispatch(setNote({ username: 'bob', note: 'not stored' }));
   render(
     <ChakraProvider value={system}>
-      <Provider store={t.store}>
+      <Provider store={store}>
         <TabStoppedScreen />
       </Provider>
     </ChakraProvider>,
@@ -28,7 +28,7 @@ test('says the tab stopped and the work did not move; Save progress file downloa
 
   const save = screen.getByRole('button', { name: 'Save progress file' });
   await userEvent.setup().click(save);
-  expect(t.downloads).toHaveLength(1);
-  expect(t.downloads[0]?.text).toContain('not stored');
+  expect(downloads).toHaveLength(1);
+  expect(downloads[0]?.text).toContain('not stored');
   expect(save).toBeDisabled(); // nothing left to save; the page stays
 });

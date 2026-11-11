@@ -15,14 +15,14 @@ import { QueueButtonKind, queueButton } from './queueButton.ts';
 /** Keep / ✓ Kept: black once kept; tapping it again takes the decision back. */
 export function KeepButton({ account }: { account: ReadonlyAccount }) {
   const dispatch = useAppDispatch();
-  const kept = isKept(account);
+  const isAccountKept = isKept(account);
   return (
     <Button
-      variant={kept ? 'solid' : 'outline'}
-      aria-pressed={kept}
-      onClick={() => dispatch(setKept({ username: account.username, kept: !kept }))}
+      variant={isAccountKept ? 'solid' : 'outline'}
+      aria-pressed={isAccountKept}
+      onClick={() => dispatch(setKept({ username: account.username, isKept: !isAccountKept }))}
     >
-      {kept ? '✓ Kept' : 'Keep'}
+      {isAccountKept ? '✓ Kept' : 'Keep'}
     </Button>
   );
 }
@@ -83,7 +83,7 @@ export const ReviewCard = memo(function ReviewCard({
   scope: ReviewScope;
   onOpen: (accountKey: string) => void;
 }) {
-  const account = useAppSelector(s => selectAccount(s, accountKey));
+  const account = useAppSelector(state => selectAccount(state, accountKey));
   if (!account) {
     return null;
   }

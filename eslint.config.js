@@ -72,6 +72,10 @@ export default tseslint.config(
       '@eslint-react/dom-no-unsafe-target-blank': 'error',
       '@stylistic/jsx-self-closing-comp': 'error',
 
+      // Names: no one-letter names except a loop index and an unused `_`; object keys follow their data.
+      'id-length': ['error', { min: 2, properties: 'never', exceptions: ['i', '_'] }],
+      'object-shorthand': ['error', 'always'],
+
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-else-return': ['error', { allowElseIf: false }],
       'no-console': ['error', { allow: ['warn', 'error'] }],

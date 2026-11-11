@@ -4,10 +4,10 @@ import { selectHasData } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** Shown when work wouldn't survive a reload: browser storage failed or isn't available. */
-export function StorageWarning({ durable }: { durable: boolean }) {
-  const failed = useAppSelector(s => s.master.persistenceFailed) || !durable;
+export function StorageWarning({ isDurable: isDurable }: { isDurable: boolean }) {
+  const hasFailed = useAppSelector(state => state.master.hasPersistenceFailed) || !isDurable;
   const hasData = useAppSelector(selectHasData);
-  if (!failed || !hasData) {
+  if (!hasFailed || !hasData) {
     return null;
   }
   return (

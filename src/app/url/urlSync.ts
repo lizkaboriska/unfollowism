@@ -25,18 +25,18 @@ export function startUrlSync(
   address: AddressBar,
 ): void {
   const start = address.read();
-  let startUsed = false;
-  let restored = false;
+  let wasStartUsed = false;
+  let wasRestored = false;
   /** True while the store takes a page from the URL: the URL only gets corrected, with no new Back step. */
-  let fromAddress = false;
+  let isFromAddress = false;
 
-  function show(filters: RootState['filters'], newStep: boolean): void {
+  function show(filters: RootState['filters'], isNewStep: boolean): void {
     const url = filtersToUrl(filters);
     const { pathname, search } = address.read();
     if (pathname + search === url) {
       return;
     }
-    if (newStep) {
+    if (isNewStep) {
       address.push(url);
     } else {
       address.replace(url);
@@ -44,22 +44,22 @@ export function startUrlSync(
   }
 
   function takeFromAddress(apply: () => void): void {
-    fromAddress = true;
+    isFromAddress = true;
     try {
       apply();
     } finally {
-      fromAddress = false;
+      isFromAddress = false;
     }
   }
 
   listener.startListening({
     matcher: isAnyOf(restoreBackup.fulfilled, restoreBackup.rejected),
     effect: (action, api) => {
-      if (startUsed) {
+      if (wasStartUsed) {
         return; // a second restore (React's development double run) leaves the screen alone
       }
-      startUsed = true;
-      restored = true;
+      wasStartUsed = true;
+      wasRestored = true;
       if (restoreBackup.fulfilled.match(action) && action.payload) {
         const asked = filtersFromUrl(start.pathname, start.search);
         takeFromAddress(() => {
@@ -73,7 +73,7 @@ export function startUrlSync(
   listener.startListening({
     actionCreator: addressChanged,
     effect: (_action, api) => {
-      if (!restored || !selectHasData(api.getState())) {
+      if (!wasRestored || !selectHasData(api.getState())) {
         return; // Welcome stays until there is work to show
       }
       const { pathname, search } = address.read();
@@ -90,10 +90,10 @@ export function startUrlSync(
   });
 
   listener.startListening({
-    predicate: (_action, current, previous) => restored && current.filters !== previous.filters,
+    predicate: (_action, current, previous) => wasRestored && current.filters !== previous.filters,
     effect: (_action, api) => {
       const { filters } = api.getState();
-      show(filters, !fromAddress && filters.view !== api.getOriginalState().filters.view);
+      show(filters, !isFromAddress && filters.view !== api.getOriginalState().filters.view);
     },
   });
 }
