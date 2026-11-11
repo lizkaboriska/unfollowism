@@ -323,9 +323,13 @@ describe('importExport', () => {
     expect(must(result.master.accounts.alice).following).toEqual({ since: 100 });
     expect(must(result.master.accounts.alice).followedBy).toEqual({ since: 300 });
     expect(relationshipOf(must(result.master.accounts.carol))).toBe(RELATIONSHIPS.FOLLOWS_YOU_ONLY);
-    expect(Object.values(result.master.accounts).some(a => a.unfollowedSeenAt ?? a.unfollowedMeSeenAt)).toBe(false);
+    expect(
+      Object.values(result.master.accounts).some(account => account.unfollowedSeenAt ?? account.unfollowedMeSeenAt),
+    ).toBe(false);
     // Without a saved master everything counts as new, so follows aren't dated either.
-    expect(Object.values(result.master.accounts).some(a => a.followedSeenAt ?? a.followedMeSeenAt)).toBe(false);
+    expect(
+      Object.values(result.master.accounts).some(account => account.followedSeenAt ?? account.followedMeSeenAt),
+    ).toBe(false);
     expect(changesOf(result)).toEqual(changes(2, 0, 2, 0));
   });
 
@@ -427,7 +431,9 @@ describe('importExport', () => {
     expect(toMasterFile(imported).accounts.erin).toHaveProperty('followedSeenAt', T2);
 
     const downloaded = toMasterFile({ ...imported, lastSavedAt: T3 });
-    expect(Object.values(downloaded.accounts).some(a => a.followedSeenAt ?? a.followedMeSeenAt)).toBe(false);
+    expect(Object.values(downloaded.accounts).some(account => account.followedSeenAt ?? account.followedMeSeenAt)).toBe(
+      false,
+    );
     const next = importExport(JSON.parse(stringifyMasterFile(downloaded)), sameExport, T3);
     expect(changesOf(next)[FOLLOW_CHANGES.NEW_FOLLOWS]).toBe(0); // erin was new before that save, not after
   });
@@ -504,7 +510,7 @@ describe('parsing', () => {
       parseFollowersJson([
         { title: 't', string_list_data: [] },
         { string_list_data: [{ value: 'v', timestamp: 5 }] },
-      ]).map(a => a.username),
+      ]).map(account => account.username),
     ).toEqual(['t', 'v']);
   });
 

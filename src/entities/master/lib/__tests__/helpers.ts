@@ -23,16 +23,16 @@ export function account(username = 'alice'): Account {
 
 /** Sets who follows whom on a test account (since = 1_700_000_000 unless given). */
 export function follows(
-  a: Account,
+  target: Account,
   {
     following = false,
     followedBy = false,
     since = 1_700_000_000,
   }: { following?: boolean; followedBy?: boolean; since?: number | null },
 ): Account {
-  a.following = following ? { since } : null;
-  a.followedBy = followedBy ? { since } : null;
-  return a;
+  target.following = following ? { since } : null;
+  target.followedBy = followedBy ? { since } : null;
+  return target;
 }
 
 export function stateWith(...items: Account[]): Pick<Master, 'accounts'> {

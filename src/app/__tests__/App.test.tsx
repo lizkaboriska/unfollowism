@@ -824,10 +824,10 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
 describe('main view', () => {
   // exportFiles(): following alice + bob, followers alice + carol. Without a saved master everyone counts as new.
   async function imported() {
-    const t = await renderApp();
-    await importFiles(t.user, exportFiles());
+    const setup = await renderApp();
+    await importFiles(setup.user, exportFiles());
     await findRow('bob');
-    return t;
+    return setup;
   }
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 
@@ -973,7 +973,7 @@ describe('main view', () => {
       const popup = await openAccount(user, username);
       const names = within(popup)
         .queryAllByRole('button', { name: /^Queue / })
-        .map(b => b.textContent);
+        .map(button => button.textContent);
       await closeAccount(user, username);
       return names;
     };
@@ -1234,10 +1234,10 @@ describe('main view', () => {
 describe('Review cards and the account popup', () => {
   // exportFiles(): following alice + bob, followers alice + carol.
   async function imported() {
-    const t = await renderApp();
-    await importFiles(t.user, exportFiles());
+    const setup = await renderApp();
+    await importFiles(setup.user, exportFiles());
     await findRow('bob');
-    return t;
+    return setup;
   }
   const pressed = (button: HTMLElement) => button.getAttribute('aria-pressed') === 'true';
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
@@ -1313,7 +1313,7 @@ describe('Review cards and the account popup', () => {
     await user.click(newTagButton());
     expect(field()).toHaveAttribute('enterkeyhint', 'done');
     await user.type(field(), 'dog{Enter}');
-    expect(tagged().map(b => b.getAttribute('aria-label'))).toEqual(['dog']);
+    expect(tagged().map(button => button.getAttribute('aria-label'))).toEqual(['dog']);
     // the same Enter didn't press Keep, the popup's first button
     expect(within(popup).getByRole('button', { name: 'Keep' })).toHaveAttribute('aria-pressed', 'false');
     expect(newTagButton()).toHaveFocus(); // ready for the next tag
@@ -1321,7 +1321,7 @@ describe('Review cards and the account popup', () => {
     await user.click(newTagButton());
     await user.type(field(), 'cat');
     await user.click(within(popup).getByText('Tags')); // leaving the field (a phone's Done, or a tap elsewhere)
-    expect(tagged().map(b => b.getAttribute('aria-label'))).toEqual(['cat', 'dog']);
+    expect(tagged().map(button => button.getAttribute('aria-label'))).toEqual(['cat', 'dog']);
 
     await user.click(newTagButton());
     await user.type(field(), 'fox{Escape}');
@@ -1396,10 +1396,10 @@ describe('Review cards and the account popup', () => {
 
 describe('unsaved changes popup', () => {
   async function imported() {
-    const t = await renderApp();
-    await importFiles(t.user, exportFiles());
+    const setup = await renderApp();
+    await importFiles(setup.user, exportFiles());
     await findRow('bob');
-    return t;
+    return setup;
   }
   const popup = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
   async function openPopup(user: UserEvent, link: string) {
@@ -1421,19 +1421,21 @@ describe('unsaved changes popup', () => {
     await user.click(within(accountPopup).getByRole('button', { name: 'home' })); // back again: no net change
     await closeAccount(user, 'alice');
 
-    const p = await openPopup(user, '● Unsaved · 2 changed accounts');
-    expect(within(p).getByText('2 changed accounts since adding the data')).toBeInTheDocument(); // never saved
-    const tagRow = within(p).getByRole('button', { name: /^\+ #dog tag/ });
+    const unsavedPopup = await openPopup(user, '● Unsaved · 2 changed accounts');
+    // never saved
+    expect(within(unsavedPopup).getByText('2 changed accounts since adding the data')).toBeInTheDocument();
+    const tagRow = within(unsavedPopup).getByRole('button', { name: /^\+ #dog tag/ });
     expect(tagRow).toHaveTextContent('1 account ▾');
-    expect(within(p).queryByText(/#home/)).not.toBeInTheDocument();
-    expect(within(p).getAllByText('Needs a decision')).toHaveLength(2); // alice and bob: from …
-    expect(within(p).getByText('Kept')).toBeInTheDocument(); // … to the black chip
-    expect(within(p).getByText('Unfollow queued')).toBeInTheDocument(); // bob's tag is only in the tag row
+    expect(within(unsavedPopup).queryByText(/#home/)).not.toBeInTheDocument();
+    expect(within(unsavedPopup).getAllByText('Needs a decision')).toHaveLength(2); // alice and bob: from …
+    expect(within(unsavedPopup).getByText('Kept')).toBeInTheDocument(); // … to the black chip
+    expect(within(unsavedPopup).getByText('Unfollow queued')).toBeInTheDocument(); // bob's tag is only in the tag row
 
     await user.click(tagRow);
     expect(tagRow).toHaveAttribute('aria-expanded', 'true');
-    expect(within(p).getAllByRole('button', { name: '@bob' })).toHaveLength(2); // in the tag row and his own block
-    await user.click(within(p).getAllByRole('button', { name: '@bob' })[0] as HTMLElement);
+    // in the tag row and his own block
+    expect(within(unsavedPopup).getAllByRole('button', { name: '@bob' })).toHaveLength(2);
+    await user.click(within(unsavedPopup).getAllByRole('button', { name: '@bob' })[0] as HTMLElement);
     await popupClosed();
     expect(await screen.findByRole('dialog', { name: '@bob' })).toBeInTheDocument();
   });
@@ -1462,26 +1464,26 @@ describe('unsaved changes popup', () => {
     await dialogClosed('Rename #dog');
     await closeManageTags(user);
 
-    const p = await openPopup(user, '● Unsaved · 12 changed accounts');
-    expect(within(p).getByText('12 changed accounts since your last save')).toBeInTheDocument();
-    expect(within(p).queryByRole('heading', { name: 'Other changes' })).not.toBeInTheDocument();
-    const rowButton = within(p).getByRole('button', { name: /^#dog → #pet/ });
+    const unsavedPopup = await openPopup(user, '● Unsaved · 12 changed accounts');
+    expect(within(unsavedPopup).getByText('12 changed accounts since your last save')).toBeInTheDocument();
+    expect(within(unsavedPopup).queryByRole('heading', { name: 'Other changes' })).not.toBeInTheDocument();
+    const rowButton = within(unsavedPopup).getByRole('button', { name: /^#dog → #pet/ });
     expect(rowButton).toHaveTextContent('12 accounts ▾');
-    const names_ = () => within(p).queryAllByRole('button', { name: /^@user/ });
+    const names_ = () => within(unsavedPopup).queryAllByRole('button', { name: /^@user/ });
     expect(names_()).toHaveLength(0);
 
     await user.click(rowButton);
     expect(names_()).toHaveLength(10);
-    await user.click(within(p).getByRole('button', { name: 'Show all 12' }));
+    await user.click(within(unsavedPopup).getByRole('button', { name: 'Show all 12' }));
     expect(names_()).toHaveLength(12);
-    expect(within(p).queryByRole('button', { name: /^Show all/ })).not.toBeInTheDocument();
+    expect(within(unsavedPopup).queryByRole('button', { name: /^Show all/ })).not.toBeInTheDocument();
   });
 
   test('Save in the popup saves and closes it', async () => {
     const { user, downloads } = await imported();
     await user.click(keepButton('bob'));
-    const p = await openPopup(user, '● Unsaved · 1 changed account');
-    await user.click(within(p).getByRole('button', { name: 'Save' }));
+    const unsavedPopup = await openPopup(user, '● Unsaved · 1 changed account');
+    await user.click(within(unsavedPopup).getByRole('button', { name: 'Save' }));
     await popupClosed();
     expect(downloads).toHaveLength(1);
     expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
@@ -1490,8 +1492,8 @@ describe('unsaved changes popup', () => {
   test('Reset changes in the popup asks, undoes what is listed and closes it', async () => {
     const { user } = await imported();
     await user.click(keepButton('bob'));
-    const p = await openPopup(user, '● Unsaved · 1 changed account');
-    await user.click(within(p).getByRole('button', { name: 'Reset changes' }));
+    const unsavedPopup = await openPopup(user, '● Unsaved · 1 changed account');
+    await user.click(within(unsavedPopup).getByRole('button', { name: 'Reset changes' }));
     const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
     await user.click(within(confirmReset).getByRole('button', { name: 'Reset changes' }));
     await popupClosed();
@@ -1500,10 +1502,10 @@ describe('unsaved changes popup', () => {
 
   test('only a new import: nothing per account, Save on, Reset off', async () => {
     const { user } = await imported();
-    const p = await openPopup(user, '● New data not saved');
-    expect(within(p).getByText('New data, no account changes')).toBeInTheDocument();
-    expect(within(p).getByRole('button', { name: 'Save' })).toBeEnabled();
-    expect(within(p).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
+    const unsavedPopup = await openPopup(user, '● New data not saved');
+    expect(within(unsavedPopup).getByText('New data, no account changes')).toBeInTheDocument();
+    expect(within(unsavedPopup).getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(within(unsavedPopup).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
   });
 });
 
@@ -1525,18 +1527,21 @@ test('every form field has a name (browsers flag unnamed fields)', async () => {
 
 describe('tags', () => {
   async function imported() {
-    const t = await renderApp();
-    await importFiles(t.user, exportFiles());
+    const setup = await renderApp();
+    await importFiles(setup.user, exportFiles());
     await findRow('bob');
-    return t;
+    return setup;
   }
   /** The tag chips in an account's popup (its buttons in the Tags group besides "+ New tag"). */
   async function popupTags(user: UserEvent, username: string) {
     const popup = await openAccount(user, username);
     const chips = within(within(popup).getByRole('group', { name: `Tags for @${username}` }))
       .queryAllByRole('button')
-      .filter(b => b.textContent !== '+ New tag')
-      .map(b => `${b.getAttribute('aria-label') ?? ''}${b.getAttribute('aria-pressed') === 'true' ? ' ✓' : ''}`);
+      .filter(button => button.textContent !== '+ New tag')
+      .map(
+        button =>
+          `${button.getAttribute('aria-label') ?? ''}${button.getAttribute('aria-pressed') === 'true' ? ' ✓' : ''}`,
+      );
     await closeAccount(user, username);
     return chips;
   }

@@ -88,13 +88,13 @@ const write = (kind: RecordedWrite['kind'], keys: Partial<Omit<RecordedWrite, 'k
 });
 
 async function importedStore(options: Parameters<typeof makeTestStore>[0] = {}) {
-  const t = makeTestStore(options);
-  await t.store.dispatch(importPrepared(prepared())).unwrap();
-  return t;
+  const setup = makeTestStore(options);
+  await setup.store.dispatch(importPrepared(prepared())).unwrap();
+  return setup;
 }
 
-const account = (t: Awaited<ReturnType<typeof importedStore>>, key: string) =>
-  must(selectAccount(t.store.getState(), key), key);
+const account = (setup: Awaited<ReturnType<typeof importedStore>>, key: string) =>
+  must(selectAccount(setup.store.getState(), key), key);
 
 describe('import', () => {
   test('first import starts a dirty master whose baseline is the imported state', async () => {
@@ -107,9 +107,9 @@ describe('import', () => {
   });
 
   test('re-importing the saved master with the same export is clean', async () => {
-    const t = await importedStore();
-    await t.store.dispatch(saveMaster()).unwrap();
-    const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
+    const setup = await importedStore();
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const saved = JSON.parse(must(setup.downloads[0]).text) as unknown;
 
     const t2 = makeTestStore();
     await t2.store.dispatch(importPrepared(prepared({ master: saved }))).unwrap();
@@ -126,189 +126,200 @@ describe('import', () => {
   });
 
   test('a tag filter that no longer exists falls back to all tags', async () => {
-    const t = makeTestStore();
-    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'nonexistent' }));
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
-    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL });
+    const setup = makeTestStore();
+    setup.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'nonexistent' }));
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
+    expect(setup.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL });
   });
 });
 
 describe('edits', () => {
   test('kept: keeps and un-keeps; repeating the same value or unknown accounts are a no-op', async () => {
-    const t = await importedStore();
-    const r0 = t.store.getState().master.revision;
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    expect(account(t, 'bob').decision).toEqual({ kind: DecisionKind.KEPT });
-    t.store.dispatch(setKept({ username: 'bob', kept: false }));
-    expect(account(t, 'bob').decision).toBeUndefined();
-    expect(t.store.getState().master.revision).toBe(r0 + 2);
+    const setup = await importedStore();
+    const r0 = setup.store.getState().master.revision;
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    expect(account(setup, 'bob').decision).toEqual({ kind: DecisionKind.KEPT });
+    setup.store.dispatch(setKept({ username: 'bob', kept: false }));
+    expect(account(setup, 'bob').decision).toBeUndefined();
+    expect(setup.store.getState().master.revision).toBe(r0 + 2);
 
-    t.store.dispatch(setKept({ username: 'nobody', kept: true }));
-    expect(t.store.getState().master.revision).toBe(r0 + 2);
+    setup.store.dispatch(setKept({ username: 'nobody', kept: true }));
+    expect(setup.store.getState().master.revision).toBe(r0 + 2);
   });
 
   test('unavailable: marking keeps an undecided account; clearing changes no decision', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setUnavailable({ username: 'bob', unavailable: true }));
-    expect(account(t, 'bob')).toMatchObject({ decision: { kind: DecisionKind.KEPT }, review: { unavailable: true } });
-    t.store.dispatch(setUnavailable({ username: 'bob', unavailable: false }));
-    expect(account(t, 'bob')).toMatchObject({ decision: { kind: DecisionKind.KEPT }, review: { unavailable: false } });
+    const setup = await importedStore();
+    setup.store.dispatch(setUnavailable({ username: 'bob', unavailable: true }));
+    expect(account(setup, 'bob')).toMatchObject({
+      decision: { kind: DecisionKind.KEPT },
+      review: { unavailable: true },
+    });
+    setup.store.dispatch(setUnavailable({ username: 'bob', unavailable: false }));
+    expect(account(setup, 'bob')).toMatchObject({
+      decision: { kind: DecisionKind.KEPT },
+      review: { unavailable: false },
+    });
 
     // An account you already queued stays queued.
-    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setUnavailable({ username: 'alice', unavailable: true }));
-    expect(planOf(account(t, 'alice'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
+    setup.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setUnavailable({ username: 'alice', unavailable: true }));
+    expect(planOf(account(setup, 'alice'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
   });
 
   test('plans: queuing decides; done and back; undoing the last plan undecides; ineligible is ignored', async () => {
-    const t = await importedStore();
-    const stats = () => selectPlanStats(t.store.getState());
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
-    expect(account(t, 'bob').decision?.kind).toBe(DecisionKind.QUEUED);
+    const setup = await importedStore();
+    const stats = () => selectPlanStats(setup.store.getState());
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    expect(planOf(account(setup, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
+    expect(account(setup, 'bob').decision?.kind).toBe(DecisionKind.QUEUED);
     expect(stats().planned[UNFOLLOW]).toBe(1);
 
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
-    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.DONE);
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    expect(planOf(account(setup, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.DONE);
     expect(stats()).toMatchObject({ planned: { [UNFOLLOW]: 0 }, done: { [UNFOLLOW]: 1 } });
 
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: null }));
-    expect(planOf(account(t, 'bob'), UNFOLLOW)).toBeUndefined();
-    expect(account(t, 'bob').decision).toBeUndefined();
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    expect(planOf(account(setup, 'bob'), UNFOLLOW)).toBe(PLAN_STATES.PLANNED);
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: null }));
+    expect(planOf(account(setup, 'bob'), UNFOLLOW)).toBeUndefined();
+    expect(account(setup, 'bob').decision).toBeUndefined();
 
-    const r = t.store.getState().master.revision;
+    const revisionBefore = setup.store.getState().master.revision;
     // bob doesn't follow you
-    t.store.dispatch(setPlan({ username: 'bob', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: null })); // nothing to cancel
-    expect(t.store.getState().master.revision).toBe(r);
+    setup.store.dispatch(setPlan({ username: 'bob', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: null })); // nothing to cancel
+    expect(setup.store.getState().master.revision).toBe(revisionBefore);
   });
 
   test('Keep clears plans; queuing a kept account turns it into queued', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setKept({ username: 'alice', kept: true }));
-    expect(account(t, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
-    expect(selectPlanStats(t.store.getState()).planned).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 });
+    const setup = await importedStore();
+    setup.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setKept({ username: 'alice', kept: true }));
+    expect(account(setup, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
+    expect(selectPlanStats(setup.store.getState()).planned).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 });
 
-    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
-    expect(account(t, 'alice').decision).toEqual({
+    setup.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    expect(account(setup, 'alice').decision).toEqual({
       kind: DecisionKind.QUEUED,
       plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED },
     });
   });
 
   test('Keep instead (To do) drops one plan; with none left the account is Kept', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
+    const setup = await importedStore();
+    setup.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
 
-    t.store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW }));
-    expect(account(t, 'alice').decision).toEqual({
+    setup.store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW }));
+    expect(account(setup, 'alice').decision).toEqual({
       kind: DecisionKind.QUEUED,
       plans: { [REMOVE_FOLLOWER]: PLAN_STATES.DONE },
     });
-    t.store.dispatch(keepInstead({ username: 'alice', type: REMOVE_FOLLOWER }));
-    expect(account(t, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
+    setup.store.dispatch(keepInstead({ username: 'alice', type: REMOVE_FOLLOWER }));
+    expect(account(setup, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
 
-    const r = t.store.getState().master.revision;
-    t.store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW })); // nothing queued: no-op
-    expect(t.store.getState().master.revision).toBe(r);
+    const revisionBefore = setup.store.getState().master.revision;
+    setup.store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW })); // nothing queued: no-op
+    expect(setup.store.getState().master.revision).toBe(revisionBefore);
   });
 
   test('tags toggle and notes only count real changes', async () => {
-    const t = await importedStore();
-    t.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
-    expect(account(t, 'carol').review.tags).toEqual(['artist']);
-    t.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
-    expect(account(t, 'carol').review.tags).toEqual([]);
+    const setup = await importedStore();
+    setup.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
+    expect(account(setup, 'carol').review.tags).toEqual(['artist']);
+    setup.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
+    expect(account(setup, 'carol').review.tags).toEqual([]);
 
-    t.store.dispatch(setNote({ username: 'carol', note: 'hi' }));
-    const r = t.store.getState().master.revision;
-    t.store.dispatch(setNote({ username: 'carol', note: 'hi' }));
-    expect(t.store.getState().master.revision).toBe(r);
+    setup.store.dispatch(setNote({ username: 'carol', note: 'hi' }));
+    const revisionBefore = setup.store.getState().master.revision;
+    setup.store.dispatch(setNote({ username: 'carol', note: 'hi' }));
+    expect(setup.store.getState().master.revision).toBe(revisionBefore);
   });
 });
 
 describe('save', () => {
   test('downloads a master that re-imports unchanged; the session baseline is kept', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.setNow('2026-10-27T14:05:09.000Z');
-    await t.store.dispatch(saveMaster()).unwrap();
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.setNow('2026-10-27T14:05:09.000Z');
+    await setup.store.dispatch(saveMaster()).unwrap();
 
-    const file = must(t.downloads[0]);
+    const file = must(setup.downloads[0]);
     expect(file.filename).toMatch(/^unfollowism_progress_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.json$/);
     const saved = JSON.parse(file.text) as { lastSavedAt: string };
     expect(saved.lastSavedAt).toBe('2026-10-27T14:05:09.000Z');
     expect(toMasterFile(parseMaster(saved))).toEqual(saved); // the file is exactly the saved format
 
-    const state = t.store.getState();
+    const state = setup.store.getState();
     expect(selectIsDirty(state)).toBe(false);
     expect(selectUnsavedDiff(state)).toEqual([]); // saved: nothing left to list
-    expect(t.lastSaved.get()).toBe('2026-10-27T14:05:09.000Z');
+    expect(setup.lastSaved.get()).toBe('2026-10-27T14:05:09.000Z');
   });
 
   test('the unsaved changes list covers only what came after the last save', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    t.store.dispatch(setNote({ username: 'carol', note: 'x' }));
-    expect(selectUnsavedDiff(t.store.getState()).map(a => [a.username, a.changes.map(c => c.type)])).toEqual([
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    setup.store.dispatch(setNote({ username: 'carol', note: 'x' }));
+    expect(
+      selectUnsavedDiff(setup.store.getState()).map(entry => [
+        entry.username,
+        entry.changes.map(change => change.type),
+      ]),
+    ).toEqual([
       ['bob', [SESSION_CHANGES.TAG_ADDED]],
       ['carol', [SESSION_CHANGES.NOTE_EDITED]],
     ]);
   });
 
   test('an edit that was undone leaves nothing unsaved', async () => {
-    const t = await importedStore();
-    await t.store.dispatch(saveMaster()).unwrap();
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    expect(selectIsDirty(t.store.getState())).toBe(true);
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    expect(selectIsDirty(t.store.getState())).toBe(false);
+    const setup = await importedStore();
+    await setup.store.dispatch(saveMaster()).unwrap();
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    expect(selectIsDirty(setup.store.getState())).toBe(true);
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    expect(selectIsDirty(setup.store.getState())).toBe(false);
   });
 
   test('an import that differs from its file stays unsaved without any edit', async () => {
-    const t = makeTestStore();
-    await t.store.dispatch(importPrepared(prepared())).unwrap(); // no master: a new one, not downloaded yet
-    expect(selectIsDirty(t.store.getState())).toBe(true);
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    expect(selectIsDirty(t.store.getState())).toBe(true);
+    const setup = makeTestStore();
+    await setup.store.dispatch(importPrepared(prepared())).unwrap(); // no master: a new one, not downloaded yet
+    expect(selectIsDirty(setup.store.getState())).toBe(true);
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    expect(selectIsDirty(setup.store.getState())).toBe(true);
   });
 
   test('edits made while saving stay unsaved', async () => {
     const gate = deferred();
-    const t = makeTestStore({ download: () => gate.promise });
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    const setup = makeTestStore({ download: () => gate.promise });
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
 
-    const saving = t.store.dispatch(saveMaster());
-    t.store.dispatch(setNote({ username: 'bob', note: 'typed during save' }));
+    const saving = setup.store.dispatch(saveMaster());
+    setup.store.dispatch(setNote({ username: 'bob', note: 'typed during save' }));
     gate.resolve();
     await saving;
 
-    expect(selectIsDirty(t.store.getState())).toBe(true);
-    expect(t.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVED });
+    expect(selectIsDirty(setup.store.getState())).toBe(true);
+    expect(setup.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVED });
   });
 
   test('a second save while one is running is ignored', async () => {
     const gate = deferred();
     const calls: string[] = [];
-    const t = makeTestStore({
+    const setup = makeTestStore({
       download: name => {
         calls.push(name);
         return gate.promise;
       },
     });
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
 
-    const first = t.store.dispatch(saveMaster());
-    await t.store.dispatch(saveMaster());
+    const first = setup.store.dispatch(saveMaster());
+    await setup.store.dispatch(saveMaster());
     gate.resolve();
     await first;
     expect(calls).toHaveLength(1);
@@ -316,22 +327,25 @@ describe('save', () => {
 
   test('a failed download keeps its message, marks nothing saved, and saving works again', async () => {
     let fail = true;
-    const t = makeTestStore({
+    const setup = makeTestStore({
       download: () => {
         if (fail) {
           throw new Error('Download blocked');
         }
       },
     });
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
 
-    await t.store.dispatch(saveMaster());
-    expect(t.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVE_FAILED, reason: 'Download blocked' });
-    expect(selectIsDirty(t.store.getState())).toBe(true);
+    await setup.store.dispatch(saveMaster());
+    expect(setup.store.getState().master.status).toEqual({
+      type: STATUS_EVENTS.SAVE_FAILED,
+      reason: 'Download blocked',
+    });
+    expect(selectIsDirty(setup.store.getState())).toBe(true);
 
     fail = false;
-    await t.store.dispatch(saveMaster()).unwrap();
-    expect(selectIsDirty(t.store.getState())).toBe(false);
+    await setup.store.dispatch(saveMaster()).unwrap();
+    expect(selectIsDirty(setup.store.getState())).toBe(false);
   });
 
   test('saving with nothing loaded does nothing', async () => {
@@ -344,24 +358,24 @@ describe('save', () => {
 });
 
 describe('reset changes', () => {
-  const review = (t: Awaited<ReturnType<typeof importedStore>>, key: string) => account(t, key).review;
-  const kept = (t: Awaited<ReturnType<typeof importedStore>>, key: string) => isKept(account(t, key));
+  const review = (setup: Awaited<ReturnType<typeof importedStore>>, key: string) => account(setup, key).review;
+  const kept = (setup: Awaited<ReturnType<typeof importedStore>>, key: string) => isKept(account(setup, key));
 
   test("goes back to the last save, with that save's status", async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    const savedStatus = t.store.getState().master.status;
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const savedStatus = setup.store.getState().master.status;
 
-    t.store.dispatch(setNote({ username: 'bob', note: 'after save' }));
-    t.store.dispatch(setKept({ username: 'carol', kept: true }));
-    expect(selectUnsavedAccountCount(t.store.getState())).toBe(2);
+    setup.store.dispatch(setNote({ username: 'bob', note: 'after save' }));
+    setup.store.dispatch(setKept({ username: 'carol', kept: true }));
+    expect(selectUnsavedAccountCount(setup.store.getState())).toBe(2);
 
-    t.store.dispatch(resetChanges());
-    const state = t.store.getState();
-    expect(kept(t, 'bob')).toBe(true);
-    expect(review(t, 'bob').notes).toBe('');
-    expect(kept(t, 'carol')).toBe(false);
+    setup.store.dispatch(resetChanges());
+    const state = setup.store.getState();
+    expect(kept(setup, 'bob')).toBe(true);
+    expect(review(setup, 'bob').notes).toBe('');
+    expect(kept(setup, 'carol')).toBe(false);
     expect(selectIsDirty(state)).toBe(false);
     expect(selectUnsavedAccountCount(state)).toBe(0);
     expect(state.master.status).toEqual(savedStatus);
@@ -369,10 +383,10 @@ describe('reset changes', () => {
   });
 
   test('without a save since the import, goes back to the import', async () => {
-    const t = makeTestStore();
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
-    await t.store.dispatch(saveMaster()).unwrap();
-    const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
+    const setup = makeTestStore();
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const saved = JSON.parse(must(setup.downloads[0]).text) as unknown;
 
     const t2 = makeTestStore();
     await t2.store.dispatch(importPrepared(prepared({ master: saved }))).unwrap(); // clean import
@@ -388,56 +402,56 @@ describe('reset changes', () => {
   });
 
   test('an import that was never saved stays unsaved after a reset', async () => {
-    const t = await importedStore(); // a new master: not in any file yet
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.store.dispatch(resetChanges());
-    expect(kept(t, 'bob')).toBe(false);
-    expect(selectIsDirty(t.store.getState())).toBe(true);
+    const setup = await importedStore(); // a new master: not in any file yet
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(resetChanges());
+    expect(kept(setup, 'bob')).toBe(false);
+    expect(selectIsDirty(setup.store.getState())).toBe(true);
   });
 
   test('Reset after a save undoes edits made while saving', async () => {
     const gate = deferred();
-    const t = makeTestStore({ download: () => gate.promise });
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
-    const saving = t.store.dispatch(saveMaster());
-    t.store.dispatch(setNote({ username: 'bob', note: 'typed during save' }));
+    const setup = makeTestStore({ download: () => gate.promise });
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
+    const saving = setup.store.dispatch(saveMaster());
+    setup.store.dispatch(setNote({ username: 'bob', note: 'typed during save' }));
     gate.resolve();
     await saving;
 
-    t.store.dispatch(resetChanges());
-    expect(t.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVED });
-    expect(review(t, 'bob').notes).toBe('');
+    setup.store.dispatch(resetChanges());
+    expect(setup.store.getState().master.status).toEqual({ type: STATUS_EVENTS.SAVED });
+    expect(review(setup, 'bob').notes).toBe('');
   });
 
   test('accounts changed back to their saved state are not counted', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.store.dispatch(setNote({ username: 'carol', note: 'x' }));
-    t.store.dispatch(setNote({ username: 'carol', note: '' }));
-    expect(selectUnsavedAccountCount(t.store.getState())).toBe(1);
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(setNote({ username: 'carol', note: 'x' }));
+    setup.store.dispatch(setNote({ username: 'carol', note: '' }));
+    expect(selectUnsavedAccountCount(setup.store.getState())).toBe(1);
   });
 
   test('a tag taken off and put back is not counted, though it is now last', async () => {
-    const t = await importedStore();
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'a' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'b' }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'a' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'a' }));
-    expect(account(t, 'bob').review.tags).toEqual(['b', 'a']);
-    expect(selectUnsavedAccountCount(t.store.getState())).toBe(0);
-    expect(selectUnsavedDiff(t.store.getState())).toEqual([]);
+    const setup = await importedStore();
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'a' }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'b' }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'a' }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'a' }));
+    expect(account(setup, 'bob').review.tags).toEqual(['b', 'a']);
+    expect(selectUnsavedAccountCount(setup.store.getState())).toBe(0);
+    expect(selectUnsavedDiff(setup.store.getState())).toEqual([]);
   });
 
   test('works after a reload', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    t.store.dispatch(setNote({ username: 'bob', note: 'after save' }));
-    t.store.dispatch(setNote({ username: 'carol', note: 'after save' }));
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    setup.store.dispatch(setNote({ username: 'bob', note: 'after save' }));
+    setup.store.dispatch(setNote({ username: 'carol', note: 'after save' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: t.backup });
+    const reloaded = makeTestStore({ backup: setup.backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(selectUnsavedAccountCount(reloaded.store.getState())).toBe(2);
     reloaded.store.dispatch(resetChanges());
@@ -447,7 +461,7 @@ describe('reset changes', () => {
     expect(selectIsDirty(reloaded.store.getState())).toBe(false);
     await flushPersistence();
 
-    const again = makeTestStore({ backup: t.backup }); // and the reset itself survives a reload
+    const again = makeTestStore({ backup: setup.backup }); // and the reset itself survives a reload
     await again.store.dispatch(restoreBackup());
     expect(review(again, 'carol').notes).toBe('');
     expect(selectIsDirty(again.store.getState())).toBe(false);
@@ -456,66 +470,66 @@ describe('reset changes', () => {
 
 describe('tags', () => {
   test('rename and delete touch only tagged accounts; the filter follows; Reset changes undoes them', async () => {
-    const t = await importedStore();
-    t.store.dispatch(toggleTag({ username: 'alice', tag: 'dog' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    expect(selectTags(t.store.getState())).toEqual(['artist', 'dog']);
+    const setup = await importedStore();
+    setup.store.dispatch(toggleTag({ username: 'alice', tag: 'dog' }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    expect(selectTags(setup.store.getState())).toEqual(['artist', 'dog']);
 
-    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'dog' }));
-    const r = t.store.getState().master.revision;
-    t.store.dispatch(renameTag({ from: 'dog', to: 'artist' })); // merge
-    expect(account(t, 'alice').review.tags).toEqual(['artist']);
-    expect(account(t, 'bob').review.tags).toEqual(['artist']);
-    expect(selectTagCounts(t.store.getState()).artist).toBe(2);
-    expect(selectTagCounts(t.store.getState()).dog ?? 0).toBe(0);
-    expect(selectTags(t.store.getState())).toEqual(['artist']);
-    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.TAG, tag: 'artist' });
-    expect(t.store.getState().master.revision).toBe(r + 1); // one change, however many accounts
-    expect(t.store.getState().master.changed.carol).toBeUndefined(); // carol has no tags: not edited
+    setup.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'dog' }));
+    const revisionBefore = setup.store.getState().master.revision;
+    setup.store.dispatch(renameTag({ from: 'dog', to: 'artist' })); // merge
+    expect(account(setup, 'alice').review.tags).toEqual(['artist']);
+    expect(account(setup, 'bob').review.tags).toEqual(['artist']);
+    expect(selectTagCounts(setup.store.getState()).artist).toBe(2);
+    expect(selectTagCounts(setup.store.getState()).dog ?? 0).toBe(0);
+    expect(selectTags(setup.store.getState())).toEqual(['artist']);
+    expect(setup.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.TAG, tag: 'artist' });
+    expect(setup.store.getState().master.revision).toBe(revisionBefore + 1); // one change, however many accounts
+    expect(setup.store.getState().master.changed.carol).toBeUndefined(); // carol has no tags: not edited
 
-    t.store.dispatch(deleteTag({ tag: 'artist' }));
-    expect(selectTags(t.store.getState())).toEqual([]);
-    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL }); // its tag is gone
+    setup.store.dispatch(deleteTag({ tag: 'artist' }));
+    expect(selectTags(setup.store.getState())).toEqual([]);
+    expect(setup.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL }); // its tag is gone
 
-    t.store.dispatch(resetChanges());
-    expect(selectTags(t.store.getState())).toEqual(['artist', 'dog']);
-    expect(account(t, 'bob').review.tags).toEqual(['dog', 'artist']);
+    setup.store.dispatch(resetChanges());
+    expect(selectTags(setup.store.getState())).toEqual(['artist', 'dog']);
+    expect(account(setup, 'bob').review.tags).toEqual(['dog', 'artist']);
   });
 
   test('removing a tag from its last account makes it disappear, and the filter resets', async () => {
-    const t = await importedStore();
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'dog' }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
-    expect(selectTags(t.store.getState())).toEqual([]);
-    expect(t.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL });
+    const setup = await importedStore();
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    setup.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'dog' }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    expect(selectTags(setup.store.getState())).toEqual([]);
+    expect(setup.store.getState().filters.tag).toEqual({ kind: TAG_FILTER_KINDS.ALL });
   });
 });
 
 describe('filters', () => {
   test('the Filter popup applies list, tag and decision at once; Clear all keeps the list', async () => {
-    const t = await importedStore();
-    t.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
-    t.store.dispatch(setQuery('a'));
-    t.store.dispatch(
+    const setup = await importedStore();
+    setup.store.dispatch(toggleTag({ username: 'alice', tag: 'artist' }));
+    setup.store.dispatch(setQuery('a'));
+    setup.store.dispatch(
       applyFilters({
         scope: REVIEW_SCOPES.MUTUAL,
         tag: { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' },
         decision: DecisionFilter.NEEDS_DECISION,
       }),
     );
-    expect(t.store.getState().filters).toMatchObject({
+    expect(setup.store.getState().filters).toMatchObject({
       scope: REVIEW_SCOPES.MUTUAL,
       tag: { kind: TAG_FILTER_KINDS.TAG, tag: 'artist' },
       decision: DecisionFilter.NEEDS_DECISION,
       query: 'a',
     });
-    expect(selectListKeys(t.store.getState())).toEqual(['alice']);
+    expect(selectListKeys(setup.store.getState())).toEqual(['alice']);
 
-    t.store.dispatch(clearFilters());
-    expect(t.store.getState().filters).toMatchObject({
+    setup.store.dispatch(clearFilters());
+    expect(setup.store.getState().filters).toMatchObject({
       scope: REVIEW_SCOPES.MUTUAL,
       tag: { kind: TAG_FILTER_KINDS.ALL },
       decision: DecisionFilter.ANY,
@@ -526,24 +540,24 @@ describe('filters', () => {
 
 describe('list refresh', () => {
   test('the shown list changes on filter change, import, restore and resets, never on an edit', async () => {
-    const t = await importedStore();
-    const shown = () => selectListKeys(t.store.getState());
+    const setup = await importedStore();
+    const shown = () => selectListKeys(setup.store.getState());
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // import
 
-    t.store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // an edit doesn't move cards
-    t.store.dispatch(setQuery(''));
+    setup.store.dispatch(setQuery(''));
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // same filters: same list
-    t.store.dispatch(setQuery('a'));
+    setup.store.dispatch(setQuery('a'));
     expect(shown()).toEqual(['alice', 'carol']);
 
-    t.store.dispatch(setQuery(''));
-    t.store.dispatch(resetChanges());
+    setup.store.dispatch(setQuery(''));
+    setup.store.dispatch(resetChanges());
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // bob needs a decision again
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: t.backup });
+    const reloaded = makeTestStore({ backup: setup.backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(selectListKeys(reloaded.store.getState())).toEqual(['alice', 'bob', 'carol']);
   });
@@ -551,14 +565,14 @@ describe('list refresh', () => {
 
 describe('reload safety net', () => {
   test('a reload puts back the work, including the session baseline', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: t.backup });
+    const reloaded = makeTestStore({ backup: setup.backup });
     await reloaded.store.dispatch(restoreBackup());
-    const before = t.store.getState();
+    const before = setup.store.getState();
     const after = reloaded.store.getState();
 
     expect(selectIsDirty(after)).toBe(true);
@@ -569,36 +583,36 @@ describe('reload safety net', () => {
   });
 
   test('what the import found besides the master (compare numbers, done plans) survives a reload', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    const master: unknown = JSON.parse(must(t.downloads[0]).text);
-    await t.store.dispatch(importPrepared(prepared({ following: [['Alice'], ['carol']], master }))).unwrap();
-    expect(t.store.getState().master.importFacts).toEqual({
+    const setup = await importedStore();
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const master: unknown = JSON.parse(must(setup.downloads[0]).text);
+    await setup.store.dispatch(importPrepared(prepared({ following: [['Alice'], ['carol']], master }))).unwrap();
+    expect(setup.store.getState().master.importFacts).toEqual({
       followingBefore: 3,
       followersBefore: 2,
       completedPlans: { bob: [UNFOLLOW] },
     });
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: t.backup });
+    const reloaded = makeTestStore({ backup: setup.backup });
     await reloaded.store.dispatch(restoreBackup());
-    expect(reloaded.store.getState().master.importFacts).toEqual(t.store.getState().master.importFacts);
+    expect(reloaded.store.getState().master.importFacts).toEqual(setup.store.getState().master.importFacts);
   });
 
   test('a __proto__ account and tag survive edits, a save and a reload', async () => {
-    const t = makeTestStore();
-    await t.store.dispatch(importPrepared(prepared({ following: [['__proto__'], ['bob']] }))).unwrap();
-    t.store.dispatch(toggleTag({ username: '__proto__', tag: '__proto__' }));
-    expect(selectTags(t.store.getState())).toEqual(['__proto__']);
-    expect(selectTagCounts(t.store.getState())['__proto__']).toBe(1);
+    const setup = makeTestStore();
+    await setup.store.dispatch(importPrepared(prepared({ following: [['__proto__'], ['bob']] }))).unwrap();
+    setup.store.dispatch(toggleTag({ username: '__proto__', tag: '__proto__' }));
+    expect(selectTags(setup.store.getState())).toEqual(['__proto__']);
+    expect(selectTagCounts(setup.store.getState())['__proto__']).toBe(1);
 
-    await t.store.dispatch(saveMaster()).unwrap();
-    expect(Object.keys(parseMaster(JSON.parse(must(t.downloads[0]).text)).accounts)).toContain('__proto__');
-    t.store.dispatch(setNote({ username: '__proto__', note: 'after save' }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    expect(Object.keys(parseMaster(JSON.parse(must(setup.downloads[0]).text)).accounts)).toContain('__proto__');
+    setup.store.dispatch(setNote({ username: '__proto__', note: 'after save' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: t.backup });
+    const reloaded = makeTestStore({ backup: setup.backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(account(reloaded, '__proto__').review).toMatchObject({ tags: ['__proto__'], notes: 'after save' });
     reloaded.store.dispatch(resetChanges());
@@ -613,15 +627,15 @@ describe('reload safety net', () => {
 
   test('import stores the master once; each edit stores only the accounts it changed', async () => {
     const { backup, writes } = recordingBackup();
-    const t = makeTestStore({ backup });
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    const setup = makeTestStore({ backup });
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
     expect(writes).toEqual([write(WRITES.REPLACE)]);
 
-    t.store.dispatch(setNote({ username: 'bob', note: 'x' }));
+    setup.store.dispatch(setNote({ username: 'bob', note: 'x' }));
     await flushPersistence();
-    t.store.dispatch(setKept({ username: 'alice', kept: true }));
-    t.store.dispatch(setKept({ username: 'carol', kept: true }));
+    setup.store.dispatch(setKept({ username: 'alice', kept: true }));
+    setup.store.dispatch(setKept({ username: 'carol', kept: true }));
     await flushPersistence();
     expect(writes.slice(1)).toEqual([
       write(WRITES.UPDATE, { accounts: ['bob'] }),
@@ -629,14 +643,14 @@ describe('reload safety net', () => {
       write(WRITES.UPDATE, { accounts: ['carol'] }), // …and was folded into one follow-up
     ]);
 
-    await t.store.dispatch(saveMaster()).unwrap();
+    await setup.store.dispatch(saveMaster()).unwrap();
     await flushPersistence();
     // the saved versions, for Reset after a reload
     expect(writes.at(-1)).toEqual(write(WRITES.UPDATE, { saved: ['bob', 'alice', 'carol'] }));
 
-    t.store.dispatch(setNote({ username: 'dave', note: 'y' }));
+    setup.store.dispatch(setNote({ username: 'dave', note: 'y' }));
     await flushPersistence();
-    t.store.dispatch(resetChanges());
+    setup.store.dispatch(resetChanges());
     await flushPersistence();
     expect(writes.slice(-2)).toEqual([
       write(WRITES.UPDATE, { accounts: ['dave'] }),
@@ -661,20 +675,20 @@ describe('reload safety net', () => {
   });
 
   test('a new import replaces what was stored for the tab', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setNote({ username: 'bob', note: 'old session' }));
+    const setup = await importedStore();
+    setup.store.dispatch(setNote({ username: 'bob', note: 'old session' }));
     await flushPersistence();
-    await t.store.dispatch(importPrepared(prepared({ following: [['zed']], followers: [['zed']] }))).unwrap();
+    await setup.store.dispatch(importPrepared(prepared({ following: [['zed']], followers: [['zed']] }))).unwrap();
     await flushPersistence();
 
-    const stored = must(await t.backup.load());
+    const stored = must(await setup.backup.load());
     expect(Object.keys(stored.changed)).toEqual([]);
     expect(Object.keys((stored.base as { accounts: object }).accounts)).toEqual(['zed']);
   });
 
   test('unusable stored data is reported, and the next import clears the report', async () => {
-    const t = makeTestStore();
-    await t.backup.replace(
+    const setup = makeTestStore();
+    await setup.backup.replace(
       { version: 1, lastImportAt: 'x', accounts: { bob: { username: '' } } },
       {
         revision: 1,
@@ -683,21 +697,21 @@ describe('reload safety net', () => {
       },
       { changed: {}, saved: {} },
     );
-    await t.store.dispatch(restoreBackup());
-    expect(t.store.getState().master).toMatchObject({ base: null, restoreFailed: true });
+    await setup.store.dispatch(restoreBackup());
+    expect(setup.store.getState().master).toMatchObject({ base: null, restoreFailed: true });
 
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
-    expect(t.store.getState().master.restoreFailed).toBe(false);
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
+    expect(setup.store.getState().master.restoreFailed).toBe(false);
   });
 
   test("stored details without the edit counter are reported, so unsaved work can't look saved", async () => {
-    const t = await importedStore();
-    t.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
+    const setup = await importedStore();
+    setup.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
     await flushPersistence();
     const withoutRevision: BackupStore = {
-      ...t.backup,
+      ...setup.backup,
       load: async () => {
-        const stored = must(await t.backup.load());
+        const stored = must(await setup.backup.load());
         return { ...stored, meta: { ...(stored.meta as object), revision: undefined } };
       },
     };
@@ -726,12 +740,12 @@ describe('reload safety net', () => {
       replace: () => Promise.reject(new Error('quota')),
       update: () => Promise.reject(new Error('quota')),
     };
-    const t = await importedStore({ backup: failing });
+    const setup = await importedStore({ backup: failing });
     await flushPersistence();
-    expect(t.store.getState().master.persistenceFailed).toBe(true);
-    await t.store.dispatch(restoreBackup());
-    expect(t.store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
-    await expect(t.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
+    expect(setup.store.getState().master.persistenceFailed).toBe(true);
+    await setup.store.dispatch(restoreBackup());
+    expect(setup.store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
+    await expect(setup.store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
   });
 });
 
@@ -758,11 +772,11 @@ describe('storage write failures', () => {
 
   /** Imports with real timers (the import waits for a paint), then switches to fake ones to step through retries. */
   async function importedWithFakeTimers(backup: BackupStore) {
-    const t = makeTestStore({ backup });
-    await t.store.dispatch(importPrepared(prepared())).unwrap();
+    const setup = makeTestStore({ backup });
+    await setup.store.dispatch(importPrepared(prepared())).unwrap();
     await flushPersistence();
     vi.useFakeTimers();
-    return t;
+    return setup;
   }
 
   const storedNote = async (backup: BackupStore, key: string) =>
@@ -770,16 +784,16 @@ describe('storage write failures', () => {
 
   test('a failed write is retried by itself, and the warning clears once storage works again', async () => {
     const { backup, failing } = flakyBackup();
-    const t = await importedWithFakeTimers(backup);
+    const setup = await importedWithFakeTimers(backup);
 
     failing.on = true;
-    t.store.dispatch(setNote({ username: 'bob', note: 'my last edit' }));
+    setup.store.dispatch(setNote({ username: 'bob', note: 'my last edit' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(t.store.getState().master.persistenceFailed).toBe(true);
+    expect(setup.store.getState().master.persistenceFailed).toBe(true);
 
     failing.on = false; // no further edit: the retry alone has to store it
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
-    expect(t.store.getState().master.persistenceFailed).toBe(false);
+    expect(setup.store.getState().master.persistenceFailed).toBe(false);
     expect(await storedNote(backup, 'bob')).toBe('my last edit');
   });
 
@@ -791,48 +805,48 @@ describe('storage write failures', () => {
       replace: (...args) => inner.replace(...args),
       update: (...args) => inner.update(...args),
     });
-    const t = await importedWithFakeTimers(backup);
+    const setup = await importedWithFakeTimers(backup);
 
     inner = createMemoryBackupStore(); // the browser deleted the stored data
-    t.store.dispatch(setNote({ username: 'bob', note: 'after the loss' }));
+    setup.store.dispatch(setNote({ username: 'bob', note: 'after the loss' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(t.store.getState().master.persistenceFailed).toBe(true); // an update needs the stored backup
+    expect(setup.store.getState().master.persistenceFailed).toBe(true); // an update needs the stored backup
 
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]); // the retry writes everything again
-    expect(t.store.getState().master.persistenceFailed).toBe(false);
+    expect(setup.store.getState().master.persistenceFailed).toBe(false);
     expect(must(await backup.load()).base).toMatchObject({ accounts: { bob: { username: 'bob' } } });
     expect(await storedNote(backup, 'bob')).toBe('after the loss');
   });
 
   test('after the last retry it waits for the next change', async () => {
     const { backup, failing } = flakyBackup();
-    const t = await importedWithFakeTimers(backup);
+    const setup = await importedWithFakeTimers(backup);
 
     failing.on = true;
     failing.attempts = 0;
-    t.store.dispatch(setNote({ username: 'bob', note: 'x' }));
+    setup.store.dispatch(setNote({ username: 'bob', note: 'x' }));
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0) * 2);
     expect(failing.attempts).toBe(1 + RETRY_DELAYS_MS.length);
 
     failing.on = false;
-    t.store.dispatch(setNote({ username: 'bob', note: 'y' }));
+    setup.store.dispatch(setNote({ username: 'bob', note: 'y' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(t.store.getState().master.persistenceFailed).toBe(false);
+    expect(setup.store.getState().master.persistenceFailed).toBe(false);
     expect(await storedNote(backup, 'bob')).toBe('y');
   });
 
   test('once stopped, neither a pending retry nor a new edit writes', async () => {
     const { backup, failing } = flakyBackup();
-    const t = await importedWithFakeTimers(backup);
+    const setup = await importedWithFakeTimers(backup);
 
     failing.on = true;
-    t.store.dispatch(setNote({ username: 'bob', note: 'before' }));
+    setup.store.dispatch(setNote({ username: 'bob', note: 'before' }));
     await vi.advanceTimersByTimeAsync(0);
     failing.attempts = 0;
     failing.on = false;
 
-    t.store.dispatch(persistenceStopped());
-    t.store.dispatch(setNote({ username: 'bob', note: 'after' }));
+    setup.store.dispatch(persistenceStopped());
+    setup.store.dispatch(setNote({ username: 'bob', note: 'after' }));
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0) * 2);
     expect(failing.attempts).toBe(0);
     expect(await storedNote(backup, 'bob')).toBeUndefined();
@@ -848,8 +862,8 @@ describe('renames', () => {
    * date.
    */
   async function renamedStore() {
-    const t = makeTestStore();
-    await t.store
+    const setup = makeTestStore();
+    await setup.store
       .dispatch(
         importPrepared(
           prepared({
@@ -865,13 +879,13 @@ describe('renames', () => {
         ),
       )
       .unwrap();
-    t.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
-    t.store.dispatch(setNote({ username: 'carol', note: 'old note' }));
-    t.store.dispatch(setPlan({ username: 'carol', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    const master: unknown = JSON.parse(must(t.downloads[0]).text);
-    t.setNow('2026-10-28T12:00:00.000Z');
-    await t.store
+    setup.store.dispatch(toggleTag({ username: 'carol', tag: 'artist' }));
+    setup.store.dispatch(setNote({ username: 'carol', note: 'old note' }));
+    setup.store.dispatch(setPlan({ username: 'carol', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const master: unknown = JSON.parse(must(setup.downloads[0]).text);
+    setup.setNow('2026-10-28T12:00:00.000Z');
+    await setup.store
       .dispatch(
         importPrepared(
           prepared({
@@ -888,13 +902,13 @@ describe('renames', () => {
         ),
       )
       .unwrap();
-    return t;
+    return setup;
   }
 
   test("the import suggests the rename and doesn't count its plan as done", async () => {
-    const t = await renamedStore();
-    const state = t.store.getState();
-    expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
+    const setup = await renamedStore();
+    const state = setup.store.getState();
+    expect(account(setup, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
     expect(state.master.importFacts?.completedPlans).toEqual({}); // carol's removal isn't done: she was renamed
     expect(selectRenamePairs(state)).toEqual([
       { from: 'carol', to: 'carol_2', match: RenameMatch.FOLLOWER, state: RenameState.WAITING },
@@ -907,12 +921,12 @@ describe('renames', () => {
   });
 
   test('confirming moves the work to the new name, removes the old account, and saves without it', async () => {
-    const t = await renamedStore();
-    t.store.dispatch(confirmRename({ from: 'carol' }));
-    const state = t.store.getState();
+    const setup = await renamedStore();
+    setup.store.dispatch(confirmRename({ from: 'carol' }));
+    const state = setup.store.getState();
 
     expect(selectAccount(state, 'carol')).toBeUndefined();
-    expect(account(t, 'carol_2')).toMatchObject({
+    expect(account(setup, 'carol_2')).toMatchObject({
       decision: { kind: DecisionKind.QUEUED, plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED } },
       review: { tags: ['artist'], notes: 'old note' },
     });
@@ -929,27 +943,30 @@ describe('renames', () => {
       { type: SESSION_CHANGES.ACCOUNT_REMOVED },
     ]);
 
-    await t.store.dispatch(saveMaster()).unwrap();
-    const saved = parseMaster(JSON.parse(must(t.downloads[1]).text));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const saved = parseMaster(JSON.parse(must(setup.downloads[1]).text));
     expect(Object.keys(saved.accounts).sort()).toEqual(['alice', 'bob', 'carol_2']);
     expect(saved.accounts.carol_2?.review.tags).toEqual(['artist']);
   });
 
   test('Reset changes brings the old account back, with its suggestion', async () => {
-    const t = await renamedStore();
-    t.store.dispatch(confirmRename({ from: 'carol' }));
-    t.store.dispatch(resetChanges());
-    expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
-    expect(account(t, 'carol_2').review.tags).toEqual([]);
-    expect(pairs(t.store.getState())).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    const setup = await renamedStore();
+    setup.store.dispatch(confirmRename({ from: 'carol' }));
+    setup.store.dispatch(resetChanges());
+    expect(account(setup, 'carol')).toMatchObject({
+      review: { tags: ['artist'] },
+      renameSuggestion: { to: 'carol_2' },
+    });
+    expect(account(setup, 'carol_2').review.tags).toEqual([]);
+    expect(pairs(setup.store.getState())).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
   });
 
   test('Not a rename is an ordinary edit: unsaved, listed, undone by Reset', async () => {
-    const t = await renamedStore();
-    t.store.dispatch(dismissRename({ from: 'carol' }));
-    const state = t.store.getState();
-    expect(account(t, 'carol').renameSuggestion).toBeUndefined();
-    expect(account(t, 'carol').review.tags).toEqual(['artist']);
+    const setup = await renamedStore();
+    setup.store.dispatch(dismissRename({ from: 'carol' }));
+    const state = setup.store.getState();
+    expect(account(setup, 'carol').renameSuggestion).toBeUndefined();
+    expect(account(setup, 'carol').review.tags).toEqual(['artist']);
     expect(selectUnsavedAccountCount(state)).toBe(1);
     expect(selectUnsavedDiff(state)).toEqual([
       { username: 'carol', changes: [{ type: SESSION_CHANGES.RENAME_DISMISSED }] },
@@ -960,59 +977,65 @@ describe('renames', () => {
     expect(newFollowers(state)).toEqual(['carol_2']);
     expect(selectChangesTotal(state)).toBe(3);
 
-    t.store.dispatch(resetChanges());
-    expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
+    setup.store.dispatch(resetChanges());
+    expect(account(setup, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
   });
 
   test('Undo takes back Move: both names as at the last save, the rename waits again, nothing unsaved', async () => {
-    const t = await renamedStore();
-    await t.store.dispatch(saveMaster()).unwrap(); // the new data saved, the rename still waiting
-    t.store.dispatch(toggleTag({ username: 'carol_2', tag: 'friend' })); // an edit to the new name before Move
-    t.store.dispatch(confirmRename({ from: 'carol' }));
+    const setup = await renamedStore();
+    await setup.store.dispatch(saveMaster()).unwrap(); // the new data saved, the rename still waiting
+    setup.store.dispatch(toggleTag({ username: 'carol_2', tag: 'friend' })); // an edit to the new name before Move
+    setup.store.dispatch(confirmRename({ from: 'carol' }));
 
-    t.store.dispatch(undoRename({ from: 'carol' }));
-    const state = t.store.getState();
+    setup.store.dispatch(undoRename({ from: 'carol' }));
+    const state = setup.store.getState();
     expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
-    expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
-    expect(account(t, 'carol_2').review.tags).toEqual([]); // edits since the save are undone too
+    expect(account(setup, 'carol')).toMatchObject({
+      review: { tags: ['artist'] },
+      renameSuggestion: { to: 'carol_2' },
+    });
+    expect(account(setup, 'carol_2').review.tags).toEqual([]); // edits since the save are undone too
     expect(selectIsDirty(state)).toBe(false);
   });
 
   test('Undo takes back Not a rename, and keeps other unsaved edits', async () => {
-    const t = await renamedStore();
-    t.store.dispatch(toggleTag({ username: 'alice', tag: 'friend' }));
-    t.store.dispatch(dismissRename({ from: 'carol' }));
-    t.store.dispatch(undoRename({ from: 'carol' }));
-    const state = t.store.getState();
+    const setup = await renamedStore();
+    setup.store.dispatch(toggleTag({ username: 'alice', tag: 'friend' }));
+    setup.store.dispatch(dismissRename({ from: 'carol' }));
+    setup.store.dispatch(undoRename({ from: 'carol' }));
+    const state = setup.store.getState();
     expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
-    expect(account(t, 'alice').review.tags).toEqual(['friend']);
+    expect(account(setup, 'alice').review.tags).toEqual(['friend']);
     expect(selectIsDirty(state)).toBe(true);
   });
 
   test('after a save, Undo goes back to the import: the rename waits again, to be saved', async () => {
-    const t = await renamedStore();
-    t.store.dispatch(dismissRename({ from: 'carol' }));
-    await t.store.dispatch(saveMaster()).unwrap();
-    t.store.dispatch(undoRename({ from: 'carol' }));
-    const state = t.store.getState();
+    const setup = await renamedStore();
+    setup.store.dispatch(dismissRename({ from: 'carol' }));
+    await setup.store.dispatch(saveMaster()).unwrap();
+    setup.store.dispatch(undoRename({ from: 'carol' }));
+    const state = setup.store.getState();
     expect(pairs(state)).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
-    expect(account(t, 'carol')).toMatchObject({ review: { tags: ['artist'] }, renameSuggestion: { to: 'carol_2' } });
+    expect(account(setup, 'carol')).toMatchObject({
+      review: { tags: ['artist'] },
+      renameSuggestion: { to: 'carol_2' },
+    });
     expect(selectIsDirty(state)).toBe(true);
 
-    t.store.dispatch(confirmRename({ from: 'carol' }));
-    expect(account(t, 'carol_2').review.tags).toEqual(['artist']);
+    setup.store.dispatch(confirmRename({ from: 'carol' }));
+    expect(account(setup, 'carol_2').review.tags).toEqual(['artist']);
   });
 
   test('an open suggestion survives a reload, and so does a confirmed rename', async () => {
-    const t = await renamedStore();
+    const setup = await renamedStore();
     await flushPersistence();
-    const reloaded = makeTestStore({ backup: t.backup });
+    const reloaded = makeTestStore({ backup: setup.backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(account(reloaded, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
 
     reloaded.store.dispatch(confirmRename({ from: 'carol' }));
     await flushPersistence();
-    const again = makeTestStore({ backup: t.backup });
+    const again = makeTestStore({ backup: setup.backup });
     await again.store.dispatch(restoreBackup());
     expect(selectAccount(again.store.getState(), 'carol')).toBeUndefined();
     expect(account(again, 'carol_2').review.notes).toBe('old note');
@@ -1021,11 +1044,11 @@ describe('renames', () => {
   });
 
   test('an open suggestion survives Save master and the next import, and still waits', async () => {
-    const t = await renamedStore();
-    await t.store.dispatch(saveMaster()).unwrap();
-    const master: unknown = JSON.parse(must(t.downloads[1]).text);
-    t.setNow('2026-10-29T12:00:00.000Z');
-    await t.store
+    const setup = await renamedStore();
+    await setup.store.dispatch(saveMaster()).unwrap();
+    const master: unknown = JSON.parse(must(setup.downloads[1]).text);
+    setup.setNow('2026-10-29T12:00:00.000Z');
+    await setup.store
       .dispatch(
         importPrepared(
           prepared({
@@ -1042,50 +1065,50 @@ describe('renames', () => {
         ),
       )
       .unwrap();
-    expect(account(t, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
-    expect(pairs(t.store.getState())).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
+    expect(account(setup, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
+    expect(pairs(setup.store.getState())).toEqual([{ from: 'carol', to: 'carol_2', at: RenameState.WAITING }]);
   });
 });
 
 describe('selectors', () => {
   test('To do opens on the first tab with work left, else the first with done plans, else Unfollow', async () => {
-    const t = await importedStore();
-    const start = () => selectTodoStartView(t.store.getState());
+    const setup = await importedStore();
+    const start = () => selectTodoStartView(setup.store.getState());
     expect(start()).toBe(LIST_VIEWS.TO_UNFOLLOW); // nothing queued
-    t.store.dispatch(setPlan({ username: 'dave', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
+    setup.store.dispatch(setPlan({ username: 'dave', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
     expect(start()).toBe(LIST_VIEWS.TO_REMOVE); // only done plans, all in Remove follower
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.DONE }));
     expect(start()).toBe(LIST_VIEWS.TO_UNFOLLOW); // done plans in both: the first
-    t.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
     expect(start()).toBe(LIST_VIEWS.TO_REMOVE); // work left wins over done
   });
 
   test('visible accounts follow scope, decision, tag and search, sorted by username', async () => {
-    const t = await importedStore();
-    const keys = () => selectVisibleAccountKeys(t.store.getState());
+    const setup = await importedStore();
+    const keys = () => selectVisibleAccountKeys(setup.store.getState());
     expect(keys()).toEqual(['alice', 'bob', 'carol']); // I follow
 
-    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS));
+    setup.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS));
     expect(keys()).toEqual(['alice', 'dave']);
-    t.store.dispatch(setScope(REVIEW_SCOPES.ALL_CURRENT));
-    t.store.dispatch(toggleTag({ username: 'dave', tag: 'artist' }));
-    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'artist' }));
+    setup.store.dispatch(setScope(REVIEW_SCOPES.ALL_CURRENT));
+    setup.store.dispatch(toggleTag({ username: 'dave', tag: 'artist' }));
+    setup.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'artist' }));
     expect(keys()).toEqual(['dave']);
-    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
+    setup.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
     expect(keys()).toEqual(['alice', 'carol']);
-    t.store.dispatch(setQuery(' CAR '));
+    setup.store.dispatch(setQuery(' CAR '));
     expect(keys()).toEqual(['carol']);
   });
 
   test('Changes sections list what changed since the imported master was saved, regardless of scope', async () => {
-    const t = await importedStore();
-    await t.store.dispatch(saveMaster()).unwrap(); // saved at 12:00
-    const saved = JSON.parse(must(t.downloads[0]).text) as unknown;
+    const setup = await importedStore();
+    await setup.store.dispatch(saveMaster()).unwrap(); // saved at 12:00
+    const saved = JSON.parse(must(setup.downloads[0]).text) as unknown;
     const afterSave = Date.parse('2026-10-27T12:30:00.000Z') / 1000;
-    t.setNow('2026-10-27T13:00:00.000Z');
-    await t.store
+    setup.setNow('2026-10-27T13:00:00.000Z');
+    await setup.store
       .dispatch(
         importPrepared(
           prepared({
@@ -1097,14 +1120,14 @@ describe('selectors', () => {
       )
       .unwrap();
 
-    t.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS)); // the Review list doesn't narrow Changes
-    expect(selectChangeSections(t.store.getState())).toEqual({
+    setup.store.dispatch(setScope(REVIEW_SCOPES.FOLLOWERS)); // the Review list doesn't narrow Changes
+    expect(selectChangeSections(setup.store.getState())).toEqual({
       [FOLLOW_CHANGES.NEW_FOLLOWS]: ['erin'],
       [FOLLOW_CHANGES.UNFOLLOWED]: ['bob', 'carol'],
       [FOLLOW_CHANGES.NEW_FOLLOWERS]: ['erin'],
       [FOLLOW_CHANGES.LOST_FOLLOWERS]: ['dave'],
     });
-    expect(selectFollowChangeCounts(t.store.getState())).toEqual({
+    expect(selectFollowChangeCounts(setup.store.getState())).toEqual({
       [FOLLOW_CHANGES.NEW_FOLLOWS]: 1,
       [FOLLOW_CHANGES.UNFOLLOWED]: 2,
       [FOLLOW_CHANGES.NEW_FOLLOWERS]: 1,
@@ -1113,30 +1136,30 @@ describe('selectors', () => {
   });
 
   test('To do tabs list their plans, queued first, then done; Review filters do not apply', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.DONE }));
-    t.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setPlan({ username: 'carol', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setPlan({ username: 'dave', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
-    t.store.dispatch(setQuery('zzz')); // matches nobody
-    t.store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
-    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(['bob', 'carol', 'alice']);
-    t.store.dispatch(setView(LIST_VIEWS.TO_REMOVE));
-    expect(selectVisibleAccountKeys(t.store.getState())).toEqual(['dave']);
+    const setup = await importedStore();
+    setup.store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.DONE }));
+    setup.store.dispatch(setPlan({ username: 'bob', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setPlan({ username: 'carol', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setPlan({ username: 'dave', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    setup.store.dispatch(setQuery('zzz')); // matches nobody
+    setup.store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW));
+    expect(selectVisibleAccountKeys(setup.store.getState())).toEqual(['bob', 'carol', 'alice']);
+    setup.store.dispatch(setView(LIST_VIEWS.TO_REMOVE));
+    expect(selectVisibleAccountKeys(setup.store.getState())).toEqual(['dave']);
   });
 
   test('editing one account keeps the list array and other accounts referentially stable', async () => {
-    const t = await importedStore();
-    const before = t.store.getState();
-    t.store.dispatch(setNote({ username: 'bob', note: 'x' }));
-    const after = t.store.getState();
+    const setup = await importedStore();
+    const before = setup.store.getState();
+    setup.store.dispatch(setNote({ username: 'bob', note: 'x' }));
+    const after = setup.store.getState();
     expect(selectVisibleAccountKeys(after)).toBe(selectVisibleAccountKeys(before));
     expect(selectAccount(after, 'alice')).toBe(selectAccount(before, 'alice'));
     expect(selectAccount(after, 'bob')).not.toBe(selectAccount(before, 'bob'));
   });
 
   test('per-list totals count each list whatever the other filters; edits never change them', async () => {
-    const t = await importedStore(); // following Alice, bob, carol; followers alice, dave
+    const setup = await importedStore(); // following Alice, bob, carol; followers alice, dave
     const totals = {
       [REVIEW_SCOPES.FOLLOWING]: 3,
       [REVIEW_SCOPES.FOLLOWERS]: 2,
@@ -1146,17 +1169,17 @@ describe('selectors', () => {
       [REVIEW_SCOPES.ALL_CURRENT]: 4,
       [REVIEW_SCOPES.ALL_ACCOUNTS]: 4,
     };
-    expect(selectScopeTotals(t.store.getState())).toEqual(totals);
-    t.store.dispatch(setKept({ username: 'bob', kept: true }));
-    t.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
-    t.store.dispatch(setDecisionFilter(DecisionFilter.KEPT));
-    expect(selectScopeTotals(t.store.getState())).toEqual(totals);
+    expect(selectScopeTotals(setup.store.getState())).toEqual(totals);
+    setup.store.dispatch(setKept({ username: 'bob', kept: true }));
+    setup.store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
+    setup.store.dispatch(setDecisionFilter(DecisionFilter.KEPT));
+    expect(selectScopeTotals(setup.store.getState())).toEqual(totals);
   });
 
   test('the matching count reads any filters (the Filter popup draft) and leaves the list alone', async () => {
-    const t = await importedStore();
-    t.store.dispatch(setKept({ username: 'alice', kept: true }));
-    const state = t.store.getState();
+    const setup = await importedStore();
+    setup.store.dispatch(setKept({ username: 'alice', kept: true }));
+    const state = setup.store.getState();
     const draft = (choice: Partial<typeof state.filters>) =>
       selectMatchingCount(state, { ...state.filters, ...choice });
     expect(draft({})).toBe(3); // Following, as shown
@@ -1167,8 +1190,8 @@ describe('selectors', () => {
   });
 
   test('selector results are read-only at compile time', async () => {
-    const t = await importedStore();
-    const alice = account(t, 'alice');
+    const setup = await importedStore();
+    const alice = account(setup, 'alice');
     expect(() => {
       // @ts-expect-error state handed to components must not be writable
       alice.review.unavailable = true;

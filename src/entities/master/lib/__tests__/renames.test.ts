@@ -25,7 +25,9 @@ const asFile = (master: Master): unknown => JSON.parse(stringifyMasterFile(toMas
 /** Account key → open rename suggestion, for every account that has one. */
 function suggestions({ master }: ImportResult) {
   return Object.fromEntries(
-    Object.entries(master.accounts).flatMap(([key, a]) => (a.renameSuggestion ? [[key, a.renameSuggestion]] : [])),
+    Object.entries(master.accounts).flatMap(([key, account]) =>
+      account.renameSuggestion ? [[key, account.renameSuggestion]] : [],
+    ),
   );
 }
 

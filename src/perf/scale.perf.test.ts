@@ -42,9 +42,9 @@ function exportTexts(total: number, seed = 0) {
     string_list_data: [{ href: `https://www.instagram.com/_u/${name(i)}`, timestamp: 1_600_000_000 + i }],
   }));
   const followerCount = total - INSTAGRAM_FOLLOWING_CAP + MUTUAL;
-  const followers = Array.from({ length: followerCount }, (_, k) => {
+  const followers = Array.from({ length: followerCount }, (_, index) => {
     // seed shifts followers to simulate change
-    const i = k < MUTUAL ? k : INSTAGRAM_FOLLOWING_CAP + (k - MUTUAL) + seed;
+    const i = index < MUTUAL ? index : INSTAGRAM_FOLLOWING_CAP + (index - MUTUAL) + seed;
     return {
       title: '',
       media_list_data: [],
@@ -135,7 +135,7 @@ async function run(total: number) {
     (_, i) => time(() => store.dispatch(setNote({ username: someone, note: 'typing…'.slice(0, i % 8) })))[1],
   );
   store.dispatch(setNote({ username: someone, note: 'typing…' }));
-  const editMs = keystrokes.sort((a, b) => a - b)[10] ?? 0;
+  const editMs = keystrokes.sort((left, right) => left - right)[10] ?? 0;
   const [, listMs] = time(() => store.dispatch(setQuery('a'))); // the list refreshes only on filter changes like this
   // To do: opening the Unfollow tab refreshes its list; marking a row done is one edit plus the progress counts.
   const [, todoOpenMs] = time(() => store.dispatch(setView(LIST_VIEWS.TO_UNFOLLOW)));
@@ -193,23 +193,23 @@ async function run(total: number) {
 }
 
 test('100k accounts: fast', { timeout: 120_000 }, async () => {
-  const t = await run(100_000);
-  expect(t['one edit: reducer']).toBeLessThan(5);
-  expect(t['one edit: stats']).toBeLessThan(5);
-  expect(t['one edit: unsaved changes list']).toBeLessThan(5);
-  expect(t['one edit: storage write']).toBeLessThan(50);
-  expect(t['filter change: refresh list']).toBeLessThan(50);
-  expect(t['open To do: refresh its list']).toBeLessThan(50);
-  expect(t['To do: mark done + progress']).toBeLessThan(5);
-  expect(t['tag rename: unsaved changes popup']).toBeLessThan(200);
-  expect(t['import (merge, settle plans)']).toBeLessThan(5_000);
-  expect(t['save (serialize master)']).toBeLessThan(2_000);
-  expect(t['reload restore']).toBeLessThan(3_000);
+  const timings = await run(100_000);
+  expect(timings['one edit: reducer']).toBeLessThan(5);
+  expect(timings['one edit: stats']).toBeLessThan(5);
+  expect(timings['one edit: unsaved changes list']).toBeLessThan(5);
+  expect(timings['one edit: storage write']).toBeLessThan(50);
+  expect(timings['filter change: refresh list']).toBeLessThan(50);
+  expect(timings['open To do: refresh its list']).toBeLessThan(50);
+  expect(timings['To do: mark done + progress']).toBeLessThan(5);
+  expect(timings['tag rename: unsaved changes popup']).toBeLessThan(200);
+  expect(timings['import (merge, settle plans)']).toBeLessThan(5_000);
+  expect(timings['save (serialize master)']).toBeLessThan(2_000);
+  expect(timings['reload restore']).toBeLessThan(3_000);
 });
 
 test('500k accounts: still works', { timeout: 600_000 }, async () => {
-  const t = await run(500_000);
-  expect(t['one edit: reducer']).toBeLessThan(25);
-  expect(t['one edit: stats']).toBeLessThan(25);
-  expect(t['import (merge, settle plans)']).toBeLessThan(30_000);
+  const timings = await run(500_000);
+  expect(timings['one edit: reducer']).toBeLessThan(25);
+  expect(timings['one edit: stats']).toBeLessThan(25);
+  expect(timings['import (merge, settle plans)']).toBeLessThan(30_000);
 });

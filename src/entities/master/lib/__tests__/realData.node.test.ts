@@ -24,8 +24,8 @@ describe.skipIf(!realData)('your real data (local only)', () => {
   const read = (path: string): unknown => JSON.parse(text(path));
   const followerNames = () =>
     readdirSync(join(ROOT, 'connections'))
-      .filter(n => /^followers_\d+\.json$/.test(n))
-      .sort((a, b) => parseInt(a.slice(10)) - parseInt(b.slice(10)));
+      .filter(fileName => /^followers_\d+\.json$/.test(fileName))
+      .sort((first, second) => parseInt(first.slice(10)) - parseInt(second.slice(10)));
   const bundle = (following: unknown, followerRaws: unknown[]) => ({
     following: parseFollowingJson(following),
     followers: followerRaws.flatMap(parseFollowersJson),
@@ -36,7 +36,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     const sameExport = () =>
       bundle(
         read('connections/following.json'),
-        followerNames().map(n => read(`connections/${n}`)),
+        followerNames().map(fileName => read(`connections/${fileName}`)),
       );
     const first = importExport(read(MASTER), sameExport(), NOW);
     expect(first.exportChanged).toBe(false);
@@ -61,7 +61,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
     const master = read(MASTER);
     const planned = new Set(
       Object.entries(parseMaster(master).accounts)
-        .filter(([, a]) => planOf(a, ACTION_TYPES.UNFOLLOW) !== undefined)
+        .filter(([, account]) => planOf(account, ACTION_TYPES.UNFOLLOW) !== undefined)
         .map(([key]) => key),
     );
     expect(planned.size).toBeGreaterThan(0);
@@ -71,7 +71,7 @@ describe.skipIf(!realData)('your real data (local only)', () => {
       item => !planned.has(usernameKey(item.title)),
     );
     const followerRaws = followerNames().map(
-      n => read(`connections/${n}`) as { string_list_data: { value: string }[] }[],
+      fileName => read(`connections/${fileName}`) as { string_list_data: { value: string }[] }[],
     );
     const left = (followerRaws[0] ?? []).slice(0, 3).map(item => usernameKey(must(item.string_list_data[0]).value));
     followerRaws[0] = (followerRaws[0] ?? []).slice(3);
