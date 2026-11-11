@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { addressChanged } from '@/app/url/urlSync.ts';
-import { selectHasData, restoreBackup, LIST_VIEWS, isPlanView } from '@/entities/master';
+import { selectHasData, restoreBackup } from '@/entities/master';
+import { LIST_VIEWS, isPlanView } from '@/features/filters';
 import { ChangesPage } from '@/pages/changes';
 import { ImportHero, ImportScreen, type HowItWorksSeen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';

@@ -12,14 +12,16 @@ import {
   sameKeys,
   selectAccountLookup,
   selectSortedKeys,
-  LIST_VIEWS,
-  PLAN_VIEW_ACTIONS,
-  isPlanView,
+  selectTodoStartAction,
 } from '@/entities/master';
 
 import type { FiltersState } from './filtersSlice.ts';
+import { LIST_VIEWS, PLAN_VIEW_ACTIONS, ACTION_PLAN_VIEWS, isPlanView, type PlanView } from './views.ts';
 
 export const selectFilters = (s: RootState) => s.filters;
+
+/** The To do tab to open: the one of the action selectTodoStartAction picks. */
+export const selectTodoStartView = (state: RootState): PlanView => ACTION_PLAN_VIEWS[selectTodoStartAction(state)];
 
 /**
  * Whether the account is listed with these filters. Review: its list (scope), decision, tag and search. Changes

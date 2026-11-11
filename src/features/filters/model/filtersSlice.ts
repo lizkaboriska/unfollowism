@@ -6,10 +6,10 @@ import {
   TAG_FILTER_KINDS,
   type ReviewScope,
   type TagFilter,
-  LIST_VIEWS,
-  type ListView,
   renameTag,
 } from '@/entities/master';
+
+import { LIST_VIEWS, type ListView } from './views.ts';
 
 export interface FiltersState {
   scope: ReviewScope;

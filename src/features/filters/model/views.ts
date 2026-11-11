@@ -1,6 +1,5 @@
+import { ACTION_TYPE_ORDER, ACTION_TYPES, type ActionType } from '@/entities/master';
 import type { ValueOf } from '@/shared/lib/valueOf.ts';
-
-import { ACTION_TYPES, type ActionType } from '../lib/types.ts';
 
 /**
  * Which page the main view shows: the review queue, what changed since the last save (its own sections, not a
@@ -28,7 +27,7 @@ export const ACTION_PLAN_VIEWS = {
 } as const satisfies Record<ActionType, PlanView>;
 
 /** The lists of the To do page, in display order. */
-export const TODO_VIEWS: readonly PlanView[] = Object.values(ACTION_PLAN_VIEWS);
+export const TODO_VIEWS: readonly PlanView[] = ACTION_TYPE_ORDER.map(type => ACTION_PLAN_VIEWS[type]);
 
 export function isPlanView(view: ListView): view is PlanView {
   return Object.hasOwn(PLAN_VIEW_ACTIONS, view);

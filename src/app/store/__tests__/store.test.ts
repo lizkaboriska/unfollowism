@@ -14,12 +14,10 @@ import {
   selectRenamePairs,
   RenameMatch,
   RenameState,
-  selectTodoStartView,
   STATUS_EVENTS,
   importPrepared,
   restoreBackup,
   saveMaster,
-  LIST_VIEWS,
 } from '@/entities/master';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { isKept, planOf } from '@/entities/master/lib/decision.ts';
@@ -51,7 +49,7 @@ import {
 } from '@/entities/master/model/masterSlice.ts';
 import { RETRY_DELAYS_MS, persistenceStopped } from '@/entities/master/model/persistence.ts';
 import { selectScopeTotals } from '@/entities/master/model/selectors.ts';
-import { selectListKeys } from '@/features/filters';
+import { selectListKeys, LIST_VIEWS } from '@/features/filters';
 import {
   applyFilters,
   clearFilters,
@@ -61,7 +59,11 @@ import {
   setTagFilter,
   setView,
 } from '@/features/filters/model/filtersSlice.ts';
-import { selectVisibleAccountKeys, selectMatchingCount } from '@/features/filters/model/selectors.ts';
+import {
+  selectVisibleAccountKeys,
+  selectMatchingCount,
+  selectTodoStartView,
+} from '@/features/filters/model/selectors.ts';
 
 import type { RootState } from '../store.ts';
 
