@@ -1,24 +1,19 @@
 import { Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
-import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useId, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 import {
   IMPORT_STATUSES,
   IMPORT_WARNINGS,
-  ImportError,
-  analyzeImport,
-  errorMessage,
-  importPrepared,
   selectIsDirty,
-  type ImportSelection,
   type ImportWarning,
   type LastSavedStore,
 } from '@/entities/master';
-import { loadZipLibrary, readInputs, type InputText } from '@/shared/lib/readInputs.ts';
-import { reloadOnce } from '@/shared/lib/reloadOnce.ts';
-import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { TextButton } from '@/shared/ui/TextButton.tsx';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
+
+import { useImportSelection, type ImportFailure } from '../model/useImportSelection.ts';
 
 import { ExportReadyBox } from './ExportReadyBox.tsx';
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
@@ -26,30 +21,9 @@ import { HowItWorksView } from './howItWorksView.ts';
 import { importProblemText } from './importProblemText.ts';
 import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
 
-/** One file the user chose (a .zip counts as one), with the text files read from it. */
-interface ChosenFile {
-  /** Name + size + modified time: choosing the same file again is ignored. */
-  id: string;
-  name: string;
-  size: number;
-  lastModified: number;
-  inputs: InputText[];
-  /** Why the file couldn't be read (e.g. a broken zip); it then contributes nothing. */
-  readError: string | null;
-}
-
-async function readChosen(file: File): Promise<ChosenFile> {
-  const base = {
-    id: `${file.name}:${file.size}:${file.lastModified}`,
-    name: file.name,
-    size: file.size,
-    lastModified: file.lastModified,
-  };
-  try {
-    return { ...base, inputs: await readInputs([file]), readError: null };
-  } catch (e) {
-    return { ...base, inputs: [], readError: errorMessage(e) };
-  }
+/** A failure as shown to the user. */
+function failureText(failure: ImportFailure): string {
+  return 'problem' in failure ? importProblemText(failure.problem) : failure.message;
 }
 
 /**
@@ -67,87 +41,32 @@ export function ImportScreen({
   /** Shown as a Cancel button when there is already something loaded to go back to. */
   onCancel?: () => void;
 }) {
-  const dispatch = useAppDispatch();
   const confirm = useConfirm();
   const fileBoxTitleId = useId();
-  const dirty = useAppSelector(selectIsDirty);
+  const isDirty = useAppSelector(selectIsDirty);
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const restoreFailed = useAppSelector(s => s.master.restoreFailed);
+  const {
+    chosen,
+    isReading,
+    selection,
+    selectionFailure,
+    importFailure,
+    masterWarning,
+    masterFileId,
+    choose,
+    remove,
+    clearAll,
+    startImport,
+    dismissWarning,
+  } = useImportSelection(lastSaved);
 
   const fileInput = useRef<HTMLInputElement>(null);
-  const [chosen, setChosen] = useState<readonly ChosenFile[]>([]);
-  const [reading, setReading] = useState(0);
-  const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   /** The How it works popup opened from a missing-files warning's How?; null = closed. */
   const [howView, setHowView] = useState<HowItWorksView | null>(null);
-  /** The selection whose master warning was answered (Start fresh / Use older file); a new selection asks again. */
-  const [warningDismissedFor, setWarningDismissedFor] = useState<readonly ChosenFile[] | null>(null);
   /** Set by "Choose newer master": the file the next pick replaces. */
   const replacing = useRef<string | null>(null);
-
-  useEffect(() => {
-    // Start loading the zip reader now, so it's ready when a file is picked. If it fails (usually a release while this
-    // tab was open removed the old file), reload to get the new release: nothing is picked yet, so nothing is lost.
-    // Within the reload cooldown it stays quiet, and a picked zip then shows its own "couldn't be read" error.
-    loadZipLibrary().catch(() => {
-      reloadOnce();
-    });
-  }, []);
-
-  // Recomputed from all chosen files after every change. A conflict (e.g. two masters) keeps the list so a file can be
-  // removed.
-  // The last save from this browser is read here too, once per change rather than on every render.
-  const { selection, selectionError } = useMemo((): {
-    selection: ImportSelection | null;
-    selectionError: string | null;
-  } => {
-    if (!chosen.length) {
-      return { selection: null, selectionError: null };
-    }
-    try {
-      return {
-        selection: analyzeImport(
-          chosen.flatMap(c => c.inputs),
-          lastSaved.get(),
-        ),
-        selectionError: null,
-      };
-    } catch (e) {
-      return {
-        selection: null,
-        selectionError: e instanceof ImportError ? importProblemText(e.problem) : errorMessage(e),
-      };
-    }
-  }, [chosen, lastSaved]);
-
-  /** Adds the files to the selection; `replaceId` (a chosen file) is removed at the same time. */
-  async function choose(files: File[], replaceId: string | null = null) {
-    if (!files.length) {
-      return;
-    }
-    setImportError(null);
-    setReading(n => n + 1);
-    try {
-      const read = await Promise.all(files.map(readChosen));
-      setChosen(current => {
-        const next = current.filter(c => c.id !== replaceId);
-        for (const file of read) {
-          if (!next.some(c => c.id === file.id)) {
-            next.push(file);
-          }
-        }
-        return next;
-      });
-    } finally {
-      setReading(n => n - 1);
-    }
-  }
-
-  function remove(id: string) {
-    setImportError(null);
-    setChosen(current => current.filter(c => c.id !== id));
-  }
 
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     const files = [...(event.target.files ?? [])];
@@ -170,11 +89,10 @@ export function ImportScreen({
   }
 
   async function onImport() {
-    const prepared = selection?.prepared;
-    if (!prepared) {
+    if (!selection?.prepared) {
       return;
     }
-    if (dirty) {
+    if (isDirty) {
       const discard = await confirm({
         title: 'Discard unsaved changes?',
         body:
@@ -187,12 +105,8 @@ export function ImportScreen({
         return;
       }
     }
-    setImportError(null);
-    const result = await dispatch(importPrepared(prepared));
-    if (importPrepared.fulfilled.match(result)) {
+    if (await startImport()) {
       onImported();
-    } else {
-      setImportError(result.payload ? importProblemText(result.payload) : errorMessage(result.error));
     }
   }
 
@@ -200,7 +114,6 @@ export function ImportScreen({
   const missing = selection && missingWarning(selection.recognized);
   // Exactly one of Following / Followers is there.
   const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
-  const masterPath = master?.path;
   const drop = {
     dragging,
     onDragOver: (e: DragEvent) => {
@@ -214,11 +127,6 @@ export function ImportScreen({
       }
     },
     onDrop,
-  };
-  const masterWarning = warningDismissedFor === chosen ? null : (selection?.prepared?.warnings[0] ?? null);
-  const masterFileId = chosen.find(c => c.inputs.some(i => i.path === masterPath))?.id ?? null;
-  const dismissWarning = () => {
-    setWarningDismissedFor(chosen);
   };
 
   return (
@@ -285,7 +193,7 @@ export function ImportScreen({
           <Button
             w="full"
             mt="2"
-            loading={reading > 0}
+            loading={isReading}
             loadingText="Reading files…"
             onClick={() => {
               pickFiles();
@@ -321,14 +229,14 @@ export function ImportScreen({
           setHowView(null);
         }}
       />
-      {selectionError && (
+      {selectionFailure && (
         <Warning title="These files can't be used" status="error">
-          {selectionError}
+          {failureText(selectionFailure)}
         </Warning>
       )}
-      {importError && (
+      {importFailure && (
         <Warning title="Import failed" status="error">
-          {importError}
+          {failureText(importFailure)}
         </Warning>
       )}
 
@@ -364,7 +272,7 @@ export function ImportScreen({
           </List.Root>
           <HStack gap="2" textStyle="body">
             <TextButton
-              loading={reading > 0}
+              loading={isReading}
               loadingText="Reading files…"
               onClick={() => {
                 pickFiles();
@@ -375,14 +283,7 @@ export function ImportScreen({
             <Text as="span" color="fg.muted" aria-hidden="true">
               ·
             </Text>
-            <TextButton
-              onClick={() => {
-                setChosen([]);
-                setImportError(null);
-              }}
-            >
-              Clear all
-            </TextButton>
+            <TextButton onClick={clearAll}>Clear all</TextButton>
           </HStack>
         </Stack>
       )}
@@ -390,7 +291,7 @@ export function ImportScreen({
       <Stack gap="2" align="center">
         <Button
           w="full"
-          disabled={!selection?.prepared || reading > 0}
+          disabled={!selection?.prepared || isReading}
           loading={importing}
           loadingText="Loading…"
           onClick={() => void onImport()}
