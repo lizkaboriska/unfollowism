@@ -1,16 +1,10 @@
 import { Box, Heading, List, Stack, Text } from '@chakra-ui/react';
-import { useId, type DragEvent, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 
 import { type RecognizedFiles, plural } from '@/entities/master';
 import { formatDate } from '@/shared/lib/dates.ts';
 
-/** Handlers that let files be dropped on a box; `dragging` turns its frame blue. */
-export interface DropTarget {
-  dragging: boolean;
-  onDragOver: (event: DragEvent) => void;
-  onDragLeave: (event: DragEvent) => void;
-  onDrop: (event: DragEvent) => void;
-}
+import type { DropTarget } from '../lib/useDropZone.ts';
 
 /** One line of the box: a mark (✓, ⚠ or –), what it is, and the details under it. */
 function Row({ mark, label, value }: { mark: string; label: string; value: string }) {
@@ -55,13 +49,13 @@ export function ExportReadyBox({
       aria-labelledby={titleId}
       gap="0"
       borderWidth="1px"
-      borderColor={drop.dragging ? 'accent' : 'border'}
+      borderColor={drop.isDragging ? 'accent' : 'border'}
       onDragOver={drop.onDragOver}
       onDragLeave={drop.onDragLeave}
       onDrop={drop.onDrop}
     >
-      <Heading as="h2" id={titleId} textStyle="heading" color={drop.dragging ? 'accent' : 'ink'} px="3" pt="4" pb="3">
-        {drop.dragging ? 'Drop to add' : 'Your files are ready'}
+      <Heading as="h2" id={titleId} textStyle="heading" color={drop.isDragging ? 'accent' : 'ink'} px="3" pt="4" pb="3">
+        {drop.isDragging ? 'Drop to add' : 'Your files are ready'}
       </Heading>
       <List.Root listStyle="none">
         <Row

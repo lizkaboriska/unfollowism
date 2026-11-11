@@ -3,8 +3,9 @@ import { useId, useState } from 'react';
 
 import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
 
+import type { HowItWorksSeen } from '../api/howItWorksSeen.ts';
+
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
-import type { HowItWorksSeen } from './howItWorksSeen.ts';
 import { HowItWorksView } from './howItWorksView.ts';
 
 /**

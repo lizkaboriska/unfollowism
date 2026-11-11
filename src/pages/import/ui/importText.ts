@@ -1,11 +1,13 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '@/entities/master';
 import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
 
+export interface MissingWarning {
+  title: string;
+  body: string;
+}
+
 /** What's missing before the selection can be imported, as a warning. Null when nothing is. */
-export function missingWarning({
-  followingCount,
-  followerFileCount,
-}: RecognizedFiles): { title: string; body: string } | null {
+export function missingWarning({ followingCount, followerFileCount }: RecognizedFiles): MissingWarning | null {
   const hasFollowing = followingCount !== null;
   if (!hasFollowing && !followerFileCount) {
     return {
