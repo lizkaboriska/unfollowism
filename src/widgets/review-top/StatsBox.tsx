@@ -1,8 +1,9 @@
-import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
+import { Box, HStack, SimpleGrid, Text } from '@chakra-ui/react';
 
 import { REVIEW_SCOPES, type ReviewScope, selectRelationshipStats } from '@/entities/master';
 import { setScope } from '@/features/filters';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { TextButton } from '@/shared/ui/TextButton.tsx';
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
@@ -17,20 +18,11 @@ function Stat({ value, label }: { value: number; label: string }) {
 export function StatsBox() {
   const dispatch = useAppDispatch();
   const stats = useAppSelector(selectRelationshipStats);
+  // 6 px wider each side (not 8): the links are 6 px from the dot, so the two tap areas don't touch.
   const link = (scope: ReviewScope, text: string) => (
-    <Button
-      variant="plain"
-      h="auto"
-      minW="0"
-      p="0"
-      textStyle="body"
-      textDecoration="underline"
-      textUnderlineOffset="3px"
-      _hover={{ color: 'accent' }}
-      onClick={() => dispatch(setScope(scope))}
-    >
+    <TextButton px="1.5" mx="-1.5" onClick={() => dispatch(setScope(scope))}>
       {text}
-    </Button>
+    </TextButton>
   );
   return (
     <Box as="section" aria-label="Your numbers" borderWidth="1px">
@@ -39,7 +31,8 @@ export function StatsBox() {
         <Stat value={stats.followers} label="Followers" />
         <Stat value={stats.mutual} label="Mutual" />
       </SimpleGrid>
-      <HStack gap="1.5" p="3" borderTopWidth="1px" wrap="wrap" justify="center">
+      {/* When the line wraps (narrow phone, big numbers), 24 px between lines keeps the tap areas apart. */}
+      <HStack columnGap="1.5" rowGap="6" p="3" borderTopWidth="1px" wrap="wrap" justify="center">
         {link(REVIEW_SCOPES.NOT_FOLLOWING_BACK, `${stats.notFollowingBack} not following back`)}
         <Text aria-hidden>·</Text>
         {link(REVIEW_SCOPES.FOLLOWS_YOU_ONLY, `${stats.followsYouOnly} follow you only`)}
