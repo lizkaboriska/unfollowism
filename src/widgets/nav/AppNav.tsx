@@ -1,10 +1,9 @@
 import { Box, Button, Text } from '@chakra-ui/react';
 
-import { selectTodoStartView, setView, LIST_VIEWS, TODO_VIEWS, isPlanView } from '@/features/filters';
+import { selectTodoStartView, setView, useTodoCount, LIST_VIEWS, TODO_VIEWS, isPlanView } from '@/features/filters';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { useChangesTotal } from './useChangesTotal.ts';
-import { useTodoCount } from './useTodoCount.ts';
 
 function NavItem({
   label,
