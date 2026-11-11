@@ -3,6 +3,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+import { sameKeys } from '@/shared/lib/sameKeys.ts';
 
 import { accountOf, type ChangedAccounts } from '../lib/account.ts';
 import { countPlans, planStats, type PlanStats } from '../lib/actions.ts';
@@ -37,10 +38,6 @@ type RChanged = DeepReadonly<ChangedAccounts>;
 
 const EMPTY_ACCOUNTS: ReadonlyAccounts = Object.freeze(createDict<Account>());
 const EMPTY_KEYS: readonly string[] = Object.freeze([]);
-
-export function sameKeys(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((key, i) => key === b[i]);
-}
 
 export const selectChanged = (s: RootState): RChanged => s.master.changed;
 const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;

@@ -8,8 +8,8 @@ import {
   DECISION_FILTER_LABELS,
   SCOPE_LABELS,
   tagFilterLabel,
-  plural,
 } from '@/entities/master';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { NO_FILTERS, clearFilters, setDecisionFilter, setQuery, setTagFilter } from '../model/filtersSlice.ts';

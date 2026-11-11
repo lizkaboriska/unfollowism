@@ -11,10 +11,10 @@ import {
   selectHasBeenSaved,
   selectIsDirty,
   selectUnsavedAccountCount,
-  plural,
 } from '@/entities/master';
 import { ResetButton, SaveButton } from '@/features/save-reset';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { TextButton } from '@/shared/ui/TextButton.tsx';
 

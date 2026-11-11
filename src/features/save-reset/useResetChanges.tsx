@@ -1,6 +1,7 @@
 import { Stack, Text } from '@chakra-ui/react';
 
-import { resetChanges, selectHasBeenSaved, selectIsSaving, selectUnsavedAccountCount, plural } from '@/entities/master';
+import { resetChanges, selectHasBeenSaved, selectIsSaving, selectUnsavedAccountCount } from '@/entities/master';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 

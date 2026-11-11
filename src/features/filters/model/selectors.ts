@@ -9,11 +9,11 @@ import {
   scopeMatches,
   tagMatches,
   type ReadonlyAccount,
-  sameKeys,
   selectAccountLookup,
   selectSortedKeys,
   selectTodoStartAction,
 } from '@/entities/master';
+import { sameKeys } from '@/shared/lib/sameKeys.ts';
 
 import type { FiltersState } from './filtersSlice.ts';
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, ACTION_PLAN_VIEWS, isPlanView, type PlanView } from './views.ts';

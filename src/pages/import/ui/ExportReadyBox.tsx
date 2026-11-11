@@ -1,8 +1,9 @@
 import { Box, Heading, List, Stack, Text } from '@chakra-ui/react';
 import { useId, type ReactNode } from 'react';
 
-import { type RecognizedFiles, plural } from '@/entities/master';
+import type { RecognizedFiles } from '@/entities/master';
 import { formatDate } from '@/shared/lib/dates.ts';
+import { plural } from '@/shared/lib/plural.ts';
 
 import type { DropTarget } from '../lib/useDropZone.ts';
 

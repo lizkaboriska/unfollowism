@@ -10,10 +10,10 @@ import {
   selectImportedAt,
   selectRelationshipStats,
   CHANGE_SECTION_TITLES,
-  plural,
 } from '@/entities/master';
 import { AccountPopup } from '@/features/account-popup';
 import { formatDate } from '@/shared/lib/dates.ts';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { ChangeRow } from './ChangeRow.tsx';

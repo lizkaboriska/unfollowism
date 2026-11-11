@@ -11,8 +11,8 @@ import {
   DECISION_FILTER_LABELS,
   SCOPE_LABELS,
   tagFilterLabel,
-  plural,
 } from '@/entities/master';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { TextButton } from '@/shared/ui/TextButton.tsx';
 
