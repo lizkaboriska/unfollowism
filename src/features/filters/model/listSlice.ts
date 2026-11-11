@@ -2,7 +2,7 @@ import { createSlice, type ListenerMiddlewareInstance, type PayloadAction } from
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { confirmRename, resetChanges } from '@/entities/master';
+import { confirmRename, hasNewData, resetChanges } from '@/entities/master';
 
 import { selectVisibleAccountKeys } from './selectors.ts';
 
@@ -35,7 +35,7 @@ export function startListRefresh(listener: ListenerMiddlewareInstance<RootState,
   listener.startListening({
     predicate: (action, current, previous) =>
       current.filters !== previous.filters ||
-      current.master.base !== previous.master.base ||
+      hasNewData(current, previous) ||
       resetChanges.match(action) ||
       confirmRename.match(action),
     effect: (_action, api) => {

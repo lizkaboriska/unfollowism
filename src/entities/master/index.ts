@@ -63,6 +63,8 @@ export {
   toggleTag,
 } from './model/masterSlice.ts';
 export {
+  hasAccountChanges,
+  hasNewData,
   sameKeys,
   selectAccount,
   selectAccountLookup,

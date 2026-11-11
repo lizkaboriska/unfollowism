@@ -48,6 +48,16 @@ export const selectAccount = (s: RootState, key: string): ReadonlyAccount | unde
   s.master.base ? accountOf<ReadonlyAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
+/** For listeners: new data was loaded (an import, or a restore after a reload) between these two states. */
+export function hasNewData(current: RootState, previous: RootState): boolean {
+  return current.master.base !== previous.master.base;
+}
+
+/** For listeners: an account changed between these two states (new data, or an edit). */
+export function hasAccountChanges(current: RootState, previous: RootState): boolean {
+  return hasNewData(current, previous) || current.master.changed !== previous.master.changed;
+}
+
 /** Finds an account by key: the imported one, or its edited version (undefined once removed). */
 export type AccountLookup = (key: string) => ReadonlyAccount | undefined;
 

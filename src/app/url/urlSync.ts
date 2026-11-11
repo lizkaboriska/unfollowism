@@ -2,7 +2,7 @@ import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { selectTodoStartView, restoreBackup, LIST_VIEWS } from '@/entities/master';
+import { selectHasProject, selectTodoStartView, restoreBackup, LIST_VIEWS } from '@/entities/master';
 import { setView, showUrlFilters } from '@/features/filters';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 
@@ -73,7 +73,7 @@ export function startUrlSync(
   listener.startListening({
     actionCreator: addressChanged,
     effect: (_action, api) => {
-      if (!restored || !api.getState().master.base) {
+      if (!restored || !selectHasProject(api.getState())) {
         return; // Welcome stays until there is work to show
       }
       const { pathname, search } = address.read();
