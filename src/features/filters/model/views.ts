@@ -1,6 +1,5 @@
+import { ACTION_TYPE_ORDER, ACTION_TYPES, type ActionType } from '@/entities/master';
 import type { ValueOf } from '@/shared/lib/valueOf.ts';
-
-import { ACTION_TYPE_ORDER, ACTION_TYPES, type ActionType } from '../lib/types.ts';
 
 /**
  * Which page the main view shows: the review queue, what changed since the last save (its own sections, not a

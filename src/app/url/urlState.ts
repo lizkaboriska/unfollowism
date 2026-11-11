@@ -1,13 +1,5 @@
-import {
-  DecisionFilter,
-  REVIEW_SCOPES,
-  TAG_FILTER_KINDS,
-  type ReviewScope,
-  type TagFilter,
-  LIST_VIEWS,
-  type ListView,
-} from '@/entities/master';
-import { NO_FILTERS, type FiltersState } from '@/features/filters';
+import { DecisionFilter, REVIEW_SCOPES, TAG_FILTER_KINDS, type ReviewScope, type TagFilter } from '@/entities/master';
+import { NO_FILTERS, type FiltersState, LIST_VIEWS, type ListView } from '@/features/filters';
 
 // The page lives in the path; Review's list and filters in the search params, only on Review's path.
 // Defaults are left out, so a plain Review is just "/". Values are kebab-case, as URLs usually are.

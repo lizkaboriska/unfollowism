@@ -22,6 +22,7 @@ export {
 } from './lib/sessionDiff.ts';
 export { findTag } from './lib/tags.ts';
 export {
+  ACTION_TYPE_ORDER,
   ACTION_TYPES,
   type ActionType,
   type Decision,
@@ -94,15 +95,6 @@ export {
 export { IMPORT_STATUSES, SAVE_STATUSES, STATUS_EVENTS } from './model/statuses.ts';
 export { importPrepared, restoreBackup, saveMaster } from './model/thunks.ts';
 export { persistenceStopped, startPersistence } from './model/persistence.ts';
-export {
-  ACTION_PLAN_VIEWS,
-  isPlanView,
-  LIST_VIEWS,
-  type ListView,
-  PLAN_VIEW_ACTIONS,
-  type PlanView,
-  TODO_VIEWS,
-} from './model/views.ts';
 
 // ui
 export { KeepButton, ReviewCard } from './ui/ReviewCard.tsx';

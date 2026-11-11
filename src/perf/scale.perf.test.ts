@@ -17,7 +17,6 @@ import {
   importPrepared,
   restoreBackup,
   saveMaster,
-  LIST_VIEWS,
 } from '@/entities/master';
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
@@ -26,7 +25,7 @@ import { importExport } from '@/entities/master/lib/merge.ts';
 import { TagChangeKind, groupSessionChanges } from '@/entities/master/lib/sessionDiff.ts';
 import { ACTION_TYPES, DecisionKind, PLAN_STATES } from '@/entities/master/lib/types.ts';
 import { selectScopeTotals } from '@/entities/master/model/selectors.ts';
-import { selectListKeys } from '@/features/filters';
+import { selectListKeys, LIST_VIEWS } from '@/features/filters';
 import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
 import { selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';

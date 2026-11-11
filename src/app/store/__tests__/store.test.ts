@@ -18,7 +18,6 @@ import {
   importPrepared,
   restoreBackup,
   saveMaster,
-  LIST_VIEWS,
 } from '@/entities/master';
 import { must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { isKept, planOf } from '@/entities/master/lib/decision.ts';
@@ -50,7 +49,7 @@ import {
 } from '@/entities/master/model/masterSlice.ts';
 import { RETRY_DELAYS_MS, persistenceStopped } from '@/entities/master/model/persistence.ts';
 import { selectScopeTotals } from '@/entities/master/model/selectors.ts';
-import { selectListKeys } from '@/features/filters';
+import { selectListKeys, LIST_VIEWS } from '@/features/filters';
 import {
   applyFilters,
   clearFilters,

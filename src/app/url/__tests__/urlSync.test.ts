@@ -12,8 +12,8 @@ import {
   toggleTag,
   importPrepared,
   restoreBackup,
-  LIST_VIEWS,
 } from '@/entities/master';
+import { LIST_VIEWS } from '@/features/filters';
 import { setQuery, setScope, setView } from '@/features/filters/model/filtersSlice.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 

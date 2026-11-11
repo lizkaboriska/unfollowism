@@ -1,7 +1,6 @@
 import { Box, Button, Text } from '@chakra-ui/react';
 
-import { LIST_VIEWS, TODO_VIEWS, isPlanView } from '@/entities/master';
-import { selectTodoStartView, setView } from '@/features/filters';
+import { selectTodoStartView, setView, LIST_VIEWS, TODO_VIEWS, isPlanView } from '@/features/filters';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 import { useChangesTotal } from './useChangesTotal.ts';

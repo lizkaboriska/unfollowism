@@ -12,15 +12,11 @@ import {
   sameKeys,
   selectAccountLookup,
   selectSortedKeys,
-  LIST_VIEWS,
-  PLAN_VIEW_ACTIONS,
-  ACTION_PLAN_VIEWS,
-  isPlanView,
   selectTodoStartAction,
-  type PlanView,
 } from '@/entities/master';
 
 import type { FiltersState } from './filtersSlice.ts';
+import { LIST_VIEWS, PLAN_VIEW_ACTIONS, ACTION_PLAN_VIEWS, isPlanView, type PlanView } from './views.ts';
 
 export const selectFilters = (s: RootState) => s.filters;
 
