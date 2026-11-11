@@ -322,10 +322,10 @@ describe('save', () => {
   });
 
   test('a failed download keeps its message, marks nothing saved, and saving works again', async () => {
-    let fail = true;
+    let shouldFail = true;
     const { store } = makeTestStore({
       download: () => {
-        if (fail) {
+        if (shouldFail) {
           throw new Error('Download blocked');
         }
       },
@@ -339,7 +339,7 @@ describe('save', () => {
     });
     expect(selectIsDirty(store.getState())).toBe(true);
 
-    fail = false;
+    shouldFail = false;
     await store.dispatch(saveMaster()).unwrap();
     expect(selectIsDirty(store.getState())).toBe(false);
   });
@@ -447,7 +447,7 @@ describe('reset changes', () => {
     store.dispatch(setNote({ username: 'carol', note: 'after save' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: backup });
+    const reloaded = makeTestStore({ backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(selectUnsavedAccountCount(reloaded.store.getState())).toBe(2);
     reloaded.store.dispatch(resetChanges());
@@ -457,7 +457,7 @@ describe('reset changes', () => {
     expect(selectIsDirty(reloaded.store.getState())).toBe(false);
     await flushPersistence();
 
-    const again = makeTestStore({ backup: backup }); // and the reset itself survives a reload
+    const again = makeTestStore({ backup }); // and the reset itself survives a reload
     await again.store.dispatch(restoreBackup());
     expect(review(again.store, 'carol').notes).toBe('');
     expect(selectIsDirty(again.store.getState())).toBe(false);
@@ -553,7 +553,7 @@ describe('list refresh', () => {
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // bob needs a decision again
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: backup });
+    const reloaded = makeTestStore({ backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(selectListKeys(reloaded.store.getState())).toEqual(['alice', 'bob', 'carol']);
   });
@@ -566,7 +566,7 @@ describe('reload safety net', () => {
     store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: backup });
+    const reloaded = makeTestStore({ backup });
     await reloaded.store.dispatch(restoreBackup());
     const before = store.getState();
     const after = reloaded.store.getState();
@@ -591,7 +591,7 @@ describe('reload safety net', () => {
     });
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: backup });
+    const reloaded = makeTestStore({ backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(reloaded.store.getState().master.importFacts).toEqual(store.getState().master.importFacts);
   });
@@ -608,7 +608,7 @@ describe('reload safety net', () => {
     store.dispatch(setNote({ username: '__proto__', note: 'after save' }));
     await flushPersistence();
 
-    const reloaded = makeTestStore({ backup: backup });
+    const reloaded = makeTestStore({ backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(account(reloaded.store, '__proto__').review).toMatchObject({ tags: ['__proto__'], notes: 'after save' });
     reloaded.store.dispatch(resetChanges());
@@ -1025,13 +1025,13 @@ describe('renames', () => {
   test('an open suggestion survives a reload, and so does a confirmed rename', async () => {
     const { backup } = await renamedStore();
     await flushPersistence();
-    const reloaded = makeTestStore({ backup: backup });
+    const reloaded = makeTestStore({ backup });
     await reloaded.store.dispatch(restoreBackup());
     expect(account(reloaded.store, 'carol').renameSuggestion).toEqual({ to: 'carol_2', plans: [REMOVE_FOLLOWER] });
 
     reloaded.store.dispatch(confirmRename({ from: 'carol' }));
     await flushPersistence();
-    const again = makeTestStore({ backup: backup });
+    const again = makeTestStore({ backup });
     await again.store.dispatch(restoreBackup());
     expect(selectAccount(again.store.getState(), 'carol')).toBeUndefined();
     expect(account(again.store, 'carol_2').review.notes).toBe('old note');

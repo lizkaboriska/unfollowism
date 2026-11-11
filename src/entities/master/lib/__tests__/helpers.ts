@@ -25,13 +25,13 @@ export function account(username = 'alice'): Account {
 export function follows(
   target: Account,
   {
-    following = false,
-    followedBy = false,
+    isFollowing = false,
+    isFollowedBy = false,
     since = 1_700_000_000,
-  }: { following?: boolean; followedBy?: boolean; since?: number | null },
+  }: { isFollowing?: boolean; isFollowedBy?: boolean; since?: number | null },
 ): Account {
-  target.following = following ? { since } : null;
-  target.followedBy = followedBy ? { since } : null;
+  target.following = isFollowing ? { since } : null;
+  target.followedBy = isFollowedBy ? { since } : null;
   return target;
 }
 

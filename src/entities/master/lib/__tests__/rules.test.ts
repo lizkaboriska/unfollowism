@@ -14,9 +14,9 @@ const none = { [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 };
 const accountsOf = (...items: Account[]) => stateWith(...items).accounts;
 
 test('review scopes support overlapping following/follower views', () => {
-  const mutual = follows(account('mutual'), { following: true, followedBy: true });
-  const notBack = follows(account('notback'), { following: true });
-  const followerOnly = follows(account('follower'), { followedBy: true });
+  const mutual = follows(account('mutual'), { isFollowing: true, isFollowedBy: true });
+  const notBack = follows(account('notback'), { isFollowing: true });
+  const followerOnly = follows(account('follower'), { isFollowedBy: true });
 
   expect(scopeMatches(mutual, REVIEW_SCOPES.FOLLOWING)).toBe(true);
   expect(scopeMatches(mutual, REVIEW_SCOPES.FOLLOWERS)).toBe(true);
@@ -28,10 +28,10 @@ test('review scopes support overlapping following/follower views', () => {
 });
 
 test('scope stats count every list, whichever one is shown', () => {
-  const mutual = follows(account('mutual'), { following: true, followedBy: true });
+  const mutual = follows(account('mutual'), { isFollowing: true, isFollowedBy: true });
   keep(mutual);
-  const notBack = follows(account('notback'), { following: true });
-  const followerOnly = follows(account('follower'), { followedBy: true });
+  const notBack = follows(account('notback'), { isFollowing: true });
+  const followerOnly = follows(account('follower'), { isFollowedBy: true });
 
   const state = stateWith(mutual, notBack, followerOnly);
   expect(relationshipStats(state)).toEqual({
@@ -47,7 +47,7 @@ test('scope stats count every list, whichever one is shown', () => {
 // A plan is cleared once the export no longer has the follow; a plan marked done that the
 // export contradicts goes back to planned.
 test('a planned unfollow is the decision, and is completed only once the follow is gone', () => {
-  const user = follows(account(), { following: true });
+  const user = follows(account(), { isFollowing: true });
   const state = stateWith(user);
 
   setPlan(user, UNFOLLOW, PLANNED);
@@ -65,21 +65,21 @@ test('a planned unfollow is the decision, and is completed only once the follow 
 
 test('a done plan leaves the account Kept while you are still connected', () => {
   // A mutual: removed as a follower, still followed (the mixed case set in the popup).
-  const user = follows(account(), { following: true, followedBy: true });
+  const user = follows(account(), { isFollowing: true, isFollowedBy: true });
   setPlan(user, REMOVE_FOLLOWER, PLANNED);
-  follows(user, { following: true });
+  follows(user, { isFollowing: true });
   // Your removal is why they left: it doesn't count as them leaving.
   expect(settleDecisions(stateWith(user), { lostFollowers: new Set(['alice']) }).undecided).toBe(0);
   expect(user.decision).toEqual({ kind: DecisionKind.KEPT });
 });
 
 test('a Kept account that stops following you needs a decision again; one you unfollowed stays Kept', () => {
-  const left = follows(account('left'), { following: true, followedBy: true });
-  const unfollowed = follows(account('unfollowed'), { following: true, followedBy: true });
+  const left = follows(account('left'), { isFollowing: true, isFollowedBy: true });
+  const unfollowed = follows(account('unfollowed'), { isFollowing: true, isFollowedBy: true });
   keep(left);
   keep(unfollowed);
-  follows(left, { following: true });
-  follows(unfollowed, { followedBy: true });
+  follows(left, { isFollowing: true });
+  follows(unfollowed, { isFollowedBy: true });
   const settled = settleDecisions(stateWith(left, unfollowed), { lostFollowers: new Set(['left']) });
   expect(settled.undecided).toBe(1);
   expect(left.decision).toBeUndefined();
@@ -87,9 +87,9 @@ test('a Kept account that stops following you needs a decision again; one you un
 });
 
 test('a queued plan stays when they stop following you', () => {
-  const user = follows(account(), { following: true, followedBy: true });
+  const user = follows(account(), { isFollowing: true, isFollowedBy: true });
   setPlan(user, UNFOLLOW, PLANNED);
-  follows(user, { following: true });
+  follows(user, { isFollowing: true });
   expect(settleDecisions(stateWith(user), { lostFollowers: new Set(['alice']) }).undecided).toBe(0);
   expect(planOf(user, UNFOLLOW)).toBe(PLANNED);
 });
@@ -113,7 +113,7 @@ test('past accounts match only the Any decision filter', () => {
 });
 
 test('remove follower is symmetric to unfollow', () => {
-  const user = follows(account(), { followedBy: true });
+  const user = follows(account(), { isFollowedBy: true });
   setPlan(user, REMOVE_FOLLOWER, PLANNED);
   follows(user, {});
   expect(settleDecisions(stateWith(user)).plans.completed).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 1 });
@@ -121,7 +121,7 @@ test('remove follower is symmetric to unfollow', () => {
 });
 
 test('a plan marked done that the export contradicts goes back to planned', () => {
-  const user = follows(account(), { following: true });
+  const user = follows(account(), { isFollowing: true });
   setPlan(user, UNFOLLOW, DONE);
   expect(settleDecisions(stateWith(user)).plans).toEqual({
     completed: none,
@@ -131,7 +131,7 @@ test('a plan marked done that the export contradicts goes back to planned', () =
 });
 
 test('a plan can be cancelled without affecting account review data', () => {
-  const user = follows(account(), { following: true, followedBy: true });
+  const user = follows(account(), { isFollowing: true, isFollowedBy: true });
   user.review.tags = ['artist'];
   setPlan(user, UNFOLLOW, PLANNED);
   setPlan(user, UNFOLLOW, undefined);
@@ -141,7 +141,7 @@ test('a plan can be cancelled without affecting account review data', () => {
 });
 
 test("marking is idempotent and refuses actions the relationship doesn't allow", () => {
-  const user = follows(account(), { following: true });
+  const user = follows(account(), { isFollowing: true });
   setPlan(user, UNFOLLOW, PLANNED);
   setPlan(user, UNFOLLOW, PLANNED);
   expect(planOf(user, UNFOLLOW)).toBe(PLANNED);
@@ -166,7 +166,7 @@ test('multiple follower export chunks can be parsed and deduplicated case-insens
 });
 
 test('session diff reports only net decision, tag and metadata changes', () => {
-  const alice = follows(account('alice'), { following: true, followedBy: true });
+  const alice = follows(account('alice'), { isFollowing: true, isFollowedBy: true });
   alice.review.tags = ['artist'];
   alice.review.notes = 'before';
   const baseline = accountsOf(alice);
@@ -195,7 +195,7 @@ test('session diff reports only net decision, tag and metadata changes', () => {
 });
 
 test('session diff ignores edits that end back at baseline', () => {
-  const alice = follows(account('alice'), { following: true });
+  const alice = follows(account('alice'), { isFollowing: true });
   alice.review.tags = ['artist'];
   const baseline = accountsOf(alice);
   const current = structuredClone(baseline);
@@ -210,7 +210,7 @@ test('session diff ignores edits that end back at baseline', () => {
 });
 
 test('session diff reports a plan cancelled, done or undone as one decision change', () => {
-  const alice = follows(account('alice'), { following: true, followedBy: true });
+  const alice = follows(account('alice'), { isFollowing: true, isFollowedBy: true });
   setPlan(alice, REMOVE_FOLLOWER, PLANNED);
   setPlan(alice, UNFOLLOW, DONE);
   const baseline = accountsOf(alice);
@@ -237,8 +237,8 @@ test('session diff reports a plan cancelled, done or undone as one decision chan
 });
 
 test('unsaved tag changes are grouped across accounts', () => {
-  const alice = follows(account('alice'), { following: true });
-  const bob = follows(account('bob'), { following: true });
+  const alice = follows(account('alice'), { isFollowing: true });
+  const bob = follows(account('bob'), { isFollowing: true });
   const baseline = accountsOf(alice, bob);
   const current = structuredClone(baseline);
   must(current.alice).review.tags = ['artist'];
@@ -253,10 +253,10 @@ test('unsaved tag changes are grouped across accounts', () => {
 });
 
 test('plan stats count planned and done actions per type', () => {
-  const first = follows(account('a'), { following: true, followedBy: true });
+  const first = follows(account('a'), { isFollowing: true, isFollowedBy: true });
   setPlan(first, UNFOLLOW, PLANNED);
   setPlan(first, REMOVE_FOLLOWER, DONE);
-  const second = follows(account('b'), { following: true });
+  const second = follows(account('b'), { isFollowing: true });
   setPlan(second, UNFOLLOW, DONE);
   expect(planStats(stateWith(first, second))).toEqual({
     [PLANNED]: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },

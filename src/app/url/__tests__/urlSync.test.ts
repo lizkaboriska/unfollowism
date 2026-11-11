@@ -37,7 +37,7 @@ async function reloadAt(url: string, backup: BackupStore) {
   const { store } = makeTestStore({ backup, address });
   address.onBackOrForward(() => store.dispatch(addressChanged())); // as the app does
   await store.dispatch(restoreBackup());
-  return { store: store, address };
+  return { store, address };
 }
 
 describe('URL sync', () => {

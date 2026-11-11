@@ -31,7 +31,7 @@ async function renderApp({
   lastSaved = memoryLastSaved(),
   /** Seen by default, so the How it works popup doesn't cover the screen in every test. */
   howItWorksSeen = memoryHowItWorksSeen(true),
-  waitForRestore = true,
+  waitForRestore: shouldWaitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
   /** Hold it to see the in-between state of an import. */
   nextPaint = realNextPaint,
@@ -62,7 +62,7 @@ async function renderApp({
     </ChakraProvider>,
   );
   // The app first checks the browser backup for work ("Loading your work…").
-  if (waitForRestore) {
+  if (shouldWaitForRestore) {
     await waitFor(() => {
       expect(screen.queryByText('Loading your work…')).not.toBeInTheDocument();
     });
@@ -394,10 +394,10 @@ test('import → review → save works end to end', async () => {
 });
 
 test('a failed save shows a warning that stays until a save works', async () => {
-  let failing = true;
+  let isFailing = true;
   const { downloads, user } = await renderApp({
     beforeDownload: () => {
-      if (failing) {
+      if (isFailing) {
         throw new Error('disk full');
       }
     },
@@ -413,7 +413,7 @@ test('a failed save shows a warning that stays until a save works', async () => 
   expect(screen.queryByText(SAVED_TOAST)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
 
-  failing = false;
+  isFailing = false;
   await user.click(saveButton());
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
   expect(downloads).toHaveLength(1);

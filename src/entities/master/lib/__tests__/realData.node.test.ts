@@ -17,9 +17,9 @@ import { must } from './helpers.ts';
 const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 const NOW = '2030-01-01T00:00:00.000Z';
 const MASTER = 'instagram_master_tracker.json';
-const realData = existsSync(join(ROOT, MASTER)) && existsSync(join(ROOT, 'connections/following.json'));
+const hasRealData = existsSync(join(ROOT, MASTER)) && existsSync(join(ROOT, 'connections/following.json'));
 
-describe.skipIf(!realData)('your real data (local only)', () => {
+describe.skipIf(!hasRealData)('your real data (local only)', () => {
   const text = (path: string) => readFileSync(join(ROOT, path), 'utf8');
   const read = (path: string): unknown => JSON.parse(text(path));
   const followerNames = () =>
