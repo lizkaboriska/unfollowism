@@ -129,7 +129,7 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
       <Switch.Root
         name={`unavailable-${username}`}
         checked={review.unavailable}
-        onCheckedChange={e => dispatch(setUnavailable({ username, unavailable: e.checked }))}
+        onCheckedChange={details => dispatch(setUnavailable({ username, unavailable: details.checked }))}
         display="flex"
         justifyContent="space-between"
         gap="4"
@@ -183,8 +183,8 @@ export function AccountPopup({ accountKey, onClose }: { accountKey: string | nul
   return (
     <Drawer.Root
       open={account !== undefined}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}

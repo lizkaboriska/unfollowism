@@ -73,7 +73,7 @@ export const selectSortedKeys = createSelector([selectBaseAccounts], (accounts):
   accounts === EMPTY_ACCOUNTS
     ? EMPTY_KEYS
     : Object.entries(accounts)
-        .sort(([, a], [, b]) => a.username.localeCompare(b.username))
+        .sort(([, first], [, second]) => first.username.localeCompare(second.username))
         .map(([key]) => key),
 );
 
@@ -201,7 +201,7 @@ export const selectFollowChangeCounts = createSelector([selectChangeSections], (
 /** Everything on the Changes page: the listed accounts, and each rename pair as one change. */
 export const selectChangesTotal = createSelector(
   [selectFollowChangeCounts, selectRenamePairs],
-  (counts, pairs): number => Object.values(counts).reduce((sum, n) => sum + n, 0) + pairs.length,
+  (counts, pairs): number => Object.values(counts).reduce((sum, count) => sum + count, 0) + pairs.length,
 );
 
 /**

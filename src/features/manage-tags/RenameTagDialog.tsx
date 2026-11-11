@@ -13,7 +13,7 @@ function RenameForm({ tag, onClose }: { tag: string; onClose: () => void }) {
   const name = draft.trim();
   // Renaming onto another tag (any case) merges the two.
   const existing = findTag(
-    tags.filter(t => t !== tag),
+    tags.filter(other => other !== tag),
     name,
   );
 
@@ -42,11 +42,11 @@ function RenameForm({ tag, onClose }: { tag: string; onClose: () => void }) {
               name="tagName"
               autoComplete="off"
               value={draft}
-              onChange={e => {
-                setDraft(e.currentTarget.value);
+              onChange={event => {
+                setDraft(event.currentTarget.value);
               }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
                   save();
                 }
               }}
@@ -79,8 +79,8 @@ export function RenameTagDialog({ tag, onClose }: { tag: string | null; onClose:
   return (
     <Dialog.Root
       open={tag !== null}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}

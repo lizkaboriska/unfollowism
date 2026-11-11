@@ -59,9 +59,12 @@ export interface MasterState {
 }
 
 /** Whether two edit sets hold the same accounts (the same objects: edits copy, so equal means untouched). */
-function sameEdits(a: Readonly<ChangedAccounts>, b: Readonly<ChangedAccounts>): boolean {
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && a[key] === b[key]);
+function sameEdits(left: Readonly<ChangedAccounts>, right: Readonly<ChangedAccounts>): boolean {
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every(key => Object.hasOwn(right, key) && left[key] === right[key])
+  );
 }
 
 const initialState: MasterState = {

@@ -152,8 +152,8 @@ export function tagMatches(account: ReadonlyAccount, tag: TagFilter): boolean {
 }
 
 export function queryMatches(account: ReadonlyAccount, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  return !q || usernameKey(account.username).includes(q);
+  const normalizedQuery = query.trim().toLowerCase();
+  return !normalizedQuery || usernameKey(account.username).includes(normalizedQuery);
 }
 
 export interface RelationshipStats {

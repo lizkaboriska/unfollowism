@@ -36,8 +36,8 @@ export function memoryLastSaved(initial: string | null = null): LastSavedStore {
   let value = initial;
   return {
     get: () => value,
-    set: v => {
-      value = v;
+    set: savedAt => {
+      value = savedAt;
     },
   };
 }

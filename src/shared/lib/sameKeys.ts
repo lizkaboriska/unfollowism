@@ -1,4 +1,4 @@
 /** The two lists hold the same keys in the same order. */
-export function sameKeys(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((key, i) => key === b[i]);
+export function sameKeys(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((key, i) => key === right[i]);
 }

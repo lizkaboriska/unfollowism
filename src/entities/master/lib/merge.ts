@@ -28,12 +28,12 @@ export interface ImportResult {
   dirty: boolean;
 }
 
-function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
-  if (a.size !== b.size) {
+function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  if (left.size !== right.size) {
     return false;
   }
-  for (const key of a) {
-    if (!b.has(key)) {
+  for (const key of left) {
+    if (!right.has(key)) {
       return false;
     }
   }
@@ -107,7 +107,7 @@ export function mergeExports(
   const settled = settleDecisions(
     { accounts },
     {
-      uncounted: new Set(renames.map(r => r.from)),
+      uncounted: new Set(renames.map(rename => rename.from)),
       lostFollowers: new Set([...previousFollowers].filter(key => !followers.has(key))),
     },
   );

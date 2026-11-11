@@ -94,7 +94,7 @@ export function AppNav() {
       />
       <NavItem
         label="To do"
-        count={TODO_VIEWS.reduce((sum, v) => sum + todoCount(v), 0)}
+        count={TODO_VIEWS.reduce((sum, todoView) => sum + todoCount(todoView), 0)}
         active={isPlanView(view)}
         onClick={openTodo}
       />

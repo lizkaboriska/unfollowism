@@ -19,8 +19,11 @@ import { TextButton } from '@/shared/ui/TextButton.tsx';
 import { NO_FILTERS, applyFilters, type FilterChoice } from '../model/filtersSlice.ts';
 import { selectMatchingCount } from '../model/selectors.ts';
 
-function sameTag(a: TagFilter, b: TagFilter): boolean {
-  return a.kind === b.kind && (a.kind !== TAG_FILTER_KINDS.TAG || (b.kind === TAG_FILTER_KINDS.TAG && a.tag === b.tag));
+function sameTag(left: TagFilter, right: TagFilter): boolean {
+  return (
+    left.kind === right.kind &&
+    (left.kind !== TAG_FILTER_KINDS.TAG || (right.kind === TAG_FILTER_KINDS.TAG && left.tag === right.tag))
+  );
 }
 
 function Group({ legend, aside, children }: { legend: string; aside?: ReactNode; children: ReactNode }) {
@@ -165,8 +168,8 @@ export function FilterPopup({
   return (
     <Drawer.Root
       open={open}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}

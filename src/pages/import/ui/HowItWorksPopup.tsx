@@ -139,8 +139,8 @@ export function HowItWorksPopup({
   return (
     <Drawer.Root
       open={view !== null}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}

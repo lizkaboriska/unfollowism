@@ -136,9 +136,9 @@ function SearchBox() {
         placeholder="search accounts"
         aria-label="Search accounts"
         value={draft}
-        onChange={e => {
-          setDraft(e.currentTarget.value);
-          storeQuery(e.currentTarget.value);
+        onChange={event => {
+          setDraft(event.currentTarget.value);
+          storeQuery(event.currentTarget.value);
         }}
       />
     </InputGroup>

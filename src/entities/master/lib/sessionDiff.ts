@@ -90,7 +90,7 @@ export function buildSessionDiff(baseline: ReadonlyAccounts, current: ReadonlyAc
     }
   }
 
-  return result.sort((a, b) => a.username.localeCompare(b.username));
+  return result.sort((first, second) => first.username.localeCompare(second.username));
 }
 
 export enum TagChangeKind {
@@ -176,6 +176,8 @@ export function groupSessionChanges(diff: readonly SessionAccountChanges[]): Gro
   }
 
   const rowTag = (row: TagChangeRow) => (row.kind === TagChangeKind.RENAMED ? row.from : row.tag);
-  tagRows.sort((a, b) => b.usernames.length - a.usernames.length || rowTag(a).localeCompare(rowTag(b)));
+  tagRows.sort(
+    (first, second) => second.usernames.length - first.usernames.length || rowTag(first).localeCompare(rowTag(second)),
+  );
   return { tagRows, accounts };
 }

@@ -18,7 +18,7 @@ export function emptyActionCounts(): ActionCounts {
 }
 
 export function totalOf(counts: Readonly<ActionCounts>): number {
-  return Object.values(counts).reduce((sum, n) => sum + n, 0);
+  return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
 
 export interface PlanOutcomes {

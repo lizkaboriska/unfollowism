@@ -36,8 +36,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog.Root
         open={isOpen}
-        onOpenChange={e => {
-          if (!e.open) {
+        onOpenChange={details => {
+          if (!details.open) {
             close(false);
           }
         }}

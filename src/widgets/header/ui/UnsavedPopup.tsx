@@ -226,8 +226,8 @@ export function UnsavedPopup({
   return (
     <Drawer.Root
       open={open}
-      onOpenChange={e => {
-        if (!e.open) {
+      onOpenChange={details => {
+        if (!details.open) {
           onClose();
         }
       }}
