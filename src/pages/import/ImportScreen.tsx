@@ -16,6 +16,7 @@ import {
 import { loadZipLibrary, readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { reloadOnce } from '@/shared/lib/reloadOnce.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { TextButton } from '@/shared/ui/TextButton.tsx';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
@@ -362,12 +363,7 @@ export function ImportScreen({
             ))}
           </List.Root>
           <HStack gap="2" textStyle="body">
-            <Button
-              variant="plain"
-              h="auto"
-              p="0"
-              textDecoration="underline"
-              textUnderlineOffset="3px"
+            <TextButton
               loading={reading > 0}
               loadingText="Reading files…"
               onClick={() => {
@@ -375,23 +371,18 @@ export function ImportScreen({
               }}
             >
               Add more files
-            </Button>
+            </TextButton>
             <Text as="span" color="fg.muted" aria-hidden="true">
               ·
             </Text>
-            <Button
-              variant="plain"
-              h="auto"
-              p="0"
-              textDecoration="underline"
-              textUnderlineOffset="3px"
+            <TextButton
               onClick={() => {
                 setChosen([]);
                 setImportError(null);
               }}
             >
               Clear all
-            </Button>
+            </TextButton>
           </HStack>
         </Stack>
       )}

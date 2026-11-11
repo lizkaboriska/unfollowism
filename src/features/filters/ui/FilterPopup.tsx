@@ -13,6 +13,7 @@ import {
   plural,
 } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { TextButton } from '@/shared/ui/TextButton.tsx';
 
 import { NO_FILTERS, applyFilters, type FilterChoice } from '../model/filtersSlice.ts';
 import { selectMatchingCount, selectScopeTotals } from '../model/selectors.ts';
@@ -96,22 +97,7 @@ function FilterChoices({ onClose, onManageTags }: { onClose: () => void; onManag
               })}
             </Stack>
           </Group>
-          <Group
-            legend="Tag"
-            aside={
-              <Button
-                variant="plain"
-                h="auto"
-                p="0"
-                textStyle="body"
-                textDecoration="underline"
-                textUnderlineOffset="3px"
-                onClick={onManageTags}
-              >
-                Manage tags
-              </Button>
-            }
-          >
+          <Group legend="Tag" aside={<TextButton onClick={onManageTags}>Manage tags</TextButton>}>
             <Wrap gap="2">
               {tagChoices.map(tag => (
                 <Choice
