@@ -8,6 +8,7 @@ import {
   type Decision,
   type SessionAccountChanges,
   type TagChangeRow,
+  selectHasBeenSaved,
   selectIsDirty,
   selectUnsavedAccountCount,
   plural,
@@ -165,10 +166,10 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
   const { tagRows, accounts } = useAppSelector(selectUnsavedGroups);
   const changedCount = useAppSelector(selectUnsavedAccountCount);
   const dirty = useAppSelector(selectIsDirty);
-  const neverSaved = useAppSelector(s => s.master.savedAt === null);
+  const hasBeenSaved = useAppSelector(selectHasBeenSaved);
 
   const subtitle = changedCount
-    ? `${plural(changedCount, 'changed account')} since ${neverSaved ? 'adding the data' : 'your last save'}`
+    ? `${plural(changedCount, 'changed account')} since ${hasBeenSaved ? 'your last save' : 'adding the data'}`
     : dirty
       ? 'New data, no account changes'
       : 'No edits since your last save.';

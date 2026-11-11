@@ -1,6 +1,6 @@
 import { Button, type ButtonProps } from '@chakra-ui/react';
 
-import { selectHasProject, selectIsDirty, SAVE_STATUSES, saveMaster } from '@/entities/master';
+import { selectHasProject, selectIsDirty, selectIsSaving, saveMaster } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
 
@@ -14,12 +14,12 @@ export function SaveButton({ onSaved, children, ...props }: ButtonProps & { onSa
   const dispatch = useAppDispatch();
   const hasProject = useAppSelector(selectHasProject);
   const dirty = useAppSelector(selectIsDirty);
-  const saving = useAppSelector(s => s.master.saveStatus === SAVE_STATUSES.SAVING);
+  const isSaving = useAppSelector(selectIsSaving);
   return (
     <Button
       variant={dirty ? 'solid' : 'outline'}
       {...props}
-      loading={saving}
+      loading={isSaving}
       disabled={!hasProject || !dirty}
       onClick={() =>
         void dispatch(saveMaster()).then(result => {
