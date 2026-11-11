@@ -1,13 +1,13 @@
 import { Alert } from '@chakra-ui/react';
 
-import { selectHasProject } from '@/entities/master';
+import { selectHasData } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** Shown when work wouldn't survive a reload: browser storage failed or isn't available. */
 export function StorageWarning({ durable }: { durable: boolean }) {
   const failed = useAppSelector(s => s.master.persistenceFailed) || !durable;
-  const hasProject = useAppSelector(selectHasProject);
-  if (!failed || !hasProject) {
+  const hasData = useAppSelector(selectHasData);
+  if (!failed || !hasData) {
     return null;
   }
   return (

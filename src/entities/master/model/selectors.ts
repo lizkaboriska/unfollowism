@@ -43,7 +43,8 @@ export function sameKeys(a: readonly string[], b: readonly string[]): boolean {
 
 export const selectChanged = (s: RootState): RChanged => s.master.changed;
 const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;
-export const selectHasProject = (s: RootState): boolean => s.master.base !== null;
+/** Data is open: imported, or restored from the backup after a reload. */
+export const selectHasData = (state: RootState): boolean => state.master.base !== null;
 export const selectAccount = (s: RootState, key: string): ReadonlyAccount | undefined =>
   s.master.base ? accountOf<ReadonlyAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;

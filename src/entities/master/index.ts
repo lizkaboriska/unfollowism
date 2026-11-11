@@ -74,7 +74,7 @@ export {
   selectHasBeenSaved,
   selectFollowChangeCounts,
   selectRenamePairs,
-  selectHasProject,
+  selectHasData,
   selectImportedAt,
   selectImportedUsername,
   selectIsDirty,
