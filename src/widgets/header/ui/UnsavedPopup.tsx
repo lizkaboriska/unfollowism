@@ -15,6 +15,7 @@ import {
 import { ResetButton, SaveButton } from '@/features/save-reset';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
+import { TextButton } from '@/shared/ui/TextButton.tsx';
 
 import { selectUnsavedGroups } from '../model/selectors.ts';
 
@@ -27,26 +28,23 @@ const FIRST_NAMES = 10;
 
 type OpenAccount = (username: string) => void;
 
-/** A username that opens the account's popup. */
-function NameLink({ username, onOpen }: { username: string; onOpen: OpenAccount }) {
+/** Tap area of a name or "Show all" in a tag row: 32 px tall, the lines are 32 px apart (no room for 40). */
+const COMPACT_TAP = { h: '8', px: '1.5', mx: '-1.5', my: '0' } as const;
+
+/** A username that opens the account's popup. `compact`: in a tag row's list of names. */
+function NameLink({ username, onOpen, compact }: { username: string; onOpen: OpenAccount; compact?: boolean }) {
   return (
-    <Button
-      variant="plain"
-      h="auto"
-      p="0"
-      minW="0"
-      textDecoration="underline"
-      textUnderlineOffset="3px"
+    <TextButton
+      {...(compact ? COMPACT_TAP : {})}
       wordBreak="break-all"
       whiteSpace="normal"
       textAlign="start"
-      _hover={{ color: 'accent' }}
       onClick={() => {
         onOpen(username);
       }}
     >
       @{username}
-    </Button>
+    </TextButton>
   );
 }
 
@@ -99,23 +97,19 @@ function TagRow({ row, onOpen }: { row: TagChangeRow; onOpen: OpenAccount }) {
         </Text>
       </Button>
       {shown !== null && (
-        <HStack px="3" pb="3" gap="1.5 3" wrap="wrap">
+        <HStack px="3" pb="2" rowGap="0" columnGap="4" wrap="wrap">
           {row.usernames.slice(0, shown).map(username => (
-            <NameLink key={username} username={username} onOpen={onOpen} />
+            <NameLink key={username} username={username} onOpen={onOpen} compact />
           ))}
           {count > shown && shown < MAX_ACCOUNTS && (
-            <Button
-              variant="plain"
-              h="auto"
-              p="0"
-              textDecoration="underline"
-              textUnderlineOffset="3px"
+            <TextButton
+              {...COMPACT_TAP}
               onClick={() => {
                 setShown(MAX_ACCOUNTS);
               }}
             >
               Show all {count}
-            </Button>
+            </TextButton>
           )}
           {shown === MAX_ACCOUNTS && <MoreAccounts count={count - MAX_ACCOUNTS} />}
         </HStack>
