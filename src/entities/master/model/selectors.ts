@@ -8,17 +8,19 @@ import { accountOf, type ChangedAccounts } from '../lib/account.ts';
 import { countPlans, planStats, type PlanStats } from '../lib/actions.ts';
 import { sameAccountData } from '../lib/masterFile.ts';
 import { renameHiddenKeys, renamePairs, suggestedRenames, type RenamePair } from '../lib/renames.ts';
-import { followChangeMatches, relationshipStats, type FollowChangeCounts } from '../lib/scopes.ts';
+import { followChangeMatches, relationshipStats, scopeMatches, type FollowChangeCounts } from '../lib/scopes.ts';
 import { buildSessionDiff } from '../lib/sessionDiff.ts';
 import { countTags, tagCounts, tagsInUse, type TagCounts } from '../lib/tags.ts';
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
+  REVIEW_SCOPES,
   type Account,
   type ActionType,
   type FollowChange,
   type ReadonlyAccount,
   type ReadonlyAccounts,
+  type ReviewScope,
 } from '../lib/types.ts';
 
 import { UNSAVED_IMPORT } from './masterSlice.ts';
@@ -45,6 +47,17 @@ export const selectHasProject = (s: RootState): boolean => s.master.base !== nul
 export const selectAccount = (s: RootState, key: string): ReadonlyAccount | undefined =>
   s.master.base ? accountOf<ReadonlyAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
+
+/** Finds an account by key: the imported one, or its edited version (undefined once removed). */
+export type AccountLookup = (key: string) => ReadonlyAccount | undefined;
+
+/** A lookup for the current accounts; a new one only after an import or an edit. */
+export const selectAccountLookup = createSelector(
+  [selectBaseAccounts, selectChanged],
+  (base, changed): AccountLookup =>
+    key =>
+      accountOf<ReadonlyAccount>(base, changed, key),
+);
 
 /** All account keys sorted by username. Once per import: edits never change usernames. */
 export const selectSortedKeys = createSelector([selectBaseAccounts], (accounts): readonly string[] =>
@@ -279,3 +292,47 @@ export const selectTagCounts = createSelector(
 export const selectTags = createSelector([selectTagCounts], (counts): readonly string[] => tagsInUse(counts), {
   memoizeOptions: { resultEqualityCheck: sameKeys },
 });
+
+export type ScopeTotals = Record<ReviewScope, number>;
+
+function countScopes(totals: ScopeTotals, account: ReadonlyAccount, sign: 1 | -1): void {
+  for (const scope of Object.values(REVIEW_SCOPES)) {
+    if (scopeMatches(account, scope)) {
+      totals[scope] += sign;
+    }
+  }
+}
+
+const selectBaseScopeTotals = createSelector([selectBaseAccounts], (accounts): ScopeTotals => {
+  const totals: ScopeTotals = {
+    [REVIEW_SCOPES.FOLLOWING]: 0,
+    [REVIEW_SCOPES.FOLLOWERS]: 0,
+    [REVIEW_SCOPES.MUTUAL]: 0,
+    [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 0,
+    [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 0,
+    [REVIEW_SCOPES.ALL_CURRENT]: 0,
+    [REVIEW_SCOPES.ALL_ACCOUNTS]: 0,
+  };
+  for (const account of Object.values(accounts)) {
+    countScopes(totals, account, 1);
+  }
+  return totals;
+});
+
+/** Accounts per list (scope), ignoring any filters: imported counts, adjusted by edited and removed accounts. */
+export const selectScopeTotals = createSelector(
+  [selectBaseScopeTotals, selectBaseAccounts, selectChanged],
+  (baseTotals, base, changed): ScopeTotals => {
+    const totals = { ...baseTotals };
+    for (const [key, account] of Object.entries(changed)) {
+      const before = base[key];
+      if (before) {
+        countScopes(totals, before, -1);
+      }
+      if (account) {
+        countScopes(totals, account, 1);
+      }
+    }
+    return totals;
+  },
+);

@@ -6,6 +6,7 @@ import {
   REVIEW_SCOPES,
   TAG_FILTER_KINDS,
   type TagFilter,
+  selectScopeTotals,
   selectTags,
   DECISION_FILTER_LABELS,
   SCOPE_LABELS,
@@ -16,7 +17,7 @@ import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { TextButton } from '@/shared/ui/TextButton.tsx';
 
 import { NO_FILTERS, applyFilters, type FilterChoice } from '../model/filtersSlice.ts';
-import { selectMatchingCount, selectScopeTotals } from '../model/selectors.ts';
+import { selectMatchingCount } from '../model/selectors.ts';
 
 function sameTag(a: TagFilter, b: TagFilter): boolean {
   return a.kind === b.kind && (a.kind !== TAG_FILTER_KINDS.TAG || (b.kind === TAG_FILTER_KINDS.TAG && a.tag === b.tag));

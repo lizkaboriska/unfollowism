@@ -1,5 +1,5 @@
 // lib
-export { accountOf, type ChangedAccounts } from './lib/account.ts';
+export { type ChangedAccounts } from './lib/account.ts';
 export { totalOf } from './lib/actions.ts';
 export {
   analyzeImport,
@@ -65,8 +65,7 @@ export {
 export {
   sameKeys,
   selectAccount,
-  selectBaseAccounts,
-  selectChanged,
+  selectAccountLookup,
   selectChangeSections,
   selectChangesSince,
   selectChangesTotal,
@@ -81,6 +80,8 @@ export {
   selectWasPlanDoneBeforeImport,
   selectPlanStats,
   selectRelationshipStats,
+  selectScopeTotals,
+  type ScopeTotals,
   selectSortedKeys,
   selectTagCounts,
   selectTags,

@@ -3,18 +3,14 @@ import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '@/app/store/store.ts';
 import {
   PLAN_STATES,
-  REVIEW_SCOPES,
-  accountOf,
   planOf,
   decisionMatches,
   queryMatches,
   scopeMatches,
   tagMatches,
   type ReadonlyAccount,
-  type ReviewScope,
   sameKeys,
-  selectBaseAccounts,
-  selectChanged,
+  selectAccountLookup,
   selectSortedKeys,
   LIST_VIEWS,
   PLAN_VIEW_ACTIONS,
@@ -51,10 +47,10 @@ function accountVisible(account: ReadonlyAccount, filters: FiltersState): boolea
  * the list slice (listSlice.ts), which decides when to recompute it.
  */
 export const selectVisibleAccountKeys = createSelector(
-  [selectSortedKeys, selectBaseAccounts, selectChanged, selectFilters],
-  (keys, base, changed, filters): readonly string[] => {
+  [selectSortedKeys, selectAccountLookup, selectFilters],
+  (keys, accountByKey, filters): readonly string[] => {
     const visible = keys.filter(key => {
-      const account = accountOf(base, changed, key);
+      const account = accountByKey(key);
       return !!account && accountVisible(account, filters);
     });
     if (!isPlanView(filters.view)) {
@@ -62,7 +58,7 @@ export const selectVisibleAccountKeys = createSelector(
     }
     const type = PLAN_VIEW_ACTIONS[filters.view];
     const isDone = (key: string) => {
-      const account = accountOf(base, changed, key);
+      const account = accountByKey(key);
       return !!account && planOf(account, type) === PLAN_STATES.DONE;
     };
     return [...visible.filter(key => !isDone(key)), ...visible.filter(isDone)];
@@ -71,59 +67,14 @@ export const selectVisibleAccountKeys = createSelector(
 );
 
 /** How many accounts other filters would list (the Filter popup's "Show N accounts"), as of now. */
-export function selectMatchingCount(s: RootState, filters: FiltersState): number {
-  const base = selectBaseAccounts(s);
-  const changed = selectChanged(s);
+export function selectMatchingCount(state: RootState, filters: FiltersState): number {
+  const accountByKey = selectAccountLookup(state);
   let count = 0;
-  for (const key of selectSortedKeys(s)) {
-    const account = accountOf(base, changed, key);
+  for (const key of selectSortedKeys(state)) {
+    const account = accountByKey(key);
     if (account && accountVisible(account, filters)) {
       count += 1;
     }
   }
   return count;
 }
-
-export type ScopeTotals = Record<ReviewScope, number>;
-
-function countScopes(totals: ScopeTotals, account: ReadonlyAccount, sign: 1 | -1): void {
-  for (const scope of Object.values(REVIEW_SCOPES)) {
-    if (scopeMatches(account, scope)) {
-      totals[scope] += sign;
-    }
-  }
-}
-
-const selectBaseScopeTotals = createSelector([selectBaseAccounts], (accounts): ScopeTotals => {
-  const totals: ScopeTotals = {
-    [REVIEW_SCOPES.FOLLOWING]: 0,
-    [REVIEW_SCOPES.FOLLOWERS]: 0,
-    [REVIEW_SCOPES.MUTUAL]: 0,
-    [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 0,
-    [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 0,
-    [REVIEW_SCOPES.ALL_CURRENT]: 0,
-    [REVIEW_SCOPES.ALL_ACCOUNTS]: 0,
-  };
-  for (const account of Object.values(accounts)) {
-    countScopes(totals, account, 1);
-  }
-  return totals;
-});
-
-/** Accounts per list (scope), ignoring the other filters: imported counts, adjusted by removed accounts. */
-export const selectScopeTotals = createSelector(
-  [selectBaseScopeTotals, selectBaseAccounts, selectChanged],
-  (baseTotals, base, changed): ScopeTotals => {
-    const totals = { ...baseTotals };
-    for (const [key, account] of Object.entries(changed)) {
-      const before = base[key];
-      if (before) {
-        countScopes(totals, before, -1);
-      }
-      if (account) {
-        countScopes(totals, account, 1);
-      }
-    }
-    return totals;
-  },
-);

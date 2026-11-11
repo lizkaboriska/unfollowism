@@ -25,9 +25,10 @@ import { stringifyMasterFile, toMasterFile } from '@/entities/master/lib/masterF
 import { importExport } from '@/entities/master/lib/merge.ts';
 import { TagChangeKind, groupSessionChanges } from '@/entities/master/lib/sessionDiff.ts';
 import { ACTION_TYPES, DecisionKind, PLAN_STATES } from '@/entities/master/lib/types.ts';
+import { selectScopeTotals } from '@/entities/master/model/selectors.ts';
 import { selectListKeys } from '@/features/filters';
 import { setQuery, setView } from '@/features/filters/model/filtersSlice.ts';
-import { selectScopeTotals, selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
+import { selectVisibleAccountKeys } from '@/features/filters/model/selectors.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
 import { memoryAddressBar } from '@/shared/url/addressBar.ts';
 
