@@ -83,7 +83,7 @@ export const ReviewCard = memo(function ReviewCard({
   scope: ReviewScope;
   onOpen: (accountKey: string) => void;
 }) {
-  const account = useAppSelector(s => selectAccount(s, accountKey));
+  const account = useAppSelector(state => selectAccount(state, accountKey));
   if (!account) {
     return null;
   }

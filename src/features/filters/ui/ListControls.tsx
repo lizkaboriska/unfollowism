@@ -28,7 +28,7 @@ interface Chip {
  */
 export function ListControls({ onOpenFilter }: { onOpenFilter: () => void }) {
   const dispatch = useAppDispatch();
-  const filters = useAppSelector(s => s.filters);
+  const filters = useAppSelector(state => state.filters);
   const shown = useAppSelector(selectListKeys).length;
 
   const chips: Chip[] = [];
@@ -100,7 +100,7 @@ const SEARCH_DEBOUNCE_MS = 200;
 /** The search field. Letters show at once; the list follows once typing pauses. */
 function SearchBox() {
   const dispatch = useAppDispatch();
-  const query = useAppSelector(s => s.filters.query);
+  const query = useAppSelector(state => state.filters.query);
   const [draft, setDraft] = useState(query);
   // flushOnExit: leaving Review mid-typing still applies the search.
   const storeQuery = useDebouncedCallback((value: string) => dispatch(setQuery(value)), SEARCH_DEBOUNCE_MS, {

@@ -40,7 +40,7 @@ const SECTION_NOTES: Partial<Record<FollowChange, string>> = {
  */
 function CompareBox({ since }: { since: string }) {
   const importedAt = useAppSelector(selectImportedAt);
-  const facts = useAppSelector(s => s.master.importFacts);
+  const facts = useAppSelector(state => state.master.importFacts);
   const stats = useAppSelector(selectRelationshipStats);
   const numbers = [
     { label: 'Following', before: facts?.followingBefore, after: stats.following },

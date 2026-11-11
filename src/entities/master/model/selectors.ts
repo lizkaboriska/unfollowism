@@ -39,13 +39,13 @@ type RChanged = DeepReadonly<ChangedAccounts>;
 const EMPTY_ACCOUNTS: ReadonlyAccounts = Object.freeze(createDict<Account>());
 const EMPTY_KEYS: readonly string[] = Object.freeze([]);
 
-export const selectChanged = (s: RootState): RChanged => s.master.changed;
-const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;
+export const selectChanged = (state: RootState): RChanged => state.master.changed;
+const selectSavedChanged = (state: RootState): RChanged => state.master.savedChanged;
 /** Data is open: imported, or restored from the backup after a reload. */
 export const selectHasData = (state: RootState): boolean => state.master.base !== null;
-export const selectAccount = (s: RootState, key: string): ReadonlyAccount | undefined =>
-  s.master.base ? accountOf<ReadonlyAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
-export const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
+export const selectAccount = (state: RootState, key: string): ReadonlyAccount | undefined =>
+  state.master.base ? accountOf<ReadonlyAccount>(state.master.base.accounts, state.master.changed, key) : undefined;
+export const selectBaseAccounts = (state: RootState): ReadonlyAccounts => state.master.base?.accounts ?? EMPTY_ACCOUNTS;
 
 /** For listeners: new data was loaded (an import, or a restore after a reload) between these two states. */
 export function hasNewData(current: RootState, previous: RootState): boolean {
@@ -119,7 +119,7 @@ export function selectTodoStartAction(state: RootState): ActionType {
 }
 
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
-export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
+export const selectChangesSince = (state: RootState): string | null => state.master.base?.lastSavedAt ?? null;
 
 /** When the open data was imported; null before any import. */
 export const selectImportedAt = (state: RootState): string | null => state.master.base?.lastImportAt ?? null;
@@ -274,8 +274,8 @@ export const selectUnsavedAccountCount = createSelector(
  * Whether there is anything not in the downloaded file yet: an import that differs from its file,
  * or an account that differs from it. An edit that was undone (a tag ticked on and off) doesn't count.
  */
-export const selectIsDirty = (s: RootState): boolean =>
-  s.master.base !== null && (s.master.savedRevision === UNSAVED_IMPORT || selectUnsavedAccountCount(s) > 0);
+export const selectIsDirty = (state: RootState): boolean =>
+  state.master.base !== null && (state.master.savedRevision === UNSAVED_IMPORT || selectUnsavedAccountCount(state) > 0);
 
 const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tagCounts({ accounts }));
 

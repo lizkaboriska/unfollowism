@@ -13,7 +13,7 @@ import { StatsBox } from './StatsBox.tsx';
 export function ReviewTop() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
-  const followersOnly = useAppSelector(s => s.filters.scope === REVIEW_SCOPES.FOLLOWS_YOU_ONLY);
+  const followersOnly = useAppSelector(state => state.filters.scope === REVIEW_SCOPES.FOLLOWS_YOU_ONLY);
   return (
     <>
       <ReviewHeading />

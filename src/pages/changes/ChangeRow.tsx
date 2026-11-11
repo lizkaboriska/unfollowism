@@ -47,7 +47,7 @@ export const ChangeRow = memo(function ChangeRow({
   change: FollowChange;
   onOpen: (accountKey: string) => void;
 }) {
-  const account = useAppSelector(s => selectAccount(s, accountKey));
+  const account = useAppSelector(state => selectAccount(state, accountKey));
   const explainedBy = EXPLAINED_BY[change];
   const wasDoneBeforeImport = useAppSelector(
     state => explainedBy !== undefined && selectWasPlanDoneBeforeImport(state, accountKey, explainedBy),

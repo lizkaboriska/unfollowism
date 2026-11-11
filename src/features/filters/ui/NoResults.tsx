@@ -8,7 +8,7 @@ import { clearFilters, setQuery } from '../model/filtersSlice.ts';
 /** Review with nothing to show: says why, and offers to clear what narrows the list. */
 export function NoResults() {
   const dispatch = useAppDispatch();
-  const filters = useAppSelector(s => s.filters);
+  const filters = useAppSelector(state => state.filters);
   const query = filters.query.trim();
   const filtered = filters.tag.kind !== TAG_FILTER_KINDS.ALL || filters.decision !== DecisionFilter.ANY;
 

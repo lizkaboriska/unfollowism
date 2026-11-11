@@ -14,7 +14,7 @@ const ESTIMATED_REVIEW_CARD_HEIGHT = 140;
 export function ReviewList() {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const hasList = useAppSelector(selectListKeys).length > 0;
-  const scope = useAppSelector(s => s.filters.scope);
+  const scope = useAppSelector(state => state.filters.scope);
   const open = useCallback((accountKey: string) => {
     setOpenKey(accountKey);
   }, []);

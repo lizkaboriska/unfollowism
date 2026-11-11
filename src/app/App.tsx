@@ -20,7 +20,7 @@ import { StatusLine, StorageWarning } from '@/widgets/status';
 export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen: HowItWorksSeen }) {
   const dispatch = useAppDispatch();
   const hasData = useAppSelector(selectHasData);
-  const view = useAppSelector(s => s.filters.view);
+  const view = useAppSelector(state => state.filters.view);
   const [importOpen, setImportOpen] = useState(false);
   const [restoring, setRestoring] = useState(true);
 

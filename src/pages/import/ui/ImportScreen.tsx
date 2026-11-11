@@ -41,8 +41,8 @@ export function ImportScreen({
 }) {
   const confirm = useConfirm();
   const isDirty = useAppSelector(selectIsDirty);
-  const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
-  const restoreFailed = useAppSelector(s => s.master.restoreFailed);
+  const importing = useAppSelector(state => state.master.importStatus === IMPORT_STATUSES.IMPORTING);
+  const restoreFailed = useAppSelector(state => state.master.restoreFailed);
   const {
     chosen,
     isReading,

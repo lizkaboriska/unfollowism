@@ -179,7 +179,7 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
 
 /** Everything about one account: decision, tags, unavailable, note, dates and its Instagram profile. */
 export function AccountPopup({ accountKey, onClose }: { accountKey: string | null; onClose: () => void }) {
-  const account = useAppSelector(s => (accountKey === null ? undefined : selectAccount(s, accountKey)));
+  const account = useAppSelector(state => (accountKey === null ? undefined : selectAccount(state, accountKey)));
   return (
     <Drawer.Root
       open={account !== undefined}

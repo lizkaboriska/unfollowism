@@ -52,7 +52,7 @@ function Choice({ label, pressed, onClick }: { label: string; pressed: boolean; 
  */
 function FilterChoices({ onClose, onManageTags }: { onClose: () => void; onManageTags: () => void }) {
   const dispatch = useAppDispatch();
-  const filters = useAppSelector(s => s.filters);
+  const filters = useAppSelector(state => state.filters);
   const tags = useAppSelector(selectTags);
   const totals = useAppSelector(selectScopeTotals);
   const [draft, setDraft] = useState<FilterChoice>({
@@ -60,7 +60,7 @@ function FilterChoices({ onClose, onManageTags }: { onClose: () => void; onManag
     tag: filters.tag,
     decision: filters.decision,
   });
-  const matching = useAppSelector(s => selectMatchingCount(s, { ...filters, ...draft }));
+  const matching = useAppSelector(state => selectMatchingCount(state, { ...filters, ...draft }));
   const choose = (choice: Partial<FilterChoice>) => {
     setDraft(current => ({ ...current, ...choice }));
   };

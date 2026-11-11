@@ -5,7 +5,7 @@ import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** Shown when work wouldn't survive a reload: browser storage failed or isn't available. */
 export function StorageWarning({ durable }: { durable: boolean }) {
-  const failed = useAppSelector(s => s.master.persistenceFailed) || !durable;
+  const failed = useAppSelector(state => state.master.persistenceFailed) || !durable;
   const hasData = useAppSelector(selectHasData);
   if (!failed || !hasData) {
     return null;

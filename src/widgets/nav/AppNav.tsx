@@ -48,7 +48,7 @@ function NavItem({
 /** Review · Changes · To do: a bottom bar on a phone, a framed list beside the page on desktop. */
 export function AppNav() {
   const dispatch = useAppDispatch();
-  const view = useAppSelector(s => s.filters.view);
+  const view = useAppSelector(state => state.filters.view);
   const todoCount = useTodoCount();
   const todoStartView = useAppSelector(selectTodoStartView);
   const changesTotal = useChangesTotal();

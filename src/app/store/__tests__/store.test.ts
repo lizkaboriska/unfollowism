@@ -99,11 +99,11 @@ const account = (t: Awaited<ReturnType<typeof importedStore>>, key: string) =>
 describe('import', () => {
   test('first import starts a dirty master whose baseline is the imported state', async () => {
     const { store } = await importedStore();
-    const s = store.getState();
-    expect(s.master.base?.lastImportAt).toBe('2026-10-27T12:00:00.000Z');
-    expect(Object.keys(s.master.changed)).toEqual([]); // the imported master is the session baseline
-    expect(selectIsDirty(s)).toBe(true);
-    expect(s.master.status).toBeNull(); // an import says nothing
+    const state = store.getState();
+    expect(state.master.base?.lastImportAt).toBe('2026-10-27T12:00:00.000Z');
+    expect(Object.keys(state.master.changed)).toEqual([]); // the imported master is the session baseline
+    expect(selectIsDirty(state)).toBe(true);
+    expect(state.master.status).toBeNull(); // an import says nothing
   });
 
   test('re-importing the saved master with the same export is clean', async () => {
@@ -246,9 +246,9 @@ describe('save', () => {
     expect(saved.lastSavedAt).toBe('2026-10-27T14:05:09.000Z');
     expect(toMasterFile(parseMaster(saved))).toEqual(saved); // the file is exactly the saved format
 
-    const s = t.store.getState();
-    expect(selectIsDirty(s)).toBe(false);
-    expect(selectUnsavedDiff(s)).toEqual([]); // saved: nothing left to list
+    const state = t.store.getState();
+    expect(selectIsDirty(state)).toBe(false);
+    expect(selectUnsavedDiff(state)).toEqual([]); // saved: nothing left to list
     expect(t.lastSaved.get()).toBe('2026-10-27T14:05:09.000Z');
   });
 
@@ -358,14 +358,14 @@ describe('reset changes', () => {
     expect(selectUnsavedAccountCount(t.store.getState())).toBe(2);
 
     t.store.dispatch(resetChanges());
-    const s = t.store.getState();
+    const state = t.store.getState();
     expect(kept(t, 'bob')).toBe(true);
     expect(review(t, 'bob').notes).toBe('');
     expect(kept(t, 'carol')).toBe(false);
-    expect(selectIsDirty(s)).toBe(false);
-    expect(selectUnsavedAccountCount(s)).toBe(0);
-    expect(s.master.status).toEqual(savedStatus);
-    expect(selectUnsavedDiff(s)).toEqual([]); // back to the save: nothing unsaved
+    expect(selectIsDirty(state)).toBe(false);
+    expect(selectUnsavedAccountCount(state)).toBe(0);
+    expect(state.master.status).toEqual(savedStatus);
+    expect(selectUnsavedDiff(state)).toEqual([]); // back to the save: nothing unsaved
   });
 
   test('without a save since the import, goes back to the import', async () => {
@@ -380,11 +380,11 @@ describe('reset changes', () => {
     t2.store.dispatch(setKept({ username: 'bob', kept: true }));
     t2.store.dispatch(resetChanges());
 
-    const s = t2.store.getState();
+    const state = t2.store.getState();
     expect(kept(t2, 'bob')).toBe(false);
-    expect(Object.keys(s.master.changed)).toEqual([]);
-    expect(selectIsDirty(s)).toBe(false);
-    expect(s.master.status).toEqual(importStatus);
+    expect(Object.keys(state.master.changed)).toEqual([]);
+    expect(selectIsDirty(state)).toBe(false);
+    expect(state.master.status).toEqual(importStatus);
   });
 
   test('an import that was never saved stays unsaved after a reset', async () => {
