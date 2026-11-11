@@ -1,7 +1,8 @@
 import { Button, CloseButton, Drawer, HStack, Menu, Portal, Stack, Text } from '@chakra-ui/react';
 import { useState } from 'react';
 
-import { deleteTag, selectTagCounts, selectTags, plural } from '@/entities/master';
+import { deleteTag, selectTagCounts, selectTags } from '@/entities/master';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 

@@ -3,13 +3,13 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ImportError,
   analyzeImport,
-  errorMessage,
   importPrepared,
   type ImportProblem,
   type ImportSelection,
   type ImportWarning,
   type LastSavedStore,
 } from '@/entities/master';
+import { errorMessage } from '@/shared/lib/errorMessage.ts';
 import { loadZipLibrary, readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { reloadOnce } from '@/shared/lib/reloadOnce.ts';
 import { useAppDispatch } from '@/shared/lib/storeHooks.ts';

@@ -66,7 +66,6 @@ export {
 export {
   hasAccountChanges,
   hasNewData,
-  sameKeys,
   selectAccount,
   selectAccountLookup,
   selectChangeSections,
@@ -112,4 +111,4 @@ export {
   tagFilterLabel,
   TODO_LABELS,
 } from './ui/labels.ts';
-export { errorMessage, plural, statusText } from './ui/statusText.ts';
+export { statusText } from './ui/statusText.ts';
