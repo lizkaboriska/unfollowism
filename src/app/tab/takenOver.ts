@@ -1,6 +1,5 @@
-import { persistenceStopped } from '@/app/store/persistence.ts';
 import type { AppStore } from '@/app/store/store.ts';
-import { selectIsDirty } from '@/entities/master';
+import { persistenceStopped, selectIsDirty } from '@/entities/master';
 
 export interface TakenOverActions {
   /** Turns off the "Leave site?" guard. */

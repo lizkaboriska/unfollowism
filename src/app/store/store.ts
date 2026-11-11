@@ -7,11 +7,10 @@ import {
 } from '@reduxjs/toolkit';
 
 import { startUrlSync } from '@/app/url/urlSync.ts';
-import { masterSlice } from '@/entities/master';
+import { masterSlice, startPersistence } from '@/entities/master';
 import { filtersSlice, listSlice, startListRefresh, startTagFilterCleanup } from '@/features/filters';
 
 import type { StoreDeps } from './deps.ts';
-import { startPersistence } from './persistence.ts';
 
 export const rootReducer = combineReducers({
   master: masterSlice.reducer,

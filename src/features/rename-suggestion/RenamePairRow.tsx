@@ -7,6 +7,7 @@ import {
   RenameMatch,
   RenameState,
   selectAccount,
+  selectImportedUsername,
   undoRename,
   type RenamePair,
 } from '@/entities/master';
@@ -32,7 +33,7 @@ const DECIDED_TEXT: Record<Exclude<RenameState, RenameState.WAITING>, string> = 
 export function RenamePairRow({ pair }: { pair: RenamePair }) {
   const dispatch = useAppDispatch();
   // The old account is gone once moved: its name is kept in the imported data, like the new one's.
-  const fromName = useAppSelector(s => s.master.base?.accounts[pair.from]?.username);
+  const fromName = useAppSelector(state => selectImportedUsername(state, pair.from));
   const toName = useAppSelector(s => selectAccount(s, pair.to)?.username);
   if (fromName === undefined || toName === undefined) {
     return null;

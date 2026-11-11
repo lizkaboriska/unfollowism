@@ -1,6 +1,6 @@
 import { Stack, Text } from '@chakra-ui/react';
 
-import { resetChanges, selectUnsavedAccountCount, SAVE_STATUSES, plural } from '@/entities/master';
+import { resetChanges, selectHasBeenSaved, selectIsSaving, selectUnsavedAccountCount, plural } from '@/entities/master';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 
@@ -12,12 +12,12 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
   const unsavedCount = useAppSelector(selectUnsavedAccountCount);
-  const saving = useAppSelector(s => s.master.saveStatus === SAVE_STATUSES.SAVING);
-  const neverSaved = useAppSelector(s => s.master.savedAt === null);
+  const isSaving = useAppSelector(selectIsSaving);
+  const hasBeenSaved = useAppSelector(selectHasBeenSaved);
 
   async function reset() {
     // Never saved (started from an Instagram export only): Reset goes back to the import, and there's no master file.
-    const since = neverSaved ? 'since adding the data' : 'since your last save';
+    const since = hasBeenSaved ? 'since your last save' : 'since adding the data';
     const confirmed = await confirm({
       title: 'Reset unsaved changes?',
       body: (
@@ -26,7 +26,7 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
             Your changes to {plural(unsavedCount, 'account')} {since} will be undone.
           </Text>
           <Text>
-            {neverSaved ? 'Instagram stays as it is.' : 'Your saved progress file and Instagram stay as they are.'}
+            {hasBeenSaved ? 'Your saved progress file and Instagram stay as they are.' : 'Instagram stays as it is.'}
           </Text>
         </Stack>
       ),
@@ -39,5 +39,5 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
     return confirmed;
   }
 
-  return { canReset: unsavedCount > 0 && !saving, reset };
+  return { canReset: unsavedCount > 0 && !isSaving, reset };
 }

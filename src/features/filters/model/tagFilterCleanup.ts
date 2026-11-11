@@ -2,7 +2,7 @@ import type { ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { TAG_FILTER_KINDS, selectTagCounts } from '@/entities/master';
+import { TAG_FILTER_KINDS, hasAccountChanges, selectTagCounts } from '@/entities/master';
 
 import { setTagFilter } from './filtersSlice.ts';
 
@@ -15,9 +15,7 @@ export function startTagFilterCleanup(listener: ListenerMiddlewareInstance<RootS
   listener.startListening({
     predicate: (_action, current, previous) =>
       current.filters.tag.kind === TAG_FILTER_KINDS.TAG &&
-      (current.master.base !== previous.master.base ||
-        current.master.changed !== previous.master.changed ||
-        current.filters.tag !== previous.filters.tag),
+      (hasAccountChanges(current, previous) || current.filters.tag !== previous.filters.tag),
     effect: (_action, api) => {
       const { tag } = api.getState().filters;
       if (tag.kind === TAG_FILTER_KINDS.TAG && !selectTagCounts(api.getState())[tag.tag]) {

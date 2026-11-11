@@ -10,6 +10,7 @@ import {
   type ReadonlyAccount,
   isKept,
   selectAccount,
+  selectWasPlanDoneBeforeImport,
   COMPLETED_PLAN_BADGES,
   planText,
 } from '@/entities/master';
@@ -48,8 +49,8 @@ export const ChangeRow = memo(function ChangeRow({
 }) {
   const account = useAppSelector(s => selectAccount(s, accountKey));
   const explainedBy = EXPLAINED_BY[change];
-  const done = useAppSelector(
-    s => explainedBy !== undefined && !!s.master.importFacts?.completedPlans[accountKey]?.includes(explainedBy),
+  const wasDoneBeforeImport = useAppSelector(
+    state => explainedBy !== undefined && selectWasPlanDoneBeforeImport(state, accountKey, explainedBy),
   );
   if (!account) {
     return null;
@@ -75,7 +76,7 @@ export const ChangeRow = memo(function ChangeRow({
         <Text textStyle="name" wordBreak="break-all">
           @{account.username}
         </Text>
-        {done && explainedBy !== undefined && (
+        {wasDoneBeforeImport && explainedBy !== undefined && (
           <Text textStyle="small" color="fg.muted" flexShrink="0">
             {COMPLETED_PLAN_BADGES[explainedBy]}
           </Text>

@@ -7,6 +7,7 @@ import {
   selectChangeSections,
   selectChangesSince,
   selectChangesTotal,
+  selectImportedAt,
   selectRelationshipStats,
   CHANGE_SECTION_TITLES,
   plural,
@@ -38,7 +39,7 @@ const SECTION_NOTES: Partial<Record<FollowChange, string>> = {
  * Followers with each before number under the old date and each after number under the new one.
  */
 function CompareBox({ since }: { since: string }) {
-  const importedAt = useAppSelector(s => s.master.base?.lastImportAt ?? null);
+  const importedAt = useAppSelector(selectImportedAt);
   const facts = useAppSelector(s => s.master.importFacts);
   const stats = useAppSelector(selectRelationshipStats);
   const numbers = [

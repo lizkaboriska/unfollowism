@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { addressChanged } from '@/app/url/urlSync.ts';
-import { selectHasProject, restoreBackup, LIST_VIEWS, isPlanView } from '@/entities/master';
+import { selectHasData, restoreBackup, LIST_VIEWS, isPlanView } from '@/entities/master';
 import { ChangesPage } from '@/pages/changes';
 import { ImportHero, ImportScreen, type HowItWorksSeen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
@@ -18,7 +18,7 @@ import { StatusLine, StorageWarning } from '@/widgets/status';
 
 export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen: HowItWorksSeen }) {
   const dispatch = useAppDispatch();
-  const hasProject = useAppSelector(selectHasProject);
+  const hasData = useAppSelector(selectHasData);
   const view = useAppSelector(s => s.filters.view);
   const [importOpen, setImportOpen] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -52,7 +52,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
     };
   }, []);
 
-  if (restoring && !hasProject) {
+  if (restoring && !hasData) {
     return (
       <Stack minH="100dvh" align="center" justify="center" gap="1" p="5" role="status">
         <Heading textStyle="appName" lineHeight="1">
@@ -65,13 +65,13 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
     );
   }
 
-  const showImport = !hasProject || importOpen;
+  const showImport = !hasData || importOpen;
 
   return (
     <Box minH="100dvh">
       <Toaster />
       {showImport ? (
-        <ImportHero seen={howItWorksSeen} firstVisit={!hasProject} />
+        <ImportHero seen={howItWorksSeen} firstVisit={!hasData} />
       ) : (
         <AppHeader
           onImportNew={() => {
@@ -86,7 +86,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
             onImported={() => {
               setImportOpen(false);
             }}
-            {...(hasProject
+            {...(hasData
               ? {
                   onCancel: () => {
                     setImportOpen(false);

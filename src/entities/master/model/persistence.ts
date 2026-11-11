@@ -1,23 +1,16 @@
 import { createAction, type ListenerMiddlewareInstance } from '@reduxjs/toolkit';
 
-import {
-  persistenceFailed,
-  persistenceRecovered,
-  restoreBackup,
-  toAccountRecord,
-  toMasterFile,
-  type AccountRecord,
-  type ChangedAccounts,
-  type ImportFacts,
-  type Master,
-  type MasterState,
-  type BackupMeta,
-} from '@/entities/master';
+import type { StoreDeps } from '@/app/store/deps.ts';
+import type { AppDispatch, RootState } from '@/app/store/store.ts';
 import { createDict } from '@/shared/lib/createDict.ts';
 import type { DeepReadonly } from '@/shared/lib/deepReadonly.ts';
 
-import type { StoreDeps } from './deps.ts';
-import type { AppDispatch, RootState } from './store.ts';
+import type { ChangedAccounts } from '../lib/account.ts';
+import { type BackupMeta, toAccountRecord, toMasterFile, type AccountRecord } from '../lib/masterFile.ts';
+import type { ImportFacts, Master } from '../lib/types.ts';
+
+import { persistenceFailed, persistenceRecovered, type MasterState } from './masterSlice.ts';
+import { restoreBackup } from './thunks.ts';
 
 type Accounts = DeepReadonly<ChangedAccounts>;
 

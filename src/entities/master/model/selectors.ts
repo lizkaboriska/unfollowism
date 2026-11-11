@@ -8,19 +8,23 @@ import { accountOf, type ChangedAccounts } from '../lib/account.ts';
 import { countPlans, planStats, type PlanStats } from '../lib/actions.ts';
 import { sameAccountData } from '../lib/masterFile.ts';
 import { renameHiddenKeys, renamePairs, suggestedRenames, type RenamePair } from '../lib/renames.ts';
-import { followChangeMatches, relationshipStats, type FollowChangeCounts } from '../lib/scopes.ts';
+import { followChangeMatches, relationshipStats, scopeMatches, type FollowChangeCounts } from '../lib/scopes.ts';
 import { buildSessionDiff } from '../lib/sessionDiff.ts';
 import { countTags, tagCounts, tagsInUse, type TagCounts } from '../lib/tags.ts';
 import {
   FOLLOW_CHANGES,
   PLAN_STATES,
+  REVIEW_SCOPES,
   type Account,
+  type ActionType,
   type FollowChange,
   type ReadonlyAccount,
   type ReadonlyAccounts,
+  type ReviewScope,
 } from '../lib/types.ts';
 
 import { UNSAVED_IMPORT } from './masterSlice.ts';
+import { SAVE_STATUSES } from './statuses.ts';
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from './views.ts';
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -39,10 +43,32 @@ export function sameKeys(a: readonly string[], b: readonly string[]): boolean {
 
 export const selectChanged = (s: RootState): RChanged => s.master.changed;
 const selectSavedChanged = (s: RootState): RChanged => s.master.savedChanged;
-export const selectHasProject = (s: RootState): boolean => s.master.base !== null;
+/** Data is open: imported, or restored from the backup after a reload. */
+export const selectHasData = (state: RootState): boolean => state.master.base !== null;
 export const selectAccount = (s: RootState, key: string): ReadonlyAccount | undefined =>
   s.master.base ? accountOf<ReadonlyAccount>(s.master.base.accounts, s.master.changed, key) : undefined;
 export const selectBaseAccounts = (s: RootState): ReadonlyAccounts => s.master.base?.accounts ?? EMPTY_ACCOUNTS;
+
+/** For listeners: new data was loaded (an import, or a restore after a reload) between these two states. */
+export function hasNewData(current: RootState, previous: RootState): boolean {
+  return current.master.base !== previous.master.base;
+}
+
+/** For listeners: an account changed between these two states (new data, or an edit). */
+export function hasAccountChanges(current: RootState, previous: RootState): boolean {
+  return hasNewData(current, previous) || current.master.changed !== previous.master.changed;
+}
+
+/** Finds an account by key: the imported one, or its edited version (undefined once removed). */
+export type AccountLookup = (key: string) => ReadonlyAccount | undefined;
+
+/** A lookup for the current accounts; a new one only after an import or an edit. */
+export const selectAccountLookup = createSelector(
+  [selectBaseAccounts, selectChanged],
+  (base, changed): AccountLookup =>
+    key =>
+      accountOf<ReadonlyAccount>(base, changed, key),
+);
 
 /** All account keys sorted by username. Once per import: edits never change usernames. */
 export const selectSortedKeys = createSelector([selectBaseAccounts], (accounts): readonly string[] =>
@@ -96,6 +122,23 @@ export function selectTodoStartView(s: RootState): PlanView {
 
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
 export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
+
+/** When the open data was imported; null before any import. */
+export const selectImportedAt = (state: RootState): string | null => state.master.base?.lastImportAt ?? null;
+
+/** A progress file is being written. */
+export const selectIsSaving = (state: RootState): boolean => state.master.saveStatus === SAVE_STATUSES.SAVING;
+
+/** A progress file was saved, or added, for this data. */
+export const selectHasBeenSaved = (state: RootState): boolean => state.master.savedAt !== null;
+
+/** The account's plan of this type was marked done before the import (so the import confirms it). */
+export const selectWasPlanDoneBeforeImport = (state: RootState, key: string, type: ActionType): boolean =>
+  !!state.master.importFacts?.completedPlans[key]?.includes(type);
+
+/** The username as imported; still there for an account removed since (the old name of a moved rename). */
+export const selectImportedUsername = (state: RootState, key: string): string | undefined =>
+  state.master.base?.accounts[key]?.username;
 
 export type ChangeSections = Record<FollowChange, readonly string[]>;
 
@@ -260,3 +303,47 @@ export const selectTagCounts = createSelector(
 export const selectTags = createSelector([selectTagCounts], (counts): readonly string[] => tagsInUse(counts), {
   memoizeOptions: { resultEqualityCheck: sameKeys },
 });
+
+export type ScopeTotals = Record<ReviewScope, number>;
+
+function countScopes(totals: ScopeTotals, account: ReadonlyAccount, sign: 1 | -1): void {
+  for (const scope of Object.values(REVIEW_SCOPES)) {
+    if (scopeMatches(account, scope)) {
+      totals[scope] += sign;
+    }
+  }
+}
+
+const selectBaseScopeTotals = createSelector([selectBaseAccounts], (accounts): ScopeTotals => {
+  const totals: ScopeTotals = {
+    [REVIEW_SCOPES.FOLLOWING]: 0,
+    [REVIEW_SCOPES.FOLLOWERS]: 0,
+    [REVIEW_SCOPES.MUTUAL]: 0,
+    [REVIEW_SCOPES.NOT_FOLLOWING_BACK]: 0,
+    [REVIEW_SCOPES.FOLLOWS_YOU_ONLY]: 0,
+    [REVIEW_SCOPES.ALL_CURRENT]: 0,
+    [REVIEW_SCOPES.ALL_ACCOUNTS]: 0,
+  };
+  for (const account of Object.values(accounts)) {
+    countScopes(totals, account, 1);
+  }
+  return totals;
+});
+
+/** Accounts per list (scope), ignoring any filters: imported counts, adjusted by edited and removed accounts. */
+export const selectScopeTotals = createSelector(
+  [selectBaseScopeTotals, selectBaseAccounts, selectChanged],
+  (baseTotals, base, changed): ScopeTotals => {
+    const totals = { ...baseTotals };
+    for (const [key, account] of Object.entries(changed)) {
+      const before = base[key];
+      if (before) {
+        countScopes(totals, before, -1);
+      }
+      if (account) {
+        countScopes(totals, account, 1);
+      }
+    }
+    return totals;
+  },
+);
