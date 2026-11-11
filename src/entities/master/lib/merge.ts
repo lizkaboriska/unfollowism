@@ -112,7 +112,7 @@ export function mergeExports(
     },
   );
   return {
-    hasExportChanged: hasExportChanged,
+    hasExportChanged,
     followingBefore: previousFollowing.size,
     followersBefore: previousFollowers.size,
     ...settled,
@@ -134,14 +134,12 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const {
-    hasExportChanged: hasExportChanged,
-    plans,
-    completedPlans,
-    undecided,
-    followingBefore,
-    followersBefore,
-  } = mergeExports(accounts, bundle, now, base?.lastSavedAt !== undefined);
+  const { hasExportChanged, plans, completedPlans, undecided, followingBefore, followersBefore } = mergeExports(
+    accounts,
+    bundle,
+    now,
+    base?.lastSavedAt !== undefined,
+  );
   const master: Master = {
     version: FORMAT_VERSION,
     accounts,
@@ -154,7 +152,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   return {
     master,
     facts: { followingBefore, followersBefore, completedPlans },
-    hasExportChanged: hasExportChanged,
+    hasExportChanged,
     plans,
     isDirty: isNewMaster || hasExportChanged || hasSettledDecisions,
   };

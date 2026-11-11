@@ -32,7 +32,7 @@ export function ExportReadyBox({
   followingCount,
   followerCount,
   master,
-  isMasterOlder: isMasterOlder,
+  isMasterOlder,
   drop,
   children,
 }: {

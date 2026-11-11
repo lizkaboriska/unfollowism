@@ -1,4 +1,4 @@
-const pad = (number: number) => String(number).padStart(2, '0');
+const pad = (value: number) => String(value).padStart(2, '0');
 
 /** unfollowism_progress_2026-10-27_14-05-09.json, in the user's local time. */
 export function masterFileName(date: Date): string {

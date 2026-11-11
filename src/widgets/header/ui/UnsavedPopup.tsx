@@ -33,15 +33,7 @@ type OpenAccount = (username: string) => void;
 const COMPACT_TAP = { h: '8', px: '1.5', mx: '-1.5', my: '0' } as const;
 
 /** A username that opens the account's popup. `isCompact`: in a tag row's list of names. */
-function NameLink({
-  username,
-  onOpen,
-  isCompact: isCompact,
-}: {
-  username: string;
-  onOpen: OpenAccount;
-  isCompact?: boolean;
-}) {
+function NameLink({ username, onOpen, isCompact }: { username: string; onOpen: OpenAccount; isCompact?: boolean }) {
   return (
     <TextButton
       {...(isCompact ? COMPACT_TAP : {})}
