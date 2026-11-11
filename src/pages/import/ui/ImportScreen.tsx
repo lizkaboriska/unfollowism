@@ -1,26 +1,23 @@
-import { Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
-import { useId, useRef, useState, type ChangeEvent } from 'react';
+import { Button, Stack } from '@chakra-ui/react';
+import { useRef, useState, type ChangeEvent } from 'react';
 
-import {
-  IMPORT_STATUSES,
-  IMPORT_WARNINGS,
-  selectIsDirty,
-  type ImportWarning,
-  type LastSavedStore,
-} from '@/entities/master';
+import { IMPORT_STATUSES, IMPORT_WARNINGS, selectIsDirty, type LastSavedStore } from '@/entities/master';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
-import { TextButton } from '@/shared/ui/TextButton.tsx';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
 import { useDropZone } from '../lib/useDropZone.ts';
 import { useImportSelection, type ImportFailure } from '../model/useImportSelection.ts';
 
+import { ChosenFileList } from './ChosenFileList.tsx';
 import { ExportReadyBox } from './ExportReadyBox.tsx';
+import { FilePickBox } from './FilePickBox.tsx';
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
 import { HowItWorksView } from './howItWorksView.ts';
 import { importProblemText } from './importProblemText.ts';
-import { missingWarning, olderMasterDates, olderMasterText, savedMasterMissingText } from './importText.ts';
+import { missingWarning } from './importText.ts';
+import { MasterWarning } from './MasterWarning.tsx';
+import { MissingFilesWarning } from './MissingFilesWarning.tsx';
 
 /** A failure as shown to the user. */
 function failureText(failure: ImportFailure): string {
@@ -43,7 +40,6 @@ export function ImportScreen({
   onCancel?: () => void;
 }) {
   const confirm = useConfirm();
-  const fileBoxTitleId = useId();
   const isDirty = useAppSelector(selectIsDirty);
   const importing = useAppSelector(s => s.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const restoreFailed = useAppSelector(s => s.master.restoreFailed);
@@ -108,7 +104,7 @@ export function ImportScreen({
   const { followingCount = null, followerCount = null, master = null } = selection?.recognized ?? {};
   const missing = selection && missingWarning(selection.recognized);
   // Exactly one of Following / Followers is there.
-  const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
+  const isOneFileMissing = missing !== null && (followingCount !== null || followerCount !== null);
 
   return (
     <Stack gap="5">
@@ -148,60 +144,22 @@ export function ImportScreen({
           )}
         </ExportReadyBox>
       ) : (
-        <Stack
-          as="section"
-          aria-labelledby={fileBoxTitleId}
-          gap="2"
-          align="center"
-          borderWidth="1px"
-          borderColor={drop.isDragging ? 'accent' : 'border'}
-          px="5"
-          pt="6"
-          pb="5"
-          textAlign="center"
-          onDragOver={drop.onDragOver}
-          onDragLeave={drop.onDragLeave}
-          onDrop={drop.onDrop}
-        >
-          <Heading as="h2" id={fileBoxTitleId} textStyle="heading" color={drop.isDragging ? 'accent' : 'ink'}>
-            {drop.isDragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'Have your .zip?'}
-          </Heading>
-          <Text color="fg.muted">
-            {oneMissing
-              ? 'Choose your Instagram .zip, or drop it here.'
-              : 'Choose your Instagram .zip, or drop it here. Returning? Add your saved progress file too.'}
-          </Text>
-          <Button
-            w="full"
-            mt="2"
-            loading={isReading}
-            loadingText="Reading files…"
-            onClick={() => {
-              pickFiles();
-            }}
-          >
-            Choose files
-          </Button>
-        </Stack>
+        <FilePickBox
+          drop={drop}
+          isOneFileMissing={isOneFileMissing}
+          isReading={isReading}
+          onChoose={() => {
+            pickFiles();
+          }}
+        />
       )}
       {missing && (
-        <Warning title={missing.title}>
-          {missing.body}{' '}
-          <Button
-            variant="plain"
-            h="auto"
-            p="0"
-            color="fg"
-            textDecoration="underline"
-            textUnderlineOffset="3px"
-            verticalAlign="baseline"
-            onClick={() => {
-              setHowView(HowItWorksView.EXPORT);
-            }}
-          >
-            How?
-          </Button>
-        </Warning>
+        <MissingFilesWarning
+          missing={missing}
+          onHow={() => {
+            setHowView(HowItWorksView.EXPORT);
+          }}
+        />
       )}
       <HowItWorksPopup
         view={howView}
@@ -222,51 +180,15 @@ export function ImportScreen({
       )}
 
       {chosen.length > 0 && (
-        <Stack gap="1">
-          <List.Root listStyle="none">
-            {chosen.map(c => (
-              <List.Item key={c.id} display="flex" alignItems="center" gap="2" minH="10">
-                <Stack gap="0" flex="1" minW="0">
-                  <Text truncate>{c.name}</Text>
-                  {c.readError && (
-                    <Text textStyle="small" color="fg.error">
-                      {c.readError}
-                    </Text>
-                  )}
-                </Stack>
-                <Button
-                  variant="plain"
-                  w="10"
-                  h="10"
-                  minW="10"
-                  p="0"
-                  textStyle="name"
-                  aria-label={`Remove ${c.name}`}
-                  onClick={() => {
-                    remove(c.id);
-                  }}
-                >
-                  ×
-                </Button>
-              </List.Item>
-            ))}
-          </List.Root>
-          <HStack gap="2" textStyle="body">
-            <TextButton
-              loading={isReading}
-              loadingText="Reading files…"
-              onClick={() => {
-                pickFiles();
-              }}
-            >
-              Add more files
-            </TextButton>
-            <Text as="span" color="fg.muted" aria-hidden="true">
-              ·
-            </Text>
-            <TextButton onClick={clearAll}>Clear all</TextButton>
-          </HStack>
-        </Stack>
+        <ChosenFileList
+          files={chosen}
+          isReading={isReading}
+          onRemove={remove}
+          onAddMore={() => {
+            pickFiles();
+          }}
+          onClearAll={clearAll}
+        />
       )}
 
       <Stack gap="2" align="center">
@@ -286,53 +208,5 @@ export function ImportScreen({
         )}
       </Stack>
     </Stack>
-  );
-}
-
-/**
- * The master warning inside the ready box, with its two answers. `onAddMaster` opens the file picker (for an older
- * master, the picked file replaces it); `onDismiss` hides the warning.
- */
-function MasterWarning({
-  warning,
-  onAddMaster,
-  onDismiss,
-}: {
-  warning: ImportWarning;
-  onAddMaster: () => void;
-  onDismiss: () => void;
-}) {
-  const buttons = (add: string, dismiss: string) => (
-    <>
-      <Button variant="outline" flex="1" onClick={onAddMaster}>
-        {add}
-      </Button>
-      <Button variant="outline" px="3" onClick={onDismiss}>
-        {dismiss}
-      </Button>
-    </>
-  );
-  if (warning.kind === IMPORT_WARNINGS.NO_MASTER_BUT_SAVED_BEFORE) {
-    return (
-      <Warning title="Have your progress file?" actions={buttons('Add progress file', 'Start fresh')}>
-        {savedMasterMissingText(warning.lastKnownSavedAt)}
-      </Warning>
-    );
-  }
-  const dates = olderMasterDates(warning);
-  return (
-    <Warning title="This progress file is older" actions={buttons('Choose newer file', 'Use older file')}>
-      <Grid as="dl" templateColumns="auto minmax(0, 1fr)" columnGap="3" rowGap="0.5" my="0.5">
-        <Text as="dt">Selected file</Text>
-        <Text as="dd" color="ink">
-          {dates.selected ?? 'Not dated'}
-        </Text>
-        <Text as="dt">Last saved</Text>
-        <Text as="dd" color="ink">
-          {dates.lastSaved}
-        </Text>
-      </Grid>
-      {olderMasterText(dates)}
-    </Warning>
   );
 }
