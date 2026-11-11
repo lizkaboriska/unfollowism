@@ -15,12 +15,14 @@ import {
   FOLLOW_CHANGES,
   PLAN_STATES,
   type Account,
+  type ActionType,
   type FollowChange,
   type ReadonlyAccount,
   type ReadonlyAccounts,
 } from '../lib/types.ts';
 
 import { UNSAVED_IMPORT } from './masterSlice.ts';
+import { SAVE_STATUSES } from './statuses.ts';
 import { LIST_VIEWS, PLAN_VIEW_ACTIONS, TODO_VIEWS, type PlanView } from './views.ts';
 
 // Everything handed to components is DeepReadonly: state is frozen, so writes must be compile errors.
@@ -96,6 +98,23 @@ export function selectTodoStartView(s: RootState): PlanView {
 
 /** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
 export const selectChangesSince = (s: RootState): string | null => s.master.base?.lastSavedAt ?? null;
+
+/** When the open data was imported; null before any import. */
+export const selectImportedAt = (state: RootState): string | null => state.master.base?.lastImportAt ?? null;
+
+/** A progress file is being written. */
+export const selectIsSaving = (state: RootState): boolean => state.master.saveStatus === SAVE_STATUSES.SAVING;
+
+/** A progress file was saved, or added, for this data. */
+export const selectHasBeenSaved = (state: RootState): boolean => state.master.savedAt !== null;
+
+/** The account's plan of this type was marked done before the import (so the import confirms it). */
+export const selectWasPlanDoneBeforeImport = (state: RootState, key: string, type: ActionType): boolean =>
+  !!state.master.importFacts?.completedPlans[key]?.includes(type);
+
+/** The username as imported; still there for an account removed since (the old name of a moved rename). */
+export const selectImportedUsername = (state: RootState, key: string): string | undefined =>
+  state.master.base?.accounts[key]?.username;
 
 export type ChangeSections = Record<FollowChange, readonly string[]>;
 
