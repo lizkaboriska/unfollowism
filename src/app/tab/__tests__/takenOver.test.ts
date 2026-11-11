@@ -10,17 +10,17 @@ function actions() {
 /** A store with one unsaved edit. */
 async function editedStore() {
   const recorded = recordingBackup();
-  const setup = makeTestStore({ backup: recorded.backup });
-  await setup.store.dispatch(importPrepared(prepared())).unwrap();
-  setup.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
+  const testStore = makeTestStore({ backup: recorded.backup });
+  await testStore.store.dispatch(importPrepared(prepared())).unwrap();
+  testStore.store.dispatch(setNote({ username: 'bob', note: 'unsaved' }));
   await flushPersistence();
-  return { ...setup, writes: recorded.writes };
+  return { ...testStore, writes: recorded.writes };
 }
 
 test('stored work: reloads without "Leave site?"', async () => {
-  const setup = await editedStore();
+  const { store } = await editedStore();
   const spies = actions();
-  handleTakenOver(setup.store, true, spies);
+  handleTakenOver(store, true, spies);
   expect(spies.stopGuard).toHaveBeenCalledOnce();
   expect(spies.reload).toHaveBeenCalledOnce();
   expect(spies.showStopped).not.toHaveBeenCalled();
@@ -34,33 +34,33 @@ test('still starting: reloads', () => {
 });
 
 test('storage off with unsaved work: no reload, This tab stopped, nothing more written', async () => {
-  const setup = await editedStore();
+  const { store, writes } = await editedStore();
   const spies = actions();
-  handleTakenOver(setup.store, false, spies);
+  handleTakenOver(store, false, spies);
   expect(spies.reload).not.toHaveBeenCalled();
   expect(spies.stopGuard).not.toHaveBeenCalled();
-  expect(spies.showStopped).toHaveBeenCalledExactlyOnceWith(setup.store);
+  expect(spies.showStopped).toHaveBeenCalledExactlyOnceWith(store);
 
-  const writes = setup.writes.length;
-  setup.store.dispatch(setNote({ username: 'bob', note: 'after' }));
+  const writeCountBefore = writes.length;
+  store.dispatch(setNote({ username: 'bob', note: 'after' }));
   await flushPersistence();
-  expect(setup.writes).toHaveLength(writes);
+  expect(writes).toHaveLength(writeCountBefore);
 });
 
 test('writes failing with unsaved work: This tab stopped', async () => {
-  const setup = await editedStore();
-  setup.store.dispatch(persistenceFailed());
+  const { store } = await editedStore();
+  store.dispatch(persistenceFailed());
   const spies = actions();
-  handleTakenOver(setup.store, true, spies);
+  handleTakenOver(store, true, spies);
   expect(spies.reload).not.toHaveBeenCalled();
-  expect(spies.showStopped).toHaveBeenCalledExactlyOnceWith(setup.store);
+  expect(spies.showStopped).toHaveBeenCalledExactlyOnceWith(store);
 });
 
 test('storage off but everything saved: reloads', async () => {
-  const setup = await editedStore();
-  await setup.store.dispatch(saveMaster()).unwrap();
+  const { store } = await editedStore();
+  await store.dispatch(saveMaster()).unwrap();
   const spies = actions();
-  handleTakenOver(setup.store, false, spies);
+  handleTakenOver(store, false, spies);
   expect(spies.reload).toHaveBeenCalledOnce();
   expect(spies.showStopped).not.toHaveBeenCalled();
 });

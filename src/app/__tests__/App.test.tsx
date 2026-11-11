@@ -824,10 +824,10 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
 describe('main view', () => {
   // exportFiles(): following alice + bob, followers alice + carol. Without a saved master everyone counts as new.
   async function imported() {
-    const setup = await renderApp();
-    await importFiles(setup.user, exportFiles());
+    const app = await renderApp();
+    await importFiles(app.user, exportFiles());
     await findRow('bob');
-    return setup;
+    return app;
   }
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
 
@@ -1234,10 +1234,10 @@ describe('main view', () => {
 describe('Review cards and the account popup', () => {
   // exportFiles(): following alice + bob, followers alice + carol.
   async function imported() {
-    const setup = await renderApp();
-    await importFiles(setup.user, exportFiles());
+    const app = await renderApp();
+    await importFiles(app.user, exportFiles());
     await findRow('bob');
-    return setup;
+    return app;
   }
   const pressed = (button: HTMLElement) => button.getAttribute('aria-pressed') === 'true';
   const shown = () => screen.queryAllByRole('article').map(card => card.getAttribute('aria-label'));
@@ -1396,10 +1396,10 @@ describe('Review cards and the account popup', () => {
 
 describe('unsaved changes popup', () => {
   async function imported() {
-    const setup = await renderApp();
-    await importFiles(setup.user, exportFiles());
+    const app = await renderApp();
+    await importFiles(app.user, exportFiles());
     await findRow('bob');
-    return setup;
+    return app;
   }
   const popup = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
   async function openPopup(user: UserEvent, link: string) {
@@ -1527,10 +1527,10 @@ test('every form field has a name (browsers flag unnamed fields)', async () => {
 
 describe('tags', () => {
   async function imported() {
-    const setup = await renderApp();
-    await importFiles(setup.user, exportFiles());
+    const app = await renderApp();
+    await importFiles(app.user, exportFiles());
     await findRow('bob');
-    return setup;
+    return app;
   }
   /** The tag chips in an account's popup (its buttons in the Tags group besides "+ New tag"). */
   async function popupTags(user: UserEvent, username: string) {
