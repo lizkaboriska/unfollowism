@@ -25,21 +25,21 @@ function Row({ mark, label, value }: { mark: string; label: string; value: strin
 }
 
 /**
- * Shown instead of the file box once both Following and Followers are found: what will be imported. `masterOlder`
+ * Shown instead of the file box once both Following and Followers are found: what will be imported. `isMasterOlder`
  * marks the master row with ⚠; `children` (the master warning) goes under the rows.
  */
 export function ExportReadyBox({
   followingCount,
   followerCount,
   master,
-  masterOlder,
+  isMasterOlder: isMasterOlder,
   drop,
   children,
 }: {
   followingCount: number;
   followerCount: number;
   master: RecognizedFiles['master'];
-  masterOlder: boolean;
+  isMasterOlder: boolean;
   drop: DropTarget;
   children?: ReactNode;
 }) {
@@ -66,7 +66,7 @@ export function ExportReadyBox({
         />
         {master ? (
           <Row
-            mark={masterOlder ? '⚠' : '✓'}
+            mark={isMasterOlder ? '⚠' : '✓'}
             label="Progress file"
             value={master.savedAt ? `saved ${formatDate(master.savedAt)}` : 'selected'}
           />

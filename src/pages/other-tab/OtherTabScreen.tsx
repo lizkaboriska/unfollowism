@@ -9,7 +9,7 @@ import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
  */
 export function OtherTabScreen({ onUseHere }: { onUseHere: () => Promise<void> }) {
   const boxTitleId = useId();
-  const [taking, setTaking] = useState(false);
+  const [isTaking, setTaking] = useState(false);
   return (
     <Box>
       <Box as="header" borderBottomWidth="1px">
@@ -45,7 +45,7 @@ export function OtherTabScreen({ onUseHere }: { onUseHere: () => Promise<void> }
             <Button
               w="full"
               mt="2"
-              loading={taking}
+              loading={isTaking}
               onClick={() => {
                 setTaking(true);
                 void onUseHere();

@@ -19,7 +19,7 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
   async function reset() {
     // Never saved (started from an Instagram export only): Reset goes back to the import, and there's no master file.
     const since = hasBeenSaved ? 'since your last save' : 'since adding the data';
-    const confirmed = await confirm({
+    const isConfirmed = await confirm({
       title: 'Reset unsaved changes?',
       body: (
         <Stack gap="3">
@@ -32,12 +32,12 @@ export function useResetChanges(): { canReset: boolean; reset: () => Promise<boo
         </Stack>
       ),
       confirmLabel: 'Reset changes',
-      destructive: true,
+      isDestructive: true,
     });
-    if (confirmed) {
+    if (isConfirmed) {
       dispatch(resetChanges());
     }
-    return confirmed;
+    return isConfirmed;
   }
 
   return { canReset: unsavedCount > 0 && !isSaving, reset };

@@ -72,13 +72,13 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
   let storedChanged: Accounts | null = null;
   let storedSaved: Accounts | null = null;
   let changes = 0;
-  let writing = false;
-  let stopped = false;
+  let isWriting = false;
+  let isStopped = false;
 
   listener.startListening({
     actionCreator: persistenceStopped,
     effect: () => {
-      stopped = true;
+      isStopped = true;
     },
   });
 
@@ -99,7 +99,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
     extra: StoreDeps;
     dispatch: AppDispatch;
   }): Promise<boolean> {
-    if (stopped) {
+    if (isStopped) {
       return true;
     }
     const state = api.getState().master;
@@ -124,7 +124,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       storedBase = base;
       storedChanged = changed;
       storedSaved = savedChanged;
-      if (api.getState().master.persistenceFailed) {
+      if (api.getState().master.hasPersistenceFailed) {
         api.dispatch(persistenceRecovered());
       }
       return true;
@@ -135,7 +135,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       storedBase = null;
       storedChanged = null;
       storedSaved = null;
-      if (!api.getState().master.persistenceFailed) {
+      if (!api.getState().master.hasPersistenceFailed) {
         api.dispatch(persistenceFailed());
       }
       return false;
@@ -151,10 +151,10 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
         current.master.savedRevision !== previous.master.savedRevision),
     effect: async (_action, api) => {
       changes += 1;
-      if (writing) {
+      if (isWriting) {
         return;
       } // the running loop below will pick this change up
-      writing = true;
+      isWriting = true;
       try {
         let written = 0;
         let failures = 0;
@@ -173,7 +173,7 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
           written = 0; // retry, including anything that changed meanwhile
         }
       } finally {
-        writing = false;
+        isWriting = false;
       }
     },
   });

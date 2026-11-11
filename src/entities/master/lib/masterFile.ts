@@ -229,8 +229,8 @@ function date(value: unknown, path: string): string {
 }
 
 /** A follow is recorded by the presence of its "since" field (null = time unknown). */
-function follow(present: boolean, since: unknown, path: string): Follow | null {
-  return present ? { since: numOrNull(since, path) } : null;
+function follow(isPresent: boolean, since: unknown, path: string): Follow | null {
+  return isPresent ? { since: numOrNull(since, path) } : null;
 }
 
 const RENAME_FIELDS: ReadonlySet<string> = new Set(['to', 'plans'] satisfies (keyof RenameSuggestion)[]);

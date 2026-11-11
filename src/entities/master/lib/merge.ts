@@ -21,11 +21,11 @@ export interface ImportResult {
   master: Master;
   facts: ImportFacts;
   /** False when the export has exactly the same following/followers, with the same dates, as the previous import. */
-  exportChanged: boolean;
+  hasExportChanged: boolean;
   /** Plans this import found done, and "done" plans it found not done after all (back in To do). */
   plans: PlanOutcomes;
   /** Whether the imported state differs from the master file and should be saved. */
-  dirty: boolean;
+  isDirty: boolean;
 }
 
 function sameSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
@@ -48,7 +48,7 @@ function redated(previous: Follow | null, entry: ExportEntry | undefined): boole
 /**
  * WRITE: applies a fresh export to the accounts (mutated in place): finds likely renames while
  * the old follow dates are still there, updates the follows, dates the ones that stopped (`now`),
- * and, when `accounts` come from a saved master (`saved`), the ones that appeared; puts rename
+ * and, when `accounts` come from a saved master (`isFromSavedMaster`), the ones that appeared; puts rename
  * suggestions on the old accounts (dropping earlier ones that no longer hold), and settles decisions
  * against the follows.
  */
@@ -56,8 +56,8 @@ export function mergeExports(
   accounts: Record<string, Account>,
   bundle: ExportBundle,
   now: string,
-  saved: boolean,
-): { exportChanged: boolean; followingBefore: number; followersBefore: number } & SettledDecisions {
+  isFromSavedMaster: boolean,
+): { hasExportChanged: boolean; followingBefore: number; followersBefore: number } & SettledDecisions {
   const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
   const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
   const renames = findRenames(accounts, following, followers);
@@ -72,7 +72,7 @@ export function mergeExports(
       previousFollowers.add(key);
     }
   }
-  let exportChanged =
+  let hasExportChanged =
     !sameSet(previousFollowing, new Set(following.keys())) || !sameSet(previousFollowers, new Set(followers.keys()));
 
   for (const key of new Set([...Object.keys(accounts), ...following.keys(), ...followers.keys()])) {
@@ -88,12 +88,12 @@ export function mergeExports(
     }
     // Same people, but a follow re-dated (e.g. unfollowed and followed again between exports).
     if (redated(account.following, followingEntry) || redated(account.followedBy, followerEntry)) {
-      exportChanged = true;
+      hasExportChanged = true;
     }
     if (source) {
       account.username = source.username;
     } // casing follows the newest export
-    setFollows(account, followingEntry, followerEntry, now, saved);
+    setFollows(account, followingEntry, followerEntry, now, isFromSavedMaster);
   }
 
   settleRenameSuggestions(accounts);
@@ -112,7 +112,7 @@ export function mergeExports(
     },
   );
   return {
-    exportChanged,
+    hasExportChanged: hasExportChanged,
     followingBefore: previousFollowing.size,
     followersBefore: previousFollowers.size,
     ...settled,
@@ -134,26 +134,28 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const isNewMaster = rawMaster == null;
   const base = isNewMaster ? null : parseMaster(rawMaster);
   const accounts = base?.accounts ?? createDict<Account>();
-  const { exportChanged, plans, completedPlans, undecided, followingBefore, followersBefore } = mergeExports(
-    accounts,
-    bundle,
-    now,
-    base?.lastSavedAt !== undefined,
-  );
+  const {
+    hasExportChanged: hasExportChanged,
+    plans,
+    completedPlans,
+    undecided,
+    followingBefore,
+    followersBefore,
+  } = mergeExports(accounts, bundle, now, base?.lastSavedAt !== undefined);
   const master: Master = {
     version: FORMAT_VERSION,
     accounts,
     // Re-importing the same export doesn't make the data any newer.
-    lastImportAt: exportChanged || !base ? now : base.lastImportAt,
+    lastImportAt: hasExportChanged || !base ? now : base.lastImportAt,
     ...(base?.lastSavedAt === undefined ? {} : { lastSavedAt: base.lastSavedAt }),
   };
 
-  const decisionsSettled = totalOf(plans.completed) + totalOf(plans.reopened) + undecided > 0;
+  const hasSettledDecisions = totalOf(plans.completed) + totalOf(plans.reopened) + undecided > 0;
   return {
     master,
     facts: { followingBefore, followersBefore, completedPlans },
-    exportChanged,
+    hasExportChanged: hasExportChanged,
     plans,
-    dirty: isNewMaster || exportChanged || decisionsSettled,
+    isDirty: isNewMaster || hasExportChanged || hasSettledDecisions,
   };
 }

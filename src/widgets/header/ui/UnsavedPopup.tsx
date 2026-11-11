@@ -32,11 +32,19 @@ type OpenAccount = (username: string) => void;
 /** Tap area of a name or "Show all" in a tag row: 32 px tall, the lines are 32 px apart (no room for 40). */
 const COMPACT_TAP = { h: '8', px: '1.5', mx: '-1.5', my: '0' } as const;
 
-/** A username that opens the account's popup. `compact`: in a tag row's list of names. */
-function NameLink({ username, onOpen, compact }: { username: string; onOpen: OpenAccount; compact?: boolean }) {
+/** A username that opens the account's popup. `isCompact`: in a tag row's list of names. */
+function NameLink({
+  username,
+  onOpen,
+  isCompact: isCompact,
+}: {
+  username: string;
+  onOpen: OpenAccount;
+  isCompact?: boolean;
+}) {
   return (
     <TextButton
-      {...(compact ? COMPACT_TAP : {})}
+      {...(isCompact ? COMPACT_TAP : {})}
       wordBreak="break-all"
       whiteSpace="normal"
       textAlign="start"
@@ -100,7 +108,7 @@ function TagRow({ row, onOpen }: { row: TagChangeRow; onOpen: OpenAccount }) {
       {shown !== null && (
         <HStack px="3" pb="2" rowGap="0" columnGap="4" wrap="wrap">
           {row.usernames.slice(0, shown).map(username => (
-            <NameLink key={username} username={username} onOpen={onOpen} compact />
+            <NameLink key={username} username={username} onOpen={onOpen} isCompact />
           ))}
           {count > shown && shown < MAX_ACCOUNTS && (
             <TextButton
@@ -134,10 +142,10 @@ function DecisionChip({ decision }: { decision: DeepReadonly<Decision> | null })
 
 function AccountBlock({ entry, onOpen }: { entry: SessionAccountChanges; onOpen: OpenAccount }) {
   // The old name of a confirmed rename is no account any more, so there is nothing to open.
-  const gone = entry.changes.some(change => change.type === SESSION_CHANGES.ACCOUNT_REMOVED);
+  const isGone = entry.changes.some(change => change.type === SESSION_CHANGES.ACCOUNT_REMOVED);
   return (
     <Stack as="li" p="3" gap="1.5" align="flex-start">
-      {gone ? (
+      {isGone ? (
         <Text textStyle="name" wordBreak="break-all">
           @{entry.username}
         </Text>
@@ -165,12 +173,12 @@ function AccountBlock({ entry, onOpen }: { entry: SessionAccountChanges; onOpen:
 function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount; onClose: () => void }) {
   const { tagRows, accounts } = useAppSelector(selectUnsavedGroups);
   const changedCount = useAppSelector(selectUnsavedAccountCount);
-  const dirty = useAppSelector(selectIsDirty);
+  const isDirty = useAppSelector(selectIsDirty);
   const hasBeenSaved = useAppSelector(selectHasBeenSaved);
 
   const subtitle = changedCount
     ? `${plural(changedCount, 'changed account')} since ${hasBeenSaved ? 'your last save' : 'adding the data'}`
-    : dirty
+    : isDirty
       ? 'New data, no account changes'
       : 'No edits since your last save.';
 
@@ -199,7 +207,7 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
             </Section>
           )}
           <MoreAccounts count={accounts.length - MAX_ACCOUNTS} />
-          {dirty && (
+          {isDirty && (
             <Text color="fg.muted">Save downloads an updated progress file with these changes. Add it next time.</Text>
           )}
         </Stack>

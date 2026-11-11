@@ -64,7 +64,7 @@ export interface RecordedWrite {
 export function recordingBackup(inner: BackupStore = createMemoryBackupStore()) {
   const writes: RecordedWrite[] = [];
   const backup: BackupStore = {
-    durable: inner.durable,
+    isDurable: inner.isDurable,
     load: () => inner.load(),
     replace: (base, meta, backupWrites) => {
       writes.push({

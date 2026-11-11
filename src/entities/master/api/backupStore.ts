@@ -26,7 +26,7 @@ export interface BackupWrites {
 
 export interface BackupStore {
   /** False for the in-memory fallback: work then does not survive a reload. */
-  readonly durable: boolean;
+  readonly isDurable: boolean;
   load(): Promise<StoredBackup | null>;
   /** New import: drops everything stored and starts over from `base`. */
   replace(base: MasterFile, meta: BackupMeta, writes: BackupWrites): Promise<void>;
@@ -120,7 +120,7 @@ export async function openIndexedDbBackupStore(factory: IDBFactory = indexedDB):
   await db();
 
   return {
-    durable: true,
+    isDurable: true,
 
     async load() {
       const tx = (await db()).transaction([BASE, META, ...ACCOUNT_STORES], 'readonly');
@@ -188,7 +188,7 @@ export function createMemoryBackupStore(): BackupStore {
     null;
 
   return {
-    durable: false,
+    isDurable: false,
     load() {
       if (!stored) {
         return Promise.resolve(null);

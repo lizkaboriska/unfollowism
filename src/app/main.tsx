@@ -48,7 +48,7 @@ async function openBackupStore(): Promise<BackupStore> {
 
 const root = createRoot(rootElement);
 let stopGuard: (() => void) | null = null;
-let started: { store: AppStore; durable: boolean } | null = null;
+let started: { store: AppStore; isDurable: boolean } | null = null;
 
 async function startApp(): Promise<void> {
   void persistStorage();
@@ -61,7 +61,7 @@ async function startApp(): Promise<void> {
     address: browserAddressBar(),
   };
   const store = makeStore(deps);
-  started = { store, durable: deps.backup.durable };
+  started = { store, isDurable: deps.backup.isDurable };
   stopGuard = guardUnload(store, () => selectIsDirty(store.getState()));
   root.render(
     <StrictMode>
@@ -78,7 +78,7 @@ async function startApp(): Promise<void> {
 
 // Another tab took over: reload to Open in another tab, or This tab stopped if the work here isn't stored.
 const tab = activeTab(browserTabLocks(), browserTabChannel(), () => {
-  handleTakenOver(started?.store ?? null, started?.durable ?? false, {
+  handleTakenOver(started?.store ?? null, started?.isDurable ?? false, {
     stopGuard: () => stopGuard?.(),
     reload: () => {
       window.location.reload();

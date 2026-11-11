@@ -231,7 +231,7 @@ export const selectUnsavedDiff = createSelector(
 );
 
 /** Per current account object: the saved version it was compared with, and whether they match. */
-const savedComparisons = new WeakMap<ReadonlyAccount, { saved: ReadonlyAccount | undefined; same: boolean }>();
+const savedComparisons = new WeakMap<ReadonlyAccount, { saved: ReadonlyAccount | undefined; isSame: boolean }>();
 
 function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccount | undefined): boolean {
   if (current === saved) {
@@ -242,11 +242,11 @@ function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccoun
   }
   const cached = savedComparisons.get(current);
   if (cached?.saved === saved) {
-    return cached.same;
+    return cached.isSame;
   }
-  const same = sameAccountData(current, saved);
-  savedComparisons.set(current, { saved, same });
-  return same;
+  const isSame = sameAccountData(current, saved);
+  savedComparisons.set(current, { saved, isSame: isSame });
+  return isSame;
 }
 
 /**

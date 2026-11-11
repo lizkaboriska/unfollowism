@@ -10,7 +10,7 @@ export interface ConfirmOptions {
   body: ReactNode;
   confirmLabel: string;
   /** Shows the confirm button in red, for actions that throw work away. */
-  destructive?: boolean;
+  isDestructive?: boolean;
 }
 
 export type OpenDialogFn = (options: ConfirmOptions) => Promise<boolean>;

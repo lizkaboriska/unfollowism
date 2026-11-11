@@ -96,9 +96,9 @@ function Section({
   keys: readonly string[];
   onOpen: (accountKey: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [isExpanded, setExpanded] = useState(false);
   const headingId = useId();
-  const shown = expanded ? keys : keys.slice(0, FIRST_ROWS);
+  const shown = isExpanded ? keys : keys.slice(0, FIRST_ROWS);
   const note = SECTION_NOTES[change];
   return (
     <Stack as="section" aria-labelledby={headingId} gap="2">
@@ -134,10 +134,10 @@ function Section({
               textDecoration="underline"
               textUnderlineOffset="3px"
               onClick={() => {
-                setExpanded(!expanded);
+                setExpanded(!isExpanded);
               }}
             >
-              {expanded ? 'Show fewer' : `Show all ${keys.length}`}
+              {isExpanded ? 'Show fewer' : `Show all ${keys.length}`}
             </Button>
           </Box>
         )}

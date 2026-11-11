@@ -10,12 +10,12 @@ export function NoResults() {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(state => state.filters);
   const query = filters.query.trim();
-  const filtered = filters.tag.kind !== TAG_FILTER_KINDS.ALL || filters.decision !== DecisionFilter.ANY;
+  const isFiltered = filters.tag.kind !== TAG_FILTER_KINDS.ALL || filters.decision !== DecisionFilter.ANY;
 
   let text = 'No accounts in this list.';
   if (query) {
-    text = `No usernames match “${query}”${filtered ? ' with these filters' : ''}.`;
-  } else if (filtered) {
+    text = `No usernames match “${query}”${isFiltered ? ' with these filters' : ''}.`;
+  } else if (isFiltered) {
     text = 'No accounts match these filters.';
   }
   return (
@@ -26,10 +26,10 @@ export function NoResults() {
       <Text color="fg.muted" mt="1">
         {text}
       </Text>
-      {(query || filtered) && (
+      {(query || isFiltered) && (
         <HStack gap="4" mt="3">
           {query && <Button onClick={() => dispatch(setQuery(''))}>Clear search</Button>}
-          {filtered && (
+          {isFiltered && (
             <Button
               variant="plain"
               p="0"

@@ -108,18 +108,18 @@ function AccountDetails({ account }: { account: ReadonlyAccount }) {
       <Section legend="Tags">
         <Wrap gap="2" role="group" aria-label={`Tags for @${username}`}>
           {tags.map(tag => {
-            const on = review.tags.includes(tag);
+            const isOn = review.tags.includes(tag);
             return (
               <Button
                 key={tag}
                 size="sm"
                 h="8"
-                variant={on ? 'solid' : 'outline'}
-                aria-pressed={on}
+                variant={isOn ? 'solid' : 'outline'}
+                aria-pressed={isOn}
                 aria-label={tag}
                 onClick={() => dispatch(toggleTag({ username, tag }))}
               >
-                {on ? `✓ ${tag}` : tag}
+                {isOn ? `✓ ${tag}` : tag}
               </Button>
             );
           })}

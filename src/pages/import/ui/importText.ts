@@ -50,8 +50,8 @@ export function olderMasterDates({
   selected: string | null;
   lastSaved: string;
 } {
-  const sameDay = fileSavedAt !== null && formatDate(fileSavedAt) === formatDate(lastKnownSavedAt);
-  const format = sameDay ? formatDateTime : formatDate;
+  const isSameDay = fileSavedAt !== null && formatDate(fileSavedAt) === formatDate(lastKnownSavedAt);
+  const format = isSameDay ? formatDateTime : formatDate;
   return { selected: fileSavedAt && format(fileSavedAt), lastSaved: format(lastKnownSavedAt) };
 }
 

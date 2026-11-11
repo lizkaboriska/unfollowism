@@ -136,14 +136,14 @@ describe('edits', () => {
   test('kept: keeps and un-keeps; repeating the same value or unknown accounts are a no-op', async () => {
     const { store } = await importedStore();
     const r0 = store.getState().master.revision;
-    store.dispatch(setKept({ username: 'bob', kept: true }));
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     expect(account(store, 'bob').decision).toEqual({ kind: DecisionKind.KEPT });
-    store.dispatch(setKept({ username: 'bob', kept: false }));
+    store.dispatch(setKept({ username: 'bob', isKept: false }));
     expect(account(store, 'bob').decision).toBeUndefined();
     expect(store.getState().master.revision).toBe(r0 + 2);
 
-    store.dispatch(setKept({ username: 'nobody', kept: true }));
+    store.dispatch(setKept({ username: 'nobody', isKept: true }));
     expect(store.getState().master.revision).toBe(r0 + 2);
   });
 
@@ -195,7 +195,7 @@ describe('edits', () => {
     const { store } = await importedStore();
     store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
     store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
-    store.dispatch(setKept({ username: 'alice', kept: true }));
+    store.dispatch(setKept({ username: 'alice', isKept: true }));
     expect(account(store, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
     expect(selectPlanStats(store.getState()).planned).toEqual({ [UNFOLLOW]: 0, [REMOVE_FOLLOWER]: 0 });
 
@@ -241,7 +241,7 @@ describe('edits', () => {
 describe('save', () => {
   test('downloads a master that re-imports unchanged; the session baseline is kept', async () => {
     const { store, setNow, downloads, lastSaved } = await importedStore();
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     setNow('2026-10-27T14:05:09.000Z');
     await store.dispatch(saveMaster()).unwrap();
 
@@ -259,7 +259,7 @@ describe('save', () => {
 
   test('the unsaved changes list covers only what came after the last save', async () => {
     const { store } = await importedStore();
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     await store.dispatch(saveMaster()).unwrap();
     store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
     store.dispatch(setNote({ username: 'carol', note: 'x' }));
@@ -359,12 +359,12 @@ describe('reset changes', () => {
 
   test("goes back to the last save, with that save's status", async () => {
     const { store } = await importedStore();
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     await store.dispatch(saveMaster()).unwrap();
     const savedStatus = store.getState().master.status;
 
     store.dispatch(setNote({ username: 'bob', note: 'after save' }));
-    store.dispatch(setKept({ username: 'carol', kept: true }));
+    store.dispatch(setKept({ username: 'carol', isKept: true }));
     expect(selectUnsavedAccountCount(store.getState())).toBe(2);
 
     store.dispatch(resetChanges());
@@ -387,7 +387,7 @@ describe('reset changes', () => {
     const reimported = makeTestStore();
     await reimported.store.dispatch(importPrepared(prepared({ master: saved }))).unwrap(); // clean import
     const importStatus = reimported.store.getState().master.status;
-    reimported.store.dispatch(setKept({ username: 'bob', kept: true }));
+    reimported.store.dispatch(setKept({ username: 'bob', isKept: true }));
     reimported.store.dispatch(resetChanges());
 
     const state = reimported.store.getState();
@@ -399,7 +399,7 @@ describe('reset changes', () => {
 
   test('an import that was never saved stays unsaved after a reset', async () => {
     const { store } = await importedStore(); // a new master: not in any file yet
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     store.dispatch(resetChanges());
     expect(kept(store, 'bob')).toBe(false);
     expect(selectIsDirty(store.getState())).toBe(true);
@@ -421,7 +421,7 @@ describe('reset changes', () => {
 
   test('accounts changed back to their saved state are not counted', async () => {
     const { store } = await importedStore();
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     store.dispatch(setNote({ username: 'carol', note: 'x' }));
     store.dispatch(setNote({ username: 'carol', note: '' }));
     expect(selectUnsavedAccountCount(store.getState())).toBe(1);
@@ -441,7 +441,7 @@ describe('reset changes', () => {
 
   test('works after a reload', async () => {
     const { store, backup } = await importedStore();
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     await store.dispatch(saveMaster()).unwrap();
     store.dispatch(setNote({ username: 'bob', note: 'after save' }));
     store.dispatch(setNote({ username: 'carol', note: 'after save' }));
@@ -541,7 +541,7 @@ describe('list refresh', () => {
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // import
 
     store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // an edit doesn't move cards
     store.dispatch(setQuery(''));
     expect(shown()).toEqual(['alice', 'bob', 'carol']); // same filters: same list
@@ -562,7 +562,7 @@ describe('list refresh', () => {
 describe('reload safety net', () => {
   test('a reload puts back the work, including the session baseline', async () => {
     const { store, backup } = await importedStore();
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     store.dispatch(toggleTag({ username: 'bob', tag: 'artist' }));
     await flushPersistence();
 
@@ -630,8 +630,8 @@ describe('reload safety net', () => {
 
     store.dispatch(setNote({ username: 'bob', note: 'x' }));
     await flushPersistence();
-    store.dispatch(setKept({ username: 'alice', kept: true }));
-    store.dispatch(setKept({ username: 'carol', kept: true }));
+    store.dispatch(setKept({ username: 'alice', isKept: true }));
+    store.dispatch(setKept({ username: 'carol', isKept: true }));
     await flushPersistence();
     expect(writes.slice(1)).toEqual([
       write(WRITES.UPDATE, { accounts: ['bob'] }),
@@ -656,7 +656,7 @@ describe('reload safety net', () => {
 
   test('restoring after a reload writes nothing', async () => {
     const first = await importedStore();
-    first.store.dispatch(setKept({ username: 'bob', kept: true }));
+    first.store.dispatch(setKept({ username: 'bob', isKept: true }));
     await flushPersistence();
 
     const { backup, writes } = recordingBackup(first.backup);
@@ -694,10 +694,10 @@ describe('reload safety net', () => {
       { changed: {}, saved: {} },
     );
     await store.dispatch(restoreBackup());
-    expect(store.getState().master).toMatchObject({ base: null, restoreFailed: true });
+    expect(store.getState().master).toMatchObject({ base: null, hasRestoreFailed: true });
 
     await store.dispatch(importPrepared(prepared())).unwrap();
-    expect(store.getState().master.restoreFailed).toBe(false);
+    expect(store.getState().master.hasRestoreFailed).toBe(false);
   });
 
   test("stored details without the edit counter are reported, so unsaved work can't look saved", async () => {
@@ -714,7 +714,7 @@ describe('reload safety net', () => {
 
     const reloaded = makeTestStore({ backup: withoutRevision });
     await reloaded.store.dispatch(restoreBackup());
-    expect(reloaded.store.getState().master).toMatchObject({ base: null, restoreFailed: true });
+    expect(reloaded.store.getState().master).toMatchObject({ base: null, hasRestoreFailed: true });
   });
 
   test('a storage read that fails is reported; a new tab is not', async () => {
@@ -722,25 +722,25 @@ describe('reload safety net', () => {
       backup: { ...createMemoryBackupStore(), load: () => Promise.reject(new Error('no idb')) },
     });
     await unreadable.store.dispatch(restoreBackup());
-    expect(unreadable.store.getState().master.restoreFailed).toBe(true);
+    expect(unreadable.store.getState().master.hasRestoreFailed).toBe(true);
 
     const fresh = makeTestStore();
     await fresh.store.dispatch(restoreBackup());
-    expect(fresh.store.getState().master.restoreFailed).toBe(false);
+    expect(fresh.store.getState().master.hasRestoreFailed).toBe(false);
   });
 
   test('storage failures are surfaced, not swallowed, and saving still works', async () => {
     const failing: BackupStore = {
-      durable: true,
+      isDurable: true,
       load: () => Promise.reject(new Error('no idb')),
       replace: () => Promise.reject(new Error('quota')),
       update: () => Promise.reject(new Error('quota')),
     };
     const { store } = await importedStore({ backup: failing });
     await flushPersistence();
-    expect(store.getState().master.persistenceFailed).toBe(true);
+    expect(store.getState().master.hasPersistenceFailed).toBe(true);
     await store.dispatch(restoreBackup());
-    expect(store.getState().master.restoreFailed).toBe(false); // the work is already open: nothing to warn about
+    expect(store.getState().master.hasRestoreFailed).toBe(false); // the work is already open: nothing to warn about
     await expect(store.dispatch(saveMaster()).unwrap()).resolves.toBeTruthy();
   });
 });
@@ -758,7 +758,7 @@ describe('storage write failures', () => {
       return failing.on ? Promise.reject(new Error('quota')) : write();
     };
     const backup: BackupStore = {
-      durable: true,
+      isDurable: true,
       load: () => inner.load(),
       replace: (...args) => attempt(() => inner.replace(...args)),
       update: (...args) => attempt(() => inner.update(...args)),
@@ -785,18 +785,18 @@ describe('storage write failures', () => {
     failing.on = true;
     store.dispatch(setNote({ username: 'bob', note: 'my last edit' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(store.getState().master.persistenceFailed).toBe(true);
+    expect(store.getState().master.hasPersistenceFailed).toBe(true);
 
     failing.on = false; // no further edit: the retry alone has to store it
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
-    expect(store.getState().master.persistenceFailed).toBe(false);
+    expect(store.getState().master.hasPersistenceFailed).toBe(false);
     expect(await storedNote(backup, 'bob')).toBe('my last edit');
   });
 
   test('a backup whose stored data was deleted gets it rebuilt', async () => {
     let inner = createMemoryBackupStore();
     const { backup } = flakyBackup({
-      durable: true,
+      isDurable: true,
       load: () => inner.load(),
       replace: (...args) => inner.replace(...args),
       update: (...args) => inner.update(...args),
@@ -806,10 +806,10 @@ describe('storage write failures', () => {
     inner = createMemoryBackupStore(); // the browser deleted the stored data
     store.dispatch(setNote({ username: 'bob', note: 'after the loss' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(store.getState().master.persistenceFailed).toBe(true); // an update needs the stored backup
+    expect(store.getState().master.hasPersistenceFailed).toBe(true); // an update needs the stored backup
 
     await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]); // the retry writes everything again
-    expect(store.getState().master.persistenceFailed).toBe(false);
+    expect(store.getState().master.hasPersistenceFailed).toBe(false);
     expect(must(await backup.load()).base).toMatchObject({ accounts: { bob: { username: 'bob' } } });
     expect(await storedNote(backup, 'bob')).toBe('after the loss');
   });
@@ -827,7 +827,7 @@ describe('storage write failures', () => {
     failing.on = false;
     store.dispatch(setNote({ username: 'bob', note: 'y' }));
     await vi.advanceTimersByTimeAsync(0);
-    expect(store.getState().master.persistenceFailed).toBe(false);
+    expect(store.getState().master.hasPersistenceFailed).toBe(false);
     expect(await storedNote(backup, 'bob')).toBe('y');
   });
 
@@ -1091,7 +1091,7 @@ describe('selectors', () => {
     store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.TAG, tag: 'artist' }));
     expect(keys()).toEqual(['dave']);
     store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     store.dispatch(setDecisionFilter(DecisionFilter.NEEDS_DECISION));
     expect(keys()).toEqual(['alice', 'carol']);
     store.dispatch(setQuery(' CAR '));
@@ -1166,7 +1166,7 @@ describe('selectors', () => {
       [REVIEW_SCOPES.ALL_ACCOUNTS]: 4,
     };
     expect(selectScopeTotals(store.getState())).toEqual(totals);
-    store.dispatch(setKept({ username: 'bob', kept: true }));
+    store.dispatch(setKept({ username: 'bob', isKept: true }));
     store.dispatch(setTagFilter({ kind: TAG_FILTER_KINDS.UNTAGGED }));
     store.dispatch(setDecisionFilter(DecisionFilter.KEPT));
     expect(selectScopeTotals(store.getState())).toEqual(totals);
@@ -1174,7 +1174,7 @@ describe('selectors', () => {
 
   test('the matching count reads any filters (the Filter popup draft) and leaves the list alone', async () => {
     const { store } = await importedStore();
-    store.dispatch(setKept({ username: 'alice', kept: true }));
+    store.dispatch(setKept({ username: 'alice', isKept: true }));
     const state = store.getState();
     const draft = (choice: Partial<typeof state.filters>) =>
       selectMatchingCount(state, { ...state.filters, ...choice });

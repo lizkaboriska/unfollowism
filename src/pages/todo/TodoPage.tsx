@@ -42,10 +42,10 @@ function TodoTabList({ view }: { view: PlanView }) {
     }),
     [type],
   );
-  const allDone = hasList && stats[PLAN_STATES.PLANNED][type] === 0 && stats[PLAN_STATES.DONE][type] > 0;
+  const isAllDone = hasList && stats[PLAN_STATES.PLANNED][type] === 0 && stats[PLAN_STATES.DONE][type] > 0;
   return (
     <Stack gap="3">
-      {allDone && <Text textStyle="control">{TODO_LABELS[type].allDone}</Text>}
+      {isAllDone && <Text textStyle="control">{TODO_LABELS[type].allDone}</Text>}
       <AccountList items={items} />
     </Stack>
   );
@@ -60,9 +60,9 @@ export function TodoPage({ view }: { view: PlanView }) {
   const stats = useAppSelector(selectPlanStats);
   const left = totalOf(stats[PLAN_STATES.PLANNED]);
   const done = totalOf(stats[PLAN_STATES.DONE]);
-  const [showTabs, setShowTabs] = useState(left > 0);
+  const [shouldShowTabs, setShowTabs] = useState(left > 0);
   // Work appearing (an Undo, a reset) shows the tabs, and they stay (state set during render, React's pattern).
-  if (left > 0 && !showTabs) {
+  if (left > 0 && !shouldShowTabs) {
     setShowTabs(true);
   }
 
@@ -74,7 +74,7 @@ export function TodoPage({ view }: { view: PlanView }) {
         </Heading>
         {left + done > 0 && <TodoProgress done={done} all={left + done} />}
       </Stack>
-      {showTabs ? (
+      {shouldShowTabs ? (
         <>
           <Box borderWidth="1px" p="3">
             <Text textStyle="control">You make the changes in Instagram</Text>

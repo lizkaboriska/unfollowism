@@ -110,7 +110,7 @@ function reviveTab(stored: StoredBackup): RestoredSession {
 
 /**
  * On start: puts back the work in the browser backup. Null when nothing is stored;
- * rejected when something is stored but can't be read back (see MasterState.restoreFailed).
+ * rejected when something is stored but can't be read back (see MasterState.hasRestoreFailed).
  */
 export const restoreBackup = createAppThunk<RestoredSession | null, undefined>(
   'master/restoreBackup',

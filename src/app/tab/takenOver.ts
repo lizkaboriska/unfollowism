@@ -11,16 +11,16 @@ export interface TakenOverActions {
 
 /**
  * Another tab took over (see activeTab.ts). `store` is null while the app is still starting (nothing to lose yet);
- * `durable` is false when the backup lives in memory only.
+ * `isDurable` is false when the backup lives in memory only.
  * - Stored work, or nothing unsaved: it moved to the other tab, or is in the progress file. Reload, which shows Open
  *   in another tab, without "Leave site?".
  * - Unsaved work that isn't stored (storage off, or writes failing): a reload would lose it. Stop writing, so a late
  *   retry can't overwrite the other tab's backup; keep the guard; show This tab stopped, where it can still be saved.
  */
-export function handleTakenOver(store: AppStore | null, durable: boolean, actions: TakenOverActions): void {
+export function handleTakenOver(store: AppStore | null, isDurable: boolean, actions: TakenOverActions): void {
   const state = store?.getState();
-  const stored = durable && state?.master.persistenceFailed !== true;
-  if (!store || !state || stored || !selectIsDirty(state)) {
+  const isStored = isDurable && state?.master.hasPersistenceFailed !== true;
+  if (!store || !state || isStored || !selectIsDirty(state)) {
     actions.stopGuard();
     actions.reload();
     return;

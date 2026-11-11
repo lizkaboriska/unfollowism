@@ -38,7 +38,7 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
   if (fromName === undefined || toName === undefined) {
     return null;
   }
-  const waiting = pair.state === RenameState.WAITING;
+  const isWaiting = pair.state === RenameState.WAITING;
 
   return (
     <Stack
@@ -78,7 +78,7 @@ export function RenamePairRow({ pair }: { pair: RenamePair }) {
           </HStack>
         )}
       </Stack>
-      {waiting && (
+      {isWaiting && (
         <HStack justify="space-between" gap="2">
           <Button variant="outline" h="10" onClick={() => dispatch(confirmRename({ from: pair.from }))}>
             Move to new name

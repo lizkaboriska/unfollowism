@@ -12,13 +12,13 @@ export function guardUnload(
   const onBeforeUnload = (event: BeforeUnloadEvent) => {
     event.preventDefault();
   };
-  let guarded = false;
-  const setGuarded = (next: boolean) => {
-    if (next === guarded) {
+  let isGuarded = false;
+  const setGuarded = (shouldGuard: boolean) => {
+    if (shouldGuard === isGuarded) {
       return;
     }
-    guarded = next;
-    if (next) {
+    isGuarded = shouldGuard;
+    if (shouldGuard) {
       target.addEventListener('beforeunload', onBeforeUnload);
     } else {
       target.removeEventListener('beforeunload', onBeforeUnload);
