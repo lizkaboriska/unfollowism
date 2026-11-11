@@ -49,6 +49,7 @@ import {
   setUnavailable,
   toggleTag,
 } from '@/entities/master/model/masterSlice.ts';
+import { RETRY_DELAYS_MS, persistenceStopped } from '@/entities/master/model/persistence.ts';
 import { selectListKeys } from '@/features/filters';
 import {
   applyFilters,
@@ -65,7 +66,6 @@ import {
   selectScopeTotals,
 } from '@/features/filters/model/selectors.ts';
 
-import { RETRY_DELAYS_MS, persistenceStopped } from '../persistence.ts';
 import type { RootState } from '../store.ts';
 
 import {
