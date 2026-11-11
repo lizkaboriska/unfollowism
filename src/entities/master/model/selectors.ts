@@ -245,7 +245,7 @@ function sameAsSaved(current: ReadonlyAccount | undefined, saved: ReadonlyAccoun
     return cached.isSame;
   }
   const isSame = sameAccountData(current, saved);
-  savedComparisons.set(current, { saved, isSame: isSame });
+  savedComparisons.set(current, { saved, isSame });
   return isSame;
 }
 
