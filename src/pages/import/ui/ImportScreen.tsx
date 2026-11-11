@@ -1,5 +1,5 @@
 import { Grid, Button, HStack, Heading, List, Stack, Text } from '@chakra-ui/react';
-import { useId, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useId, useRef, useState, type ChangeEvent } from 'react';
 
 import {
   IMPORT_STATUSES,
@@ -13,6 +13,7 @@ import { TextButton } from '@/shared/ui/TextButton.tsx';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
+import { useDropZone } from '../lib/useDropZone.ts';
 import { useImportSelection, type ImportFailure } from '../model/useImportSelection.ts';
 
 import { ExportReadyBox } from './ExportReadyBox.tsx';
@@ -62,9 +63,9 @@ export function ImportScreen({
   } = useImportSelection(lastSaved);
 
   const fileInput = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
   /** The How it works popup opened from a missing-files warning's How?; null = closed. */
   const [howView, setHowView] = useState<HowItWorksView | null>(null);
+  const drop = useDropZone(files => void choose(files));
   /** Set by "Choose newer master": the file the next pick replaces. */
   const replacing = useRef<string | null>(null);
 
@@ -80,12 +81,6 @@ export function ImportScreen({
   function pickFiles(replaceId: string | null = null) {
     replacing.current = replaceId;
     fileInput.current?.click();
-  }
-
-  function onDrop(event: DragEvent) {
-    event.preventDefault();
-    setDragging(false);
-    void choose([...event.dataTransfer.files]);
   }
 
   async function onImport() {
@@ -114,20 +109,6 @@ export function ImportScreen({
   const missing = selection && missingWarning(selection.recognized);
   // Exactly one of Following / Followers is there.
   const oneMissing = missing !== null && (followingCount !== null || followerCount !== null);
-  const drop = {
-    dragging,
-    onDragOver: (e: DragEvent) => {
-      e.preventDefault();
-      setDragging(true);
-    },
-    // Moving over the text inside also fires dragleave; only leaving the box itself ends the highlight.
-    onDragLeave: (e: DragEvent) => {
-      if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) {
-        setDragging(false);
-      }
-    },
-    onDrop,
-  };
 
   return (
     <Stack gap="5">
@@ -173,7 +154,7 @@ export function ImportScreen({
           gap="2"
           align="center"
           borderWidth="1px"
-          borderColor={dragging ? 'accent' : 'border'}
+          borderColor={drop.isDragging ? 'accent' : 'border'}
           px="5"
           pt="6"
           pb="5"
@@ -182,8 +163,8 @@ export function ImportScreen({
           onDragLeave={drop.onDragLeave}
           onDrop={drop.onDrop}
         >
-          <Heading as="h2" id={fileBoxTitleId} textStyle="heading" color={dragging ? 'accent' : 'ink'}>
-            {dragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'Have your .zip?'}
+          <Heading as="h2" id={fileBoxTitleId} textStyle="heading" color={drop.isDragging ? 'accent' : 'ink'}>
+            {drop.isDragging ? 'Drop to add' : oneMissing ? "Let's find one more file" : 'Have your .zip?'}
           </Heading>
           <Text color="fg.muted">
             {oneMissing
