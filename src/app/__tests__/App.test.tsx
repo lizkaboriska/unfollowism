@@ -11,7 +11,7 @@ import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } f
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
-import { memoryHowItWorksSeen } from '@/pages/import/howItWorksSeen.ts';
+import { memoryHowItWorksSeen } from '@/pages/import/api/howItWorksSeen.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { nextPaint as realNextPaint } from '@/shared/lib/nextPaint.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
