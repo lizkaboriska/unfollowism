@@ -14,7 +14,6 @@ import {
   selectRenamePairs,
   RenameMatch,
   RenameState,
-  selectTodoStartView,
   STATUS_EVENTS,
   importPrepared,
   restoreBackup,
@@ -61,7 +60,11 @@ import {
   setTagFilter,
   setView,
 } from '@/features/filters/model/filtersSlice.ts';
-import { selectVisibleAccountKeys, selectMatchingCount } from '@/features/filters/model/selectors.ts';
+import {
+  selectVisibleAccountKeys,
+  selectMatchingCount,
+  selectTodoStartView,
+} from '@/features/filters/model/selectors.ts';
 
 import type { RootState } from '../store.ts';
 

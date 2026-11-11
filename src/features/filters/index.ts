@@ -7,6 +7,7 @@ export {
   showUrlFilters,
 } from './model/filtersSlice.ts';
 export { listSlice, selectListKeys, startListRefresh } from './model/listSlice.ts';
+export { selectTodoStartView } from './model/selectors.ts';
 export { startTagFilterCleanup } from './model/tagFilterCleanup.ts';
 export { FilterPopup } from './ui/FilterPopup.tsx';
 export { ListControls } from './ui/ListControls.tsx';

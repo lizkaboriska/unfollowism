@@ -2,8 +2,8 @@ import { createAction, isAnyOf, type ListenerMiddlewareInstance } from '@reduxjs
 
 import type { StoreDeps } from '@/app/store/deps.ts';
 import type { AppDispatch, RootState } from '@/app/store/store.ts';
-import { selectHasData, selectTodoStartView, restoreBackup, LIST_VIEWS } from '@/entities/master';
-import { setView, showUrlFilters } from '@/features/filters';
+import { selectHasData, restoreBackup, LIST_VIEWS } from '@/entities/master';
+import { selectTodoStartView, setView, showUrlFilters } from '@/features/filters';
 import type { AddressBar } from '@/shared/url/addressBar.ts';
 
 import { filtersFromUrl, filtersToUrl } from './urlState.ts';

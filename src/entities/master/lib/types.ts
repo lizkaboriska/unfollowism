@@ -7,6 +7,8 @@ export const FORMAT_VERSION = 1;
 /** Instagram actions you do by hand and mark in the app. */
 export const ACTION_TYPES = { UNFOLLOW: 'unfollow', REMOVE_FOLLOWER: 'removeFollower' } as const;
 export type ActionType = ValueOf<typeof ACTION_TYPES>;
+/** The order actions are listed in: Unfollow first. */
+export const ACTION_TYPE_ORDER: readonly ActionType[] = [ACTION_TYPES.UNFOLLOW, ACTION_TYPES.REMOVE_FOLLOWER];
 
 /** Which accounts the review list covers. Scopes overlap: a mutual account is in "following" and "followers". */
 export const REVIEW_SCOPES = {
