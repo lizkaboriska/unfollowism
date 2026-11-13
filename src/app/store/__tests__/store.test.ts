@@ -10,6 +10,7 @@ import {
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectChangeSections,
+  selectChangesSince,
   selectChangesTotal,
   selectRenamePairs,
   RenameMatch,
@@ -466,6 +467,45 @@ describe('reset changes', () => {
   });
 });
 
+describe('Changes count from the previous import', () => {
+  const newFollows = (store: AppStore) => selectChangeSections(store.getState())[FOLLOW_CHANGES.NEW_FOLLOWS];
+  const FIRST = '2026-10-27T12:00:00.000Z';
+  const SECOND = '2026-11-10T10:00:00.000Z';
+
+  test('a first import has nothing to compare with', async () => {
+    const { store } = await importedStore();
+    expect(selectChangesSince(store.getState())).toBeNull(); // the Changes page and its count show nothing
+  });
+
+  test('two imports without a backup: the second shows only its own changes, as the compare box', async () => {
+    const { store, setNow } = await importedStore(); // follows Alice, bob, carol; never backed up
+    setNow(SECOND);
+    await store.dispatch(importIntoBrowserWork(prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin']] })));
+    expect(selectChangesSince(store.getState())).toBe(FIRST);
+    expect(newFollows(store)).toEqual(['erin']); // marked new without any backup
+    expect(store.getState().master.importFacts?.followingBefore).toBe(3);
+
+    setNow('2026-11-20T10:00:00.000Z');
+    const third = prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin'], ['finn']] });
+    await store.dispatch(importIntoBrowserWork(third));
+    expect(selectChangesSince(store.getState())).toBe(SECOND);
+    expect(newFollows(store)).toEqual(['finn']); // erin was shown by the previous import
+    expect(store.getState().master.importFacts?.followingBefore).toBe(4); // 4 → 5 in the compare box
+  });
+
+  test('what Changes shows survives a reload', async () => {
+    const { store, setNow, backup } = await importedStore();
+    setNow(SECOND);
+    await store.dispatch(importIntoBrowserWork(prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin']] })));
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ backup });
+    await reloaded.store.dispatch(restoreBackup());
+    expect(selectChangesSince(reloaded.store.getState())).toBe(FIRST);
+    expect(newFollows(reloaded.store)).toEqual(['erin']);
+  });
+});
+
 describe('import into the work in this browser (no progress file)', () => {
   const review = (store: AppStore, key: string) => account(store, key).review;
   const unsavedNames = (store: AppStore) => selectUnsavedDiff(store.getState()).map(entry => entry.username);
@@ -692,6 +732,7 @@ describe('reload safety net', () => {
       followingBefore: 3,
       followersBefore: 2,
       completedPlans: { bob: [UNFOLLOW] },
+      previousImportAt: '2026-10-27T12:00:00.000Z',
     });
     await flushPersistence();
 
@@ -793,7 +834,7 @@ describe('reload safety net', () => {
       {
         revision: 1,
         savedRevision: 0,
-        importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
+        importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {}, previousImportAt: null },
       },
       { changed: {}, saved: {} },
     );

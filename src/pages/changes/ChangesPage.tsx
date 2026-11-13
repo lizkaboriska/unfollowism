@@ -35,7 +35,7 @@ const SECTION_NOTES: Partial<Record<FollowChange, string>> = {
 };
 
 /**
- * The saved master against the new import, as a small table: the two dates head the columns, then Following and
+ * The previous import against the new one, as a small table: the two dates head the columns, then Following and
  * Followers with each before number under the old date and each after number under the new one.
  */
 function CompareBox({ since }: { since: string }) {
@@ -147,8 +147,8 @@ function Section({
 }
 
 /**
- * What changed between the master you imported and the new export: the suggested renames, then four sections of
- * rows. Each row opens the account popup. Without a saved master there is nothing to compare with yet.
+ * What changed since the previous import: the suggested renames, then four sections of rows. Each row opens the
+ * account popup. On a first import there is nothing to compare with yet.
  */
 export function ChangesPage() {
   const since = useAppSelector(selectChangesSince);
@@ -168,7 +168,7 @@ export function ChangesPage() {
         </Heading>
         {since && (
           <Text textStyle="small" color="fg.muted">
-            {plural(total, 'change')} since {formatDate(since)}
+            {plural(total, 'change')} since your previous import, {formatDate(since)}
           </Text>
         )}
         <Text textStyle="note" color="fg.muted" mt="1">
@@ -177,13 +177,11 @@ export function ChangesPage() {
       </Stack>
 
       {since === null ? (
-        <Text color="fg.muted">
-          Nothing to compare yet. Save once, and next time you add Instagram data, this shows what changed.
-        </Text>
+        <Text color="fg.muted">Nothing to compare yet. Next time you add Instagram data, this shows what changed.</Text>
       ) : (
         <>
           <CompareBox since={since} />
-          {total === 0 && <Text color="fg.muted">Nothing changed since {formatDate(since)}.</Text>}
+          {total === 0 && <Text color="fg.muted">Nothing changed since your previous import.</Text>}
           {/* 32 between sections (12 + mt), so each list reads as its own group. */}
           {total > 0 && (
             <Stack gap="8" mt="5">

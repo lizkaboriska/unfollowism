@@ -26,13 +26,12 @@ You work in rounds. Each round:
    - **Review**: everyone, by list (Following, Followers, Mutual, …), with search and a Filter for tag and
      decision. On each account, **Keep** it as it is, or **Queue unfollow** / **Queue removal**. The `→` opens it
      to add tags and a note.
-   - **Changes**: what changed since your last save: new followers, who no longer follows you, who you started
-     and stopped following.
+   - **Changes**: what changed since your previous import: new followers, who no longer follows you, who you
+     started and stopped following.
    - **To do**: your queued unfollows and removals. Do them in Instagram (**Open in Instagram**), then
      **Mark done**.
 4. **Save.** Click **Save** to download `unfollowism_progress_<date>_<time>.json`. That file
-   is your record: keep it and add it to your next import. Saving also ends the round:
-   "new" and "since your last save" count from it next time.
+   is your record: keep it and add it to your next import.
 
 The next import checks your To do list against the new export: accounts that are really gone
 are cleared from it, and ones marked done that are still there go back to To do.

@@ -48,7 +48,7 @@ function redated(previous: Follow | null, entry: ExportEntry | undefined): boole
 /**
  * WRITE: applies a fresh export to the accounts (mutated in place): finds likely renames while
  * the old follow dates are still there, updates the follows, dates the ones that stopped (`now`),
- * and, when `accounts` come from a saved master (`isFromSavedMaster`), the ones that appeared; puts rename
+ * and, when `accounts` come from an earlier import (`hasEarlierWork`), the ones that appeared; puts rename
  * suggestions on the old accounts (dropping earlier ones that no longer hold), and settles decisions
  * against the follows.
  */
@@ -56,7 +56,7 @@ export function mergeExports(
   accounts: Record<string, Account>,
   bundle: ExportBundle,
   now: string,
-  isFromSavedMaster: boolean,
+  hasEarlierWork: boolean,
 ): { hasExportChanged: boolean; followingBefore: number; followersBefore: number } & SettledDecisions {
   const following = new Map(dedupeAccounts(bundle.following).map(entry => [usernameKey(entry.username), entry]));
   const followers = new Map(dedupeAccounts(bundle.followers).map(entry => [usernameKey(entry.username), entry]));
@@ -93,7 +93,7 @@ export function mergeExports(
     if (source) {
       account.username = source.username;
     } // casing follows the newest export
-    setFollows(account, followingEntry, followerEntry, now, isFromSavedMaster);
+    setFollows(account, followingEntry, followerEntry, now, hasEarlierWork);
   }
 
   settleRenameSuggestions(accounts);
@@ -138,7 +138,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
     accounts,
     bundle,
     now,
-    base?.lastSavedAt !== undefined,
+    !isNewMaster,
   );
   const master: Master = {
     version: FORMAT_VERSION,
@@ -151,7 +151,7 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
   const hasSettledDecisions = totalOf(plans.completed) + totalOf(plans.reopened) + undecided > 0;
   return {
     master,
-    facts: { followingBefore, followersBefore, completedPlans },
+    facts: { followingBefore, followersBefore, completedPlans, previousImportAt: base?.lastImportAt ?? null },
     hasExportChanged,
     plans,
     isDirty: isNewMaster || hasExportChanged || hasSettledDecisions,

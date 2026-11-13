@@ -874,7 +874,7 @@ describe('main view', () => {
   test('Review top: heading, your numbers, and the links switch the list', async () => {
     const { user } = await imported();
     expect(screen.getByRole('heading', { level: 1, name: 'Review' })).toBeInTheDocument();
-    expect(screen.getByText(/^Imported .+ · no saved progress file yet$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Imported [^·]+$/)).toBeInTheDocument(); // only the import date: nothing compared here
     expect([stat('Following'), stat('Followers'), stat('Mutual')]).toEqual(['2', '2', '1']);
 
     await user.click(screen.getByRole('button', { name: '1 not following back' }));
@@ -1632,7 +1632,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   await findRow('alice');
   await user.click(navItem(/^Changes 6$/));
 
-  expect(screen.getByText(/^6 changes since /)).toBeInTheDocument();
+  expect(screen.getByText(/^6 changes since your previous import, /)).toBeInTheDocument();
   const compared = screen.getByRole('region', { name: 'Compared files' });
   const following = within(compared).getByRole('group', { name: 'Following' });
   expect(within(following).getByText('3')).toBeInTheDocument();

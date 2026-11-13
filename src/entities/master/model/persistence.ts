@@ -31,12 +31,12 @@ function toMeta(state: MasterState, importFacts: ImportFacts): BackupMeta {
 
 /**
  * Accounts whose object differs from what was last stored (null = removed). Only looks at edited accounts.
- * `savedAt` is the stored base's, so a reloaded account matches its base again (see toAccountRecord).
+ * `keepSeenAfter` is the base's too, so a reloaded account matches its base again (see toAccountRecord).
  */
 function newlyChanged(
   stored: Accounts | null,
   current: Accounts,
-  savedAt: string | undefined,
+  keepSeenAfter: string | null,
 ): Record<string, AccountRecord | null> {
   const records = createDict<AccountRecord | null>();
   if (stored === current) {
@@ -44,7 +44,7 @@ function newlyChanged(
   }
   for (const [key, account] of Object.entries(current)) {
     if (stored?.[key] !== account) {
-      records[key] = account && toAccountRecord(account, savedAt);
+      records[key] = account && toAccountRecord(account, keepSeenAfter);
     }
   }
   return records;
@@ -108,17 +108,19 @@ export function startPersistence(listener: ListenerMiddlewareInstance<RootState,
       return true;
     }
     const meta = toMeta(state, importFacts);
+    // First-seen dates the Changes page still uses (after the previous import) survive a reload.
+    const keepSeenAfter = importFacts.previousImportAt;
     try {
       if (base !== storedBase) {
-        await api.extra.backup.replace(toMasterFile(base), meta, {
-          changed: newlyChanged(null, changed, base.lastSavedAt),
-          saved: newlyChanged(null, savedChanged, base.lastSavedAt),
+        await api.extra.backup.replace(toMasterFile(base, keepSeenAfter), meta, {
+          changed: newlyChanged(null, changed, keepSeenAfter),
+          saved: newlyChanged(null, savedChanged, keepSeenAfter),
         });
       } else {
         await api.extra.backup.update(meta, {
-          changed: newlyChanged(storedChanged, changed, base.lastSavedAt),
+          changed: newlyChanged(storedChanged, changed, keepSeenAfter),
           removed: noLongerChanged(storedChanged, changed),
-          saved: newlyChanged(storedSaved, savedChanged, base.lastSavedAt),
+          saved: newlyChanged(storedSaved, savedChanged, keepSeenAfter),
         });
       }
       storedBase = base;

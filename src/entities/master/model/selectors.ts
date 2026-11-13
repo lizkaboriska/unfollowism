@@ -118,8 +118,9 @@ export function selectTodoStartAction(state: RootState): ActionType {
   );
 }
 
-/** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
-export const selectChangesSince = (state: RootState): string | null => state.master.base?.lastSavedAt ?? null;
+/** When the previous import was: the Changes lists count from here. Null on a first import (nothing to compare). */
+export const selectChangesSince = (state: RootState): string | null =>
+  state.master.importFacts?.previousImportAt ?? null;
 
 /** When the open data was imported; null before any import. */
 export const selectImportedAt = (state: RootState): string | null => state.master.base?.lastImportAt ?? null;

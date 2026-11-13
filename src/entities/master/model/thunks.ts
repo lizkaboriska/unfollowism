@@ -44,7 +44,7 @@ export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rej
   },
 );
 
-/** The work as a master file, dated with the last save (`savedAt`), as a download would write it. */
+/** The work as a master file dated with the last save (`savedAt`), as a download writes it: no first-seen dates. */
 function asMasterFile(base: Master, edits: ChangedAccounts, savedAt: string | null): MasterFile {
   const { accounts, lastImportAt } = currentMaster(base, edits);
   return toMasterFile({
