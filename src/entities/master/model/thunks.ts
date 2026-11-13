@@ -8,10 +8,18 @@ import type { StoredBackup } from '../api/backupStore.ts';
 import type { ChangedAccounts } from '../lib/account.ts';
 import type { PreparedImport } from '../lib/analyzeImport.ts';
 import { ImportError, type ImportProblem } from '../lib/importProblems.ts';
-import { currentMaster, fromAccountRecord, parseBackupMeta, parseMaster, serializeMaster } from '../lib/masterFile.ts';
+import {
+  currentMaster,
+  fromAccountRecord,
+  parseBackupMeta,
+  parseMaster,
+  serializeMaster,
+  toMasterFile,
+  type MasterFile,
+} from '../lib/masterFile.ts';
 import { masterFileName } from '../lib/masterFileName.ts';
-import { importExport, type ImportResult } from '../lib/merge.ts';
-import type { ImportFacts, Account, Master } from '../lib/types.ts';
+import { importExport, importIntoWork, type ImportResult, type WorkImportResult } from '../lib/merge.ts';
+import { FORMAT_VERSION, type ImportFacts, type Account, type Master } from '../lib/types.ts';
 
 import { SAVE_STATUSES } from './statuses.ts';
 
@@ -27,6 +35,46 @@ export const importPrepared = createAppThunk<ImportResult, PreparedImport, { rej
     await extra.nextPaint(); // let "Importing…" show before the merge, which can take seconds for large accounts
     try {
       return importExport(prepared.rawMaster, prepared.bundle, extra.now().toISOString());
+    } catch (error) {
+      if (error instanceof ImportError) {
+        return rejectWithValue(error.problem);
+      }
+      throw error;
+    }
+  },
+);
+
+/** The work as a master file, dated with the last save (`savedAt`), as a download would write it. */
+function asMasterFile(base: Master, edits: ChangedAccounts, savedAt: string | null): MasterFile {
+  const { accounts, lastImportAt } = currentMaster(base, edits);
+  return toMasterFile({
+    version: FORMAT_VERSION,
+    accounts,
+    lastImportAt,
+    ...(savedAt === null ? {} : { lastSavedAt: savedAt }),
+  });
+}
+
+/**
+ * Applies an analyzed export that came without a master file to the work in the browser (see lib importIntoWork):
+ * edits not saved yet stay unsaved on top of the new baseline. Only for loaded work and no chosen master; rejects with
+ * the problem when the files can't be imported.
+ */
+export const importIntoBrowserWork = createAppThunk<WorkImportResult, PreparedImport, { rejectValue: ImportProblem }>(
+  'master/importIntoWork',
+  async (prepared, { getState, extra, rejectWithValue }) => {
+    const { base, changed, savedChanged, savedAt } = getState().master;
+    if (!base || prepared.rawMaster !== null) {
+      throw new Error('importIntoBrowserWork: needs loaded work and no master file');
+    } // unreachable: the Import screen offers it only then
+    await extra.nextPaint(); // let "Importing…" show: this merges twice
+    try {
+      return importIntoWork(
+        asMasterFile(base, savedChanged, savedAt),
+        asMasterFile(base, changed, savedAt),
+        prepared.bundle,
+        extra.now().toISOString(),
+      );
     } catch (error) {
       if (error instanceof ImportError) {
         return rejectWithValue(error.problem);

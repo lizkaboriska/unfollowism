@@ -3,7 +3,7 @@ import { createDict } from '@/shared/lib/createDict.ts';
 import { createAccount } from './account.ts';
 import { settleDecisions, totalOf, type PlanOutcomes, type SettledDecisions } from './actions.ts';
 import { IMPORT_PROBLEMS, ImportError } from './importProblems.ts';
-import { parseMaster } from './masterFile.ts';
+import { parseMaster, sameAccountData } from './masterFile.ts';
 import { dedupeAccounts } from './parse.ts';
 import { findRenames, settleRenameSuggestions } from './renames.ts';
 import { setFollows } from './scopes.ts';
@@ -156,4 +156,36 @@ export function importExport(rawMaster: unknown, bundle: ExportBundle, now: stri
     plans,
     isDirty: isNewMaster || hasExportChanged || hasSettledDecisions,
   };
+}
+
+export interface WorkImportResult extends ImportResult {
+  /** The accounts that differ between the two merges: the edits not backed up yet (null = removed). */
+  changed: Record<string, Account | null>;
+}
+
+/**
+ * Pure: merges a fresh export into the work kept in the browser, instead of into a master file. The export is merged
+ * twice, as files: into the work as last backed up (`backedUp`) and into the work as it is now (`current`). The first
+ * is the new baseline (what Reset changes goes back to, with the new data kept); the accounts that differ from it in
+ * the second are the edits not backed up yet. Facts and plan outcomes come from `current`, the work as shown.
+ */
+export function importIntoWork(
+  backedUp: unknown,
+  current: unknown,
+  bundle: ExportBundle,
+  now: string,
+): WorkImportResult {
+  const baseline = importExport(backedUp, bundle, now);
+  const latest = importExport(current, bundle, now);
+  const changed = createDict<Account | null>();
+  const keys = new Set([...Object.keys(baseline.master.accounts), ...Object.keys(latest.master.accounts)]);
+  for (const key of keys) {
+    const before = baseline.master.accounts[key];
+    const after = latest.master.accounts[key];
+    const isSame = before && after ? sameAccountData(before, after) : before === after;
+    if (!isSame) {
+      changed[key] = after ?? null;
+    }
+  }
+  return { ...baseline, facts: latest.facts, plans: latest.plans, changed };
 }

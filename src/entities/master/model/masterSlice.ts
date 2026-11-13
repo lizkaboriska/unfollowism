@@ -4,6 +4,7 @@ import { createDict } from '@/shared/lib/createDict.ts';
 
 import { accountOf, copyAccount, type ChangedAccounts } from '../lib/account.ts';
 import { followExists, isKept, isPastAccount, keep, planOf, setPlan as applyPlan, undecide } from '../lib/decision.ts';
+import type { ImportResult } from '../lib/merge.ts';
 import { mergeRenamed } from '../lib/renames.ts';
 import { removeTagFrom, renameTagOn } from '../lib/tags.ts';
 import type { Account, ActionType, ImportFacts, Master, PlanState, ReadonlyAccount } from '../lib/types.ts';
@@ -17,7 +18,7 @@ import {
   type SaveStatus,
   type StatusEvent,
 } from './statuses.ts';
-import { importPrepared, restoreBackup, saveMaster } from './thunks.ts';
+import { importIntoBrowserWork, importPrepared, restoreBackup, saveMaster } from './thunks.ts';
 
 /**
  * The imported master is kept as-is in `base`, and accounts edited since then live in
@@ -85,6 +86,25 @@ const initialState: MasterState = {
 
 /** savedRevision of an import that differs from its file and hasn't been saved since. */
 export const UNSAVED_IMPORT = -1;
+
+/**
+ * A finished import becomes the new baseline. `changed`: edits not saved yet, kept on top of it (only when importing
+ * into the work in the browser; empty otherwise). `isImportUnsaved`: the baseline itself isn't in any downloaded file.
+ */
+function applyImport(state: MasterState, result: ImportResult, changed: ChangedAccounts, isImportUnsaved: boolean) {
+  state.importStatus = IMPORT_STATUSES.IDLE;
+  state.hasRestoreFailed = false;
+  state.base = result.master;
+  state.changed = changed;
+  // The baseline is as last saved: nothing of `changed` is in a file yet.
+  state.savedChanged = Object.keys(changed).length ? createDict<Account | null>() : changed;
+  state.importFacts = result.facts;
+  state.savedAt = result.master.lastSavedAt ?? null;
+  state.revision = 0;
+  state.savedRevision = isImportUnsaved ? UNSAVED_IMPORT : 0;
+  state.status = null;
+  state.savedStatus = null;
+}
 
 /** `state` null = not marked (cancels the plan). */
 interface PlanPayload {
@@ -362,19 +382,19 @@ export const masterSlice = createSlice({
         state.importStatus = IMPORT_STATUSES.IMPORTING;
       })
       .addCase(importPrepared.fulfilled, (state, { payload }) => {
-        state.importStatus = IMPORT_STATUSES.IDLE;
-        state.hasRestoreFailed = false;
-        state.base = payload.master;
-        state.changed = createDict<Account | null>();
-        state.savedChanged = state.changed;
-        state.importFacts = payload.facts;
-        state.savedAt = payload.master.lastSavedAt ?? null;
-        state.revision = 0;
-        state.savedRevision = payload.isDirty ? UNSAVED_IMPORT : 0;
-        state.status = null;
-        state.savedStatus = null;
+        applyImport(state, payload, createDict<Account | null>(), payload.isDirty);
       })
       .addCase(importPrepared.rejected, state => {
+        state.importStatus = IMPORT_STATUSES.IDLE;
+      })
+      .addCase(importIntoBrowserWork.pending, state => {
+        state.importStatus = IMPORT_STATUSES.IMPORTING;
+      })
+      .addCase(importIntoBrowserWork.fulfilled, (state, { payload }) => {
+        // New data that was never saved stays unsaved, even when this export brings nothing new.
+        applyImport(state, payload, payload.changed, payload.isDirty || state.savedRevision === UNSAVED_IMPORT);
+      })
+      .addCase(importIntoBrowserWork.rejected, state => {
         state.importStatus = IMPORT_STATUSES.IDLE;
       })
       .addCase(saveMaster.pending, state => {
