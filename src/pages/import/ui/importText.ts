@@ -1,5 +1,6 @@
 import { IMPORT_WARNINGS, type ImportWarning, type RecognizedFiles } from '@/entities/master';
 import { formatDate, formatDateTime } from '@/shared/lib/dates.ts';
+import { plural } from '@/shared/lib/plural.ts';
 
 export interface MissingWarning {
   title: string;
@@ -59,4 +60,13 @@ export function olderMasterDates({
 export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
   const lost = selected ? `Choices saved after ${selected} won't come back.` : "Some saved choices won't come back.";
   return `${lost} Choose your ${lastSaved} file to keep them.`;
+}
+
+/** Under "Your work in this browser": when it was last backed up, and how many changes aren't yet. */
+export function browserWorkText({ savedAt, unsavedCount }: { savedAt: string | null; unsavedCount: number }): string {
+  if (savedAt === null) {
+    return unsavedCount ? `not backed up yet · ${plural(unsavedCount, 'change')}` : 'not backed up yet';
+  }
+  const backedUp = `last backed up ${formatDate(savedAt)}`;
+  return unsavedCount ? `${backedUp} · ${plural(unsavedCount, 'change')} not backed up` : backedUp;
 }

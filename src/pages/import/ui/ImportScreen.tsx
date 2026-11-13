@@ -1,7 +1,14 @@
-import { Button, Stack } from '@chakra-ui/react';
+import { Button, HStack, Stack, Text } from '@chakra-ui/react';
 import { useRef, useState, type ChangeEvent } from 'react';
 
-import { IMPORT_STATUSES, IMPORT_WARNINGS, selectIsDirty, type LastSavedStore } from '@/entities/master';
+import {
+  IMPORT_STATUSES,
+  IMPORT_WARNINGS,
+  selectIsDirty,
+  selectUnsavedAccountCount,
+  type LastSavedStore,
+} from '@/entities/master';
+import { plural } from '@/shared/lib/plural.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
@@ -15,7 +22,7 @@ import { FilePickBox } from './FilePickBox.tsx';
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
 import { HowItWorksView } from './howItWorksView.ts';
 import { importProblemText } from './importProblemText.ts';
-import { missingWarning } from './importText.ts';
+import { browserWorkText, missingWarning } from './importText.ts';
 import { MasterWarning } from './MasterWarning.tsx';
 import { MissingFilesWarning } from './MissingFilesWarning.tsx';
 
@@ -43,6 +50,8 @@ export function ImportScreen({
   const isDirty = useAppSelector(selectIsDirty);
   const isImporting = useAppSelector(state => state.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const hasRestoreFailed = useAppSelector(state => state.master.hasRestoreFailed);
+  const savedAt = useAppSelector(state => state.master.savedAt);
+  const unsavedCount = useAppSelector(selectUnsavedAccountCount);
   const {
     chosen,
     isReading,
@@ -54,7 +63,9 @@ export function ImportScreen({
     choose,
     remove,
     clearAll,
+    isIntoBrowserWork,
     startImport,
+    startImportIntoWork,
     dismissWarning,
   } = useImportSelection(lastSaved);
 
@@ -83,6 +94,13 @@ export function ImportScreen({
     if (!selection?.prepared) {
       return;
     }
+    if (isIntoBrowserWork) {
+      // Nothing is lost: the export goes into the work, changes not backed up included.
+      if (await startImportIntoWork()) {
+        onImported();
+      }
+      return;
+    }
     if (isDirty) {
       const shouldDiscard = await confirm({
         title: 'Discard unsaved changes?',
@@ -97,6 +115,25 @@ export function ImportScreen({
       }
     }
     if (await startImport()) {
+      onImported();
+    }
+  }
+
+  /** Start fresh next to Update: asks first, then imports the export alone, without the work in this browser. */
+  async function onStartFresh() {
+    const isConfirmed = await confirm({
+      title: 'Start fresh?',
+      body: (
+        <Stack gap="3">
+          <Text>Your tags, notes, and choices in this browser will be replaced by the new Instagram data alone.</Text>
+          {unsavedCount > 0 && <Text>Your changes to {plural(unsavedCount, 'account')} aren't backed up yet.</Text>}
+          <Text>Your downloaded progress files stay as they are.</Text>
+        </Stack>
+      ),
+      confirmLabel: 'Start fresh',
+      isDestructive: true,
+    });
+    if (isConfirmed && (await startImport())) {
       onImported();
     }
   }
@@ -131,6 +168,16 @@ export function ImportScreen({
           followerCount={followerCount}
           master={master}
           isMasterOlder={masterWarning?.kind === IMPORT_WARNINGS.MASTER_OLDER_THAN_LAST_SAVE}
+          browserWork={
+            isIntoBrowserWork
+              ? {
+                  details: browserWorkText({ savedAt, unsavedCount }),
+                  onAddProgressFile: () => {
+                    pickFiles();
+                  },
+                }
+              : null
+          }
           drop={drop}
         >
           {masterWarning && (
@@ -192,15 +239,22 @@ export function ImportScreen({
       )}
 
       <Stack gap="2" align="center">
-        <Button
-          w="full"
-          disabled={!selection?.prepared || isReading}
-          loading={isImporting}
-          loadingText="Loading…"
-          onClick={() => void onImport()}
-        >
-          {onCancel ? 'Update' : 'Start'}
-        </Button>
+        <HStack gap="2" w="full">
+          <Button
+            flex="1"
+            disabled={!selection?.prepared || isReading}
+            loading={isImporting}
+            loadingText="Loading…"
+            onClick={() => void onImport()}
+          >
+            {onCancel ? 'Update' : 'Start'}
+          </Button>
+          {isIntoBrowserWork && (
+            <Button variant="outline" px="3" disabled={isImporting} onClick={() => void onStartFresh()}>
+              Start fresh
+            </Button>
+          )}
+        </HStack>
         {onCancel && (
           <Button variant="plain" h="auto" py="2" onClick={onCancel}>
             Cancel

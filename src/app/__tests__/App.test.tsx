@@ -664,14 +664,14 @@ test('Manage tags opens from the ⋯ menu', async () => {
   expect(await screen.findByRole('dialog', { name: 'Manage tags' })).toBeInTheDocument();
 });
 
-test('importing over unsaved work asks first', async () => {
+test('importing a progress file over unsaved work asks first', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow('bob');
   await user.click(keepButton('bob'));
 
   await fromMenu(user, 'Add new Instagram data');
-  await importFiles(user, exportFiles());
+  await importFiles(user, [...exportFiles(), masterJson('2026-10-20T12:00:00.000Z')]);
   const dialog = await screen.findByRole('alertdialog');
   expect(within(dialog).getByText('Discard unsaved changes?')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
@@ -684,6 +684,86 @@ test('importing over unsaved work asks first', async () => {
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Import anyway' }));
   await waitFor(() => {
     expect(isKept('bob')).toBe(false);
+  });
+});
+
+describe('a .zip alone while this browser has work', () => {
+  const newerExport = () => exportOf(['alice', 'bob', 'dan'], ['alice', 'carol']);
+
+  /** Imported, bob kept (not backed up), then the Import screen with a newer .zip alone. */
+  async function withNewerZip({ isBackedUp = false } = {}) {
+    const app = await renderApp();
+    const { user } = app;
+    await importFiles(app.user, exportFiles());
+    await findRow('bob');
+    if (isBackedUp) {
+      await user.click(saveButton());
+      await waitFor(() => {
+        expect(screen.getByText('All decisions saved')).toBeInTheDocument();
+      });
+    }
+    await user.click(keepButton('bob'));
+    await fromMenu(user, 'Add new Instagram data');
+    await user.upload(screen.getByTestId('file-input'), newerExport());
+    await findReadyBox();
+    return app;
+  }
+
+  test('shows the work instead of asking for a progress file', async () => {
+    await withNewerZip();
+    expect((await readyRows())[1]).toBe('✓Your work in this browsernot backed up yet · 1 change');
+    expect(screen.getByText('Have a newer progress file?')).toBeInTheDocument();
+    expect(screen.queryByText('⚠ Have your progress file?')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Update' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Start fresh' })).toBeInTheDocument();
+  });
+
+  test('after a backup it says when it was backed up', async () => {
+    await withNewerZip({ isBackedUp: true });
+    expect((await readyRows())[1]).toBe(
+      '✓Your work in this browserlast backed up Oct 27, 2026 · 1 change not backed up',
+    );
+  });
+
+  test('Update keeps the work and the edits not backed up, without asking', async () => {
+    const { user } = await withNewerZip();
+    await user.click(screen.getByRole('button', { name: 'Update' }));
+    expect(await findRow('dan')).toBeInTheDocument(); // the new data
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(isKept('bob')).toBe(true);
+  });
+
+  test('Start fresh asks first: Cancel keeps everything, confirming drops the work', async () => {
+    const { user } = await withNewerZip();
+    await user.click(screen.getByRole('button', { name: 'Start fresh' }));
+    let dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Start fresh?')).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Your changes to 1 account aren't backed up yet.");
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Your files are ready')).toBeInTheDocument(); // nothing imported
+
+    await user.click(screen.getByRole('button', { name: 'Start fresh' }));
+    dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Start fresh' }));
+    expect(await findRow('dan')).toBeInTheDocument();
+    expect(isKept('bob')).toBe(false);
+  });
+
+  test('Add progress file opens the picker; a chosen file brings back the usual rows', async () => {
+    const { user } = await withNewerZip();
+    const input = screen.getByTestId('file-input');
+    const opened = vi.spyOn(input, 'click').mockImplementation(() => undefined);
+    await user.click(screen.getByRole('button', { name: 'Add progress file' }));
+    expect(opened).toHaveBeenCalledOnce();
+    await user.upload(input, [masterJson('2026-10-20T12:00:00.000Z')]);
+    await waitFor(async () => {
+      expect((await readyRows())[1]).toBe('✓Progress filesaved Oct 20, 2026');
+    });
+    expect(screen.queryByText('Have a newer progress file?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start fresh' })).not.toBeInTheDocument();
   });
 });
 
