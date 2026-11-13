@@ -9,7 +9,7 @@ import { system } from '@/shared/ui/theme.ts';
 
 import { TabStoppedScreen } from '../TabStoppedScreen.tsx';
 
-test('says the tab stopped and the work did not move; Save progress file downloads it', async () => {
+test('says the tab stopped and the work did not move; Back up downloads it', async () => {
   const { store, downloads } = makeTestStore();
   await store.dispatch(importPrepared(prepared())).unwrap();
   store.dispatch(setNote({ username: 'bob', note: 'not stored' }));
@@ -21,12 +21,12 @@ test('says the tab stopped and the work did not move; Save progress file downloa
     </ChakraProvider>,
   );
   expect(screen.getByRole('heading', { level: 1, name: 'This tab stopped' })).toBeInTheDocument();
-  expect(screen.getByRole('region', { name: 'Save your work here' })).toHaveTextContent(
-    "This browser couldn't store your unsaved changes, so they didn't move. Save your progress file, then add it in " +
-      'the other tab.',
+  expect(screen.getByRole('region', { name: 'Back up your work here' })).toHaveTextContent(
+    "This browser couldn't store your latest changes, so they didn't move. " +
+      'Back up to a progress file, then add it in the other tab.',
   );
 
-  const save = screen.getByRole('button', { name: 'Save progress file' });
+  const save = screen.getByRole('button', { name: 'Back up' });
   await userEvent.setup().click(save);
   expect(downloads).toHaveLength(1);
   expect(downloads[0]?.text).toContain('not stored');

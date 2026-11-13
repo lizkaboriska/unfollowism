@@ -276,7 +276,10 @@ export const selectUnsavedAccountCount = createSelector(
  * or an account that differs from it. An edit that was undone (a tag ticked on and off) doesn't count.
  */
 export const selectIsDirty = (state: RootState): boolean =>
-  state.master.base !== null && (state.master.savedRevision === UNSAVED_IMPORT || selectUnsavedAccountCount(state) > 0);
+  state.master.base !== null && (selectIsImportUnsaved(state) || selectUnsavedAccountCount(state) > 0);
+
+/** The imported data itself isn't in a downloaded file yet ("New data not backed up"). */
+export const selectIsImportUnsaved = (state: RootState): boolean => state.master.savedRevision === UNSAVED_IMPORT;
 
 const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tagCounts({ accounts }));
 

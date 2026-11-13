@@ -103,10 +103,10 @@ export function ImportScreen({
     }
     if (isDirty) {
       const shouldDiscard = await confirm({
-        title: 'Discard unsaved changes?',
+        title: 'Replace changes not backed up?',
         body:
-          "Your changes since the last save aren't in a downloaded progress file yet. Importing replaces them. " +
-          'To keep them, cancel and Save first.',
+          "Your changes since your last backup aren't in a progress file yet. Importing this file replaces them. " +
+          'To keep them, cancel and Back up first.',
         confirmLabel: 'Import anyway',
         isDestructive: true,
       });
@@ -147,8 +147,8 @@ export function ImportScreen({
     <Stack gap="5">
       {hasRestoreFailed && (
         <Warning title="Your work couldn't be restored">
-          Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your last
-          saved progress file to continue.
+          Your work in this tab from before the reload couldn't be read back. Add your Instagram export and your latest
+          progress file to continue.
         </Warning>
       )}
 

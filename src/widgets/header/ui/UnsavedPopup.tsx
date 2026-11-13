@@ -169,15 +169,15 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
   const hasBeenSaved = useAppSelector(selectHasBeenSaved);
 
   const subtitle = changedCount
-    ? `${plural(changedCount, 'changed account')} since ${hasBeenSaved ? 'your last save' : 'adding the data'}`
+    ? `${plural(changedCount, 'changed account')} since ${hasBeenSaved ? 'your last backup' : 'adding the data'}`
     : isDirty
       ? 'New data, no account changes'
-      : 'No edits since your last save.';
+      : 'No edits since your last backup.';
 
   return (
     <>
       <Drawer.Header display="block">
-        <Drawer.Title textStyle="heading">Unsaved changes</Drawer.Title>
+        <Drawer.Title textStyle="heading">Not backed up yet</Drawer.Title>
         <Text textStyle="small" color="fg.muted">
           {subtitle}
         </Text>
@@ -200,7 +200,10 @@ function UnsavedChanges({ onOpenAccount, onClose }: { onOpenAccount: OpenAccount
           )}
           <MoreAccounts count={accounts.length - MAX_ACCOUNTS} />
           {isDirty && (
-            <Text color="fg.muted">Save downloads an updated progress file with these changes. Add it next time.</Text>
+            <Text color="fg.muted">
+              Your work is kept in this browser. Back up downloads a progress file with these changes, in case the
+              browser clears its storage or you switch devices.
+            </Text>
           )}
         </Stack>
       </Drawer.Body>

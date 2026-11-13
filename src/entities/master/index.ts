@@ -78,6 +78,7 @@ export {
   selectImportedAt,
   selectImportedUsername,
   selectIsDirty,
+  selectIsImportUnsaved,
   selectIsSaving,
   selectWasPlanDoneBeforeImport,
   selectPlanStats,

@@ -39,14 +39,14 @@ export function TabStoppedScreen() {
             textAlign="center"
           >
             <Heading as="h2" id={boxTitleId} textStyle="heading">
-              Save your work here
+              Back up your work here
             </Heading>
             <Text color="fg.muted">
-              This browser couldn't store your unsaved changes, so they didn't move. Save your progress file, then add
+              This browser couldn't store your latest changes, so they didn't move. Back up to a progress file, then add
               it in the other tab.
             </Text>
             <SaveButton w="full" mt="2">
-              Save progress file
+              Back up
             </SaveButton>
           </Stack>
         </Box>

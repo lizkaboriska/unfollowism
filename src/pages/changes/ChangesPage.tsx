@@ -195,7 +195,7 @@ export function ChangesPage() {
       )}
 
       <Text textStyle="small" color="fg.muted" lineHeight="1.5" mt={since !== null && total > 0 ? '5' : '0'}>
-        Compared on your device using your saved progress file. Nothing is checked live with Instagram.
+        Compared on your device with your earlier data. Nothing is checked live with Instagram.
       </Text>
       <AccountPopup
         accountKey={openKey}

@@ -15,8 +15,8 @@ export function StorageWarning({ isDurable: isDurable }: { isDurable: boolean })
       <Alert.Content>
         <Alert.Title textStyle="control">⚠ This browser can't keep your work</Alert.Title>
         <Alert.Description color="fg.muted">
-          Its storage is unavailable or full, so a reload would lose your edits. Tap Save at the top so your decisions
-          don't get lost.
+          Its storage is unavailable or full, so a reload would lose your edits. Tap Back up at the top so your
+          decisions don't get lost.
         </Alert.Description>
       </Alert.Content>
     </Alert.Root>

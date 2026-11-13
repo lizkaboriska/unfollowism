@@ -35,7 +35,7 @@ export function missingWarning({ followingCount, followerFileCount }: Recognized
 /** "You saved one on …": the warning when no progress file is chosen but this browser saved one before. */
 export function savedMasterMissingText(lastKnownSavedAt: string): string {
   return (
-    `You saved one on ${formatDate(lastKnownSavedAt)}, but none is selected. ` +
+    `You backed up on ${formatDate(lastKnownSavedAt)}, but no progress file is selected. ` +
     "Add it to bring back your tags, notes, and choices. If you start fresh, they won't carry over."
   );
 }
@@ -58,7 +58,9 @@ export function olderMasterDates({
 
 /** What the older progress file means, under its two dates. */
 export function olderMasterText({ selected, lastSaved }: { selected: string | null; lastSaved: string }): string {
-  const lost = selected ? `Choices saved after ${selected} won't come back.` : "Some saved choices won't come back.";
+  const lost = selected
+    ? `Choices backed up after ${selected} won't come back.`
+    : "Some backed-up choices won't come back.";
   return `${lost} Choose your ${lastSaved} file to keep them.`;
 }
 

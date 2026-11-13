@@ -80,7 +80,7 @@ export function ExportReadyBox({
           <Row
             mark={isMasterOlder ? '⚠' : '✓'}
             label="Progress file"
-            value={master.savedAt ? `saved ${formatDate(master.savedAt)}` : 'selected'}
+            value={master.savedAt ? `backed up ${formatDate(master.savedAt)}` : 'selected'}
           />
         ) : (
           <Row mark="–" label="Progress file" value="not selected" />

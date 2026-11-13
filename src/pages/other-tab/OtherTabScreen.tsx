@@ -41,7 +41,7 @@ export function OtherTabScreen({ onUseHere }: { onUseHere: () => Promise<void> }
             <Heading as="h2" id={boxTitleId} textStyle="heading">
               Work in this tab?
             </Heading>
-            <Text color="fg.muted">Your work moves here, unsaved changes too. The other tab stops.</Text>
+            <Text color="fg.muted">Your work moves here. The other tab stops.</Text>
             <Button
               w="full"
               mt="2"
