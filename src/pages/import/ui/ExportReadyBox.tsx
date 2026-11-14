@@ -1,4 +1,4 @@
-import { Box, Heading, List, Stack, Text } from '@chakra-ui/react';
+import { Box, Button, Heading, HStack, List, Stack, Text } from '@chakra-ui/react';
 import { useId, type ReactNode } from 'react';
 
 import type { RecognizedFiles } from '@/entities/master';
@@ -24,15 +24,24 @@ function Row({ mark, label, value }: { mark: string; label: string; value: strin
   );
 }
 
+/** The work in this browser, shown instead of the progress file row when none is chosen (see browserWorkText). */
+export interface BrowserWorkRow {
+  details: string;
+  /** Opens the file picker for a progress file. */
+  onAddProgressFile: () => void;
+}
+
 /**
  * Shown instead of the file box once both Following and Followers are found: what will be imported. `isMasterOlder`
- * marks the master row with ⚠; `children` (the master warning) goes under the rows.
+ * marks the master row with ⚠; `browserWork` replaces the master row with the work in this browser and asks for a
+ * newer progress file; `children` (the master warning) goes under the rows.
  */
 export function ExportReadyBox({
   followingCount,
   followerCount,
   master,
   isMasterOlder,
+  browserWork,
   drop,
   children,
 }: {
@@ -40,6 +49,7 @@ export function ExportReadyBox({
   followerCount: number;
   master: RecognizedFiles['master'];
   isMasterOlder: boolean;
+  browserWork: BrowserWorkRow | null;
   drop: DropTarget;
   children?: ReactNode;
 }) {
@@ -64,16 +74,28 @@ export function ExportReadyBox({
           label="Instagram data"
           value={`${String(followingCount)} following · ${plural(followerCount, 'follower')}`}
         />
-        {master ? (
+        {browserWork ? (
+          <Row mark="✓" label="Your work in this browser" value={browserWork.details} />
+        ) : master ? (
           <Row
             mark={isMasterOlder ? '⚠' : '✓'}
             label="Progress file"
-            value={master.savedAt ? `saved ${formatDate(master.savedAt)}` : 'selected'}
+            value={master.savedAt ? `backed up ${formatDate(master.savedAt)}` : 'selected'}
           />
         ) : (
           <Row mark="–" label="Progress file" value="not selected" />
         )}
       </List.Root>
+      {browserWork && (
+        <HStack gap="3" p="3" borderTopWidth="1px">
+          <Text flex="1" color="fg.muted">
+            Have a newer progress file?
+          </Text>
+          <Button variant="outline" px="3" onClick={browserWork.onAddProgressFile}>
+            Add progress file
+          </Button>
+        </HStack>
+      )}
       {children && (
         <Box mx="3" mb="3">
           {children}

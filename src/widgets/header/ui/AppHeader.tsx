@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { selectIsDirty, selectUnsavedAccountCount } from '@/entities/master';
 import { AccountPopup } from '@/features/account-popup';
 import { SaveButton } from '@/features/save-reset';
+import { formatDate } from '@/shared/lib/dates.ts';
 import { plural } from '@/shared/lib/plural.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
@@ -19,15 +20,18 @@ import { UnsavedPopup } from './UnsavedPopup.tsx';
 export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
   const isDirty = useAppSelector(selectIsDirty);
   const unsavedCount = useAppSelector(selectUnsavedAccountCount);
+  const savedAt = useAppSelector(state => state.master.savedAt);
   const [isUnsavedOpen, setUnsavedOpen] = useState(false);
   /** The account opened from the Unsaved changes popup. */
   const [accountKey, setAccountKey] = useState<string | null>(null);
 
   const indicator = !isDirty
-    ? 'All decisions saved'
+    ? savedAt
+      ? `Backed up ${formatDate(savedAt)}`
+      : 'Backed up'
     : unsavedCount
-      ? `● Unsaved · ${plural(unsavedCount, 'changed account')}`
-      : '● New data not saved';
+      ? `● Not backed up · ${plural(unsavedCount, 'account')}`
+      : '● New data not backed up';
   const color = isDirty ? 'accent' : 'fg.muted';
 
   return (

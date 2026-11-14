@@ -204,7 +204,7 @@ const keepButton = (username: string) => within(row(username)).getByRole('button
 const isKept = (username: string) => keepButton(username).getAttribute('aria-pressed') === 'true';
 /** Review card: a button by its text, e.g. "Queue unfollow" or "✓ Unfollow queued". */
 const cardButton = (username: string, name: string) => within(row(username)).getByRole('button', { name });
-const saveButton = () => screen.getByRole('button', { name: 'Save' });
+const saveButton = () => screen.getByRole('button', { name: 'Back up' });
 /** Changes: a section by its heading, and the usernames of its rows. */
 const section = (title: string) => screen.getByRole('region', { name: title });
 const rowsOf = (title: string) =>
@@ -252,7 +252,7 @@ test('starts on the import screen', async () => {
   expect(screen.getByRole('button', { name: 'Choose files' })).toBeEnabled();
   expect(importButton()).toBeDisabled();
   // nothing to save or change yet: no Save, no ⋯ menu, no navigation
-  expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Back up' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'More' })).not.toBeInTheDocument();
   expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument();
 });
@@ -262,7 +262,7 @@ test('How it works opens the steps; How? shows how to get the data; ← How it w
   await user.click(screen.getByRole('button', { name: 'How it works' }));
   const dialog = await screen.findByRole('dialog', { name: 'How it works' });
   expect(within(dialog).getByText('Get your data from Instagram')).toBeInTheDocument();
-  expect(within(dialog).getByText('Save your progress')).toBeInTheDocument();
+  expect(within(dialog).getByText('Back up your progress')).toBeInTheDocument();
 
   await user.click(within(dialog).getByRole('button', { name: 'How?' }));
   const exportSteps = await screen.findByRole('dialog', { name: 'Get your Instagram data' });
@@ -377,7 +377,7 @@ test('import → review → save works end to end', async () => {
   expect(listChip()).toHaveTextContent('Following ▾');
 
   await user.click(keepButton('bob'));
-  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● Not backed up · 1 account' })).toBeInTheDocument();
   await user.click(saveButton());
   await waitFor(() => {
     expect(downloads).toHaveLength(1);
@@ -387,8 +387,8 @@ test('import → review → save works end to end', async () => {
   };
   expect(saved.accounts.bob?.decision).toEqual({ kind: 'kept' });
   // Nothing to list once saved: plain text, not a link.
-  expect(screen.getByText('All decisions saved')).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'All decisions saved' })).not.toBeInTheDocument();
+  expect(screen.getByText('Backed up Oct 27, 2026')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Backed up Oct 27, 2026' })).not.toBeInTheDocument();
   expect(saveButton()).toBeDisabled();
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
 });
@@ -408,16 +408,16 @@ test('a failed save shows a warning that stays until a save works', async () => 
   await user.click(saveButton());
 
   const warning = await screen.findByRole('alert');
-  expect(within(warning).getByText("⚠ Couldn't save the progress file")).toBeInTheDocument();
+  expect(within(warning).getByText("⚠ Couldn't back up")).toBeInTheDocument();
   expect(within(warning).getByText('Try Save again. Error: disk full')).toBeInTheDocument();
   expect(screen.queryByText(SAVED_TOAST)).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● Not backed up · 1 account' })).toBeInTheDocument();
 
   isFailing = false;
   await user.click(saveButton());
   expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
   expect(downloads).toHaveLength(1);
-  expect(screen.queryByText("⚠ Couldn't save the progress file")).not.toBeInTheDocument();
+  expect(screen.queryByText("⚠ Couldn't back up")).not.toBeInTheDocument();
 });
 
 test('a missing Followers file is shown and Import stays disabled', async () => {
@@ -482,7 +482,7 @@ test('a dropped file is never opened by the browser; dropping on the zone adds i
   expect(within(box).getByRole('heading', { name: 'Drop to add' })).toBeInTheDocument();
   fireEvent.drop(box, { dataTransfer: { files: [masterJson('2026-10-01T00:00:00.000Z')] } });
   await waitFor(async () => {
-    expect((await readyRows())[1]).toMatch(/^✓Progress filesaved /);
+    expect((await readyRows())[1]).toMatch(/^✓Progress filebacked up /);
   });
 
   await user.click(importButton());
@@ -497,7 +497,7 @@ test('files chosen one after another add up, e.g. a master from another folder',
 
   await user.upload(screen.getByTestId('file-input'), [masterJson('2026-10-01T00:00:00.000Z')]);
   await waitFor(async () => {
-    expect((await readyRows())[1]).toMatch(/^✓Progress filesaved .*2026$/);
+    expect((await readyRows())[1]).toMatch(/^✓Progress filebacked up .*2026$/);
   });
   expect(screen.getByText('following.json')).toBeInTheDocument();
   expect(screen.getByText('followers_1.json')).toBeInTheDocument();
@@ -545,7 +545,7 @@ test('a conflict keeps the list so the extra file can be removed', async () => {
   expect(importButton()).toBeDisabled();
 
   await user.click(screen.getByRole('button', { name: 'Remove old.json' }));
-  expect((await readyRows())[1]).toMatch(/^✓Progress filesaved /);
+  expect((await readyRows())[1]).toMatch(/^✓Progress filebacked up /);
   expect(screen.getByText('new.json')).toBeInTheDocument();
   expect(screen.queryByText(/Found 2 progress files/)).not.toBeInTheDocument();
   expect(importButton()).toBeEnabled();
@@ -575,7 +575,7 @@ test('without a master after a previous save, a warning asks for it; Start fresh
   expect((await readyRows())[1]).toBe('–Progress filenot selected');
   const warning = within(await findReadyBox()).getByRole('alert');
   expect(warning).toHaveTextContent('⚠ Have your progress file?');
-  expect(warning).toHaveTextContent('You saved one on Oct 20, 2026, but none is selected.');
+  expect(warning).toHaveTextContent('You backed up on Oct 20, 2026, but no progress file is selected.');
 
   const opened = vi.spyOn(screen.getByTestId('file-input'), 'click');
   await user.click(within(warning).getByRole('button', { name: 'Add progress file' }));
@@ -604,16 +604,16 @@ test('Import works while the saved-master warning shows; a changed selection sho
 test('an older master is warned about with both dates; Use older file hides it', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), [...exportFiles(), masterJson('2026-10-01T12:00:00.000Z')]);
-  expect((await readyRows())[1]).toBe('⚠Progress filesaved Oct 1, 2026');
+  expect((await readyRows())[1]).toBe('⚠Progress filebacked up Oct 1, 2026');
   const warning = within(await findReadyBox()).getByRole('alert');
   expect(warning).toHaveTextContent('⚠ This progress file is older');
-  expect(warning).toHaveTextContent('Selected fileOct 1, 2026Last savedOct 20, 2026');
-  expect(warning).toHaveTextContent("Choices saved after Oct 1, 2026 won't come back. Choose your Oct 20, 2026");
+  expect(warning).toHaveTextContent('Selected fileOct 1, 2026Last backupOct 20, 2026');
+  expect(warning).toHaveTextContent("Choices backed up after Oct 1, 2026 won't come back. Choose your Oct 20, 2026");
   expect(importButton()).toBeEnabled();
 
   await user.click(within(warning).getByRole('button', { name: 'Use older file' }));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  expect((await readyRows())[1]).toBe('✓Progress filesaved Oct 1, 2026');
+  expect((await readyRows())[1]).toBe('✓Progress filebacked up Oct 1, 2026');
 });
 
 test('Choose newer master swaps the older master for the picked one', async () => {
@@ -628,7 +628,7 @@ test('Choose newer master swaps the older master for the picked one', async () =
   await user.upload(input, [masterJson('2026-10-20T12:00:00.000Z', 'new.json')]);
 
   await waitFor(async () => {
-    expect((await readyRows())[1]).toBe('✓Progress filesaved Oct 20, 2026');
+    expect((await readyRows())[1]).toBe('✓Progress filebacked up Oct 20, 2026');
   });
   expect(screen.queryByText('old.json')).not.toBeInTheDocument();
   expect(screen.getByText('new.json')).toBeInTheDocument();
@@ -639,14 +639,14 @@ test('masters saved on the same day show the time too', async () => {
   const { user } = await renderApp({ lastSaved: savedBefore() });
   await user.upload(screen.getByTestId('file-input'), [...exportFiles(), masterJson('2026-10-20T09:00:00.000Z')]);
   const warning = within(await findReadyBox()).getByRole('alert');
-  expect(warning).toHaveTextContent(/Selected fileOct 20, 2026, \d+:\d+.*Last savedOct 20, 2026, \d+:\d+/);
+  expect(warning).toHaveTextContent(/Selected fileOct 20, 2026, \d+:\d+.*Last backupOct 20, 2026, \d+:\d+/);
 });
 
 test('Import new files can be cancelled', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow('bob');
-  expect(screen.getByRole('button', { name: '● New data not saved' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● New data not backed up' })).toBeInTheDocument();
   await fromMenu(user, 'Add new Instagram data');
   expect(screen.getByText('Have your .zip?')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -664,16 +664,16 @@ test('Manage tags opens from the ⋯ menu', async () => {
   expect(await screen.findByRole('dialog', { name: 'Manage tags' })).toBeInTheDocument();
 });
 
-test('importing over unsaved work asks first', async () => {
+test('importing a progress file over unsaved work asks first', async () => {
   const { user } = await renderApp();
   await importFiles(user, exportFiles());
   await findRow('bob');
   await user.click(keepButton('bob'));
 
   await fromMenu(user, 'Add new Instagram data');
-  await importFiles(user, exportFiles());
+  await importFiles(user, [...exportFiles(), masterJson('2026-10-20T12:00:00.000Z')]);
   const dialog = await screen.findByRole('alertdialog');
-  expect(within(dialog).getByText('Discard unsaved changes?')).toBeInTheDocument();
+  expect(within(dialog).getByText('Replace changes not backed up?')).toBeInTheDocument();
   await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -687,6 +687,86 @@ test('importing over unsaved work asks first', async () => {
   });
 });
 
+describe('a .zip alone while this browser has work', () => {
+  const newerExport = () => exportOf(['alice', 'bob', 'dan'], ['alice', 'carol']);
+
+  /** Imported, bob kept (not backed up), then the Import screen with a newer .zip alone. */
+  async function withNewerZip({ isBackedUp = false } = {}) {
+    const app = await renderApp();
+    const { user } = app;
+    await importFiles(app.user, exportFiles());
+    await findRow('bob');
+    if (isBackedUp) {
+      await user.click(saveButton());
+      await waitFor(() => {
+        expect(screen.getByText('Backed up Oct 27, 2026')).toBeInTheDocument();
+      });
+    }
+    await user.click(keepButton('bob'));
+    await fromMenu(user, 'Add new Instagram data');
+    await user.upload(screen.getByTestId('file-input'), newerExport());
+    await findReadyBox();
+    return app;
+  }
+
+  test('shows the work instead of asking for a progress file', async () => {
+    await withNewerZip();
+    expect((await readyRows())[1]).toBe('✓Your work in this browsernot backed up yet · 1 change');
+    expect(screen.getByText('Have a newer progress file?')).toBeInTheDocument();
+    expect(screen.queryByText('⚠ Have your progress file?')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Update' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Start fresh' })).toBeInTheDocument();
+  });
+
+  test('after a backup it says when it was backed up', async () => {
+    await withNewerZip({ isBackedUp: true });
+    expect((await readyRows())[1]).toBe(
+      '✓Your work in this browserlast backed up Oct 27, 2026 · 1 change not backed up',
+    );
+  });
+
+  test('Update keeps the work and the edits not backed up, without asking', async () => {
+    const { user } = await withNewerZip();
+    await user.click(screen.getByRole('button', { name: 'Update' }));
+    expect(await findRow('dan')).toBeInTheDocument(); // the new data
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(isKept('bob')).toBe(true);
+  });
+
+  test('Start fresh asks first: Cancel keeps everything, confirming drops the work', async () => {
+    const { user } = await withNewerZip();
+    await user.click(screen.getByRole('button', { name: 'Start fresh' }));
+    let dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Start fresh?')).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Your changes to 1 account aren't backed up yet.");
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Your files are ready')).toBeInTheDocument(); // nothing imported
+
+    await user.click(screen.getByRole('button', { name: 'Start fresh' }));
+    dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Start fresh' }));
+    expect(await findRow('dan')).toBeInTheDocument();
+    expect(isKept('bob')).toBe(false);
+  });
+
+  test('Add progress file opens the picker; a chosen file brings back the usual rows', async () => {
+    const { user } = await withNewerZip();
+    const input = screen.getByTestId('file-input');
+    const opened = vi.spyOn(input, 'click').mockImplementation(() => undefined);
+    await user.click(screen.getByRole('button', { name: 'Add progress file' }));
+    expect(opened).toHaveBeenCalledOnce();
+    await user.upload(input, [masterJson('2026-10-20T12:00:00.000Z')]);
+    await waitFor(async () => {
+      expect((await readyRows())[1]).toBe('✓Progress filebacked up Oct 20, 2026');
+    });
+    expect(screen.queryByText('Have a newer progress file?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start fresh' })).not.toBeInTheDocument();
+  });
+});
+
 test("a browser that can't keep the work warns on Review, once something is imported", async () => {
   const { user } = await renderApp({ backup: createMemoryBackupStore() });
   expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // nothing to lose yet
@@ -694,7 +774,7 @@ test("a browser that can't keep the work warns on Review, once something is impo
   await findRow('bob');
   expect(screen.getByRole('alert')).toHaveTextContent(
     "⚠ This browser can't keep your workIts storage is unavailable or full, so a reload would lose your edits. " +
-      "Tap Save at the top so your decisions don't get lost.",
+      "Tap Back up at the top so your decisions don't get lost.",
   );
 });
 
@@ -710,7 +790,7 @@ test('a reload silently continues where the tab left off', async () => {
 
   await renderApp({ backup: first.backup }); // same backup, fresh page
   expect(await findRow('bob')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '● Unsaved · 1 changed account' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '● Not backed up · 1 account' })).toBeInTheDocument();
   expect(isKept('bob')).toBe(true);
 });
 
@@ -809,16 +889,16 @@ test('Reset changes in the ⋯ menu asks first, then undoes unsaved work', async
   });
   expect(await resetDisabled()).toBe(true);
 
-  // Once saved, the dialog speaks of the last save and the saved master file.
+  // Once backed up, the dialog speaks of the last backup and the progress file.
   await user.click(keepButton('bob'));
   await user.click(saveButton());
   await user.click(keepButton('alice'));
   await fromMenu(user, 'Reset changes');
   const afterSave = await screen.findByRole('alertdialog');
   expect(
-    within(afterSave).getByText('Your changes to 1 account since your last save will be undone.'),
+    within(afterSave).getByText('Your changes to 1 account since your last backup will be undone.'),
   ).toBeInTheDocument();
-  expect(within(afterSave).getByText('Your saved progress file and Instagram stay as they are.')).toBeInTheDocument();
+  expect(within(afterSave).getByText('Your progress file and Instagram stay as they are.')).toBeInTheDocument();
 });
 
 describe('main view', () => {
@@ -874,7 +954,7 @@ describe('main view', () => {
   test('Review top: heading, your numbers, and the links switch the list', async () => {
     const { user } = await imported();
     expect(screen.getByRole('heading', { level: 1, name: 'Review' })).toBeInTheDocument();
-    expect(screen.getByText(/^Imported .+ · no saved progress file yet$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Imported [^·]+$/)).toBeInTheDocument(); // only the import date: nothing compared here
     expect([stat('Following'), stat('Followers'), stat('Mutual')]).toEqual(['2', '2', '1']);
 
     await user.click(screen.getByRole('button', { name: '1 not following back' }));
@@ -1401,14 +1481,14 @@ describe('unsaved changes popup', () => {
     await findRow('bob');
     return app;
   }
-  const popup = () => screen.getByRole('dialog', { name: 'Unsaved changes' });
+  const popup = () => screen.getByRole('dialog', { name: 'Not backed up yet' });
   async function openPopup(user: UserEvent, link: string) {
     await user.click(screen.getByRole('button', { name: link }));
     return finishedOpening(waitFor(popup));
   }
   const popupClosed = () =>
     waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Unsaved changes' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Not backed up yet' })).not.toBeInTheDocument();
     });
 
   test("tag changes on top, other changes per account, only what isn't saved; a name opens the account", async () => {
@@ -1421,7 +1501,7 @@ describe('unsaved changes popup', () => {
     await user.click(within(accountPopup).getByRole('button', { name: 'home' })); // back again: no net change
     await closeAccount(user, 'alice');
 
-    const unsavedPopup = await openPopup(user, '● Unsaved · 2 changed accounts');
+    const unsavedPopup = await openPopup(user, '● Not backed up · 2 accounts');
     // never saved
     expect(within(unsavedPopup).getByText('2 changed accounts since adding the data')).toBeInTheDocument();
     const tagRow = within(unsavedPopup).getByRole('button', { name: /^\+ #dog tag/ });
@@ -1464,8 +1544,8 @@ describe('unsaved changes popup', () => {
     await dialogClosed('Rename #dog');
     await closeManageTags(user);
 
-    const unsavedPopup = await openPopup(user, '● Unsaved · 12 changed accounts');
-    expect(within(unsavedPopup).getByText('12 changed accounts since your last save')).toBeInTheDocument();
+    const unsavedPopup = await openPopup(user, '● Not backed up · 12 accounts');
+    expect(within(unsavedPopup).getByText('12 changed accounts since your last backup')).toBeInTheDocument();
     expect(within(unsavedPopup).queryByRole('heading', { name: 'Other changes' })).not.toBeInTheDocument();
     const rowButton = within(unsavedPopup).getByRole('button', { name: /^#dog → #pet/ });
     expect(rowButton).toHaveTextContent('12 accounts ▾');
@@ -1482,8 +1562,8 @@ describe('unsaved changes popup', () => {
   test('Save in the popup saves and closes it', async () => {
     const { user, downloads } = await imported();
     await user.click(keepButton('bob'));
-    const unsavedPopup = await openPopup(user, '● Unsaved · 1 changed account');
-    await user.click(within(unsavedPopup).getByRole('button', { name: 'Save' }));
+    const unsavedPopup = await openPopup(user, '● Not backed up · 1 account');
+    await user.click(within(unsavedPopup).getByRole('button', { name: 'Back up' }));
     await popupClosed();
     expect(downloads).toHaveLength(1);
     expect(await screen.findByText(SAVED_TOAST)).toBeInTheDocument();
@@ -1492,7 +1572,7 @@ describe('unsaved changes popup', () => {
   test('Reset changes in the popup asks, undoes what is listed and closes it', async () => {
     const { user } = await imported();
     await user.click(keepButton('bob'));
-    const unsavedPopup = await openPopup(user, '● Unsaved · 1 changed account');
+    const unsavedPopup = await openPopup(user, '● Not backed up · 1 account');
     await user.click(within(unsavedPopup).getByRole('button', { name: 'Reset changes' }));
     const confirmReset = await finishedOpening(screen.findByRole('alertdialog'));
     await user.click(within(confirmReset).getByRole('button', { name: 'Reset changes' }));
@@ -1502,9 +1582,9 @@ describe('unsaved changes popup', () => {
 
   test('only a new import: nothing per account, Save on, Reset off', async () => {
     const { user } = await imported();
-    const unsavedPopup = await openPopup(user, '● New data not saved');
+    const unsavedPopup = await openPopup(user, '● New data not backed up');
     expect(within(unsavedPopup).getByText('New data, no account changes')).toBeInTheDocument();
-    expect(within(unsavedPopup).getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(within(unsavedPopup).getByRole('button', { name: 'Back up' })).toBeEnabled();
     expect(within(unsavedPopup).getByRole('button', { name: 'Reset changes' })).toBeDisabled();
   });
 });
@@ -1632,7 +1712,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   await findRow('alice');
   await user.click(navItem(/^Changes 6$/));
 
-  expect(screen.getByText(/^6 changes since /)).toBeInTheDocument();
+  expect(screen.getByText(/^6 changes since your previous import, /)).toBeInTheDocument();
   const compared = screen.getByRole('region', { name: 'Compared files' });
   const following = within(compared).getByRole('group', { name: 'Following' });
   expect(within(following).getByText('3')).toBeInTheDocument();

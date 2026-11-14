@@ -265,7 +265,12 @@ describe('backup meta', () => {
     revision: 3,
     savedRevision: -1,
     lastSavedAt: '2026-10-27T12:00:00Z',
-    importFacts: { followingBefore: 2, followersBefore: 1, completedPlans: { bob: [ACTION_TYPES.UNFOLLOW] } },
+    importFacts: {
+      followingBefore: 2,
+      followersBefore: 1,
+      completedPlans: { bob: [ACTION_TYPES.UNFOLLOW] },
+      previousImportAt: '2026-10-20T12:00:00Z',
+    },
   });
   const invalid = (path: string, expected: FieldType) => ({ kind: IMPORT_PROBLEMS.INVALID_FIELD, path, expected });
 
@@ -296,6 +301,12 @@ describe('backup meta', () => {
       invalid('meta.importFacts', FIELD_TYPES.OBJECT),
     );
     expect(problemOf(() => parseBackupMeta(null, 'meta'))).toEqual(invalid('meta', FIELD_TYPES.OBJECT));
+    const firstImport = { ...meta(), importFacts: { ...meta().importFacts, previousImportAt: null } };
+    expect(parseBackupMeta(firstImport, 'meta')).toEqual(firstImport);
+    const noDate = { ...meta(), importFacts: { ...meta().importFacts, previousImportAt: undefined } };
+    expect(problemOf(() => parseBackupMeta(noDate, 'meta'))).toEqual(
+      invalid('meta.importFacts.previousImportAt', FIELD_TYPES.DATE),
+    );
   });
 });
 
@@ -303,8 +314,8 @@ describe('importExport', () => {
   /** Instagram follow date (seconds) just after T1, i.e. after the master below was saved. */
   const AFTER_T1 = Date.parse(T1) / 1000 + 60;
   const savedAtT1 = (master: Master) => asFile({ ...master, lastSavedAt: T1 });
-  /** What changed since the last save, as the Changes page counts it. */
-  const changesOf = ({ master }: ImportResult) => followChangeCounts(master, master.lastSavedAt ?? null);
+  /** What changed since the previous import, as the Changes page counts it. */
+  const changesOf = ({ master, facts }: ImportResult) => followChangeCounts(master, facts.previousImportAt);
   const changes = (newFollows: number, unfollowed: number, newFollowers: number, lostFollowers: number) => ({
     [FOLLOW_CHANGES.NEW_FOLLOWS]: newFollows,
     [FOLLOW_CHANGES.UNFOLLOWED]: unfollowed,
@@ -347,8 +358,9 @@ describe('importExport', () => {
     expect(result.hasExportChanged).toBe(false);
     expect(result.isDirty).toBe(false);
     expect(result.master.lastImportAt).toBe(T2);
-    expect(result.master.accounts).toEqual(earlier.accounts);
-    expect(changesOf(result)).toEqual(changes(0, 1, 1, 1)); // bob unfollowed, dave new, carol lost (all since T1)
+    expect(toMasterFile(result.master)).toEqual(toMasterFile(earlier)); // same accounts (files hold no first-seen)
+    expect(result.facts.previousImportAt).toBe(T2);
+    expect(changesOf(result)).toEqual(changes(0, 0, 0, 0)); // nothing since the previous import
   });
 
   test('the same people with a re-dated follow count as a changed export', () => {
@@ -390,7 +402,7 @@ describe('importExport', () => {
     expect(result.master.lastImportAt).toBe(T2);
   });
 
-  test('changes count from the save of the imported master, however many imports happened since', () => {
+  test('changes count from the previous import: what it already showed is not counted again', () => {
     const second = importExport(
       savedAtT1(freshMaster()),
       bundle(followingFile(['alice'], ['bob'], ['erin', AFTER_T1]), followersFile(['alice'])),
@@ -401,11 +413,12 @@ describe('importExport', () => {
       bundle(followingFile(['alice'], ['erin', AFTER_T1], ['finn', AFTER_T1]), followersFile(['alice'])),
       T3,
     );
-    expect(changesOf(third)).toEqual(changes(2, 1, 0, 1)); // erin + finn new, bob unfollowed, carol lost
+    expect(third.facts.previousImportAt).toBe(T2);
+    expect(changesOf(third)).toEqual(changes(1, 1, 0, 0)); // finn new, bob unfollowed (erin and carol: shown at T2)
     const since = (key: string) =>
-      followChangeMatches(must(third.master.accounts[key]), FOLLOW_CHANGES.NEW_FOLLOWS, T1);
-    expect(since('alice')).toBe(false); // followed before the save
-    expect(since('erin')).toBe(true);
+      followChangeMatches(must(third.master.accounts[key]), FOLLOW_CHANGES.NEW_FOLLOWS, T2);
+    expect(since('erin')).toBe(false); // new in the previous import
+    expect(since('finn')).toBe(true);
   });
 
   test('a follow made after the export was built but before the save still counts as new', () => {
@@ -426,9 +439,9 @@ describe('importExport', () => {
 
   test("first-seen dates stay in the browser's copy, but a downloaded master holds none", () => {
     const sameExport = bundle(followingFile(['alice'], ['bob'], ['erin']), followersFile(['alice'], ['carol']));
-    const imported = importExport(savedAtT1(freshMaster()), sameExport, T2).master;
-    // tab storage: still counts from T1
-    expect(toMasterFile(imported).accounts.erin).toHaveProperty('followedSeenAt', T2);
+    const { master: imported, facts } = importExport(savedAtT1(freshMaster()), sameExport, T2);
+    // browser storage: keeps what Changes counts (after the previous import)
+    expect(toMasterFile(imported, facts.previousImportAt).accounts.erin).toHaveProperty('followedSeenAt', T2);
 
     const downloaded = toMasterFile({ ...imported, lastSavedAt: T3 });
     expect(Object.values(downloaded.accounts).some(account => account.followedSeenAt ?? account.followedMeSeenAt)).toBe(
@@ -473,7 +486,12 @@ describe('importExport', () => {
       reopened: { [UNFOLLOW]: 1, [REMOVE_FOLLOWER]: 0 },
     });
     // The Changes page's facts: counts in the master before this export, and whose plan was found done.
-    expect(result.facts).toEqual({ followingBefore: 2, followersBefore: 2, completedPlans: { bob: [UNFOLLOW] } });
+    expect(result.facts).toEqual({
+      followingBefore: 2,
+      followersBefore: 2,
+      completedPlans: { bob: [UNFOLLOW] },
+      previousImportAt: T1,
+    });
     expect(planOf(must(result.master.accounts.bob), UNFOLLOW)).toBeUndefined();
     // Its only plan happened and bob doesn't follow you: nothing is left to decide.
     expect(result.master.accounts.bob?.decision).toBeUndefined();

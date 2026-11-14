@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ImportError,
   analyzeImport,
+  importIntoBrowserWork,
   importPrepared,
+  selectHasData,
   type ImportProblem,
   type ImportSelection,
   type ImportWarning,
@@ -12,7 +14,7 @@ import {
 import { errorMessage } from '@/shared/lib/errorMessage.ts';
 import { loadZipLibrary, readInputs, type InputText } from '@/shared/lib/readInputs.ts';
 import { reloadOnce } from '@/shared/lib/reloadOnce.ts';
-import { useAppDispatch } from '@/shared/lib/storeHooks.ts';
+import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 
 /** One file the user chose (a .zip counts as one), with the text files read from it. */
 export interface ChosenFile {
@@ -54,6 +56,7 @@ async function readChosen(file: File): Promise<ChosenFile> {
  */
 export function useImportSelection(lastSaved: LastSavedStore) {
   const dispatch = useAppDispatch();
+  const hasWork = useAppSelector(selectHasData);
   const [chosen, setChosen] = useState<readonly ChosenFile[]>([]);
   const [readingCount, setReadingCount] = useState(0);
   const [importFailure, setImportFailure] = useState<ImportFailure | null>(null);
@@ -124,23 +127,26 @@ export function useImportSelection(lastSaved: LastSavedStore) {
     setImportFailure(null);
   }
 
-  /** Imports the selection; true when it worked. Asking about unsaved changes first is up to the caller. */
-  async function startImport(): Promise<boolean> {
+  /** Runs one of the import actions on the selection; true when it worked. */
+  async function run(action: typeof importPrepared | typeof importIntoBrowserWork): Promise<boolean> {
     const prepared = selection?.prepared;
     if (!prepared) {
       return false;
     }
     setImportFailure(null);
-    const result = await dispatch(importPrepared(prepared));
-    if (importPrepared.fulfilled.match(result)) {
+    const result = await dispatch(action(prepared));
+    if (action.fulfilled.match(result)) {
       return true;
     }
     setImportFailure(result.payload ? { problem: result.payload } : { message: errorMessage(result.error) });
     return false;
   }
 
+  // No progress file chosen while this browser has work: the export goes into that work (see importIntoBrowserWork),
+  // so the screen shows the work instead of asking for a progress file.
+  const isIntoBrowserWork = hasWork && !!selection?.prepared && selection.recognized.master === null;
   const masterWarning: ImportWarning | null =
-    warningDismissedFor === chosen ? null : (selection?.prepared?.warnings[0] ?? null);
+    warningDismissedFor === chosen || isIntoBrowserWork ? null : (selection?.prepared?.warnings[0] ?? null);
   const masterPath = selection?.recognized.master?.path;
   /** The chosen file that holds the progress file, so "Choose newer file" can replace it. */
   const masterFileId = chosen.find(file => file.inputs.some(input => input.path === masterPath))?.id ?? null;
@@ -156,7 +162,11 @@ export function useImportSelection(lastSaved: LastSavedStore) {
     choose,
     remove,
     clearAll,
-    startImport,
+    isIntoBrowserWork,
+    /** Imports the selection: from its progress file, or fresh without one. Asking first is up to the caller. */
+    startImport: () => run(importPrepared),
+    /** Imports the export into the work in this browser, keeping the changes not backed up. */
+    startImportIntoWork: () => run(importIntoBrowserWork),
     dismissWarning: () => {
       setWarningDismissedFor(chosen);
     },

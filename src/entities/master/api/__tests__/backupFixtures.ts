@@ -4,7 +4,7 @@ import type { BackupWrites } from '../backupStore.ts';
 export const META: BackupMeta = {
   revision: 2,
   savedRevision: 0,
-  importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
+  importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {}, previousImportAt: null },
 };
 export const NOTHING: BackupWrites = { changed: {}, saved: {} };
 export const edited = (changed: BackupWrites['changed']) => ({ changed, removed: [], saved: {} });

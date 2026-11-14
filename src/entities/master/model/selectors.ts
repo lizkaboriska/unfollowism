@@ -118,8 +118,9 @@ export function selectTodoStartAction(state: RootState): ActionType {
   );
 }
 
-/** When the imported master was saved: "new" and "unfollowed" lists count from here. Null = no saved master yet. */
-export const selectChangesSince = (state: RootState): string | null => state.master.base?.lastSavedAt ?? null;
+/** When the previous import was: the Changes lists count from here. Null on a first import (nothing to compare). */
+export const selectChangesSince = (state: RootState): string | null =>
+  state.master.importFacts?.previousImportAt ?? null;
 
 /** When the open data was imported; null before any import. */
 export const selectImportedAt = (state: RootState): string | null => state.master.base?.lastImportAt ?? null;
@@ -275,7 +276,10 @@ export const selectUnsavedAccountCount = createSelector(
  * or an account that differs from it. An edit that was undone (a tag ticked on and off) doesn't count.
  */
 export const selectIsDirty = (state: RootState): boolean =>
-  state.master.base !== null && (state.master.savedRevision === UNSAVED_IMPORT || selectUnsavedAccountCount(state) > 0);
+  state.master.base !== null && (selectIsImportUnsaved(state) || selectUnsavedAccountCount(state) > 0);
+
+/** The imported data itself isn't in a downloaded file yet ("New data not backed up"). */
+export const selectIsImportUnsaved = (state: RootState): boolean => state.master.savedRevision === UNSAVED_IMPORT;
 
 const selectBaseTagCounts = createSelector([selectBaseAccounts], accounts => tagCounts({ accounts }));
 

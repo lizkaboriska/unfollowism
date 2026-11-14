@@ -60,10 +60,10 @@ function Steps({ onHow }: { onHow: () => void }) {
         </Text>
       </Step>
       <Step number={4}>
-        <Text fontWeight="500">Save your progress</Text>
+        <Text fontWeight="500">Back up your progress</Text>
         <Text color="fg.muted">
-          Keep your tags, notes, and choices. Next time, add your progress file with fresh Instagram data to see who
-          unfollowed you.
+          Your tags, notes, and choices stay in this browser. Next time, just add new Instagram data to see who
+          unfollowed you. Back up to a progress file in case the browser clears it or you switch devices.
         </Text>
       </Step>
     </List.Root>

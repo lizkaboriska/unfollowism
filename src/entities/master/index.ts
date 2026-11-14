@@ -78,6 +78,7 @@ export {
   selectImportedAt,
   selectImportedUsername,
   selectIsDirty,
+  selectIsImportUnsaved,
   selectIsSaving,
   selectWasPlanDoneBeforeImport,
   selectPlanStats,
@@ -92,7 +93,7 @@ export {
   selectUnsavedDiff,
 } from './model/selectors.ts';
 export { IMPORT_STATUSES, SAVE_STATUSES, STATUS_EVENTS } from './model/statuses.ts';
-export { importPrepared, restoreBackup, saveMaster } from './model/thunks.ts';
+export { importIntoBrowserWork, importPrepared, restoreBackup, saveMaster } from './model/thunks.ts';
 export { persistenceStopped, startPersistence } from './model/persistence.ts';
 
 // ui

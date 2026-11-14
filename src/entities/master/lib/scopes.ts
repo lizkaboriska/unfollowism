@@ -33,8 +33,9 @@ export function relationshipOf(account: ReadonlyAccount): Relationship {
 
 /**
  * WRITE: records the follows found in the latest export (absent entry = no follow).
- * A follow that appears or disappears is dated with this import (`seenAt`); the opposite change clears that date.
- * Appearing follows are dated only with `shouldDateNew`: without a saved master every follow counts as new anyway.
+ * A follow that appears (or comes back with a new Instagram date: followed again) or disappears is dated with this
+ * import (`seenAt`); the opposite change clears that date. Appearing follows are dated only with `shouldDateNew`: on a
+ * first import there is nothing to compare with.
  */
 export function setFollows(
   account: Account,
@@ -43,7 +44,7 @@ export function setFollows(
   seenAt: string,
   shouldDateNew: boolean,
 ): void {
-  if (shouldDateNew && !account.following && following) {
+  if (shouldDateNew && following && account.following?.since !== following.since) {
     account.followedSeenAt = seenAt;
   }
   if (!following) {
@@ -55,7 +56,7 @@ export function setFollows(
   if (following) {
     delete account.unfollowedSeenAt;
   }
-  if (shouldDateNew && !account.followedBy && followedBy) {
+  if (shouldDateNew && followedBy && account.followedBy?.since !== followedBy.since) {
     account.followedMeSeenAt = seenAt;
   }
   if (!followedBy) {

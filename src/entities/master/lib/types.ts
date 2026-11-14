@@ -163,4 +163,9 @@ export interface ImportFacts {
   followersBefore: number;
   /** Account key → the plans this import found done. */
   completedPlans: Record<string, ActionType[]>;
+  /**
+   * When the data this import was compared with was imported (the master's lastImportAt): the Changes page counts
+   * from here. Null on a first import, when there is nothing to compare with.
+   */
+  previousImportAt: string | null;
 }

@@ -63,16 +63,16 @@ function isDefaultReview(review: DeepReadonly<Review>): boolean {
 }
 
 /**
- * A follow's first-seen date is only compared with the save the change lists count from: one that
- * isn't after it (or with no save yet, when everything counts) changes nothing, so it isn't written.
- * Every one is older than a new save, so a downloaded master holds none.
+ * A follow's first-seen date only matters after the import the change lists count from (ImportFacts
+ * previousImportAt): one that isn't after it changes nothing, so it isn't written. `keepSeenAfter` null keeps
+ * none: a downloaded master and the input of a new merge hold none, as the next import counts from its own date.
  */
-function keptSeenAt(seenAt: string | undefined, savedAt: string | undefined): seenAt is string {
-  return seenAt !== undefined && savedAt !== undefined && Date.parse(seenAt) > Date.parse(savedAt);
+function keptSeenAt(seenAt: string | undefined, keepSeenAfter: string | null): seenAt is string {
+  return seenAt !== undefined && keepSeenAfter !== null && Date.parse(seenAt) > Date.parse(keepSeenAfter);
 }
 
-/** `savedAt` is the lastSavedAt of the master the record is written into (see keptSeenAt). */
-export function toAccountRecord(account: ReadonlyAccount, savedAt: string | undefined): AccountRecord {
+/** `keepSeenAfter`: which first-seen dates to write (see keptSeenAt). */
+export function toAccountRecord(account: ReadonlyAccount, keepSeenAfter: string | null): AccountRecord {
   const { following, followedBy, review } = account;
   const out: AccountRecord = { username: account.username };
   if (following) {
@@ -87,10 +87,10 @@ export function toAccountRecord(account: ReadonlyAccount, savedAt: string | unde
   if (!isDefaultReview(review)) {
     out.review = { ...review, tags: [...review.tags] };
   }
-  if (keptSeenAt(account.followedSeenAt, savedAt)) {
+  if (keptSeenAt(account.followedSeenAt, keepSeenAfter)) {
     out.followedSeenAt = account.followedSeenAt;
   }
-  if (keptSeenAt(account.followedMeSeenAt, savedAt)) {
+  if (keptSeenAt(account.followedMeSeenAt, keepSeenAfter)) {
     out.followedMeSeenAt = account.followedMeSeenAt;
   }
   if (account.unfollowedSeenAt) {
@@ -113,7 +113,7 @@ export function toAccountRecord(account: ReadonlyAccount, savedAt: string | unde
  * First-seen dates are left out: only imports set them, never an edit.
  */
 function comparableRecord(account: ReadonlyAccount): string {
-  const record = toAccountRecord(account, undefined);
+  const record = toAccountRecord(account, null);
   record.review?.tags.sort();
   return JSON.stringify(record);
 }
@@ -123,10 +123,11 @@ export function sameAccountData(left: ReadonlyAccount, right: ReadonlyAccount): 
   return left === right || comparableRecord(left) === comparableRecord(right);
 }
 
-export function toMasterFile(master: DeepReadonly<Master>): MasterFile {
+/** `keepSeenAfter`: which first-seen dates to write; none by default, as in a downloaded master (see keptSeenAt). */
+export function toMasterFile(master: DeepReadonly<Master>, keepSeenAfter: string | null = null): MasterFile {
   const accounts = createDict<AccountRecord>();
   for (const [key, account] of Object.entries(master.accounts)) {
-    accounts[key] = toAccountRecord(account, master.lastSavedAt);
+    accounts[key] = toAccountRecord(account, keepSeenAfter);
   }
   return {
     version: FORMAT_VERSION,
@@ -320,6 +321,7 @@ const IMPORT_FACTS_FIELDS: ReadonlySet<string> = new Set([
   'followingBefore',
   'followersBefore',
   'completedPlans',
+  'previousImportAt',
 ] satisfies (keyof ImportFacts)[]);
 
 /** Strict reader for ImportFacts as stored in the browser backup (they are never in the master file). */
@@ -333,7 +335,13 @@ function parseImportFacts(value: unknown, path: string): ImportFacts {
     const itemPath = `${path}.completedPlans.${key}`;
     completedPlans[key] = array(types, itemPath).map((type, i) => oneOf(type, ACTION_TYPES, `${itemPath}[${i}]`));
   }
-  return { followingBefore: count('followingBefore'), followersBefore: count('followersBefore'), completedPlans };
+  return {
+    followingBefore: count('followingBefore'),
+    followersBefore: count('followersBefore'),
+    completedPlans,
+    previousImportAt:
+      fields.previousImportAt === null ? null : date(fields.previousImportAt, `${path}.previousImportAt`),
+  };
 }
 
 /** What the browser backup keeps besides the master and the changed accounts. */

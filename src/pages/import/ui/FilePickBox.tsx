@@ -41,7 +41,7 @@ export function FilePickBox({
       <Text color="fg.muted">
         {isOneFileMissing
           ? 'Choose your Instagram .zip, or drop it here.'
-          : 'Choose your Instagram .zip, or drop it here. Returning? Add your saved progress file too.'}
+          : 'Choose your Instagram .zip, or drop it here. Returning? Add your progress file too.'}
       </Text>
       <Button w="full" mt="2" loading={isReading} loadingText="Reading files…" onClick={onChoose}>
         Choose files

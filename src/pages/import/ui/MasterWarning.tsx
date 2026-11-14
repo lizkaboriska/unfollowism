@@ -43,7 +43,7 @@ export function MasterWarning({
         <Text as="dd" color="ink">
           {dates.selected ?? 'Not dated'}
         </Text>
-        <Text as="dt">Last saved</Text>
+        <Text as="dt">Last backup</Text>
         <Text as="dd" color="ink">
           {dates.lastSaved}
         </Text>

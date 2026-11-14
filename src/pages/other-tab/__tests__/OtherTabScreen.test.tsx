@@ -15,7 +15,7 @@ test('says the app is open in another tab; Use here moves the work to this tab',
   );
   expect(screen.getByRole('heading', { level: 1, name: 'Open in another tab' })).toBeInTheDocument();
   expect(screen.getByRole('region', { name: 'Work in this tab?' })).toHaveTextContent(
-    'Your work moves here, unsaved changes too. The other tab stops.',
+    'Your work moves here. The other tab stops.',
   );
 
   await userEvent.setup().click(screen.getByRole('button', { name: 'Use here' }));

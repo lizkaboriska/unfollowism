@@ -14,6 +14,7 @@ import {
   selectRelationshipStats,
   selectUnsavedDiff,
   selectUnsavedAccountCount,
+  importIntoBrowserWork,
   importPrepared,
   restoreBackup,
   saveMaster,
@@ -161,6 +162,10 @@ async function run(total: number) {
   const [, saveMs] = await timeAsync(() => store.dispatch(saveMaster()).unwrap());
   const reloaded = makeStore({ ...deps, backup });
   const [, restoreMs] = await timeAsync(() => reloaded.dispatch(restoreBackup()).unwrap());
+  // Third import: a newer export alone, into the work in this browser (merged twice: as saved and as now).
+  store.dispatch(setNote({ username: someone, note: 'not saved yet' }));
+  const third = must(analyzeImport(exportTexts(total, 2_000), null).prepared);
+  const [, workImportMs] = await timeAsync(() => store.dispatch(importIntoBrowserWork(third)).unwrap());
 
   rows.push(
     ['read + classify export and master', analyzeMs, 0],
@@ -176,6 +181,7 @@ async function run(total: number) {
     ['tag rename: unsaved changes popup', renamePopupMs, 0],
     ['save (serialize master)', saveMs, 0],
     ['reload restore', restoreMs, 0],
+    ['import .zip alone into browser work', workImportMs, 0],
   );
   // eslint-disable-next-line no-console -- printing the timing table is what `npm run test:perf` is for
   console.log(
@@ -189,6 +195,7 @@ async function run(total: number) {
   expect(selectAccount(reloaded.getState(), someone)?.review.notes).toBe('typing…');
   expect(todoRows).toBe(queued.length);
   expect(grouped.tagRows[0]).toMatchObject({ kind: TagChangeKind.RENAMED, from: 'artist', to: 'painter' });
+  expect(selectAccount(store.getState(), someone)?.review.notes).toBe('not saved yet');
   return Object.fromEntries(rows.map(([label, ms]) => [label, ms]));
 }
 
@@ -203,6 +210,7 @@ test('100k accounts: fast', { timeout: 120_000 }, async () => {
   expect(timings['To do: mark done + progress']).toBeLessThan(5);
   expect(timings['tag rename: unsaved changes popup']).toBeLessThan(200);
   expect(timings['import (merge, settle plans)']).toBeLessThan(5_000);
+  expect(timings['import .zip alone into browser work']).toBeLessThan(10_000);
   expect(timings['save (serialize master)']).toBeLessThan(2_000);
   expect(timings['reload restore']).toBeLessThan(3_000);
 });

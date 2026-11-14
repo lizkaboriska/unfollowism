@@ -52,7 +52,7 @@ export function TodoFinished({ done, onViewCompleted }: { done: number; onViewCo
       </Box>
       <Box>
         <Text textStyle="control">Take your progress with you</Text>
-        <Text color="fg.muted">Save at the top downloads your updated progress file. Keep it for next time.</Text>
+        <Text color="fg.muted">Back up at the top downloads your progress file. Keep it somewhere safe.</Text>
       </Box>
     </>
   );

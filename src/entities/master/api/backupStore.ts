@@ -36,7 +36,7 @@ export interface BackupStore {
 
 const DB_NAME = 'unfollowism';
 // Bump on any change of the stored shape: older data is dropped, not migrated.
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 const BASE = 'base'; // KEY → base
 const META = 'meta'; // KEY → BackupMeta. Rewritten on every edit, so kept apart from the (large) base.
 const ACCOUNTS = 'accounts'; // accountKey → AccountRecord

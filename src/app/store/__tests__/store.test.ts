@@ -10,11 +10,14 @@ import {
   selectUnsavedDiff,
   selectUnsavedAccountCount,
   selectChangeSections,
+  selectChangesSince,
   selectChangesTotal,
   selectRenamePairs,
   RenameMatch,
   RenameState,
+  IMPORT_STATUSES,
   STATUS_EVENTS,
+  importIntoBrowserWork,
   importPrepared,
   restoreBackup,
   saveMaster,
@@ -464,6 +467,147 @@ describe('reset changes', () => {
   });
 });
 
+describe('Changes count from the previous import', () => {
+  const newFollows = (store: AppStore) => selectChangeSections(store.getState())[FOLLOW_CHANGES.NEW_FOLLOWS];
+  const FIRST = '2026-10-27T12:00:00.000Z';
+  const SECOND = '2026-11-10T10:00:00.000Z';
+
+  test('a first import has nothing to compare with', async () => {
+    const { store } = await importedStore();
+    expect(selectChangesSince(store.getState())).toBeNull(); // the Changes page and its count show nothing
+  });
+
+  test('two imports without a backup: the second shows only its own changes, as the compare box', async () => {
+    const { store, setNow } = await importedStore(); // follows Alice, bob, carol; never backed up
+    setNow(SECOND);
+    await store.dispatch(importIntoBrowserWork(prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin']] })));
+    expect(selectChangesSince(store.getState())).toBe(FIRST);
+    expect(newFollows(store)).toEqual(['erin']); // marked new without any backup
+    expect(store.getState().master.importFacts?.followingBefore).toBe(3);
+
+    setNow('2026-11-20T10:00:00.000Z');
+    const third = prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin'], ['finn']] });
+    await store.dispatch(importIntoBrowserWork(third));
+    expect(selectChangesSince(store.getState())).toBe(SECOND);
+    expect(newFollows(store)).toEqual(['finn']); // erin was shown by the previous import
+    expect(store.getState().master.importFacts?.followingBefore).toBe(4); // 4 → 5 in the compare box
+  });
+
+  test('what Changes shows survives a reload', async () => {
+    const { store, setNow, backup } = await importedStore();
+    setNow(SECOND);
+    await store.dispatch(importIntoBrowserWork(prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin']] })));
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ backup });
+    await reloaded.store.dispatch(restoreBackup());
+    expect(selectChangesSince(reloaded.store.getState())).toBe(FIRST);
+    expect(newFollows(reloaded.store)).toEqual(['erin']);
+  });
+});
+
+describe('import into the work in this browser (no progress file)', () => {
+  const review = (store: AppStore, key: string) => account(store, key).review;
+  const unsavedNames = (store: AppStore) => selectUnsavedDiff(store.getState()).map(entry => entry.username);
+  const SAVED_AT = '2026-10-28T10:00:00.000Z';
+  // erin is new; alice and dave no longer follow you, bob now does.
+  const newExport = () => prepared({ following: [['Alice'], ['bob'], ['carol'], ['erin']], followers: [['bob']] });
+
+  /** bob tagged and saved; then carol's note, not saved; then a new export with no progress file. */
+  async function importedOverUnsavedNote(options: Parameters<typeof makeTestStore>[0] = {}) {
+    const testStore = await importedStore(options);
+    const { store, setNow } = testStore;
+    store.dispatch(toggleTag({ username: 'bob', tag: 'dog' }));
+    setNow(SAVED_AT);
+    await store.dispatch(saveMaster()).unwrap();
+    store.dispatch(setNote({ username: 'carol', note: 'not saved' }));
+    setNow('2026-11-20T10:00:00.000Z');
+    await store.dispatch(importIntoBrowserWork(newExport())).unwrap();
+    return testStore;
+  }
+
+  test('keeps the work, with the edits not saved yet still unsaved on top of the new data', async () => {
+    const { store } = await importedOverUnsavedNote();
+    const state = store.getState();
+    expect(review(store, 'bob').tags).toEqual(['dog']);
+    expect(review(store, 'carol').notes).toBe('not saved');
+    expect(account(store, 'erin').following).not.toBeNull();
+    expect(account(store, 'alice').followedBy).toBeNull();
+    expect(unsavedNames(store)).toEqual(['carol']);
+    expect(selectIsDirty(state)).toBe(true);
+    expect(state.master.savedAt).toBe(SAVED_AT); // "Have a newer progress file?" compares with this
+    expect(state.master.base?.lastSavedAt).toBe(SAVED_AT); // and Changes counts from it
+  });
+
+  test('Reset changes undoes only the edits; the new data stays, still unsaved', async () => {
+    const { store } = await importedOverUnsavedNote();
+    store.dispatch(resetChanges());
+    const state = store.getState();
+    expect(review(store, 'carol').notes).toBe('');
+    expect(review(store, 'bob').tags).toEqual(['dog']);
+    expect(account(store, 'erin').following).not.toBeNull();
+    expect(selectUnsavedAccountCount(state)).toBe(0);
+    expect(selectIsDirty(state)).toBe(true);
+  });
+
+  test('saving afterwards writes the new data and the edits', async () => {
+    const { store, downloads } = await importedOverUnsavedNote();
+    await store.dispatch(saveMaster()).unwrap();
+    expect(selectIsDirty(store.getState())).toBe(false);
+    const saved = parseMaster(JSON.parse(must(downloads[1]).text));
+    expect(saved.accounts.carol?.review.notes).toBe('not saved');
+    expect(saved.accounts.bob?.review.tags).toEqual(['dog']);
+    expect(saved.accounts.erin?.following).not.toBeNull();
+  });
+
+  test('a plan this export finds done is an edit not saved yet; Reset takes it back', async () => {
+    const { store } = await importedStore();
+    await store.dispatch(saveMaster()).unwrap();
+    store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.PLANNED }));
+    await store.dispatch(importIntoBrowserWork(newExport())).unwrap(); // alice no longer follows you
+
+    expect(isKept(account(store, 'alice'))).toBe(true); // the removal happened: you still follow her
+    expect(store.getState().master.importFacts?.completedPlans.alice).toEqual([REMOVE_FOLLOWER]);
+    expect(unsavedNames(store)).toEqual(['Alice']);
+    store.dispatch(resetChanges());
+    expect(account(store, 'alice').decision).toBeUndefined();
+  });
+
+  test('new data that was never saved stays unsaved, even when the same export comes again', async () => {
+    const { store } = await importedStore(); // a new master: not in any file yet
+    await store.dispatch(importIntoBrowserWork(prepared())).unwrap();
+    expect(selectUnsavedAccountCount(store.getState())).toBe(0);
+    expect(selectIsDirty(store.getState())).toBe(true);
+  });
+
+  test('a saved export brought again changes nothing', async () => {
+    const { store } = await importedStore();
+    await store.dispatch(saveMaster()).unwrap();
+    await store.dispatch(importIntoBrowserWork(prepared())).unwrap();
+    expect(selectIsDirty(store.getState())).toBe(false);
+  });
+
+  test('works after a reload', async () => {
+    const { backup } = await importedOverUnsavedNote();
+    await flushPersistence();
+
+    const reloaded = makeTestStore({ backup });
+    await reloaded.store.dispatch(restoreBackup());
+    expect(unsavedNames(reloaded.store)).toEqual(['carol']);
+    reloaded.store.dispatch(resetChanges());
+    expect(review(reloaded.store, 'carol').notes).toBe('');
+    expect(account(reloaded.store, 'erin').following).not.toBeNull();
+  });
+
+  test('needs loaded work: with nothing loaded it fails and changes nothing', async () => {
+    const { store } = makeTestStore();
+    const result = await store.dispatch(importIntoBrowserWork(prepared()));
+    expect(importIntoBrowserWork.rejected.match(result)).toBe(true);
+    expect(store.getState().master.base).toBeNull();
+    expect(store.getState().master.importStatus).toBe(IMPORT_STATUSES.IDLE);
+  });
+});
+
 describe('tags', () => {
   test('rename and delete touch only tagged accounts; the filter follows; Reset changes undoes them', async () => {
     const { store } = await importedStore();
@@ -588,6 +732,7 @@ describe('reload safety net', () => {
       followingBefore: 3,
       followersBefore: 2,
       completedPlans: { bob: [UNFOLLOW] },
+      previousImportAt: '2026-10-27T12:00:00.000Z',
     });
     await flushPersistence();
 
@@ -689,7 +834,7 @@ describe('reload safety net', () => {
       {
         revision: 1,
         savedRevision: 0,
-        importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {} },
+        importFacts: { followingBefore: 0, followersBefore: 0, completedPlans: {}, previousImportAt: null },
       },
       { changed: {}, saved: {} },
     );
