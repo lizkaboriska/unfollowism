@@ -18,7 +18,7 @@ import {
 import { localStorageHowItWorksSeen } from '@/pages/import';
 import { OtherTabScreen } from '@/pages/other-tab';
 import { TabStoppedScreen } from '@/pages/tab-stopped';
-import { downloadText } from '@/shared/lib/download.ts';
+import { saveTextFile } from '@/shared/lib/download.ts';
 import { nextPaint } from '@/shared/lib/nextPaint.ts';
 import { persistStorage } from '@/shared/lib/persistStorage.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
@@ -55,7 +55,7 @@ async function startApp(): Promise<void> {
   const deps: StoreDeps = {
     now: () => new Date(),
     nextPaint,
-    download: downloadText,
+    download: saveTextFile,
     backup: await openBackupStore(),
     lastSaved: localStorageLastSaved(),
     address: browserAddressBar(),

@@ -402,6 +402,9 @@ export const masterSlice = createSlice({
       })
       .addCase(saveMaster.fulfilled, (state, { payload }) => {
         state.saveStatus = SAVE_STATUSES.IDLE;
+        if (!payload) {
+          return;
+        } // cancelled in the share sheet: still not backed up, nothing to say
         state.savedRevision = payload.revision;
         state.savedAt = payload.savedAt;
         state.savedChanged = payload.changed;

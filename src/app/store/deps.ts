@@ -6,6 +6,7 @@ export interface StoreDeps {
   now: () => Date;
   /** Waits until the browser has painted, so a busy state shows before slow work starts. */
   nextPaint: () => Promise<void>;
+  /** Saves the progress file. Rejects with an AbortError when the share sheet was closed without saving. */
   download: (filename: string, text: string) => void | Promise<void>;
   /** The browser backup, so a reload or a closed browser doesn't lose work. */
   backup: BackupStore;

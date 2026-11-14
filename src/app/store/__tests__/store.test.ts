@@ -16,6 +16,7 @@ import {
   RenameMatch,
   RenameState,
   IMPORT_STATUSES,
+  SAVE_STATUSES,
   STATUS_EVENTS,
   importIntoBrowserWork,
   importPrepared,
@@ -345,6 +346,22 @@ describe('save', () => {
     shouldFail = false;
     await store.dispatch(saveMaster()).unwrap();
     expect(selectIsDirty(store.getState())).toBe(false);
+  });
+
+  test('closing the share sheet without saving leaves the work not backed up, with no warning', async () => {
+    const { store, lastSaved } = makeTestStore({
+      download: () => Promise.reject(new DOMException('Share canceled', 'AbortError')),
+    });
+    await store.dispatch(importPrepared(prepared())).unwrap();
+    const result = await store.dispatch(saveMaster()).unwrap();
+
+    const state = store.getState().master;
+    expect(result).toBeNull();
+    expect(selectIsDirty(store.getState())).toBe(true);
+    expect(state.status).toBeNull();
+    expect(state.saveStatus).toBe(SAVE_STATUSES.IDLE);
+    expect(state.savedAt).toBeNull();
+    expect(lastSaved.get()).toBeNull();
   });
 
   test('saving with nothing loaded does nothing', async () => {
