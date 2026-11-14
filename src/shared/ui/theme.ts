@@ -112,7 +112,8 @@ export const system = createSystem(
   chakraTheme,
   defineConfig({
     globalCss: {
-      html: { colorPalette: 'ink' },
+      // The sticky header is 72px: keep what keyboard focus scrolls to out from under it.
+      html: { colorPalette: 'ink', scrollPaddingTop: '72px' },
       body: { textStyle: 'body' },
       '*::selection': { bg: 'accent', color: 'paper' },
     },

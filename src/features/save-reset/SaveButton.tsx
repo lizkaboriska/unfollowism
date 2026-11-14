@@ -4,7 +4,7 @@ import { selectHasData, selectIsDirty, selectIsSaving, saveMaster } from '@/enti
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
 
-export const SAVED_TOAST = '✓ Backed up. Keep the downloaded progress file somewhere safe.';
+export const SAVED_TOAST = '✓ Backed up. Keep the progress file somewhere safe.';
 
 /**
  * Black while there is something to save, outlined once saved. `onSaved` runs after a save that worked; `children`
@@ -23,7 +23,7 @@ export function SaveButton({ onSaved, children, ...props }: ButtonProps & { onSa
       disabled={!hasData || !isDirty}
       onClick={() =>
         void dispatch(saveMaster()).then(result => {
-          if (saveMaster.fulfilled.match(result)) {
+          if (saveMaster.fulfilled.match(result) && result.payload) {
             toaster.create({ title: SAVED_TOAST });
             onSaved?.();
           }

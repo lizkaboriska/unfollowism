@@ -66,7 +66,7 @@ export function AppNav() {
       aria-label="Main"
       position={{ base: 'fixed', md: 'sticky' }}
       bottom={{ base: '0' }}
-      top={{ md: '5' }}
+      top={{ md: 'calc(72px + 20px)' }} // under the sticky 72px header, with the page's 20px
       left={{ base: '0' }}
       right={{ base: '0' }}
       zIndex="docked"

@@ -92,10 +92,11 @@ export interface SaveFulfilled {
 }
 
 /**
- * Downloads the master. Edits made while the download is in progress stay unsaved.
+ * Downloads the master (the share sheet in the Home Screen app). Edits made while it's in progress stay unsaved.
+ * Null when the share sheet was closed without saving: nothing is backed up.
  * Skipped (like a second save while one runs) when nothing is loaded; the Save button is disabled then.
  */
-export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
+export const saveMaster = createAppThunk<SaveFulfilled | null, undefined>(
   'master/save',
   async (_, { getState, extra }) => {
     const { base, changed, revision } = getState().master;
@@ -106,7 +107,14 @@ export const saveMaster = createAppThunk<SaveFulfilled, undefined>(
     const now = extra.now();
     const savedAt = now.toISOString();
     const filename = masterFileName(now);
-    await extra.download(filename, serializeMaster(master, savedAt));
+    try {
+      await extra.download(filename, serializeMaster(master, savedAt));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return null; // the share sheet was closed: nothing saved
+      }
+      throw error;
+    }
     extra.lastSaved.set(savedAt);
     return { savedAt, revision, changed };
   },
