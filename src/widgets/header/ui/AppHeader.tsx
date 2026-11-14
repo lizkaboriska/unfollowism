@@ -35,7 +35,9 @@ export function AppHeader({ onImportNew }: { onImportNew: () => void }) {
   const color = isDirty ? 'accent' : 'fg.muted';
 
   return (
-    <Box as="header" borderBottomWidth="1px">
+    // Stays at the top while the page scrolls: also what lets iOS 26 drop its blur under the status bar in the
+    // Home Screen app (it keeps the blur over content unless a solid bar is fixed at the top).
+    <Box as="header" position="sticky" top="0" zIndex="docked" bg="paper" borderBottomWidth="1px">
       <HStack maxW={PAGE_WIDTH} mx="auto" h="72px" px="5" justify="space-between" gap="3">
         <Stack gap="0" align="flex-start">
           <Heading textStyle="appName" lineHeight="1">
