@@ -1920,6 +1920,50 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   );
 });
 
+test('Changes rows say who matters under the name and move up when tagged', async () => {
+  let clock = Date.parse('2026-10-27T12:00:00.000Z');
+  const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });
+  await importFiles(user, exportOf(['alice', 'bob'], ['alice', 'bob', 'carol', 'dan']));
+  await findRow('alice');
+  await user.click(saveButton());
+  await waitFor(() => {
+    expect(downloads).toHaveLength(1);
+  });
+
+  // Everyone stopped following you and zoe started; you followed gus.
+  await fromMenu(user, 'Add new Instagram data');
+  const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
+  await importFiles(user, [master, ...exportOf(['alice', 'bob', 'gus'], ['zoe'])]);
+  await findRow('alice');
+  await user.click(navItem(/^Changes 6$/));
+  const lostRow = (username: string) =>
+    within(section('No longer follow you')).getByRole('listitem', { name: `@${username}` });
+  expect(rowsOf('No longer follow you')).toEqual(['@alice', '@bob', '@carol', '@dan']);
+  expect(lostRow('alice')).toHaveTextContent('You follow them');
+  expect(lostRow('carol')).not.toHaveTextContent('You follow them');
+
+  /** Adds a tag from a Changes row's popup (each account here is in one section). */
+  async function tagFromChanges(username: string, tag: string) {
+    await user.click(screen.getByRole('button', { name: `Open @${username}` }));
+    const popup = await finishedOpening(screen.findByRole('dialog', { name: `@${username}` }));
+    await user.click(within(popup).getByRole('button', { name: '+ New tag' }));
+    await user.type(within(popup).getByRole('textbox', { name: `New tag for @${username}` }), `${tag}{Enter}`);
+    await closeAccount(user, username);
+  }
+
+  await tagFromChanges('dan', 'art'); // tagged comes before everyone else
+  expect(rowsOf('No longer follow you')).toEqual(['@alice', '@bob', '@dan', '@carol']);
+  expect(lostRow('dan')).toHaveTextContent('#art');
+  await tagFromChanges('alice', 'friends');
+  expect(lostRow('alice')).toHaveTextContent('You follow them · #friends');
+
+  // You follow everyone you started following, so the row shows only its tags.
+  await tagFromChanges('gus', 'art');
+  const gus = within(section('You started following')).getByRole('listitem', { name: '@gus' });
+  expect(gus).toHaveTextContent('#art');
+  expect(gus).not.toHaveTextContent('You follow them');
+});
+
 test('someone you kept who stops following you needs a decision again; past accounts have none', async () => {
   let clock = Date.parse('2026-10-27T12:00:00.000Z');
   const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });

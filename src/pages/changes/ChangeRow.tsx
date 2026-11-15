@@ -1,4 +1,4 @@
-import { Box, Text, chakra } from '@chakra-ui/react';
+import { Box, Stack, Text, chakra } from '@chakra-ui/react';
 import { memo } from 'react';
 
 import {
@@ -8,6 +8,7 @@ import {
   type ActionType,
   type FollowChange,
   type ReadonlyAccount,
+  changeRowNote,
   isKept,
   selectAccount,
   selectWasPlanDoneBeforeImport,
@@ -35,8 +36,8 @@ function queuedText(account: ReadonlyAccount): string | null {
 }
 
 /**
- * One account on the Changes page: name, why it's here when a plan did it, a queued plan or a quiet Kept, → opens
- * its popup.
+ * One account on the Changes page: name with a grey note under it (followed, tags), why it's here when a plan did it,
+ * a queued plan or a quiet Kept, → opens its popup.
  */
 export const ChangeRow = memo(function ChangeRow({
   accountKey,
@@ -56,6 +57,7 @@ export const ChangeRow = memo(function ChangeRow({
     return null;
   }
   const queued = queuedText(account);
+  const note = changeRowNote(account, change);
   return (
     <Box as="li" aria-label={`@${account.username}`} listStyleType="none" _notFirst={{ borderTopWidth: '1px' }}>
       <chakra.button
@@ -73,9 +75,16 @@ export const ChangeRow = memo(function ChangeRow({
           onOpen(accountKey);
         }}
       >
-        <Text textStyle="name" wordBreak="break-all">
-          @{account.username}
-        </Text>
+        <Stack gap="0.5" minW="0">
+          <Text textStyle="name" wordBreak="break-all">
+            @{account.username}
+          </Text>
+          {note && (
+            <Text textStyle="small" color="fg.muted" wordBreak="break-all">
+              {note}
+            </Text>
+          )}
+        </Stack>
         {wasDoneBeforeImport && explainedBy !== undefined && (
           <Text textStyle="small" color="fg.muted" flexShrink="0">
             {COMPLETED_PLAN_BADGES[explainedBy]}
