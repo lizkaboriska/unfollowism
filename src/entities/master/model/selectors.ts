@@ -9,7 +9,13 @@ import { accountOf, type ChangedAccounts } from '../lib/account.ts';
 import { countPlans, planStats, type PlanStats } from '../lib/actions.ts';
 import { sameAccountData } from '../lib/masterFile.ts';
 import { renameHiddenKeys, renamePairs, suggestedRenames, type RenamePair } from '../lib/renames.ts';
-import { followChangeMatches, relationshipStats, scopeMatches, type FollowChangeCounts } from '../lib/scopes.ts';
+import {
+  changeRank,
+  followChangeMatches,
+  relationshipStats,
+  scopeMatches,
+  type FollowChangeCounts,
+} from '../lib/scopes.ts';
 import { buildSessionDiff } from '../lib/sessionDiff.ts';
 import { countTags, tagCounts, tagsInUse, type TagCounts } from '../lib/tags.ts';
 import {
@@ -171,26 +177,26 @@ export const selectRenamePairs = createSelector(
 );
 
 /**
- * The Changes page's sections now. Edits never change follows, so an edit can only take an account out: a removed
- * account (a confirmed rename) leaves its lists. Renames have their own section: both names are left out while
- * waiting, and the new name once moved (see renameHiddenKeys). Only the listed accounts are checked again.
+ * The Changes page's sections now, who matters first (see changeRank; a tag added on the page moves the row). Edits
+ * never change follows, so an edit can only take an account out: a removed account (a confirmed rename) leaves its
+ * lists. Renames have their own section: both names are left out while waiting, and the new name once moved (see
+ * renameHiddenKeys). Only the listed accounts are checked again.
  */
 export const selectChangeSections = createSelector(
-  [selectBaseChangeSections, selectChanged, selectChangesSince, selectRenamePairs],
-  (sections, changed, since, pairs): ChangeSections => {
+  [selectBaseChangeSections, selectBaseAccounts, selectChanged, selectChangesSince, selectRenamePairs],
+  (sections, base, changed, since, pairs): ChangeSections => {
     const hidden = renameHiddenKeys(pairs);
-    return byChange(change =>
-      sections[change].filter(key => {
-        if (hidden.has(key)) {
-          return false;
+    return byChange(change => {
+      const ranks = new Map<string, number>();
+      for (const key of sections[change]) {
+        const account = hidden.has(key) ? undefined : accountOf(base, changed, key);
+        if (account && (!Object.hasOwn(changed, key) || followChangeMatches(account, change, since))) {
+          ranks.set(key, changeRank(account, change));
         }
-        if (!Object.hasOwn(changed, key)) {
-          return true;
-        }
-        const account = changed[key];
-        return !!account && followChangeMatches(account, change, since);
-      }),
-    );
+      }
+      // Stable: username order stays inside each rank.
+      return [...ranks.keys()].sort((first, second) => (ranks.get(first) ?? 0) - (ranks.get(second) ?? 0));
+    });
   },
 );
 

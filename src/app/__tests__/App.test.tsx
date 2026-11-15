@@ -1872,18 +1872,18 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
     expect(downloads).toHaveLength(1);
   });
 
-  // You unfollowed bob as planned, followed four new accounts; carol left.
+  // You unfollowed bob as planned, followed six new accounts; carol left.
   await fromMenu(user, 'Add new Instagram data');
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
-  await importFiles(user, [master, ...exportOf(['alice', 'dan', 'gus', 'hal', 'ivy', 'jo'], ['alice'])]);
+  await importFiles(user, [master, ...exportOf(['alice', 'dan', 'gus', 'hal', 'ivy', 'jo', 'kim', 'lee'], ['alice'])]);
   await findRow('alice');
-  await user.click(navItem(/^Changes 6$/));
+  await user.click(navItem(/^Changes 8$/));
 
-  expect(screen.getByText(/^6 changes since your previous import, /)).toBeInTheDocument();
+  expect(screen.getByText(/^8 changes since your previous import, /)).toBeInTheDocument();
   const compared = screen.getByRole('region', { name: 'Compared files' });
   const following = within(compared).getByRole('group', { name: 'Following' });
   expect(within(following).getByText('3')).toBeInTheDocument();
-  expect(within(following).getByText('6')).toBeInTheDocument();
+  expect(within(following).getByText('8')).toBeInTheDocument();
   const followers = within(compared).getByRole('group', { name: 'Followers' });
   expect(within(followers).getByText('2')).toBeInTheDocument();
   expect(within(followers).getByText('1')).toBeInTheDocument();
@@ -1896,11 +1896,12 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   expect(rowsOf('No longer follow you')).toEqual(['@carol']);
   expect(within(section('You stopped following')).getByText('You unfollowed')).toBeInTheDocument();
 
-  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
-  await user.click(screen.getByRole('button', { name: 'Show all 4' }));
-  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy', '@jo']);
+  const firstFive = ['@gus', '@hal', '@ivy', '@jo', '@kim'];
+  expect(rowsOf('You started following')).toEqual(firstFive);
+  await user.click(screen.getByRole('button', { name: 'Show all 6' }));
+  expect(rowsOf('You started following')).toEqual([...firstFive, '@lee']);
   await user.click(screen.getByRole('button', { name: 'Show fewer' }));
-  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
+  expect(rowsOf('You started following')).toEqual(firstFive);
 
   // A row opens the account popup. A queued plan shows on the row, Kept quietly, an undecided row nothing.
   const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
