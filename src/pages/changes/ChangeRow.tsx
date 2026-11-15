@@ -9,7 +9,6 @@ import {
   type FollowChange,
   type ReadonlyAccount,
   changeRowNote,
-  isKept,
   selectAccount,
   selectWasPlanDoneBeforeImport,
   COMPLETED_PLAN_BADGES,
@@ -25,7 +24,7 @@ const EXPLAINED_BY: Partial<Record<FollowChange, ActionType>> = {
 
 /**
  * A queued decision as a row shows it ("Unfollow queued", "Both queued"): work still waiting in To do. Null
- * otherwise: Kept shows quietly instead, and an undecided row shows nothing.
+ * otherwise: Kept and undecided rows show nothing (Kept next to "You unfollowed" would read as still following).
  */
 function queuedText(account: ReadonlyAccount): string | null {
   const queued = Object.values(ACTION_TYPES).flatMap(type => {
@@ -37,7 +36,7 @@ function queuedText(account: ReadonlyAccount): string | null {
 
 /**
  * One account on the Changes page: name with a grey note under it (followed, tags), why it's here when a plan did it,
- * a queued plan or a quiet Kept, → opens its popup.
+ * a queued plan, → opens its popup.
  */
 export const ChangeRow = memo(function ChangeRow({
   accountKey,
@@ -94,11 +93,6 @@ export const ChangeRow = memo(function ChangeRow({
         {queued && (
           <Text textStyle="small" fontWeight="500" px="1.5" py="0.5" flexShrink="0" bg="accent" color="paper">
             {queued}
-          </Text>
-        )}
-        {!queued && isKept(account) && (
-          <Text textStyle="small" fontWeight="500" py="0.5" flexShrink="0" color="fg.muted">
-            ✓ Kept
           </Text>
         )}
         <Text aria-hidden>→</Text>

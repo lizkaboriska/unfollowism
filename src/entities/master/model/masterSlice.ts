@@ -188,22 +188,6 @@ export const masterSlice = createSlice({
       });
     },
     /**
-     * Removes one plan, keeping the account as it is ("Keep instead" in To do): with no plan left it becomes Kept, not
-     * undecided.
-     */
-    keepInstead(state, { payload }: PayloadAction<{ username: string; type: ActionType }>) {
-      const before = accountBefore(state, payload.username);
-      if (!before || planOf(before, payload.type) === undefined) {
-        return;
-      }
-      editAccount(state, payload.username, account => {
-        applyPlan(account, payload.type, undefined);
-        if (account.decision === undefined) {
-          keep(account);
-        }
-      });
-    },
-    /**
      * Marking unavailable means you looked: an undecided account becomes Kept, unless it's a past account. Clearing it
      * changes no decision.
      */
@@ -423,7 +407,6 @@ export const masterSlice = createSlice({
 
 export const {
   setKept,
-  keepInstead,
   setUnavailable,
   toggleTag,
   setNote,

@@ -4,8 +4,15 @@ import { profileUrl } from '../lib/util.ts';
 
 import { openProfilePopup } from './instagramLink.ts';
 
-/** "@name ↗": opens the Instagram profile in the side popup (see openProfilePopup). */
-export function ProfileLink({ username, ...props }: { username: string } & LinkProps) {
+/**
+ * "@name ↗": opens the Instagram profile in the side popup (see openProfilePopup). Without the arrow where it looks
+ * wrong in a big title font (the account popup's title): the underline alone says it's a link.
+ */
+export function ProfileLink({
+  username,
+  hasArrow = true,
+  ...props
+}: { username: string; hasArrow?: boolean } & LinkProps) {
   return (
     <Link
       href={profileUrl(username)}
@@ -18,7 +25,8 @@ export function ProfileLink({ username, ...props }: { username: string } & LinkP
       textDecorationColor="currentColor"
       {...props}
     >
-      @{username} ↗
+      @{username}
+      {hasArrow && ' ↗'}
     </Link>
   );
 }

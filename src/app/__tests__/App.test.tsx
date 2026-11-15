@@ -1247,6 +1247,9 @@ describe('main view', () => {
 
     await user.click(within(row('bob')).getByRole('button', { name: '✓ Mark done' }));
     expect(within(row('bob')).getByText('✓ Done')).toBeInTheDocument();
+    // Folded to one line: the name crossed out, Undo, → to the popup; no Instagram link or Mark done.
+    expect(within(row('bob')).getByText('@bob')).toHaveStyle({ textDecoration: 'line-through' });
+    expect(within(row('bob')).getByRole('button', { name: 'Open @bob' })).toBeInTheDocument();
     expect(within(row('bob')).queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByText('1 of 1 done')).toBeInTheDocument();
     expect(screen.getByText('All unfollows done')).toBeInTheDocument();
@@ -1382,24 +1385,32 @@ describe('main view', () => {
     expect(window.location.pathname + window.location.search).toBe('/?decision=kept&q=al');
   });
 
-  test('To do → Keep instead removes the plan; Undo brings it back', async () => {
+  test('To do: the top of a row opens the account popup; Keep there drops the plan, Undo brings it back', async () => {
     const { user } = await imported();
     await newTag(user, 'alice', 'artist');
     await user.click(cardButton('alice', 'Queue unfollow'));
     await user.click(cardButton('bob', 'Queue unfollow'));
     await user.click(navItem(/^To do 2$/));
-    expect(within(row('alice')).getByText('#artist')).toBeInTheDocument(); // its tags, read-only
-    expect(within(row('alice')).queryByRole('button', { name: 'artist' })).not.toBeInTheDocument();
+    expect(within(row('alice')).getByText('#artist')).toBeInTheDocument(); // its tags, read-only on the row
+    expect(within(row('alice')).queryByRole('button', { name: 'Keep instead' })).not.toBeInTheDocument();
     expect(screen.getByText('0 of 2 done')).toBeInTheDocument();
 
-    await user.click(within(row('alice')).getByRole('button', { name: 'Keep instead' }));
+    await user.click(within(row('alice')).getByRole('button', { name: 'Open @alice' }));
+    const popup = await finishedOpening(screen.findByRole('dialog', { name: '@alice' }));
+    await user.click(within(popup).getByRole('button', { name: 'Keep' }));
+    await closeAccount(user, 'alice');
     expect(within(row('alice')).getByText('Kept')).toBeInTheDocument(); // stays, so it can be undone
+    expect(within(row('alice')).getByText('@alice')).not.toHaveStyle({ textDecoration: 'line-through' }); // not done
+    expect(within(row('alice')).queryByText('#artist')).not.toBeInTheDocument(); // folded to one line
     expect(navItem(/^To do 1$/)).toBeInTheDocument();
     expect(screen.getByText('0 of 1 done')).toBeInTheDocument();
     await user.click(within(row('alice')).getByRole('button', { name: 'Undo' }));
     expect(navItem(/^To do 2$/)).toBeInTheDocument();
 
-    await user.click(within(row('alice')).getByRole('button', { name: 'Keep instead' }));
+    await user.click(within(row('alice')).getByRole('button', { name: 'Open @alice' }));
+    const again = await finishedOpening(screen.findByRole('dialog', { name: '@alice' }));
+    await user.click(within(again).getByRole('button', { name: 'Keep' }));
+    await closeAccount(user, 'alice');
     await user.click(navItem(/^Review$/)); // refresh the list
     expect(isKept('alice')).toBe(true);
     await user.click(navItem(/^To do 1$/));
@@ -1460,6 +1471,13 @@ describe('main view', () => {
     const { user } = await imported();
     const open = vi.spyOn(window, 'open').mockReturnValue({ focus: () => undefined } as Window);
     const popup = await openAccount(user, 'bob');
+    // The title is a link too: underlined, no arrow in the big title font.
+    const title = within(popup).getByRole('heading', { name: '@bob' });
+    expect(within(title).getByRole('link', { name: '@bob' })).toHaveAttribute('href', 'https://www.instagram.com/bob');
+    await user.click(within(title).getByRole('link', { name: '@bob' }));
+    expect(open).toHaveBeenCalledWith('https://www.instagram.com/bob', 'unfollowism-profile', expect.any(String));
+    open.mockClear();
+
     const link = within(popup).getByRole('link', { name: 'Open in Instagram ↗' });
     expect(link).toHaveAttribute('href', 'https://www.instagram.com/bob');
     await user.click(link);
@@ -1903,7 +1921,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   await user.click(screen.getByRole('button', { name: 'Show fewer' }));
   expect(rowsOf('You started following')).toEqual(firstFive);
 
-  // A row opens the account popup. A queued plan shows on the row, Kept quietly, an undecided row nothing.
+  // A row opens the account popup. A queued plan shows on the row; Kept and undecided rows show nothing.
   const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
   await user.click(screen.getByRole('button', { name: 'Open @gus' }));
   let popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
@@ -1914,7 +1932,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
   await user.click(within(popup).getByRole('button', { name: 'Keep' }));
   await closeAccount(user, 'gus');
-  expect(gus()).toHaveTextContent('@gus✓ Kept');
+  expect(gus()).toHaveTextContent(/^@gus→$/); // no Kept on Changes rows
   expect(within(section('You started following')).getByRole('listitem', { name: '@hal' })).not.toHaveTextContent(
     /Kept|queued/,
   );

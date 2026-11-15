@@ -1,4 +1,4 @@
-import { Box, Button, HStack, SimpleGrid, Text } from '@chakra-ui/react';
+import { Box, Button, HStack, SimpleGrid, Stack, Text, chakra } from '@chakra-ui/react';
 import { memo } from 'react';
 
 import {
@@ -7,7 +7,6 @@ import {
   profileUrl,
   type ActionType,
   type PlanState,
-  keepInstead,
   setPlan,
   selectAccount,
   openProfilePopup,
@@ -16,22 +15,68 @@ import {
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { TextButton } from '@/shared/ui/TextButton.tsx';
 
-/** "✓ Done · Undo" or "Kept · Undo": what happened to the row, and the way back to queued. */
-function Settled({ label, onUndo }: { label: string; onUndo: () => void }) {
+/**
+ * A row you finished, folded to one gray line: name (crossed out when done; not when kept, nothing was unfollowed),
+ * "✓ Done" or "Kept", Undo back to queued, → opens the popup.
+ */
+function SettledRow({
+  username,
+  isDone,
+  onUndo,
+  onOpen,
+}: {
+  username: string;
+  isDone: boolean;
+  onUndo: () => void;
+  onOpen: () => void;
+}) {
   return (
-    <HStack gap="2" flexShrink="0">
-      <Text textStyle="control">{label}</Text>
-      <TextButton onClick={onUndo}>Undo</TextButton>
+    <HStack as="article" aria-label={`@${username}`} borderWidth="1px" minH="52px" px="3" gap="2" color="fg.muted">
+      <Text
+        textStyle="name"
+        wordBreak="break-all"
+        textDecoration={isDone ? 'line-through' : 'none'}
+        textDecorationThickness="1px"
+      >
+        @{username}
+      </Text>
+      <Text textStyle="control" flexShrink="0">
+        {isDone ? '✓ Done' : 'Kept'}
+      </Text>
+      <Box flex="1" />
+      <TextButton color="fg.muted" onClick={onUndo}>
+        Undo
+      </TextButton>
+      <chakra.button
+        type="button"
+        aria-label={`Open @${username}`}
+        w="10"
+        h="10"
+        me="-2"
+        flexShrink="0"
+        cursor="pointer"
+        onClick={onOpen}
+      >
+        <span aria-hidden>→</span>
+      </chakra.button>
     </HStack>
   );
 }
 
 /**
- * One account in a To do tab: open Instagram, make the change there, then Mark done (or Keep instead, after a change
- * of mind). The row stays where it is until the tab's list refreshes, so both can be undone. Decisions, tags and
- * notes are edited in Review.
+ * One account in a To do tab: open Instagram, make the change there, then Mark done. The top of the card opens the
+ * account popup (decisions, tags, notes; Keep there drops the plan). Done and Kept fold to one line and stay where
+ * they are until the tab's list refreshes, so they can be undone.
  */
-export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey: string; type: ActionType }) {
+export const TodoRow = memo(function TodoRow({
+  accountKey,
+  type,
+  onOpen,
+}: {
+  accountKey: string;
+  type: ActionType;
+  onOpen: (accountKey: string) => void;
+}) {
   const dispatch = useAppDispatch();
   const account = useAppSelector(state => selectAccount(state, accountKey));
   if (!account) {
@@ -42,11 +87,38 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
   const plan = planOf(account, type);
   const set = (state: PlanState) => dispatch(setPlan({ username, type, state }));
   const undo = () => set(PLAN_STATES.PLANNED);
+  if (plan !== PLAN_STATES.PLANNED) {
+    // Keep in the popup dropped the plan (undefined): the row stays as Kept until the list refreshes.
+    return (
+      <SettledRow
+        username={username}
+        isDone={plan === PLAN_STATES.DONE}
+        onUndo={undo}
+        onOpen={() => {
+          onOpen(accountKey);
+        }}
+      />
+    );
+  }
 
   return (
-    <Box as="article" aria-label={`@${username}`} borderWidth="1px" p="3">
-      <HStack justify="space-between" align="flex-start" gap="2">
-        <Box minW="0">
+    <Box as="article" aria-label={`@${username}`} borderWidth="1px">
+      <chakra.button
+        type="button"
+        aria-label={`Open @${username}`}
+        display="flex"
+        w="full"
+        alignItems="flex-start"
+        gap="2"
+        px="3"
+        pt="3"
+        textAlign="start"
+        cursor="pointer"
+        onClick={() => {
+          onOpen(accountKey);
+        }}
+      >
+        <Box flex="1" minW="0">
           <Text textStyle="name" wordBreak="break-all">
             @{username}
           </Text>
@@ -54,20 +126,15 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
             {relationshipNote(account)}
           </Text>
         </Box>
-        {plan === PLAN_STATES.PLANNED && (
-          <TextButton onClick={() => dispatch(keepInstead({ username, type }))}>Keep instead</TextButton>
+        <Text aria-hidden>→</Text>
+      </chakra.button>
+      <Stack gap="2" px="3" pt="2" pb="3">
+        {account.review.tags.length > 0 && (
+          <Text textStyle="small" color="fg.muted">
+            {account.review.tags.map(tag => `#${tag}`).join(' ')}
+          </Text>
         )}
-        {plan === PLAN_STATES.DONE && <Settled label="✓ Done" onUndo={undo} />}
-        {/* "Keep instead" dropped the plan: the row stays until the list refreshes, so it can be undone. */}
-        {plan === undefined && <Settled label="Kept" onUndo={undo} />}
-      </HStack>
-      {account.review.tags.length > 0 && (
-        <Text textStyle="small" color="fg.muted" mt="2">
-          {account.review.tags.map(tag => `#${tag}`).join(' ')}
-        </Text>
-      )}
-      {plan === PLAN_STATES.PLANNED && (
-        <SimpleGrid columns={2} gap="2" mt="2">
+        <SimpleGrid columns={2} gap="2">
           <Button asChild variant="outline">
             <a href={profileUrl(username)} target="_blank" rel="noopener noreferrer" onClick={openProfilePopup}>
               Open in Instagram ↗
@@ -77,7 +144,7 @@ export const TodoRow = memo(function TodoRow({ accountKey, type }: { accountKey:
             ✓ Mark done
           </Button>
         </SimpleGrid>
-      )}
+      </Stack>
     </Box>
   );
 });
