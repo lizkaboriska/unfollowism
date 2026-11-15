@@ -1,7 +1,8 @@
 import { Box, Heading, Progress, Stack, Text } from '@chakra-ui/react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { PLAN_STATES, totalOf, selectPlanStats, TODO_LABELS } from '@/entities/master';
+import { AccountPopup } from '@/features/account-popup';
 import { selectListKeys, PLAN_VIEW_ACTIONS, type PlanView } from '@/features/filters';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { AccountList, type ListItems } from '@/widgets/account-list';
@@ -29,24 +30,37 @@ function TodoProgress({ done, all }: { done: number; all: number }) {
   );
 }
 
-/** The open tab's rows; "All unfollows done" above them once nothing in it is left to do. */
+/**
+ * The open tab's rows; "All unfollows done" above them once nothing in it is left to do. A row's top opens the
+ * account popup.
+ */
 function TodoTabList({ view }: { view: PlanView }) {
   const type = PLAN_VIEW_ACTIONS[view];
   const stats = useAppSelector(selectPlanStats);
   const hasList = useAppSelector(selectListKeys).length > 0;
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const open = useCallback((accountKey: string) => {
+    setOpenKey(accountKey);
+  }, []);
   const items = useMemo(
     (): ListItems => ({
-      render: accountKey => <TodoRow accountKey={accountKey} type={type} />,
+      render: accountKey => <TodoRow accountKey={accountKey} type={type} onOpen={open} />,
       estimatedHeight: ESTIMATED_TODO_ROW_HEIGHT,
       empty: <Text color="fg.muted">{TODO_LABELS[type].empty}</Text>,
     }),
-    [type],
+    [type, open],
   );
   const isAllDone = hasList && stats[PLAN_STATES.PLANNED][type] === 0 && stats[PLAN_STATES.DONE][type] > 0;
   return (
     <Stack gap="3">
       {isAllDone && <Text textStyle="control">{TODO_LABELS[type].allDone}</Text>}
       <AccountList items={items} />
+      <AccountPopup
+        accountKey={openKey}
+        onClose={() => {
+          setOpenKey(null);
+        }}
+      />
     </Stack>
   );
 }

@@ -53,7 +53,6 @@ export {
   deleteTag,
   dismissRename,
   undoRename,
-  keepInstead,
   masterSlice,
   persistenceFailed,
   renameTag,

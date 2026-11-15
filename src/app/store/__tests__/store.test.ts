@@ -44,7 +44,6 @@ import {
   undoRename,
   renameTag,
   resetChanges,
-  keepInstead,
   setNote,
   setPlan,
   setKept,
@@ -208,24 +207,6 @@ describe('edits', () => {
       kind: DecisionKind.QUEUED,
       plans: { [REMOVE_FOLLOWER]: PLAN_STATES.PLANNED },
     });
-  });
-
-  test('Keep instead (To do) drops one plan; with none left the account is Kept', async () => {
-    const { store } = await importedStore();
-    store.dispatch(setPlan({ username: 'alice', type: UNFOLLOW, state: PLAN_STATES.PLANNED }));
-    store.dispatch(setPlan({ username: 'alice', type: REMOVE_FOLLOWER, state: PLAN_STATES.DONE }));
-
-    store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW }));
-    expect(account(store, 'alice').decision).toEqual({
-      kind: DecisionKind.QUEUED,
-      plans: { [REMOVE_FOLLOWER]: PLAN_STATES.DONE },
-    });
-    store.dispatch(keepInstead({ username: 'alice', type: REMOVE_FOLLOWER }));
-    expect(account(store, 'alice').decision).toEqual({ kind: DecisionKind.KEPT });
-
-    const revisionBefore = store.getState().master.revision;
-    store.dispatch(keepInstead({ username: 'alice', type: UNFOLLOW })); // nothing queued: no-op
-    expect(store.getState().master.revision).toBe(revisionBefore);
   });
 
   test('tags toggle and notes only count real changes', async () => {

@@ -1382,24 +1382,30 @@ describe('main view', () => {
     expect(window.location.pathname + window.location.search).toBe('/?decision=kept&q=al');
   });
 
-  test('To do → Keep instead removes the plan; Undo brings it back', async () => {
+  test('To do: the top of a row opens the account popup; Keep there drops the plan, Undo brings it back', async () => {
     const { user } = await imported();
     await newTag(user, 'alice', 'artist');
     await user.click(cardButton('alice', 'Queue unfollow'));
     await user.click(cardButton('bob', 'Queue unfollow'));
     await user.click(navItem(/^To do 2$/));
-    expect(within(row('alice')).getByText('#artist')).toBeInTheDocument(); // its tags, read-only
-    expect(within(row('alice')).queryByRole('button', { name: 'artist' })).not.toBeInTheDocument();
+    expect(within(row('alice')).getByText('#artist')).toBeInTheDocument(); // its tags, read-only on the row
+    expect(within(row('alice')).queryByRole('button', { name: 'Keep instead' })).not.toBeInTheDocument();
     expect(screen.getByText('0 of 2 done')).toBeInTheDocument();
 
-    await user.click(within(row('alice')).getByRole('button', { name: 'Keep instead' }));
+    await user.click(within(row('alice')).getByRole('button', { name: 'Open @alice' }));
+    const popup = await finishedOpening(screen.findByRole('dialog', { name: '@alice' }));
+    await user.click(within(popup).getByRole('button', { name: 'Keep' }));
+    await closeAccount(user, 'alice');
     expect(within(row('alice')).getByText('Kept')).toBeInTheDocument(); // stays, so it can be undone
     expect(navItem(/^To do 1$/)).toBeInTheDocument();
     expect(screen.getByText('0 of 1 done')).toBeInTheDocument();
     await user.click(within(row('alice')).getByRole('button', { name: 'Undo' }));
     expect(navItem(/^To do 2$/)).toBeInTheDocument();
 
-    await user.click(within(row('alice')).getByRole('button', { name: 'Keep instead' }));
+    await user.click(within(row('alice')).getByRole('button', { name: 'Open @alice' }));
+    const again = await finishedOpening(screen.findByRole('dialog', { name: '@alice' }));
+    await user.click(within(again).getByRole('button', { name: 'Keep' }));
+    await closeAccount(user, 'alice');
     await user.click(navItem(/^Review$/)); // refresh the list
     expect(isKept('alice')).toBe(true);
     await user.click(navItem(/^To do 1$/));
