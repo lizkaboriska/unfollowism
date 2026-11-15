@@ -1460,6 +1460,13 @@ describe('main view', () => {
     const { user } = await imported();
     const open = vi.spyOn(window, 'open').mockReturnValue({ focus: () => undefined } as Window);
     const popup = await openAccount(user, 'bob');
+    // The title is a link too: underlined, no arrow in the big title font.
+    const title = within(popup).getByRole('heading', { name: '@bob' });
+    expect(within(title).getByRole('link', { name: '@bob' })).toHaveAttribute('href', 'https://www.instagram.com/bob');
+    await user.click(within(title).getByRole('link', { name: '@bob' }));
+    expect(open).toHaveBeenCalledWith('https://www.instagram.com/bob', 'unfollowism-profile', expect.any(String));
+    open.mockClear();
+
     const link = within(popup).getByRole('link', { name: 'Open in Instagram ↗' });
     expect(link).toHaveAttribute('href', 'https://www.instagram.com/bob');
     await user.click(link);

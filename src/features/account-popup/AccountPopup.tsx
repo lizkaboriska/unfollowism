@@ -34,6 +34,7 @@ import {
   planText,
   queueText,
   KeepButton,
+  ProfileLink,
 } from '@/entities/master';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
@@ -201,7 +202,7 @@ export function AccountPopup({ accountKey, onClose }: { accountKey: string | nul
               <>
                 <Drawer.Header display="block">
                   <Drawer.Title textStyle="heading" wordBreak="break-all">
-                    @{account.username}
+                    <ProfileLink username={account.username} hasArrow={false} textStyle="heading" />
                   </Drawer.Title>
                   <Text textStyle="note" color="fg.muted">
                     {RELATIONSHIP_NOTES[relationshipOf(account)]}
