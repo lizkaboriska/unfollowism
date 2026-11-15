@@ -1,4 +1,4 @@
-import { relationshipOf } from '../lib/scopes.ts';
+import { isFollowRanked, relationshipOf } from '../lib/scopes.ts';
 import {
   ACTION_TYPES,
   DecisionFilter,
@@ -61,6 +61,18 @@ export const CHANGE_SECTION_TITLES: Record<FollowChange, string> = {
   [FOLLOW_CHANGES.NEW_FOLLOWS]: 'You started following',
   [FOLLOW_CHANGES.UNFOLLOWED]: 'You stopped following',
 };
+
+/**
+ * The grey line under a name on Changes: why the row is near the top ("You follow them · #friends"). "You follow
+ * them" only where it sorts (see isFollowRanked); null for a row with neither.
+ */
+export function changeRowNote(account: ReadonlyAccount, change: FollowChange): string | null {
+  const parts = account.review.tags.length > 0 ? [account.review.tags.map(tag => `#${tag}`).join(' ')] : [];
+  if (isFollowRanked(change) && account.following !== null) {
+    parts.unshift('You follow them');
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
 
 /** Row badge on Changes for a plan the import found done: why they're in the list. */
 export const COMPLETED_PLAN_BADGES: Record<ActionType, string> = {

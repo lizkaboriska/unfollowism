@@ -100,6 +100,32 @@ export function followChangeMatches(account: ReadonlyAccount, change: FollowChan
   }
 }
 
+/** The change lists where following them back puts an account first: the ones about who follows you. */
+const FOLLOW_RANKED_CHANGES: ReadonlySet<FollowChange> = new Set([
+  FOLLOW_CHANGES.NEW_FOLLOWERS,
+  FOLLOW_CHANGES.LOST_FOLLOWERS,
+]);
+
+/** Whether you follow the account decides its place in this change list (and its row says so). */
+export function isFollowRanked(change: FollowChange): boolean {
+  return FOLLOW_RANKED_CHANGES.has(change);
+}
+
+/** Places in a change list, who matters first; username order inside each. */
+const CHANGE_RANKS = {
+  FOLLOWED: 0,
+  TAGGED: 1,
+  OTHER: 2,
+} as const;
+
+/** Where the account goes in a change list: people you follow, then tagged, then everyone else. */
+export function changeRank(account: ReadonlyAccount, change: FollowChange): number {
+  if (isFollowRanked(change) && account.following !== null) {
+    return CHANGE_RANKS.FOLLOWED;
+  }
+  return account.review.tags.length > 0 ? CHANGE_RANKS.TAGGED : CHANGE_RANKS.OTHER;
+}
+
 export type FollowChangeCounts = Record<FollowChange, number>;
 
 export function followChangeCounts(

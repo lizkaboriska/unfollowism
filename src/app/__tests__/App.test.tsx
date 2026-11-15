@@ -1872,18 +1872,18 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
     expect(downloads).toHaveLength(1);
   });
 
-  // You unfollowed bob as planned, followed four new accounts; carol left.
+  // You unfollowed bob as planned, followed six new accounts; carol left.
   await fromMenu(user, 'Add new Instagram data');
   const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
-  await importFiles(user, [master, ...exportOf(['alice', 'dan', 'gus', 'hal', 'ivy', 'jo'], ['alice'])]);
+  await importFiles(user, [master, ...exportOf(['alice', 'dan', 'gus', 'hal', 'ivy', 'jo', 'kim', 'lee'], ['alice'])]);
   await findRow('alice');
-  await user.click(navItem(/^Changes 6$/));
+  await user.click(navItem(/^Changes 8$/));
 
-  expect(screen.getByText(/^6 changes since your previous import, /)).toBeInTheDocument();
+  expect(screen.getByText(/^8 changes since your previous import, /)).toBeInTheDocument();
   const compared = screen.getByRole('region', { name: 'Compared files' });
   const following = within(compared).getByRole('group', { name: 'Following' });
   expect(within(following).getByText('3')).toBeInTheDocument();
-  expect(within(following).getByText('6')).toBeInTheDocument();
+  expect(within(following).getByText('8')).toBeInTheDocument();
   const followers = within(compared).getByRole('group', { name: 'Followers' });
   expect(within(followers).getByText('2')).toBeInTheDocument();
   expect(within(followers).getByText('1')).toBeInTheDocument();
@@ -1896,11 +1896,12 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   expect(rowsOf('No longer follow you')).toEqual(['@carol']);
   expect(within(section('You stopped following')).getByText('You unfollowed')).toBeInTheDocument();
 
-  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
-  await user.click(screen.getByRole('button', { name: 'Show all 4' }));
-  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy', '@jo']);
+  const firstFive = ['@gus', '@hal', '@ivy', '@jo', '@kim'];
+  expect(rowsOf('You started following')).toEqual(firstFive);
+  await user.click(screen.getByRole('button', { name: 'Show all 6' }));
+  expect(rowsOf('You started following')).toEqual([...firstFive, '@lee']);
   await user.click(screen.getByRole('button', { name: 'Show fewer' }));
-  expect(rowsOf('You started following')).toEqual(['@gus', '@hal', '@ivy']);
+  expect(rowsOf('You started following')).toEqual(firstFive);
 
   // A row opens the account popup. A queued plan shows on the row, Kept quietly, an undecided row nothing.
   const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
@@ -1917,6 +1918,50 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   expect(within(section('You started following')).getByRole('listitem', { name: '@hal' })).not.toHaveTextContent(
     /Kept|queued/,
   );
+});
+
+test('Changes rows say who matters under the name and move up when tagged', async () => {
+  let clock = Date.parse('2026-10-27T12:00:00.000Z');
+  const { user, downloads } = await renderApp({ now: () => new Date((clock += 60_000)) });
+  await importFiles(user, exportOf(['alice', 'bob'], ['alice', 'bob', 'carol', 'dan']));
+  await findRow('alice');
+  await user.click(saveButton());
+  await waitFor(() => {
+    expect(downloads).toHaveLength(1);
+  });
+
+  // Everyone stopped following you and zoe started; you followed gus.
+  await fromMenu(user, 'Add new Instagram data');
+  const master = new File([must(downloads[0]).text], 'unfollowism_master.json', { type: 'application/json' });
+  await importFiles(user, [master, ...exportOf(['alice', 'bob', 'gus'], ['zoe'])]);
+  await findRow('alice');
+  await user.click(navItem(/^Changes 6$/));
+  const lostRow = (username: string) =>
+    within(section('No longer follow you')).getByRole('listitem', { name: `@${username}` });
+  expect(rowsOf('No longer follow you')).toEqual(['@alice', '@bob', '@carol', '@dan']);
+  expect(lostRow('alice')).toHaveTextContent('You follow them');
+  expect(lostRow('carol')).not.toHaveTextContent('You follow them');
+
+  /** Adds a tag from a Changes row's popup (each account here is in one section). */
+  async function tagFromChanges(username: string, tag: string) {
+    await user.click(screen.getByRole('button', { name: `Open @${username}` }));
+    const popup = await finishedOpening(screen.findByRole('dialog', { name: `@${username}` }));
+    await user.click(within(popup).getByRole('button', { name: '+ New tag' }));
+    await user.type(within(popup).getByRole('textbox', { name: `New tag for @${username}` }), `${tag}{Enter}`);
+    await closeAccount(user, username);
+  }
+
+  await tagFromChanges('dan', 'art'); // tagged comes before everyone else
+  expect(rowsOf('No longer follow you')).toEqual(['@alice', '@bob', '@dan', '@carol']);
+  expect(lostRow('dan')).toHaveTextContent('#art');
+  await tagFromChanges('alice', 'friends');
+  expect(lostRow('alice')).toHaveTextContent('You follow them · #friends');
+
+  // You follow everyone you started following, so the row shows only its tags.
+  await tagFromChanges('gus', 'art');
+  const gus = within(section('You started following')).getByRole('listitem', { name: '@gus' });
+  expect(gus).toHaveTextContent('#art');
+  expect(gus).not.toHaveTextContent('You follow them');
 });
 
 test('someone you kept who stops following you needs a decision again; past accounts have none', async () => {

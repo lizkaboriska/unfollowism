@@ -20,7 +20,7 @@ import { ChangeRow } from './ChangeRow.tsx';
 import { RenamesSection } from './RenamesSection.tsx';
 
 /** Rows a section shows before "Show all". */
-const FIRST_ROWS = 3;
+const FIRST_ROWS = 5;
 
 const SECTION_ORDER: readonly FollowChange[] = [
   FOLLOW_CHANGES.NEW_FOLLOWERS,

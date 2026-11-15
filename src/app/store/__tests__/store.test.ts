@@ -510,6 +510,25 @@ describe('Changes count from the previous import', () => {
     expect(store.getState().master.importFacts?.followingBefore).toBe(4); // 4 → 5 in the compare box
   });
 
+  test('sections list who matters first: people you follow, then tagged, then everyone else', async () => {
+    const lostFollowers = (testStore: AppStore) =>
+      selectChangeSections(testStore.getState())[FOLLOW_CHANGES.LOST_FOLLOWERS];
+    const { store, setNow } = makeTestStore();
+    const followers: [string][] = [['alice'], ['dave'], ['erin'], ['finn']];
+    await store.dispatch(importPrepared(prepared({ following: [['finn']], followers }))).unwrap();
+    store.dispatch(toggleTag({ username: 'erin', tag: 'friends' }));
+    setNow(SECOND);
+    const second = prepared({ following: [['finn'], ['hal'], ['ian']], followers: [['zoe']] });
+    await store.dispatch(importIntoBrowserWork(second)).unwrap();
+
+    expect(lostFollowers(store)).toEqual(['finn', 'erin', 'alice', 'dave']); // followed, tagged, then by username
+    store.dispatch(toggleTag({ username: 'dave', tag: 'art' })); // a tag added on the page moves the row up
+    expect(lostFollowers(store)).toEqual(['finn', 'dave', 'erin', 'alice']);
+
+    store.dispatch(toggleTag({ username: 'ian', tag: 'art' })); // you follow everyone here, so only tags sort
+    expect(newFollows(store)).toEqual(['ian', 'hal']);
+  });
+
   test('what Changes shows survives a reload', async () => {
     const { store, setNow, backup } = await importedStore();
     setNow(SECOND);

@@ -102,6 +102,7 @@ export { openProfilePopup } from './ui/instagramLink.ts';
 export { ProfileLink } from './ui/ProfileLink.tsx';
 export {
   CHANGE_SECTION_TITLES,
+  changeRowNote,
   COMPLETED_PLAN_BADGES,
   DECISION_FILTER_LABELS,
   planText,
