@@ -4,15 +4,18 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import {
   IMPORT_STATUSES,
   IMPORT_WARNINGS,
+  selectHasData,
   selectIsDirty,
   selectUnsavedAccountCount,
   type LastSavedStore,
 } from '@/entities/master';
+import { isIosSafariTab } from '@/shared/lib/ios.ts';
 import { plural } from '@/shared/lib/plural.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
+import type { SeenFlag } from '../api/seenFlag.ts';
 import { useDropZone } from '../lib/useDropZone.ts';
 import { useImportSelection, type ImportFailure } from '../model/useImportSelection.ts';
 
@@ -23,6 +26,7 @@ import { HowItWorksPopup } from './HowItWorksPopup.tsx';
 import { HowItWorksView } from './howItWorksView.ts';
 import { importProblemText } from './importProblemText.ts';
 import { browserWorkText, missingWarning } from './importText.ts';
+import { InstallHintPopup } from './InstallHintPopup.tsx';
 import { MasterWarning } from './MasterWarning.tsx';
 import { MissingFilesWarning } from './MissingFilesWarning.tsx';
 
@@ -37,16 +41,20 @@ function failureText(failure: ImportFailure): string {
  */
 export function ImportScreen({
   lastSaved,
+  installHintSeen,
   onImported,
   onCancel,
 }: {
   /** When a master was last saved from this browser, for the older-master warnings. */
   lastSaved: LastSavedStore;
+  /** Whether "Continue in Safari" was chosen once, so the install popup doesn't come back. */
+  installHintSeen: SeenFlag;
   onImported: () => void;
   /** Shown as a Cancel button when there is already something loaded to go back to. */
   onCancel?: () => void;
 }) {
   const confirm = useConfirm();
+  const hasData = useAppSelector(selectHasData);
   const isDirty = useAppSelector(selectIsDirty);
   const isImporting = useAppSelector(state => state.master.importStatus === IMPORT_STATUSES.IMPORTING);
   const hasRestoreFailed = useAppSelector(state => state.master.hasRestoreFailed);
@@ -72,6 +80,7 @@ export function ImportScreen({
   const fileInput = useRef<HTMLInputElement>(null);
   /** The How it works popup opened from a missing-files warning's How?; null = closed. */
   const [howView, setHowView] = useState<HowItWorksView | null>(null);
+  const [isInstallHintOpen, setInstallHintOpen] = useState(false);
   const drop = useDropZone(files => void choose(files));
   /** Set by "Choose newer master": the file the next pick replaces. */
   const replacing = useRef<string | null>(null);
@@ -88,6 +97,18 @@ export function ImportScreen({
   function pickFiles(replaceId: string | null = null) {
     replacing.current = replaceId;
     fileInput.current?.click();
+  }
+
+  /**
+   * Start or Update. The first Start in an iPhone/iPad Safari tab suggests the Home Screen app first: its storage
+   * starts empty, so before anything is imported is the time. With work here, How it works says to back up first.
+   */
+  function onStart() {
+    if (!hasData && isIosSafariTab() && !installHintSeen.get()) {
+      setInstallHintOpen(true);
+      return;
+    }
+    void onImport();
   }
 
   async function onImport() {
@@ -208,6 +229,17 @@ export function ImportScreen({
           }}
         />
       )}
+      <InstallHintPopup
+        isOpen={isInstallHintOpen}
+        onAddLater={() => {
+          setInstallHintOpen(false);
+        }}
+        onContinue={() => {
+          setInstallHintOpen(false);
+          installHintSeen.set();
+          void onImport();
+        }}
+      />
       <HowItWorksPopup
         view={howView}
         onView={setHowView}
@@ -245,7 +277,7 @@ export function ImportScreen({
             disabled={!selection?.prepared || isReading}
             loading={isImporting}
             loadingText="Loading…"
-            onClick={() => void onImport()}
+            onClick={onStart}
           >
             {onCancel ? 'Update' : 'Start'}
           </Button>

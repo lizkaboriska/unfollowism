@@ -8,7 +8,7 @@ const EXPORT_URL = 'https://accountscenter.instagram.com/info_and_permissions/dy
 
 const LINK = { variant: 'plain', h: 'auto', p: '0', textDecoration: 'underline', textUnderlineOffset: '3px' } as const;
 
-function Step({ number, children }: { number: number; children: ReactNode }) {
+export function Step({ number, children }: { number: number; children: ReactNode }) {
   return (
     <List.Item display="flex" gap="3">
       <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5" flexShrink="0">

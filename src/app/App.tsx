@@ -6,7 +6,7 @@ import { addressChanged } from '@/app/url/urlSync.ts';
 import { selectHasData, restoreBackup } from '@/entities/master';
 import { LIST_VIEWS, isPlanView } from '@/features/filters';
 import { ChangesPage } from '@/pages/changes';
-import { ImportHero, ImportScreen, type HowItWorksSeen } from '@/pages/import';
+import { ImportHero, ImportScreen, type SeenFlag } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
 import { TodoPage } from '@/pages/todo';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
@@ -17,7 +17,15 @@ import { AppNav } from '@/widgets/nav';
 import { ReviewTop } from '@/widgets/review-top';
 import { StatusLine, StorageWarning } from '@/widgets/status';
 
-export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen: HowItWorksSeen }) {
+export function App({
+  deps,
+  howItWorksSeen,
+  installHintSeen,
+}: {
+  deps: StoreDeps;
+  howItWorksSeen: SeenFlag;
+  installHintSeen: SeenFlag;
+}) {
   const dispatch = useAppDispatch();
   const hasData = useAppSelector(selectHasData);
   const view = useAppSelector(state => state.filters.view);
@@ -84,6 +92,7 @@ export function App({ deps, howItWorksSeen }: { deps: StoreDeps; howItWorksSeen:
         <Box maxW={PAGE_WIDTH} mx="auto" p="5">
           <ImportScreen
             lastSaved={deps.lastSaved}
+            installHintSeen={installHintSeen}
             onImported={() => {
               setImportOpen(false);
             }}

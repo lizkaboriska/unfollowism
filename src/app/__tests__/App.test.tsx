@@ -11,7 +11,7 @@ import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } f
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
-import { memoryHowItWorksSeen } from '@/pages/import/api/howItWorksSeen.ts';
+import { memorySeenFlag } from '@/pages/import/api/seenFlag.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { nextPaint as realNextPaint } from '@/shared/lib/nextPaint.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
@@ -30,7 +30,8 @@ async function renderApp({
   backup: givenBackup = undefined as BackupStore | undefined,
   lastSaved = memoryLastSaved(),
   /** Seen by default, so the How it works popup doesn't cover the screen in every test. */
-  howItWorksSeen = memoryHowItWorksSeen(true),
+  howItWorksSeen = memorySeenFlag(true),
+  installHintSeen = memorySeenFlag(),
   waitForRestore: shouldWaitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
   /** Hold it to see the in-between state of an import. */
@@ -56,7 +57,7 @@ async function renderApp({
     <ChakraProvider value={system}>
       <Provider store={store}>
         <DialogProvider>
-          <App deps={deps} howItWorksSeen={howItWorksSeen} />
+          <App deps={deps} howItWorksSeen={howItWorksSeen} installHintSeen={installHintSeen} />
         </DialogProvider>
       </Provider>
     </ChakraProvider>,
@@ -296,7 +297,7 @@ test('the top part (privacy promise, How it works) stays after a file is picked'
 });
 
 test('How it works opens by itself on the first visit, and not again once closed', async () => {
-  const seen = memoryHowItWorksSeen();
+  const seen = memorySeenFlag();
   const first = await renderApp({ howItWorksSeen: seen });
   const dialog = await screen.findByRole('dialog', { name: 'How it works' });
   await first.user.click(within(dialog).getByRole('button', { name: 'Got it' }));
@@ -312,7 +313,7 @@ test('How it works opens by itself on the first visit, and not again once closed
 });
 
 test('the × closes How it works too, and it counts as seen', async () => {
-  const seen = memoryHowItWorksSeen();
+  const seen = memorySeenFlag();
   const { user } = await renderApp({ howItWorksSeen: seen });
   const dialog = await screen.findByRole('dialog', { name: 'How it works' });
   await user.click(within(dialog).getByRole('button', { name: 'Close' }));
@@ -328,11 +329,80 @@ test('How it works never opens by itself with work loaded: after a reload or fro
   await findRow('bob');
   first.unmount();
 
-  const { user } = await renderApp({ backup: first.backup, howItWorksSeen: memoryHowItWorksSeen() });
+  const { user } = await renderApp({ backup: first.backup, howItWorksSeen: memorySeenFlag() });
   expect(await findRow('bob')).toBeInTheDocument();
   await fromMenu(user, 'Add new Instagram data');
   expect(await screen.findByRole('heading', { name: 'Have your .zip?' })).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+describe('the install popup at the first Start', () => {
+  /** Pretends to be a Safari tab on an iPhone (or, with `standalone: true`, the Home Screen app). */
+  function pretendIphone({ standalone = false, touchPoints = 5 } = {}) {
+    Object.defineProperty(navigator, 'standalone', { configurable: true, value: standalone });
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: touchPoints });
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'standalone');
+    Reflect.deleteProperty(navigator, 'maxTouchPoints');
+  });
+
+  const installPopup = () => screen.findByRole('dialog', { name: 'Before you start: keep your work on iPhone' });
+
+  test('in an iPhone Safari tab: Got it imports nothing and asks again; Continue in Safari imports, once', async () => {
+    pretendIphone();
+    const seen = memorySeenFlag();
+    const first = await renderApp({ installHintSeen: seen });
+    await importFiles(first.user, exportFiles());
+    const popup = await finishedOpening(installPopup());
+    expect(popup).toHaveTextContent('Safari can clear your work');
+    expect(within(popup).getByRole('img', { name: 'the menu button' })).toHaveTextContent('☰');
+
+    await first.user.click(within(popup).getByRole('button', { name: "Got it, I'll add it" }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(importButton()).toBeInTheDocument(); // still on the import screen
+    expect(seen.get()).toBe(false);
+
+    await first.user.click(importButton());
+    const again = await finishedOpening(installPopup());
+    await first.user.click(within(again).getByRole('button', { name: 'Continue in Safari' }));
+    expect(await findRow('bob')).toBeInTheDocument();
+    expect(seen.get()).toBe(true);
+    first.unmount();
+
+    const { user } = await renderApp({ installHintSeen: seen });
+    await importFiles(user, exportFiles());
+    expect(await findRow('bob')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test.each([
+    { where: 'the Home Screen app', standalone: true, touchPoints: 5 },
+    { where: 'Mac Safari', standalone: false, touchPoints: 0 },
+  ])('never in $where', async ({ standalone, touchPoints }) => {
+    pretendIphone({ standalone, touchPoints });
+    const { user } = await renderApp();
+    await importFiles(user, exportFiles());
+    expect(await findRow('bob')).toBeInTheDocument();
+  });
+
+  test('never on Update, with work in this browser', async () => {
+    pretendIphone();
+    const first = await renderApp({ installHintSeen: memorySeenFlag(true) });
+    await importFiles(first.user, exportFiles());
+    await findRow('bob');
+    first.unmount();
+
+    const { user } = await renderApp({ backup: first.backup, installHintSeen: memorySeenFlag() });
+    await findRow('bob');
+    await fromMenu(user, 'Add new Instagram data');
+    await importFiles(user, exportFiles());
+    expect(await findRow('bob')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /keep your work on iPhone/ })).not.toBeInTheDocument();
+  });
 });
 
 test("a missing-files warning's How? opens how to get the Instagram data", async () => {
