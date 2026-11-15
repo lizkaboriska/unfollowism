@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Share sheet test</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; line-height: 1.5; }
+      button { display: block; width: 100%; height: 48px; margin: 16px 0; font-size: 16px; }
+    </style>
+  </head>
+  <body>
+    <h1>Share sheet test</h1>
+    <p>Each button opens the iPhone share sheet from the page. Look for "Add to Home Screen" in it.</p>
+    <button id="link">Share the app link</button>
+    <button id="titled">Share the app link with a title</button>
+    <p id="result"></p>
+    <script>
+      const result = document.getElementById('result');
+      async function share(data) {
+        try {
+          await navigator.share(data);
+          result.textContent = 'Shared or saved.';
+        } catch (error) {
+          result.textContent = `${error.name}: ${error.message}`;
+        }
+      }
+      document.getElementById('link').onclick = () => share({ url: location.origin + '/' });
+      document.getElementById('titled').onclick = () =>
+        share({ title: 'Unfollowism', text: 'Unfollowism', url: location.origin + '/' });
+    </script>
+  </body>
+</html>
