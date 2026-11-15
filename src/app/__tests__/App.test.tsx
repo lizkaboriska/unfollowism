@@ -1903,7 +1903,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   await user.click(screen.getByRole('button', { name: 'Show fewer' }));
   expect(rowsOf('You started following')).toEqual(firstFive);
 
-  // A row opens the account popup. A queued plan shows on the row, Kept quietly, an undecided row nothing.
+  // A row opens the account popup. A queued plan shows on the row; Kept and undecided rows show nothing.
   const gus = () => within(section('You started following')).getByRole('listitem', { name: '@gus' });
   await user.click(screen.getByRole('button', { name: 'Open @gus' }));
   let popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
@@ -1914,7 +1914,7 @@ test('Changes compares with the saved master: numbers, sections, badges, Show al
   popup = await finishedOpening(screen.findByRole('dialog', { name: '@gus' }));
   await user.click(within(popup).getByRole('button', { name: 'Keep' }));
   await closeAccount(user, 'gus');
-  expect(gus()).toHaveTextContent('@gus✓ Kept');
+  expect(gus()).toHaveTextContent(/^@gus→$/); // no Kept on Changes rows
   expect(within(section('You started following')).getByRole('listitem', { name: '@hal' })).not.toHaveTextContent(
     /Kept|queued/,
   );
