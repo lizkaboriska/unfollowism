@@ -11,9 +11,9 @@ import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } f
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
-import { memorySeenFlag } from '@/pages/import/api/seenFlag.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { nextPaint as realNextPaint } from '@/shared/lib/nextPaint.ts';
+import { memorySeenFlag } from '@/shared/lib/seenFlag.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
@@ -32,6 +32,7 @@ async function renderApp({
   /** Seen by default, so the How it works popup doesn't cover the screen in every test. */
   howItWorksSeen = memorySeenFlag(true),
   installHintSeen = memorySeenFlag(),
+  installNoticeClosed = memorySeenFlag(),
   waitForRestore: shouldWaitForRestore = true,
   now = () => new Date('2026-10-27T12:00:00.000Z'),
   /** Hold it to see the in-between state of an import. */
@@ -57,7 +58,10 @@ async function renderApp({
     <ChakraProvider value={system}>
       <Provider store={store}>
         <DialogProvider>
-          <App deps={deps} howItWorksSeen={howItWorksSeen} installHintSeen={installHintSeen} />
+          <App
+            deps={deps}
+            seen={{ howItWorks: howItWorksSeen, installHint: installHintSeen, installNotice: installNoticeClosed }}
+          />
         </DialogProvider>
       </Provider>
     </ChakraProvider>,
@@ -350,7 +354,7 @@ describe('on iPhone: the install popup at the first Start, and How it works', ()
 
   const installPopup = () => screen.findByRole('dialog', { name: 'Before you start: keep your work on iPhone' });
 
-  test('in an iPhone Safari tab: Got it imports nothing and asks again; Continue in Safari imports, once', async () => {
+  test('in an iPhone Safari tab: Got it or × imports nothing; Continue in Safari imports, once', async () => {
     pretendIphone();
     const seen = memorySeenFlag();
     const first = await renderApp({ installHintSeen: seen });
@@ -364,6 +368,15 @@ describe('on iPhone: the install popup at the first Start, and How it works', ()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
     expect(importButton()).toBeInTheDocument(); // still on the import screen
+    expect(seen.get()).toBe(false);
+
+    await first.user.click(importButton()); // × closes it the same way
+    const closing = await finishedOpening(installPopup());
+    await first.user.click(within(closing).getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(importButton()).toBeInTheDocument();
     expect(seen.get()).toBe(false);
 
     await first.user.click(importButton());
@@ -402,6 +415,56 @@ describe('on iPhone: the install popup at the first Start, and How it works', ()
     await importFiles(user, exportFiles());
     expect(await findRow('bob')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: /keep your work on iPhone/ })).not.toBeInTheDocument();
+  });
+
+  const installNotice = () => screen.queryByRole('region', { name: 'Keep your work on iPhone' });
+
+  test('Review shows the iPhone notice: How? opens the steps; its × hides it for good', async () => {
+    pretendIphone();
+    const closed = memorySeenFlag();
+    const first = await renderApp({ installHintSeen: memorySeenFlag(true), installNoticeClosed: closed });
+    await importFiles(first.user, exportFiles());
+    await findRow('bob');
+    const notice = must(installNotice());
+    expect(notice).toHaveTextContent("Safari can clear your work if you don't open the site for a week.");
+
+    await first.user.click(within(notice).getByRole('button', { name: 'How?' }));
+    const steps = await finishedOpening(screen.findByRole('dialog', { name: 'Keep your work on iPhone' }));
+    expect(steps).toHaveTextContent('Back up, if you already have work here.');
+    expect(within(steps).getByRole('img', { name: 'the menu button' })).toHaveTextContent('☰');
+    await first.user.click(within(steps).getByRole('button', { name: 'Got it' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(installNotice()).toBeInTheDocument(); // closing the steps keeps the notice
+
+    await first.user.click(navItem(/^Changes/));
+    expect(installNotice()).not.toBeInTheDocument(); // Review only
+    await first.user.click(navItem(/^To do/));
+    expect(installNotice()).not.toBeInTheDocument();
+    await first.user.click(navItem(/^Review/));
+    await first.user.click(within(must(installNotice())).getByRole('button', { name: 'Close' }));
+    expect(installNotice()).not.toBeInTheDocument();
+    expect(closed.get()).toBe(true);
+    first.unmount();
+
+    await renderApp({ backup: first.backup, installNoticeClosed: closed });
+    await findRow('bob');
+    expect(installNotice()).not.toBeInTheDocument();
+  });
+
+  test.each([
+    { where: 'the Home Screen app', standalone: true, touchPoints: 5 },
+    { where: 'Mac Safari', standalone: false, touchPoints: 0 },
+    { where: 'other browsers', standalone: undefined, touchPoints: 0 },
+  ])('Review has no iPhone notice in $where', async ({ standalone, touchPoints }) => {
+    if (standalone !== undefined) {
+      pretendIphone({ standalone, touchPoints });
+    }
+    const { user } = await renderApp();
+    await importFiles(user, exportFiles());
+    await findRow('bob');
+    expect(installNotice()).not.toBeInTheDocument();
   });
 
   const iphoneSection = (dialog: HTMLElement) =>

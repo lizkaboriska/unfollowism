@@ -1,9 +1,8 @@
 import { Box, Button, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useId, useState } from 'react';
 
+import type { SeenFlag } from '@/shared/lib/seenFlag.ts';
 import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
-
-import type { SeenFlag } from '../api/seenFlag.ts';
 
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
 import { HowItWorksView } from './howItWorksView.ts';

@@ -1,12 +1,14 @@
 import { Box, HStack, Heading, Stack, Text } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 
+import type { SeenFlags } from '@/app/seenFlags.ts';
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { addressChanged } from '@/app/url/urlSync.ts';
 import { selectHasData, restoreBackup } from '@/entities/master';
 import { LIST_VIEWS, isPlanView } from '@/features/filters';
+import { InstallNotice } from '@/features/home-screen';
 import { ChangesPage } from '@/pages/changes';
-import { ImportHero, ImportScreen, type SeenFlag } from '@/pages/import';
+import { ImportHero, ImportScreen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
 import { TodoPage } from '@/pages/todo';
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
@@ -17,15 +19,7 @@ import { AppNav } from '@/widgets/nav';
 import { ReviewTop } from '@/widgets/review-top';
 import { StatusLine, StorageWarning } from '@/widgets/status';
 
-export function App({
-  deps,
-  howItWorksSeen,
-  installHintSeen,
-}: {
-  deps: StoreDeps;
-  howItWorksSeen: SeenFlag;
-  installHintSeen: SeenFlag;
-}) {
+export function App({ deps, seen }: { deps: StoreDeps; seen: SeenFlags }) {
   const dispatch = useAppDispatch();
   const hasData = useAppSelector(selectHasData);
   const view = useAppSelector(state => state.filters.view);
@@ -80,7 +74,7 @@ export function App({
     <Box minH="100dvh">
       <Toaster />
       {shouldShowImport ? (
-        <ImportHero seen={howItWorksSeen} isFirstVisit={!hasData} />
+        <ImportHero seen={seen.howItWorks} isFirstVisit={!hasData} />
       ) : (
         <AppHeader
           onImportNew={() => {
@@ -92,7 +86,7 @@ export function App({
         <Box maxW={PAGE_WIDTH} mx="auto" p="5">
           <ImportScreen
             lastSaved={deps.lastSaved}
-            installHintSeen={installHintSeen}
+            installHintSeen={seen.installHint}
             onImported={() => {
               setImportOpen(false);
             }}
@@ -114,6 +108,7 @@ export function App({
             <StatusLine />
             {view === LIST_VIEWS.REVIEW && (
               <>
+                <InstallNotice closed={seen.installNotice} />
                 <ReviewTop />
                 <ReviewList />
               </>

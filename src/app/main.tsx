@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 
+import { localStorageSeenFlags } from '@/app/seenFlags.ts';
 import type { StoreDeps } from '@/app/store/deps.ts';
 import { makeStore, type AppStore } from '@/app/store/store.ts';
 import { activeTab, browserTabChannel, browserTabLocks } from '@/app/tab/activeTab.ts';
@@ -15,7 +16,6 @@ import {
   openIndexedDbBackupStore,
   type BackupStore,
 } from '@/entities/master';
-import { SEEN_FLAGS, localStorageSeenFlag } from '@/pages/import';
 import { OtherTabScreen } from '@/pages/other-tab';
 import { TabStoppedScreen } from '@/pages/tab-stopped';
 import { saveTextFile } from '@/shared/lib/download.ts';
@@ -68,11 +68,7 @@ async function startApp(): Promise<void> {
       <ChakraProvider value={system}>
         <Provider store={store}>
           <DialogProvider>
-            <App
-              deps={deps}
-              howItWorksSeen={localStorageSeenFlag(SEEN_FLAGS.HOW_IT_WORKS)}
-              installHintSeen={localStorageSeenFlag(SEEN_FLAGS.INSTALL_HINT)}
-            />
+            <App deps={deps} seen={localStorageSeenFlags()} />
           </DialogProvider>
         </Provider>
       </ChakraProvider>

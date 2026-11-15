@@ -11,11 +11,11 @@ import {
 } from '@/entities/master';
 import { isIosSafariTab } from '@/shared/lib/ios.ts';
 import { plural } from '@/shared/lib/plural.ts';
+import type { SeenFlag } from '@/shared/lib/seenFlag.ts';
 import { useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { useConfirm } from '@/shared/ui/useConfirm.ts';
 import { Warning } from '@/shared/ui/Warning.tsx';
 
-import type { SeenFlag } from '../api/seenFlag.ts';
 import { useDropZone } from '../lib/useDropZone.ts';
 import { useImportSelection, type ImportFailure } from '../model/useImportSelection.ts';
 
