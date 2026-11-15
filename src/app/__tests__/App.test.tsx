@@ -350,7 +350,7 @@ describe('on iPhone: the install popup at the first Start, and How it works', ()
 
   const installPopup = () => screen.findByRole('dialog', { name: 'Before you start: keep your work on iPhone' });
 
-  test('in an iPhone Safari tab: Got it imports nothing and asks again; Continue in Safari imports, once', async () => {
+  test('in an iPhone Safari tab: Got it or × imports nothing; Continue in Safari imports, once', async () => {
     pretendIphone();
     const seen = memorySeenFlag();
     const first = await renderApp({ installHintSeen: seen });
@@ -364,6 +364,15 @@ describe('on iPhone: the install popup at the first Start, and How it works', ()
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
     expect(importButton()).toBeInTheDocument(); // still on the import screen
+    expect(seen.get()).toBe(false);
+
+    await first.user.click(importButton()); // × closes it the same way
+    const closing = await finishedOpening(installPopup());
+    await first.user.click(within(closing).getByRole('button', { name: 'Close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(importButton()).toBeInTheDocument();
     expect(seen.get()).toBe(false);
 
     await first.user.click(importButton());
