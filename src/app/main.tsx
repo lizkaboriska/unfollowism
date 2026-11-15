@@ -15,7 +15,7 @@ import {
   openIndexedDbBackupStore,
   type BackupStore,
 } from '@/entities/master';
-import { localStorageHowItWorksSeen } from '@/pages/import';
+import { SEEN_FLAGS, localStorageSeenFlag } from '@/pages/import';
 import { OtherTabScreen } from '@/pages/other-tab';
 import { TabStoppedScreen } from '@/pages/tab-stopped';
 import { saveTextFile } from '@/shared/lib/download.ts';
@@ -68,7 +68,11 @@ async function startApp(): Promise<void> {
       <ChakraProvider value={system}>
         <Provider store={store}>
           <DialogProvider>
-            <App deps={deps} howItWorksSeen={localStorageHowItWorksSeen()} />
+            <App
+              deps={deps}
+              howItWorksSeen={localStorageSeenFlag(SEEN_FLAGS.HOW_IT_WORKS)}
+              installHintSeen={localStorageSeenFlag(SEEN_FLAGS.INSTALL_HINT)}
+            />
           </DialogProvider>
         </Provider>
       </ChakraProvider>

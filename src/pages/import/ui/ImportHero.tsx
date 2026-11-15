@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 
 import { PAGE_WIDTH } from '@/shared/ui/pageWidth.ts';
 
-import type { HowItWorksSeen } from '../api/howItWorksSeen.ts';
+import type { SeenFlag } from '../api/seenFlag.ts';
 
 import { HowItWorksPopup } from './HowItWorksPopup.tsx';
 import { HowItWorksView } from './howItWorksView.ts';
@@ -13,7 +13,7 @@ import { HowItWorksView } from './howItWorksView.ts';
  * promise, and the How it works button (the four steps and how to get the Instagram data, in a popup).
  * On a first visit (`isFirstVisit`: no work loaded) the popup opens by itself, until this browser has closed it once.
  */
-export function ImportHero({ seen, isFirstVisit: isFirstVisit }: { seen: HowItWorksSeen; isFirstVisit: boolean }) {
+export function ImportHero({ seen, isFirstVisit: isFirstVisit }: { seen: SeenFlag; isFirstVisit: boolean }) {
   const [view, setView] = useState<HowItWorksView | null>(() =>
     isFirstVisit && !seen.get() ? HowItWorksView.STEPS : null,
   );

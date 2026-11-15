@@ -1,3 +1,5 @@
+import { isIosHomeScreenApp } from './ios.ts';
+
 export function downloadText(filename: string, text: string, type = 'application/json'): void {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const anchor = document.createElement('a');
@@ -10,14 +12,6 @@ export function downloadText(filename: string, text: string, type = 'application
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 10_000);
-}
-
-/**
- * An iPhone/iPad Home Screen app: it has no downloads (iOS shows the file in a viewer instead). navigator.standalone
- * exists only there (web.dev's advice for this iOS-only case). Installed apps elsewhere download normally.
- */
-function isIosHomeScreenApp(): boolean {
-  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
 
 /**
