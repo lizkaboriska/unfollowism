@@ -1247,6 +1247,9 @@ describe('main view', () => {
 
     await user.click(within(row('bob')).getByRole('button', { name: '✓ Mark done' }));
     expect(within(row('bob')).getByText('✓ Done')).toBeInTheDocument();
+    // Folded to one line: the name crossed out, Undo, → to the popup; no Instagram link or Mark done.
+    expect(within(row('bob')).getByText('@bob')).toHaveStyle({ textDecoration: 'line-through' });
+    expect(within(row('bob')).getByRole('button', { name: 'Open @bob' })).toBeInTheDocument();
     expect(within(row('bob')).queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByText('1 of 1 done')).toBeInTheDocument();
     expect(screen.getByText('All unfollows done')).toBeInTheDocument();
@@ -1397,6 +1400,8 @@ describe('main view', () => {
     await user.click(within(popup).getByRole('button', { name: 'Keep' }));
     await closeAccount(user, 'alice');
     expect(within(row('alice')).getByText('Kept')).toBeInTheDocument(); // stays, so it can be undone
+    expect(within(row('alice')).getByText('@alice')).not.toHaveStyle({ textDecoration: 'line-through' }); // not done
+    expect(within(row('alice')).queryByText('#artist')).not.toBeInTheDocument(); // folded to one line
     expect(navItem(/^To do 1$/)).toBeInTheDocument();
     expect(screen.getByText('0 of 1 done')).toBeInTheDocument();
     await user.click(within(row('alice')).getByRole('button', { name: 'Undo' }));

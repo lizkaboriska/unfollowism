@@ -15,21 +15,58 @@ import {
 import { useAppDispatch, useAppSelector } from '@/shared/lib/storeHooks.ts';
 import { TextButton } from '@/shared/ui/TextButton.tsx';
 
-/** "✓ Done · Undo" or "Kept · Undo": what happened to the row, and the way back to queued. */
-function Settled({ label, onUndo }: { label: string; onUndo: () => void }) {
+/**
+ * A row you finished, folded to one gray line: name (crossed out when done; not when kept, nothing was unfollowed),
+ * "✓ Done" or "Kept", Undo back to queued, → opens the popup.
+ */
+function SettledRow({
+  username,
+  isDone,
+  onUndo,
+  onOpen,
+}: {
+  username: string;
+  isDone: boolean;
+  onUndo: () => void;
+  onOpen: () => void;
+}) {
   return (
-    <HStack gap="2" minH="10">
-      <Text textStyle="control">{label}</Text>
+    <HStack as="article" aria-label={`@${username}`} borderWidth="1px" minH="52px" px="3" gap="2" color="fg.muted">
+      <Text
+        textStyle="name"
+        wordBreak="break-all"
+        textDecoration={isDone ? 'line-through' : 'none'}
+        textDecorationThickness="1px"
+      >
+        @{username}
+      </Text>
+      <Text textStyle="control" flexShrink="0">
+        {isDone ? '✓ Done' : 'Kept'}
+      </Text>
       <Box flex="1" />
-      <TextButton onClick={onUndo}>Undo</TextButton>
+      <TextButton color="fg.muted" onClick={onUndo}>
+        Undo
+      </TextButton>
+      <chakra.button
+        type="button"
+        aria-label={`Open @${username}`}
+        w="10"
+        h="10"
+        me="-2"
+        flexShrink="0"
+        cursor="pointer"
+        onClick={onOpen}
+      >
+        <span aria-hidden>→</span>
+      </chakra.button>
     </HStack>
   );
 }
 
 /**
  * One account in a To do tab: open Instagram, make the change there, then Mark done. The top of the card opens the
- * account popup (decisions, tags, notes; Keep there drops the plan). The row stays where it is until the tab's list
- * refreshes, so Done and Kept can be undone.
+ * account popup (decisions, tags, notes; Keep there drops the plan). Done and Kept fold to one line and stay where
+ * they are until the tab's list refreshes, so they can be undone.
  */
 export const TodoRow = memo(function TodoRow({
   accountKey,
@@ -50,6 +87,19 @@ export const TodoRow = memo(function TodoRow({
   const plan = planOf(account, type);
   const set = (state: PlanState) => dispatch(setPlan({ username, type, state }));
   const undo = () => set(PLAN_STATES.PLANNED);
+  if (plan !== PLAN_STATES.PLANNED) {
+    // Keep in the popup dropped the plan (undefined): the row stays as Kept until the list refreshes.
+    return (
+      <SettledRow
+        username={username}
+        isDone={plan === PLAN_STATES.DONE}
+        onUndo={undo}
+        onOpen={() => {
+          onOpen(accountKey);
+        }}
+      />
+    );
+  }
 
   return (
     <Box as="article" aria-label={`@${username}`} borderWidth="1px">
@@ -84,21 +134,16 @@ export const TodoRow = memo(function TodoRow({
             {account.review.tags.map(tag => `#${tag}`).join(' ')}
           </Text>
         )}
-        {plan === PLAN_STATES.PLANNED && (
-          <SimpleGrid columns={2} gap="2">
-            <Button asChild variant="outline">
-              <a href={profileUrl(username)} target="_blank" rel="noopener noreferrer" onClick={openProfilePopup}>
-                Open in Instagram ↗
-              </a>
-            </Button>
-            <Button variant="outline" onClick={() => set(PLAN_STATES.DONE)}>
-              ✓ Mark done
-            </Button>
-          </SimpleGrid>
-        )}
-        {plan === PLAN_STATES.DONE && <Settled label="✓ Done" onUndo={undo} />}
-        {/* Keep in the popup dropped the plan: the row stays until the list refreshes, so it can be undone. */}
-        {plan === undefined && <Settled label="Kept" onUndo={undo} />}
+        <SimpleGrid columns={2} gap="2">
+          <Button asChild variant="outline">
+            <a href={profileUrl(username)} target="_blank" rel="noopener noreferrer" onClick={openProfilePopup}>
+              Open in Instagram ↗
+            </a>
+          </Button>
+          <Button variant="outline" onClick={() => set(PLAN_STATES.DONE)}>
+            ✓ Mark done
+          </Button>
+        </SimpleGrid>
       </Stack>
     </Box>
   );
