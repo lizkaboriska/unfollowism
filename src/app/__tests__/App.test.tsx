@@ -11,9 +11,9 @@ import { createMemoryBackupStore, openIndexedDbBackupStore, type BackupStore } f
 import { memoryLastSaved } from '@/entities/master/api/lastSaved.ts';
 import { followersFile, followingFile, must } from '@/entities/master/lib/__tests__/helpers.ts';
 import { SAVED_TOAST } from '@/features/save-reset/SaveButton.tsx';
-import { memorySeenFlag } from '@/pages/import/api/seenFlag.ts';
 import { formatSince } from '@/shared/lib/dates.ts';
 import { nextPaint as realNextPaint } from '@/shared/lib/nextPaint.ts';
+import { memorySeenFlag } from '@/shared/lib/seenFlag.ts';
 import { DialogProvider } from '@/shared/ui/DialogProvider.tsx';
 import { system } from '@/shared/ui/theme.ts';
 import { toaster } from '@/shared/ui/toasts.ts';
@@ -57,7 +57,7 @@ async function renderApp({
     <ChakraProvider value={system}>
       <Provider store={store}>
         <DialogProvider>
-          <App deps={deps} howItWorksSeen={howItWorksSeen} installHintSeen={installHintSeen} />
+          <App deps={deps} seen={{ howItWorks: howItWorksSeen, installHint: installHintSeen }} />
         </DialogProvider>
       </Provider>
     </ChakraProvider>,

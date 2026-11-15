@@ -1,13 +1,4 @@
 import { safeLocalStorage } from '@/shared/lib/safeLocalStorage.ts';
-import type { ValueOf } from '@/shared/lib/valueOf.ts';
-
-/** The popups that open by themselves only until this browser has seen them, by their localStorage key. */
-export const SEEN_FLAGS = {
-  HOW_IT_WORKS: 'unfollowism:how-it-works-seen',
-  INSTALL_HINT: 'unfollowism:install-hint-seen',
-} as const;
-
-export type SeenFlagKey = ValueOf<typeof SEEN_FLAGS>;
 
 /**
  * Whether this browser has seen a popup (localStorage), so it opens by itself only until then.
@@ -19,7 +10,8 @@ export interface SeenFlag {
 }
 
 export function localStorageSeenFlag(
-  key: SeenFlagKey,
+  /** The localStorage key, one per popup. */
+  key: string,
   storage: Pick<Storage, 'getItem' | 'setItem'> | null = safeLocalStorage(),
 ): SeenFlag {
   return {

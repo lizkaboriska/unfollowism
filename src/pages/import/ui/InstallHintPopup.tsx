@@ -1,7 +1,7 @@
 import { Button, Dialog, List, Portal, Stack, Text } from '@chakra-ui/react';
 
-import { AddToHomeScreenText } from './AddToHomeScreenText.tsx';
-import { Step } from './Step.tsx';
+import { AddToHomeScreenText } from '@/features/home-screen';
+import { Step } from '@/shared/ui/Step.tsx';
 
 /**
  * Before the first import in an iPhone/iPad Safari tab: Safari can clear the work, the Home Screen app keeps it, and
