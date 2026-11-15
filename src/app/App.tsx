@@ -6,6 +6,7 @@ import type { StoreDeps } from '@/app/store/deps.ts';
 import { addressChanged } from '@/app/url/urlSync.ts';
 import { selectHasData, restoreBackup } from '@/entities/master';
 import { LIST_VIEWS, isPlanView } from '@/features/filters';
+import { InstallNotice } from '@/features/home-screen';
 import { ChangesPage } from '@/pages/changes';
 import { ImportHero, ImportScreen } from '@/pages/import';
 import { ReviewList } from '@/pages/review';
@@ -107,6 +108,7 @@ export function App({ deps, seen }: { deps: StoreDeps; seen: SeenFlags }) {
             <StatusLine />
             {view === LIST_VIEWS.REVIEW && (
               <>
+                <InstallNotice closed={seen.installNotice} />
                 <ReviewTop />
                 <ReviewList />
               </>
