@@ -1,5 +1,7 @@
 import type { MouseEvent } from 'react';
 
+import { isIosHomeScreenApp } from '@/shared/lib/ios.ts';
+
 const POPUP_NAME = 'unfollowism-profile';
 
 /** A phone-sized window at the right edge of the screen, so the list stays visible next to it. */
@@ -14,9 +16,11 @@ function popupFeatures(screen: Screen): string {
  * Click handler for a profile link: a plain click opens (or reuses) the side popup.
  * Cmd/Ctrl/Shift/Alt/middle clicks are left to the browser (new tab or window), and so is
  * a plain click when popups are blocked, since the link itself has target="_blank".
+ * So is every click in the iPhone/iPad Home Screen app: there a window opens as an in-app browser that hands the
+ * profile to the Instagram app and stays behind as a blank page.
  */
 export function openProfilePopup(event: MouseEvent<HTMLAnchorElement>): void {
-  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+  if (isIosHomeScreenApp() || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
     return;
   }
   const popup = window.open(event.currentTarget.href, POPUP_NAME, popupFeatures(window.screen));
