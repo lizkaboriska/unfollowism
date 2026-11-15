@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accounts Center link test</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; line-height: 1.5; }
+      a { display: block; box-sizing: border-box; min-height: 48px; margin: 12px 0; padding: 12px; font-size: 16px;
+        border: 1px solid #111; color: #111; text-decoration: none; }
+      small { display: block; color: #555; word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <h1>Accounts Center link test</h1>
+    <p id="where"></p>
+    <p>Tap one, see where it opens (inside this app, Safari, or the Instagram app), and on which page. Come back.</p>
+    <a target="_blank" rel="noreferrer" href="https://accountscenter.instagram.com/info_and_permissions/dyi/">
+      1. As the app does today<small>accountscenter.instagram.com/info_and_permissions/dyi/</small></a>
+    <a target="_blank" rel="noreferrer" href="x-safari-https://accountscenter.instagram.com/info_and_permissions/dyi/">
+      2. The same page, forced into Safari<small>x-safari-https://accountscenter.instagram.com/…</small></a>
+    <a target="_blank" rel="noreferrer" href="https://www.instagram.com/accounts/download/">
+      3. instagram.com address for the download page<small>www.instagram.com/accounts/download/</small></a>
+    <a target="_blank" rel="noreferrer" href="https://www.instagram.com/download/request/">
+      4. Older instagram.com download address<small>www.instagram.com/download/request/</small></a>
+    <a href="instagram://accounts_center">
+      5. Instagram app, Accounts Center (guess)<small>instagram://accounts_center</small></a>
+    <a href="instagram://app">
+      6. Instagram app, just opens it<small>instagram://app</small></a>
+    <script>
+      document.getElementById('where').textContent =
+        navigator.standalone === true ? 'Running in the Home Screen app ✓' : 'Not the Home Screen app: add this page to the Home Screen first';
+    </script>
+  </body>
+</html>
