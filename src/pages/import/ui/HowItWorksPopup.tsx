@@ -1,25 +1,16 @@
-import { Button, CloseButton, Drawer, HStack, List, Portal, Stack, Text } from '@chakra-ui/react';
-import type { ReactNode } from 'react';
+import { Button, CloseButton, Drawer, HStack, Heading, List, Portal, Stack, Text } from '@chakra-ui/react';
+import { useId, type ReactNode } from 'react';
 
+import { isIosSafariTab } from '@/shared/lib/ios.ts';
+
+import { AddToHomeScreenText } from './AddToHomeScreenText.tsx';
 import { HowItWorksView } from './howItWorksView.ts';
+import { Step } from './Step.tsx';
 
 /** Instagram's page for requesting a copy of your data (Accounts Center → Download your information). */
 const EXPORT_URL = 'https://accountscenter.instagram.com/info_and_permissions/dyi/';
 
 const LINK = { variant: 'plain', h: 'auto', p: '0', textDecoration: 'underline', textUnderlineOffset: '3px' } as const;
-
-export function Step({ number, children }: { number: number; children: ReactNode }) {
-  return (
-    <List.Item display="flex" gap="3">
-      <Text as="span" fontFamily="heading" fontSize="md" fontWeight="500" w="3.5" flexShrink="0">
-        {number}
-      </Text>
-      <Stack gap="0" flex="1">
-        {children}
-      </Stack>
-    </List.Item>
-  );
-}
 
 function Strong({ children }: { children: ReactNode }) {
   return (
@@ -38,35 +29,70 @@ function MustChange({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * In an iPhone/iPad Safari tab: Safari can clear the work, the Home Screen app keeps it but starts empty, so back up
+ * first. Shown every time, unlike the popup at the first Start, for anyone who already has work here.
+ */
+function IphoneSection() {
+  const titleId = useId();
+  return (
+    <Stack as="section" aria-labelledby={titleId} gap="2" pt="4" borderTopWidth="1px">
+      <Heading as="h3" id={titleId} textStyle="control">
+        On iPhone: keep your work in the Home Screen app
+      </Heading>
+      <Text color="fg.muted">
+        Safari can clear your work if you don't open the site for a week. The Home Screen app keeps it, but starts
+        empty:
+      </Text>
+      <List.Root as="ol" listStyle="none" gap="1.5">
+        <Step number={1}>
+          <Text color="fg.muted">Back up, if you already have work here.</Text>
+        </Step>
+        <Step number={2}>
+          <AddToHomeScreenText color="fg.muted" />
+        </Step>
+        <Step number={3}>
+          <Text color="fg.muted">
+            Open Unfollowism from your Home Screen and add your .zip, and your progress file if you backed up.
+          </Text>
+        </Step>
+      </List.Root>
+    </Stack>
+  );
+}
+
 function Steps({ onHow }: { onHow: () => void }) {
   return (
-    <List.Root as="ol" listStyle="none" gap="3">
-      <Step number={1}>
-        <HStack justify="space-between" gap="3">
-          <Text fontWeight="500">Get your data from Instagram</Text>
-          <Button {...LINK} onClick={onHow}>
-            How?
-          </Button>
-        </HStack>
-      </Step>
-      <Step number={2}>
-        <Text fontWeight="500">Add the .zip here</Text>
-        <Text color="fg.muted">As it is, no need to unzip.</Text>
-      </Step>
-      <Step number={3}>
-        <Text fontWeight="500">Decide who stays</Text>
-        <Text color="fg.muted">
-          Review accounts and choose who to unfollow. You'll get a to-do list to follow in Instagram.
-        </Text>
-      </Step>
-      <Step number={4}>
-        <Text fontWeight="500">Back up your progress</Text>
-        <Text color="fg.muted">
-          Your tags, notes, and choices stay in this browser. Next time, just add new Instagram data to see who
-          unfollowed you. Back up to a progress file in case the browser clears it or you switch devices.
-        </Text>
-      </Step>
-    </List.Root>
+    <Stack gap="5">
+      <List.Root as="ol" listStyle="none" gap="3">
+        <Step number={1}>
+          <HStack justify="space-between" gap="3">
+            <Text fontWeight="500">Get your data from Instagram</Text>
+            <Button {...LINK} onClick={onHow}>
+              How?
+            </Button>
+          </HStack>
+        </Step>
+        <Step number={2}>
+          <Text fontWeight="500">Add the .zip here</Text>
+          <Text color="fg.muted">As it is, no need to unzip.</Text>
+        </Step>
+        <Step number={3}>
+          <Text fontWeight="500">Decide who stays</Text>
+          <Text color="fg.muted">
+            Review accounts and choose who to unfollow. You'll get a to-do list to follow in Instagram.
+          </Text>
+        </Step>
+        <Step number={4}>
+          <Text fontWeight="500">Back up your progress</Text>
+          <Text color="fg.muted">
+            Your tags, notes, and choices stay in this browser. Next time, just add new Instagram data to see who
+            unfollowed you. Back up to a progress file in case the browser clears it or you switch devices.
+          </Text>
+        </Step>
+      </List.Root>
+      {isIosSafariTab() && <IphoneSection />}
+    </Stack>
   );
 }
 

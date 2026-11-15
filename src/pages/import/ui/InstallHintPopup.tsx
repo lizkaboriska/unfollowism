@@ -1,27 +1,7 @@
 import { Button, Dialog, List, Portal, Stack, Text } from '@chakra-ui/react';
 
-import { Step } from './HowItWorksPopup.tsx';
-
-/** Safari's step to add the app (Apple's steps, default layout): ☰ shown bigger, so it reads as the button. */
-export function AddToHomeScreenText() {
-  return (
-    <Text>
-      In Safari, tap{' '}
-      <Text
-        as="span"
-        role="img"
-        aria-label="the menu button"
-        fontSize="21px"
-        fontWeight="600"
-        lineHeight="1"
-        verticalAlign="-2px"
-      >
-        ☰
-      </Text>{' '}
-      left of the address → Share → swipe up → Add to Home Screen → keep "Open as Web App" on → Add.
-    </Text>
-  );
-}
+import { AddToHomeScreenText } from './AddToHomeScreenText.tsx';
+import { Step } from './Step.tsx';
 
 /**
  * Before the first import in an iPhone/iPad Safari tab: Safari can clear the work, the Home Screen app keeps it, and

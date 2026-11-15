@@ -336,7 +336,7 @@ test('How it works never opens by itself with work loaded: after a reload or fro
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
-describe('the install popup at the first Start', () => {
+describe('on iPhone: the install popup at the first Start, and How it works', () => {
   /** Pretends to be a Safari tab on an iPhone (or, with `standalone: true`, the Home Screen app). */
   function pretendIphone({ standalone = false, touchPoints = 5 } = {}) {
     Object.defineProperty(navigator, 'standalone', { configurable: true, value: standalone });
@@ -402,6 +402,40 @@ describe('the install popup at the first Start', () => {
     await importFiles(user, exportFiles());
     expect(await findRow('bob')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: /keep your work on iPhone/ })).not.toBeInTheDocument();
+  });
+
+  const iphoneSection = (dialog: HTMLElement) =>
+    within(dialog).queryByRole('region', { name: 'On iPhone: keep your work in the Home Screen app' });
+
+  test('How it works has the On iPhone section in an iPhone Safari tab, with work loaded too', async () => {
+    pretendIphone();
+    const { user } = await renderApp({ installHintSeen: memorySeenFlag(true) });
+    await user.click(screen.getByRole('button', { name: 'How it works' }));
+    const section = iphoneSection(await screen.findByRole('dialog', { name: 'How it works' }));
+    expect(section).toHaveTextContent('Back up, if you already have work here.');
+    expect(within(must(section)).getByRole('img', { name: 'the menu button' })).toHaveTextContent('☰');
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    await importFiles(user, exportFiles());
+    await findRow('bob');
+
+    await fromMenu(user, 'Add new Instagram data');
+    await user.click(await screen.findByRole('button', { name: 'How it works' }));
+    expect(iphoneSection(await screen.findByRole('dialog', { name: 'How it works' }))).toBeInTheDocument();
+  });
+
+  test.each([
+    { where: 'the Home Screen app', standalone: true, touchPoints: 5 },
+    { where: 'Mac Safari', standalone: false, touchPoints: 0 },
+    { where: 'other browsers', standalone: undefined, touchPoints: 0 },
+  ])('How it works has no On iPhone section in $where', async ({ standalone, touchPoints }) => {
+    if (standalone !== undefined) {
+      pretendIphone({ standalone, touchPoints });
+    }
+    const { user } = await renderApp();
+    await user.click(screen.getByRole('button', { name: 'How it works' }));
+    const dialog = await screen.findByRole('dialog', { name: 'How it works' });
+    expect(within(dialog).getByText('Back up your progress')).toBeInTheDocument();
+    expect(iphoneSection(dialog)).not.toBeInTheDocument();
   });
 });
 
