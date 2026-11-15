@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Instagram link test</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; line-height: 1.5; }
+      a, button { display: block; width: 100%; box-sizing: border-box; min-height: 48px; margin: 12px 0; padding: 12px;
+        font-size: 16px; text-align: left; border: 1px solid #111; background: #fff; color: #111; text-decoration: none; }
+      input { font-size: 16px; padding: 8px; width: 100%; box-sizing: border-box; }
+      small { color: #555; }
+    </style>
+  </head>
+  <body>
+    <h1>Instagram link test</h1>
+    <p id="where"></p>
+    <label>Profile <input id="username" value="instagram" autocapitalize="off" autocorrect="off" /></label>
+    <p>Tap one, look at Instagram, come back. Is there a white page to close?</p>
+    <button id="popup">1. As the app does today <small>(window.open in a popup)</small></button>
+    <a id="blank" target="_blank" rel="noopener noreferrer">2. Plain link, new window <small>(target _blank)</small></a>
+    <a id="self">3. Same window <small>(no target)</small></a>
+    <a id="scheme">4. Instagram app directly <small>(instagram://user?username=…)</small></a>
+    <a id="underscore" target="_blank" rel="noopener noreferrer">5. instagram.com/_u/… <small>(new window)</small></a>
+    <script>
+      document.getElementById('where').textContent =
+        navigator.standalone === true ? 'Running in the Home Screen app ✓' : 'Not the Home Screen app: add this preview to the Home Screen first';
+      const input = document.getElementById('username');
+      function update() {
+        const name = encodeURIComponent(input.value.trim() || 'instagram');
+        document.getElementById('blank').href = `https://www.instagram.com/${name}`;
+        document.getElementById('self').href = `https://www.instagram.com/${name}`;
+        document.getElementById('scheme').href = `instagram://user?username=${name}`;
+        document.getElementById('underscore').href = `https://www.instagram.com/_u/${name}`;
+      }
+      input.oninput = update;
+      update();
+      document.getElementById('popup').onclick = () => {
+        const name = encodeURIComponent(input.value.trim() || 'instagram');
+        window.open(`https://www.instagram.com/${name}`, 'unfollowism-profile',
+          'popup=yes,width=390,height=844,left=0,top=16,resizable=yes,scrollbars=yes');
+      };
+    </script>
+  </body>
+</html>
